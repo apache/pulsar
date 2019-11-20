@@ -20,16 +20,14 @@
 package org.apache.pulsar.packages.manager.storage.bk;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.distributedlog.AppendOnlyStreamReader;
-import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -40,7 +38,6 @@ import org.apache.pulsar.packages.manager.PackageStorageConfig;
 /**
  * Using bookKeeper to store the package and package metadata.
  */
-@Slf4j
 public class BKPackageStorage implements PackageStorage {
 
     private Namespace namespace;
@@ -91,103 +88,50 @@ public class BKPackageStorage implements PackageStorage {
         }
     }
 
-    @Override
-    public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    private CompletableFuture<DistributedLogManager> openLogAsync(String path) {
+        CompletableFuture<DistributedLogManager> logFuture = new CompletableFuture<>();
+
         CompletableFuture.runAsync(() -> {
             try {
-                writeSync(path, inputStream);
-                future.complete(null);
+                logFuture.complete(namespace.openLog(path));
             } catch (IOException e) {
-                future.completeExceptionally(e);
+                logFuture.completeExceptionally(e);
             }
         });
-        return future;
+        return logFuture;
     }
 
-    private void writeSync(String path, InputStream inputStream) throws IOException {
-        DistributedLogManager distributedLogManager = namespace.openLog(path);
-        AppendOnlyStreamWriter writer = distributedLogManager.getAppendOnlyStreamWriter();
-        try (OutputStream outputStream = new DLOutputStream(distributedLogManager, writer)) {
-            int read = 0;
-            byte[] bytes = new byte[1024];
-            while ((read = inputStream.read(bytes)) != -1) {
-                outputStream.write(bytes, 0, read);
-            }
-            outputStream.flush();
-        }
+    @Override
+    public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
+        return openLogAsync(path)
+            .thenCompose(DLOutputStream::openWriterAsync)
+            .thenCompose(dlOutputStream -> dlOutputStream.writeAsync(inputStream))
+            .thenCompose(DLOutputStream::closeAsync);
     }
+
 
     @Override
     public CompletableFuture<Void> writeAsync(String path, byte[] data) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                writeSync(path, data);
-                future.complete(null);
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
-    private void writeSync(String path, byte[] data) throws IOException {
-        try (DistributedLogManager dlm = namespace.openLog(path)) {
-            try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()) {
-                writer.write(data);
-                writer.force(false);
-            }
-        }
+        return openLogAsync(path)
+            .thenCompose(DLOutputStream::openWriterAsync)
+            .thenCompose(dlOutputStream -> dlOutputStream.writeAsync(data))
+            .thenCompose(DLOutputStream::closeAsync);
     }
 
     @Override
     public CompletableFuture<Void> readAsync(String path, OutputStream outputStream) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                readSync(path, outputStream);
-                future.complete(null);
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
-    private void readSync(String path, OutputStream outputStream) throws IOException {
-        DistributedLogManager distributedLogManager = namespace.openLog(path);
-        try (InputStream inputStream = new DLInputStream(distributedLogManager)) {
-            int read = 0;
-            byte[] bytes = new byte[1024];
-            while ((read = inputStream.read(bytes)) != -1) {
-                outputStream.write(bytes, 0, read);
-            }
-            outputStream.flush();
-        }
+        return openLogAsync(path)
+            .thenCompose(DLInputStream::openReaderAsync)
+            .thenCompose(dlInputStream -> dlInputStream.readAsync(outputStream))
+            .thenCompose(DLInputStream::closeAsync);
     }
 
     @Override
     public CompletableFuture<byte[]> readAsync(String path) {
-        CompletableFuture<byte[]> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                future.complete(readSync(path));
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
-    private byte[] readSync(String path) throws IOException {
-        try (DistributedLogManager dlm = namespace.openLog(path)) {
-            try (AppendOnlyStreamReader reader = dlm.getAppendOnlyStreamReader()) {
-                byte[] bytes = new byte[reader.available()];
-                reader.read(bytes);
-                return bytes;
-            }
-        }
+        return openLogAsync(path)
+            .thenCompose(DLInputStream::openReaderAsync)
+            .thenCompose(DLInputStream::readAsync)
+            .thenCompose(DLInputStream.ByteResult::getResult);
     }
 
     @Override
@@ -236,11 +180,7 @@ public class BKPackageStorage implements PackageStorage {
         return future;
     }
 
-    public void close() {
-        this.namespace.close();
-    }
-
     public CompletableFuture<Void> closeAsync() {
-        return CompletableFuture.runAsync(this::close);
+        return CompletableFuture.runAsync(() -> this.namespace.close());
     }
 }

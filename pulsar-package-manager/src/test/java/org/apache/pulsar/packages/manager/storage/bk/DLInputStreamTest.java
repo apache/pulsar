@@ -18,22 +18,23 @@
  */
 package org.apache.pulsar.packages.manager.storage.bk;
 
-import static com.google.common.base.Charsets.UTF_8;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.*;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.fail;
 
-import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
+import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.DistributedLogManager;
-import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
 /**
@@ -46,60 +47,121 @@ public class DLInputStreamTest {
      */
     @Test
     public void testReadEos() throws Exception {
+        // mock class
         DistributedLogManager dlm = mock(DistributedLogManager.class);
-        LogReader reader = mock(LogReader.class);
-        when(dlm.getInputStream(any(DLSN.class))).thenReturn(reader);
-        when(reader.readNext(anyBoolean())).thenThrow(new EndOfStreamException("eos"));
+        AsyncLogReader reader = mock(AsyncLogReader.class);
 
-        byte[] b = new byte[1];
-        DLInputStream in = new DLInputStream(dlm);
-        assertEquals("Should return 0 when reading an empty eos stream",
-            0, in.read(b, 0, 1));
-        assertEquals("Should return -1 when reading an empty eos stream",
-            -1, in.read(b, 0, 1));
-    }
+        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
+        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
+        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
 
-    /**
-     * Test Case: close the input stream
-     */
-    @Test
-    public void testClose() throws Exception {
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        LogReader reader = mock(LogReader.class);
-        when(dlm.getInputStream(any(DLSN.class))).thenReturn(reader);
-
-        DLInputStream in = new DLInputStream(dlm);
-        verify(dlm, times(1)).getInputStream(eq(DLSN.InitialDLSN));
-        in.close();
-        verify(dlm, times(1)).close();
-        verify(reader, times(1)).close();
-    }
-
-    /**
-     * Test Case: read records from the input stream.
-     */
-    @Test
-    public void testRead() throws Exception {
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        LogReader reader = mock(LogReader.class);
-        when(dlm.getInputStream(any(DLSN.class))).thenReturn(reader);
-
-        byte[] data = "test-read".getBytes(UTF_8);
-        LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
-        when(record.getPayLoadInputStream())
-            .thenReturn(new ByteArrayInputStream(data));
-        when(reader.readNext(anyBoolean()))
-            .thenReturn(record)
-            .thenThrow(new EndOfStreamException("eos"));
-
-        DLInputStream in = new DLInputStream(dlm);
-        int numReads = 0;
-        int readByte;
-        while ((readByte = in.read()) != -1) {
-            assertEquals(data[numReads], readByte);
-            ++numReads;
+        // test code
+        OutputStream outputStream = new ByteArrayOutputStream();
+        try {
+            DLInputStream.openReaderAsync(dlm)
+                .thenCompose(d -> d.readAsync(outputStream))
+                .thenCompose(DLInputStream::closeAsync).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof EndOfStreamException) {
+                // no-op
+            } else {
+                fail(e.getMessage());
+            }
         }
-        assertEquals(data.length, numReads);
+
+        verify(dlm, times(1)).openAsyncLogReader(eq(DLSN.InitialDLSN));
+        verify(reader, times(1)).readBulk(eq(10));
+        verify(reader, times(1)).asyncClose();
+        verify(dlm, times(1)).asyncClose();
     }
 
+
+    /**
+     * Test Case: read records from the input stream. And output it to a output stream.
+     */
+    @Test
+    public void testReadToOutputStream() {
+        // mock classes
+        DistributedLogManager dlm = mock(DistributedLogManager.class);
+        AsyncLogReader reader = mock(AsyncLogReader.class);
+
+        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
+        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
+        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+
+        // prepare test data
+        byte[] data = "test-read".getBytes();
+        LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
+        List<LogRecordWithDLSN> records = new ArrayList<LogRecordWithDLSN>();
+        records.add(record);
+
+        when(record.getPayload()).thenReturn(data);
+        when(reader.readBulk(anyInt()))
+            .thenReturn(CompletableFuture.completedFuture(records))
+            .thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
+
+
+        // test code
+        OutputStream outputStream = new ByteArrayOutputStream();
+        try {
+            DLInputStream.openReaderAsync(dlm)
+                .thenCompose(d -> d.readAsync(outputStream))
+                .thenCompose(DLInputStream::closeAsync).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof EndOfStreamException) {
+                // no-op
+            } else {
+                fail(e.getMessage());
+            }
+        }
+
+        byte[] result = ((ByteArrayOutputStream) outputStream).toByteArray();
+        assertEquals("test-read", new String(result));
+
+    }
+
+    /**
+     * Test Case: read records from the input stream. And output it to a byte array.
+     */
+    @Test
+    public void testReadToByteArray() throws Exception {
+        // mock classes
+        DistributedLogManager dlm = mock(DistributedLogManager.class);
+        AsyncLogReader reader = mock(AsyncLogReader.class);
+
+        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
+        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
+        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+
+        // prepare test data
+        byte[] data = "test-read".getBytes();
+        LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
+        List<LogRecordWithDLSN> records = new ArrayList<LogRecordWithDLSN>();
+        records.add(record);
+
+        when(record.getPayload()).thenReturn(data);
+        when(reader.readBulk(anyInt()))
+            .thenReturn(CompletableFuture.completedFuture(records))
+            .thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
+
+
+        // test code
+        byte[] result = new byte[0];
+        try {
+            result = DLInputStream.openReaderAsync(dlm)
+                .thenCompose(DLInputStream::readAsync)
+                .thenCompose(DLInputStream.ByteResult::getResult).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof EndOfStreamException) {
+                // no-op
+            } else {
+                fail(e.getMessage());
+            }
+        }
+
+        assertEquals("test-read", new String(result));
+    }
 }
