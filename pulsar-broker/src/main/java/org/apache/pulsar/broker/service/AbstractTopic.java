@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -44,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.MoreObjects;
 
 public abstract class AbstractTopic implements Topic {
@@ -228,7 +227,7 @@ public abstract class AbstractTopic implements Topic {
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
-    protected void setSchemaCompatibilityStrategy(Policies policies) {
+    protected void setSchemaCompatibilityStrategy (Policies policies) {
         if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
                     policies.schema_auto_update_compatibility_strategy);
@@ -236,7 +235,6 @@ public abstract class AbstractTopic implements Topic {
             schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         }
     }
-
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
             .quantile(0.0)
             .quantile(0.50)
@@ -252,19 +250,19 @@ public abstract class AbstractTopic implements Topic {
         this.publishRateLimiter.checkPublishRate();
     }
 
-    @Override
+     @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
         this.publishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
     }
 
-    @Override
+     @Override
     public void resetPublishCountAndEnableReadIfRequired() {
         if (this.publishRateLimiter.resetPublishCount()) {
             enableProducerRead();
         }
     }
 
-    /**
+     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
     protected void enableProducerRead() {
@@ -305,7 +303,7 @@ public abstract class AbstractTopic implements Topic {
             canOverwrite = true;
         }
         if (canOverwrite) {
-            if (!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
+            if(!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
                 throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
                         + "' replace concurrency error");
@@ -318,27 +316,27 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    private boolean isUserProvidedProducerName(Producer producer) {
+    private boolean isUserProvidedProducerName(Producer producer){
         //considered replicator producer as generated name producer
         return producer.isUserProvidedProducerName() && !producer.getProducerName().startsWith(replicatorPrefix);
     }
 
     protected abstract void handleProducerRemoved(Producer producer);
 
-    @Override
+     @Override
     public boolean isPublishRateExceeded() {
         return this.publishRateLimiter.isPublishRateExceeded();
     }
 
-    public PublishRateLimiter getPublishRateLimiter() {
+     public PublishRateLimiter getPublishRateLimiter() {
         return publishRateLimiter;
     }
 
-    public void updateMaxPublishRate(Policies policies) {
+     public void updateMaxPublishRate(Policies policies) {
         updatePublishDispatcher(policies);
     }
 
-    private void updatePublishDispatcher(Policies policies) {
+     private void updatePublishDispatcher(Policies policies) {
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
         final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
