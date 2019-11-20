@@ -41,8 +41,7 @@ class TxnMetaImpl implements TxnMeta {
 
     private final TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
-    private final Set<String> ackedPartitions = new HashSet<>();
-    private final Set<TxnSubscription> subscriptions = new HashSet<>();
+    private final Set<TxnSubscription> ackedPartitions = new HashSet<>();
     private TxnStatus txnStatus;
 
     TxnMetaImpl(TxnID txnID) {
@@ -76,33 +75,22 @@ class TxnMetaImpl implements TxnMeta {
         return returnedPartitions;
     }
 
-    @Override
-    public List<TxnSubscription> txnSubscription() {
+    public List<TxnSubscription> ackedPartitions() {
         List<TxnSubscription> returnedSubscriptions;
         synchronized (this) {
-            returnedSubscriptions = new ArrayList<>(subscriptions.size());
-            returnedSubscriptions.addAll(subscriptions);
+            returnedSubscriptions = new ArrayList<>(ackedPartitions.size());
+            returnedSubscriptions.addAll(ackedPartitions);
         }
         return returnedSubscriptions;
-    }
-
-    @Override
-    public List<String> ackedPartitions() {
-        List<String> returnedPartitions;
-        synchronized (this) {
-            returnedPartitions = new ArrayList<>(ackedPartitions.size());
-            returnedPartitions.addAll(ackedPartitions);
-        }
-        Collections.sort(returnedPartitions);
-        return returnedPartitions;
     }
 
     /**
      * Check if the transaction is in an expected status.
      *
-     * @param expectedStatus
+     * @param expectedStatus the transaction current status
      */
-    private synchronized void checkTxnStatus(TxnStatus expectedStatus) throws InvalidTxnStatusException {
+    @Override
+    public synchronized void checkTxnStatus(TxnStatus expectedStatus) throws InvalidTxnStatusException {
         if (this.txnStatus != expectedStatus) {
             throw new InvalidTxnStatusException(
                 txnID, expectedStatus, txnStatus
@@ -115,7 +103,7 @@ class TxnMetaImpl implements TxnMeta {
      *
      * @param partitions the list of partitions that the txn produces to
      * @return the transaction itself.
-     * @throws CoordinatorException
+     * @throws CoordinatorException {@link CoordinatorException}
      */
     @Override
     public synchronized TxnMetaImpl addProducedPartitions(List<String> partitions) throws InvalidTxnStatusException {
@@ -126,22 +114,7 @@ class TxnMetaImpl implements TxnMeta {
     }
 
     @Override
-    public TxnMeta addTxnSubscription(List<TxnSubscription> subscriptions) throws InvalidTxnStatusException {
-        checkTxnStatus(TxnStatus.OPEN);
-
-        this.subscriptions.addAll(subscriptions);
-        return this;
-    }
-
-    /**
-     * Remove the list partitions that the transaction acknowledges to.
-     *
-     * @param partitions the list of partitions that the txn acknowledges to
-     * @return the transaction itself.
-     * @throws CoordinatorException
-     */
-    @Override
-    public synchronized TxnMetaImpl addAckedPartitions(List<String> partitions) throws InvalidTxnStatusException {
+    public synchronized TxnMeta addAckedPartitions(List<TxnSubscription> partitions) throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
 
         this.ackedPartitions.addAll(partitions);
@@ -169,7 +142,5 @@ class TxnMetaImpl implements TxnMeta {
         this.txnStatus = newStatus;
         return this;
     }
-
-
 
 }

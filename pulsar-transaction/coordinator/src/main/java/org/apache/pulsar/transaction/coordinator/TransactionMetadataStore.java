@@ -50,7 +50,7 @@ public interface TransactionMetadataStore {
      *         it returns {@link TxnStatus} of the given transaction.
      */
     default CompletableFuture<TxnStatus> getTxnStatus(TxnID txnID) {
-        return getTxnMeta(txnID).thenApply(txnMeta -> txnMeta.status());
+        return getTxnMetaAsync(txnID).thenApply(TxnMeta::status);
     }
 
     /**
@@ -60,7 +60,7 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of this operation.
      *         it returns {@link TxnMeta} of the given transaction.
      */
-    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID);
+    CompletableFuture<TxnMeta> getTxnMetaAsync(TxnID txnID);
 
     /**
      * Create a new transaction in the transaction metadata store.
@@ -69,7 +69,7 @@ public interface TransactionMetadataStore {
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransaction();
+    CompletableFuture<TxnID> newTransactionAsync();
 
     /**
      * Create a new transaction in the transaction metadata store.
@@ -79,7 +79,7 @@ public interface TransactionMetadataStore {
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransaction(long timeOut);
+    CompletableFuture<TxnID> newTransactionAsync(long timeOut);
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnId</tt>.
@@ -88,7 +88,7 @@ public interface TransactionMetadataStore {
      * @param partitions the list of partitions that a transaction produces to
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> addProducedPartitionToTxn(
+    CompletableFuture<Void> addProducedPartitionToTxnAsync(
         TxnID txnID, List<String> partitions);
 
     /**
@@ -98,18 +98,8 @@ public interface TransactionMetadataStore {
      * @param txnSubscriptions the list of subscriptions that a transaction ack to
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> addAckedSubscriptionToTxn(
+    CompletableFuture<Void> addAckedPartitionToTxnAsync(
             TxnID txnID, List<TxnSubscription> txnSubscriptions);
-
-    /**
-     * Add the acked partitions to transaction identified by <tt>txnId</tt>.
-     *
-     * @param txnID {@link TxnID} for add acked partition
-     * @param partitions the list of partitions that a transaction acknowledge to
-     * @return a future represents the result of the operation
-     */
-    CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnID, List<String> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.
@@ -122,7 +112,7 @@ public interface TransactionMetadataStore {
      * @param expectedStatus the expected status that the transaction should be
      * @return a future represents the result of the operation
      */
-    CompletableFuture<Void> updateTxnStatus(
+    CompletableFuture<Void> updateTxnStatusAsync(
         TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
@@ -131,21 +121,5 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
-
-    /**
-     * Update the {@link State}.
-     *
-     * @param state the transaction metadata store state {@link State}
-     * @return a future represents the result of this operation
-     */
-    CompletableFuture<Void> updateMetadataStoreState(State state);
-
-    /**
-     * Set the txn sequenceId.
-     *
-     * @param sequenceId the transaction sequenceId for new transaction Id
-     * @return a future represents the result of this operation
-     */
-    CompletableFuture<Void> setTxnSequenceId(long sequenceId);
 
 }

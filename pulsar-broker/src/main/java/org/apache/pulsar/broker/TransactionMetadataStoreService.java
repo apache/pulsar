@@ -24,6 +24,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorException.NotFoundException(tcId));
         }
-        return store.newTransaction();
+        return store.newTransactionAsync();
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -83,16 +84,16 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorException.NotFoundException(tcId));
         }
-        return store.addProducedPartitionToTxn(txnId, partitions);
+        return store.addProducedPartitionToTxnAsync(txnId, partitions);
     }
 
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<String> partitions) {
+    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<TxnSubscription> partitions) {
         TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorException.NotFoundException(tcId));
         }
-        return store.addAckedPartitionToTxn(txnId, partitions);
+        return store.addAckedPartitionToTxnAsync(txnId, partitions);
     }
 
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnId) {
@@ -101,7 +102,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorException.NotFoundException(tcId));
         }
-        return store.getTxnMeta(txnId);
+        return store.getTxnMetaAsync(txnId);
     }
 
     private TransactionCoordinatorID getTcIdFromTxnId(TxnID txnId) {

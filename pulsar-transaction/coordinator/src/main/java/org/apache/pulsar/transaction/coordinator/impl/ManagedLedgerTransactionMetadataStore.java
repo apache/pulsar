@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -39,7 +39,10 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
+import org.apache.pulsar.transaction.coordinator.exceptions.TxnStoreStateUpdateException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.util.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,53 +52,61 @@ import org.slf4j.LoggerFactory;
  */
 public class ManagedLedgerTransactionMetadataStore implements TransactionMetadataStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
-    private AtomicLong sequenceId;
-    private final ManagedLedgerTransactionReader reader;
-    private final ManagedLedgerTransactionWriter writer;
-    protected static final long TC_ID_NOT_USED = -1L;
+    private AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
+    private final ManagedLedgerTransactionLog transactionLog;
+    private static final long TC_ID_NOT_USED = -1L;
     private volatile State state;
-
-    public State getState() {
-        return state;
-    }
+    private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
 
     public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
                                                  ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
         this.state = State.NONE;
-        this.writer = new ManagedLedgerTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
-        this.reader = new ManagedLedgerTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
-        this.reader.init(this);
+        this.transactionLog = new ManagedLedgerTransactionLogImpl(tcID.getId(), managedLedgerFactory, this);
+        this.transactionLog.init();
+    }
+
+    ConcurrentMap<TxnID, TxnMeta> getTxnMetaMap() {
+        return txnMetaMap;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+
+    public AtomicLong getSequenceId() {
+        return sequenceId;
     }
 
     @Override
     public CompletableFuture<TxnStatus> getTxnStatus(TxnID txnID) {
-        return CompletableFuture.completedFuture(reader.getTxnStatus(txnID));
+        return CompletableFuture.completedFuture(txnMetaMap.get(txnID).status());
     }
 
     @Override
-    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID) {
-        return CompletableFuture.completedFuture(reader.getTxnMeta(txnID));
+    public CompletableFuture<TxnMeta> getTxnMetaAsync(TxnID txnID) {
+        return CompletableFuture.completedFuture(txnMetaMap.get(txnID));
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction() {
+    public CompletableFuture<TxnID> newTransactionAsync() {
         return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction(long timeOut) {
-        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
+    public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
+        if (state != State.READY) {
+            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
+                    + state.name() + " when new transaction with tcId : " + tcID));
+        }
         long mostSigBits = tcID.getId();
-        long leastSigBits = sequenceId.getAndIncrement();
+        long leastSigBits = sequenceId.incrementAndGet();
 
-        TxnID txnID = new TxnID(
-                mostSigBits,
-                leastSigBits
-        );
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         long currentTimeMillis = System.currentTimeMillis();
         TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                 .newBuilder()
@@ -106,123 +117,146 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                 .setMetadataOp(TransactionMetadataOp.NEW)
                 .setLastModificationTime(currentTimeMillis)
                 .build();
-        CompletableFuture completableFuture = new CompletableFuture();
-        writer.write(transactionMetadataEntry)
-                .thenCompose(txn -> {
-                    reader.addNewTxn(new TxnMetaImpl(txnID));
+        CompletableFuture<TxnID> completableFuture = new CompletableFuture<>();
+        transactionLog.write(transactionMetadataEntry)
+                .whenComplete((v, e) -> {
+                    if (e == null) {
+                        txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                        completableFuture.complete(txnID);
+                    } else {
+                        completableFuture.completeExceptionally(e);
+                    }
                     transactionMetadataEntry.recycle();
-                    completableFuture.complete(txnID);
-                    return null;
-                }).exceptionally(e -> {
-                    LOGGER.error("Transaction-log new transaction error", e);
-                    completableFuture.completeExceptionally(e);
-                    return null;
                 });
         return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnID, List<String> partitions) {
-        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
-        return getTxnMeta(txnID).thenCompose(txn -> {
-            checkArgument(txn != null);
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
-                    .setTxnidMostBits(txnID.getMostSigBits())
-                    .setTxnidLeastBits(txnID.getLeastSigBits())
-                    .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
-                    .addAllPartitions(partitions)
-                    .setLastModificationTime(System.currentTimeMillis())
-                    .build();
+    public CompletableFuture<Void> addProducedPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
+        if (state != State.READY) {
+            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
+                    + state.name() + " when add have produced partition with txnID : " + txnID));
+        }
+        return getTxnMetaAsync(txnID).thenCompose(txn -> {
+            if (txn == null) {
+                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+            } else {
+                TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
+                        .newBuilder()
+                        .setTxnidMostBits(txnID.getMostSigBits())
+                        .setTxnidLeastBits(txnID.getLeastSigBits())
+                        .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
+                        .addAllPartitions(partitions)
+                        .setLastModificationTime(System.currentTimeMillis())
+                        .build();
 
-            return writer.write(transactionMetadataEntry)
-                    .thenCompose(v -> {
-                        try {
-                            txn.addProducedPartitions(partitions);
-                            transactionMetadataEntry.recycle();
-                            return CompletableFuture.completedFuture(null);
-                        } catch (InvalidTxnStatusException e) {
-                            LOGGER.error("TxnID : " + txn.id().toString()
-                                    + " add produced partition error with TxnStatus : "
-                                    + txn.status().name(), e);
-                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                            completableFuture.completeExceptionally(e);
-                            transactionMetadataEntry.recycle();
-                            return completableFuture;
-                        }
-                    });
+                return transactionLog.write(transactionMetadataEntry)
+                        .thenCompose(v -> {
+                            try {
+                                txn.addProducedPartitions(partitions);
+                                transactionMetadataEntry.recycle();
+                                return CompletableFuture.completedFuture(null);
+                            } catch (InvalidTxnStatusException e) {
+                                LOGGER.error("TxnID : " + txn.id().toString()
+                                        + " add produced partition error with TxnStatus : "
+                                        + txn.status().name(), e);
+                                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                                completableFuture.completeExceptionally(e);
+                                transactionMetadataEntry.recycle();
+                                return completableFuture;
+                            }
+                        });
+            }
         });
     }
 
     @Override
-    public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
-        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
-        return getTxnMeta(txnID).thenCompose(txn -> {
-            checkArgument(txn != null);
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
-                    .setTxnidMostBits(txnID.getMostSigBits())
-                    .setTxnidLeastBits(txnID.getLeastSigBits())
-                    .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
-                    .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
-                    .setLastModificationTime(System.currentTimeMillis())
-                    .build();
+    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
+        if (state != State.READY) {
+            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
+                    + state.name() + " when add acked partition with txnID : " + txnID));
+        }
+        return getTxnMetaAsync(txnID).thenCompose(txn -> {
+            if (txn == null) {
+                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+            } else {
+                TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
+                        .newBuilder()
+                        .setTxnidMostBits(txnID.getMostSigBits())
+                        .setTxnidLeastBits(txnID.getLeastSigBits())
+                        .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
+                        .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
+                        .setLastModificationTime(System.currentTimeMillis())
+                        .build();
 
-            return writer.write(transactionMetadataEntry)
-                    .thenCompose(txnMeta -> {
-                        try {
-                            txn.addTxnSubscription(txnSubscriptions);
-                            transactionMetadataEntry.recycle();
-                            return CompletableFuture.completedFuture(null);
-                        } catch (InvalidTxnStatusException e) {
-                            LOGGER.error("TxnID : " + txn.id().toString()
-                                    + " add acked subscription error with TxnStatus : "
-                                    + txn.status().name(), e);
-                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                            completableFuture.completeExceptionally(e);
-                            transactionMetadataEntry.recycle();
-                            return completableFuture;
-                        }
-                    });
+                return transactionLog.write(transactionMetadataEntry)
+                        .thenCompose(txnMeta -> {
+                            try {
+                                txn.addAckedPartitions(txnSubscriptions);
+                                transactionMetadataEntry.recycle();
+                                return CompletableFuture.completedFuture(null);
+                            } catch (InvalidTxnStatusException e) {
+                                LOGGER.error("TxnID : " + txn.id().toString()
+                                        + " add acked subscription error with TxnStatus : "
+                                        + txn.status().name(), e);
+                                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                                completableFuture.completeExceptionally(e);
+                                transactionMetadataEntry.recycle();
+                                return completableFuture;
+                            }
+                        });
+            }
         });
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnID, List<String> partitions) {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
-
-    }
-
-    @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
-        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
-        return getTxnMeta(txnID).thenCompose(txn -> {
-            checkArgument(txn != null);
-            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                    .newBuilder()
-                    .setTxnidMostBits(txnID.getMostSigBits())
-                    .setTxnidLeastBits(txnID.getLeastSigBits())
-                    .setExpectedStatus(expectedStatus)
-                    .setMetadataOp(TransactionMetadataOp.UPDATE)
-                    .setLastModificationTime(System.currentTimeMillis())
-                    .setNewStatus(newStatus)
-                    .build();
-            return writer.write(transactionMetadataEntry)
-                    .thenCompose(txnMeta -> {
-                        try {
-                            txn.updateTxnStatus(newStatus, expectedStatus);
-                            transactionMetadataEntry.recycle();
-                            return CompletableFuture.completedFuture(null);
-                        } catch (InvalidTxnStatusException e) {
-                            LOGGER.error("TxnID : " + txn.id().toString()
-                                    + " add update txn status error with TxnStatus : "
-                                    + txn.status().name(), e);
-                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                            completableFuture.completeExceptionally(e);
-                            transactionMetadataEntry.recycle();
-                            return completableFuture;
-                        }
-                    });
+    public CompletableFuture<Void> updateTxnStatusAsync(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
+        if (state != State.READY) {
+            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
+                    + state.name() + " when update txn status with txnID : " + txnID));
+        }
+        return getTxnMetaAsync(txnID).thenCompose(txn -> {
+            if (txn == null) {
+                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+            } else {
+                synchronized (txn) {
+                    try {
+                        txn.checkTxnStatus(expectedStatus);
+                    } catch (InvalidTxnStatusException e) {
+                        return FutureUtil.failedFuture(e);
+                    }
+                    if (!TransactionUtil.canTransitionTo(txn.status(), newStatus)) {
+                        return FutureUtil.failedFuture(new InvalidTxnStatusException(
+                                "Transaction `" + txnID + "` CANNOT transaction from status "
+                                        + txn.status() + " to " + newStatus));
+                    }
+                TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
+                        .newBuilder()
+                        .setTxnidMostBits(txnID.getMostSigBits())
+                        .setTxnidLeastBits(txnID.getLeastSigBits())
+                        .setExpectedStatus(expectedStatus)
+                        .setMetadataOp(TransactionMetadataOp.UPDATE)
+                        .setLastModificationTime(System.currentTimeMillis())
+                        .setNewStatus(newStatus)
+                        .build();
+                    return transactionLog.write(transactionMetadataEntry)
+                            .thenCompose(txnMeta -> {
+                                try {
+                                    txn.updateTxnStatus(newStatus, expectedStatus);
+                                    transactionMetadataEntry.recycle();
+                                    return CompletableFuture.completedFuture(null);
+                                } catch (InvalidTxnStatusException e) {
+                                    LOGGER.error("TxnID : " + txn.id().toString()
+                                            + " add update txn status error with TxnStatus : "
+                                            + txn.status().name(), e);
+                                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                                    completableFuture.completeExceptionally(e);
+                                    transactionMetadataEntry.recycle();
+                                    return completableFuture;
+                                }
+                            });
+                }
+            }
         });
     }
 
@@ -230,40 +264,52 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture completableFuture = new CompletableFuture();
         try {
-            this.reader.close();
-            this.writer.close();
+            transactionLog.close();
+            this.updateMetadataStoreState(State.CLOSE);
         } catch (Exception e) {
-            completableFuture.completeExceptionally(e);
-        }
-        completableFuture.complete(null);
-        this.updateMetadataStoreState(State.CLOSE);
-        return completableFuture;
-    }
-
-    @Override
-    public CompletableFuture<Void> updateMetadataStoreState(State state) {
-        this.state = state;
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public CompletableFuture<Void> setTxnSequenceId(long sequenceId) {
-        if (reader.readSequenceId() == TC_ID_NOT_USED) {
-            this.sequenceId = new AtomicLong(0L);
-        } else {
-            this.sequenceId = new AtomicLong(reader.readSequenceId() + 1L);
+            return FutureUtil.failedFuture(e);
         }
         return CompletableFuture.completedFuture(null);
     }
 
-    protected static List<Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
+    void updateMetadataStoreState(State state) throws TxnStoreStateUpdateException {
+        switch (state) {
+            case NONE:
+                if (!this.state.equals(State.NONE)) {
+                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+                }
+                this.state = state;
+                break;
+            case INITIALIZING:
+                if (!this.state.equals(State.NONE)) {
+                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+                }
+                this.state = state;
+                break;
+            case READY:
+                if (!this.state.equals(State.INITIALIZING)) {
+                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+                }
+                this.state = state;
+                break;
+            case CLOSE:
+                if (this.state.equals(State.CLOSE)) {
+                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+                }
+                this.state = state;
+                break;
+            default:
+                throw new TxnStoreStateUpdateException("Unknown state the transaction store to be change");
+        }
+    }
+
+    private static List<Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
         List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
-        for (int i = 0; i < tnxSubscriptions.size(); i++) {
+        for (TxnSubscription tnxSubscription : tnxSubscriptions) {
             Subscription subscription = Subscription.newBuilder()
-                    .setSubscription(tnxSubscriptions.get(i).getSubscription())
-                    .setTopic(tnxSubscriptions.get(i).getTopic()).build();
+                    .setSubscription(tnxSubscription.getSubscription())
+                    .setTopic(tnxSubscription.getTopic()).build();
             subscriptions.add(subscription);
         }
         return subscriptions;
@@ -272,57 +318,17 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     /**
      * A reader for read transaction metadata.
      */
-    protected interface ManagedLedgerTransactionReader {
+    protected interface ManagedLedgerTransactionLog {
 
         /**
-         * Query the {@link TxnMeta} of a given transaction <tt>txnID</tt>.
-         *
-         * @param txnID transaction id
-         * @return {@link TxnMeta}
+         * Init the managedLedger log.
          */
-        TxnMeta getTxnMeta(TxnID txnID);
+        void init();
 
         /**
-         * Get the last sequenceId for new {@link TxnID}.
-         *
-         * @return {@link Long} for last sequenceId.
-         */
-        Long readSequenceId();
-
-        /**
-         * Add the new {@link TxnMeta} to the cache.
-         *
-         * @param txnMeta transaction metadata
-         */
-        void addNewTxn(TxnMeta txnMeta);
-
-        /**
-         * Get the transaction status from the {@link txnID}.
-         *
-         * @param txnID {@link TxnID}
-         * @return the {@link TxnStatus} corresponding transaction status.
-         */
-        TxnStatus getTxnStatus(TxnID txnID);
-
-        /**
-         * Init the managedLedger reader.
-         *
-         * @param transactionMetadataStore {@link TransactionMetadataStore}
-         *
-         * @return a future represents the result of this operation
-         */
-        CompletableFuture<Void> init(TransactionMetadataStore transactionMetadataStore);
-        /**
-         * Close the reader.
+         * Close the transaction log.
          */
         void close() throws ManagedLedgerException, InterruptedException;
-
-    }
-
-    /**
-     * A writer for write transaction metadata.
-     */
-    protected interface ManagedLedgerTransactionWriter {
 
         /**
          * Write the transaction operation to the transaction log.
@@ -332,10 +338,6 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
          */
         CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry);
 
-        /**
-         * Close the writer.
-         */
-        void close() throws ManagedLedgerException, InterruptedException;
     }
 }
 
