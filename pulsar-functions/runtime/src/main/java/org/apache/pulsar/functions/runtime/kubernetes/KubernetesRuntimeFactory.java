@@ -90,6 +90,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String logDirectory = "logs/functions";
     private Resources functionInstanceMinResources;
     private boolean authenticationEnabled;
+    private Integer grpcPort;
+    private Integer metricsPort;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -218,6 +220,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.authProvider = Optional.empty();
         }
+
+        this.grpcPort = factoryConfig.getGrpcPort();
+        this.metricsPort = factoryConfig.getMetricsPort();
     }
 
     @Override
@@ -278,6 +283,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             memoryOverCommitRatio,
             authProvider,
             authenticationEnabled,
+            grpcPort,
+            metricsPort,
             manifestCustomizer);
     }
 
