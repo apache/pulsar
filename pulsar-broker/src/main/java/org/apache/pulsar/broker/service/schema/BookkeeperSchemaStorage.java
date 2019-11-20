@@ -269,7 +269,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 createNewSchema(schemaId, data, hash)
                         .thenAccept(future::complete)
                         .exceptionally(ex -> {
-                            if (ex.getCause() instanceof NodeExistsException) {
+                            if (ex.getCause() instanceof NodeExistsException ||
+                                    ex.getCause() instanceof KeeperException.BadVersionException) {
                                 // There was a race condition on the schema creation. Since it has now been created,
                                 // retry the whole operation so that we have a chance to recover without bubbling error
                                 // back to producer/consumer

@@ -148,7 +148,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.9.2</bookkeeper.version>
+    <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.6</zookeeper.version>
     <netty.version>4.1.43.Final</netty.version>
     <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
@@ -195,14 +195,15 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>0.9.5.Final</debezium.version>
+    <debezium.version>0.10.0.Final</debezium.version>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
     <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
     <guava.version>25.1-jre</guava.version>
-    
+    <jcip.version>1.0</jcip.version>
+
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
@@ -1095,6 +1096,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
+      <dependency>
+        <groupId>net.jcip</groupId>
+        <artifactId>jcip-annotations</artifactId>
+        <version>${jcip.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1275,19 +1281,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site/vendor/**</exclude>
-            <exclude>site/scripts/doxygen/**</exclude>
-            <exclude>site/api/**</exclude>
-            <exclude>site/.sass-cache/**</exclude>
-            <exclude>site/generated/**</exclude>
-            <exclude>site/js/jquery.tocify.min.js</exclude>
-            <exclude>site/js/jquery.scrollTo.min.js</exclude>
-            <exclude>site/Gemfile.lock</exclude>
-            <exclude>site/VERSIONS</exclude>
-            <exclude>site/_sass/bootstrap-sass/**</exclude>
-            <exclude>site/_sass/font-awesome/**</exclude>
-            <exclude>site/fonts/**</exclude>
-            <exclude>site/img/**</exclude>
             <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
@@ -1435,6 +1428,29 @@ flexible messaging model and an intuitive client API.</description>
           </gitDescribe>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.0.0-M2</version>
+        <executions>
+            <execution>
+                <id>enforce-maven</id>
+                <goals>
+                    <goal>enforce</goal>
+                </goals>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[1.8.0,)</version>
+                        </requireJavaVersion>
+                        <requireMavenVersion>
+                            <version>[3.3.9,)</version>
+                        </requireMavenVersion>
+                    </rules>
+                </configuration>
+            </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -1505,7 +1521,7 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
-      </plugin>
+        </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>

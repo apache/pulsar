@@ -871,8 +871,10 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().createPartitionedTopic(partitionedTopicName, 32);
-            fail("Should have failed as the partitioned topic already exists");
-        } catch (ConflictException ce) {
+            fail("Should have failed as the partitioned topic exists with its partition created");
+        } catch (PreconditionFailedException e) {
+            // Expecting PreconditionFailedException instead of ConflictException as it'll
+            // fail validation before actually try to create metadata in ZK.
         }
 
         producer = client.newProducer(Schema.BYTES)
@@ -1453,8 +1455,10 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         topicName = "persistent://prop-xyz/use/ns1/" + topicName;
 
         // create consumer and subscription
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").startMessageIdInclusive()
+                .subscriptionType(SubscriptionType.Exclusive)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
@@ -1504,8 +1508,10 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         topicName = "persistent://prop-xyz/use/ns1/" + topicName;
 
         // create consumer and subscription
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").startMessageIdInclusive()
+                .subscriptionType(SubscriptionType.Exclusive)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
@@ -1575,8 +1581,10 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topicName, 4);
 
         // create consumer and subscription
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").startMessageIdInclusive()
+                .subscriptionType(SubscriptionType.Exclusive)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         List<String> topics = admin.topics().getList("prop-xyz/use/ns1");
         assertEquals(topics.size(), 4);

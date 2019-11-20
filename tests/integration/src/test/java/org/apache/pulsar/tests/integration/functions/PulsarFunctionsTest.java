@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
+import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -131,6 +132,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test
     public void testDebeziumPostgreSqlSource() throws Exception {
         testDebeziumPostgreSqlConnect();
+    }
+
+    @Test
+    public void testDebeziumMongoDbSource() throws Exception{
+        testDebeziumMongoDbConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -2141,6 +2147,62 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(postgreSqlContainer);
 
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
+
+        // wait for source to process messages
+        Failsafe.with(statusRetryPolicy).run(() ->
+                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, 9);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private  void testDebeziumMongoDbConnect() throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String sourceName = "test-source-connector-"
+                + functionRuntimeType + "-name-" + randomName(8);
+
+        // This is the binlog count that contained in mongodb container.
+        final int numMessages = 17;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        @Cleanup
+        DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
+
+        // setup debezium mongodb server
+        DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(mongoDbContainer);
         // prepare the testing environment for source
         prepareSource(sourceTester);
 

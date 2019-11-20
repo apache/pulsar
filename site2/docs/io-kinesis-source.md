@@ -39,10 +39,6 @@ The configuration of the Kinesis source connector has the following properties.
 
 Before using the Kinesis source connector, you need to create a configuration file through one of the following methods.
 
-
-### Property
-
-
 * JSON 
 
     ```json

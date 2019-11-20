@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class IntSchema extends AbstractSchema<Integer> {
 
-    public static IntSchema of() {
-        return INSTANCE;
-    }
-
     private static final IntSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class IntSchema extends AbstractSchema<Integer> {
             .setType(SchemaType.INT32)
             .setSchema(new byte[0]);
         INSTANCE = new IntSchema();
+    }
+
+    public static IntSchema of() {
+        return INSTANCE;
     }
 
     @Override

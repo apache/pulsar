@@ -70,6 +70,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, PartitionedBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
     virtual void negativeAcknowledge(const MessageId& msgId);
 

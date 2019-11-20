@@ -2096,7 +2096,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
     std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/notMatchPatternTopicsAutoConsumerPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
@@ -2106,7 +2106,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string url3 =
         adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/notMatchPatternTopicsAutoConsumerPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
