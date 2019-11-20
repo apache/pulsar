@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to debug Pulsar Functions · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Use unit test"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="How to debug Pulsar Functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## Use unit test"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>functions-debugging · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content=""/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="functions-debugging · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content=""/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,97 +18,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">How to debug Pulsar Functions</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="use-unit-test"></a><a href="#use-unit-test" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use unit test</h2>
-<p>A Pulsar Function at its core is just a function with inputs and outputs, thus testing a Pulsar Function can be done in a similar way as testing any function.</p>
-<p>For example, if a user has the following Pulsar Function:</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.function.Function;
-
-<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">JavaNativeExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
-   <span class="hljs-meta">@Override</span>
-   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{
-       <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
-   }
-}
-</code></pre>
-<p>The user can write a simple unit test to test this Pulsar function:</p>
-<pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
-<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testJavaNativeExclamationFunction</span><span class="hljs-params">()</span> </span>{
-   JavaNativeExclamationFunction exclamation = <span class="hljs-keyword">new</span> JavaNativeExclamationFunction();
-   String output = exclamation.apply(<span class="hljs-string">"foo"</span>);
-   Assert.assertEquals(output, <span class="hljs-string">"foo!"</span>);
-}
-</code></pre>
-<p>Consequently, if a user has a Pulsar Function that implements the <code>org.apache.pulsar.functions.api.Function</code> interface:</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
-<span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
-
-<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
-   <span class="hljs-meta">@Override</span>
-   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
-       <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
-   }
-}
-</code></pre>
-<p>The user can write a unit test for this function as well. Remember to mock out the <code>Context</code> parameter.</p>
-<p>For example:</p>
-<pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
-<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testExclamationFunction</span><span class="hljs-params">()</span> </span>{
-   ExclamationFunction exclamation = <span class="hljs-keyword">new</span> ExclamationFunction();
-   String output = exclamation.process(<span class="hljs-string">"foo"</span>, mock(Context<span class="hljs-class">.<span class="hljs-keyword">class</span>))</span>;
-   Assert.assertEquals(output, <span class="hljs-string">"foo!"</span>);
-}
-</code></pre>
-<h2><a class="anchor" aria-hidden="true" id="debug-with-localrun-mode"></a><a href="#debug-with-localrun-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Debug with localrun mode</h2>
-<blockquote>
-<p>Note</p>
-<p>Currently, debugging with localrun mode only supports Pulsar Functions written in Java. Users need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, it does not have the functionality to be executed programmatically and run Functions as threads.</p>
-</blockquote>
-<p>To test in a more realistic fashion, a Pulsar Function can be run via localrun mode which will launch an instance of the Function on your local machine as a thread.</p>
-<p>In this mode, the Pulsar Function can consume and produce actual data to a Pulsar cluster and mirrors how the function will actually run in a Pulsar cluster.</p>
-<p>Users can launch his or her function in the following manner:</p>
-<pre><code class="hljs css language-java">FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
-functionConfig.setName(functionName);
-functionConfig.setInputs(Collections.singleton(sourceTopic));
-functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
-functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-functionConfig.setOutput(sinkTopic);
-
-LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
-localRunner.start(<span class="hljs-keyword">true</span>);
-</code></pre>
-<p>This allows users to easily debug functions using an IDE. Users can set breakpoints and manually step through a function to debug with real data.</p>
-<p>The following code snippet is a more complete example on how to programmatically launch a function in localrun mode.</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
-
-   <span class="hljs-meta">@Override</span>
-   <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String s, Context context)</span> <span class="hljs-keyword">throws</span> Exception </span>{
-       <span class="hljs-keyword">return</span> s + <span class="hljs-string">"!"</span>;
-   }
-
-
-<span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">(String[] args)</span> <span class="hljs-keyword">throws</span> Exception </span>{
-    FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
-    functionConfig.setName(<span class="hljs-string">"exclamation"</span>);
-    functionConfig.setInputs(Collections.singleton(<span class="hljs-string">"input"</span>));
-    functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
-    functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-    functionConfig.setOutput(<span class="hljs-string">"output"</span>);
-
-    LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
-    localRunner.start(<span class="hljs-keyword">false</span>);
-}
-</code></pre>
-<p>To use localrun like above programmatically please addd the following dependency:</p>
-<pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-   <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-   <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-functions-local-runner<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-   <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>${pulsar.version}<span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
-<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
-
-</code></pre>
-<p>For complete code samples, see <a href="https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging">here</a></p>
-<p>In the future, debugging with localrun mode for Pulsar Functions written in other languages will be supported.</p>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#use-unit-test">Use unit test</a></li><li><a href="#debug-with-localrun-mode">Debug with localrun mode</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">functions-debugging</h1></header><article><div><span></span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

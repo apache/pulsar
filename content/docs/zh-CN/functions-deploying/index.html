@@ -153,7 +153,7 @@
 <blockquote>
 <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. <a href="/docs/zh-CN/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a>本质上是一种非常方便的机制用于向函数发送消息，而不需要使用<a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>工具或指定语言的客户端库。</p>
 </blockquote>
-<p>To show an example of function triggering, let's start with a simple <a href="functions-api.md#functions-for-python">Python function</a> that returns a simple string based on the input:</p>
+<p>To show an example of function triggering, let's start with a simple <a href="/docs/zh-CN/functions-api#functions-for-python">Python function</a> that returns a simple string based on the input:</p>
 <pre><code class="hljs css language-python"><span class="hljs-comment"># myfunc.py</span>
 <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"This function has been triggered with a value of {0}"</span>.format(input)

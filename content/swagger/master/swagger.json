@@ -4934,7 +4934,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "401" : {
@@ -8688,10 +8688,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9045,32 +9045,15 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "loadReportType" : {
+          "type" : "string"
         },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9078,8 +9061,25 @@
         "overLoaded" : {
           "type" : "boolean"
         },
-        "loadReportType" : {
-          "type" : "string"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -9247,13 +9247,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9948,13 +9948,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {

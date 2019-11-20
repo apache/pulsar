@@ -105,6 +105,8 @@
 </ul>
 <blockquote>
 <p>However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later), you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.</p>
+</blockquote>
+<blockquote>
 <p>If you don't have a DNS server, you can use multi-host in service URL instead.</p>
 </blockquote>
 <p>Each machine in your cluster will need to have <a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java 8</a> or higher installed.</p>
@@ -166,12 +168,11 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.4.1
 </ul></li>
 <li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
-<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.4.1/connectors/{connector}-2.4.1.nar</span>
+</code></pre></li>
 </ul>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.4.1/connectors/{connector}-2.4.1.nar</span>
-</code></pre>
-<p>Once the nar file is downloaded, copy the file to directory <code>connectors</code> in the pulsar directory,
-for example, if the connector file <code>pulsar-io-aerospike-2.4.1.nar</code> is downloaded:</p>
+<p>Once the nar file is downloaded, copy the file to directory <code>connectors</code> in the pulsar directory, for example, if the connector file <code>pulsar-io-aerospike-2.4.1.nar</code> is downloaded:</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
 $ mv pulsar-io-aerospike-2.4.1.nar connectors
 
@@ -191,12 +192,11 @@ pulsar-io-aerospike-2.4.1.nar
 </ul></li>
 <li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
-<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p></li>
+<li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.4.1/apache-pulsar-offloaders-2.4.1-bin.tar.gz</span>
+</code></pre></li>
 </ul>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.4.1/apache-pulsar-offloaders-2.4.1-bin.tar.gz</span>
-</code></pre>
-<p>Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code>
-in the pulsar directory:</p>
+<p>Once the tarball is downloaded, in the pulsar directory, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the pulsar directory:</p>
 <pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.4.1-bin.tar.gz
 
 // you will find a directory named `apache-pulsar-offloaders-2.4.1` <span class="hljs-keyword">in</span> the pulsar directory
@@ -274,33 +274,28 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <p>Once you've appropriately modified the <code>zkServers</code> parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters <a href="/docs/fr/reference-configuration#bookkeeper">here</a>, although we would recommend consulting the <a href="http://bookkeeper.apache.org/docs/latest/reference/config/">BookKeeper documentation</a> for a more in-depth guide.</p>
 <blockquote>
 <h5><a class="anchor" aria-hidden="true" id="notes"></a><a href="#notes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NOTES</h5>
-<p>Since Pulsar 2.1.0 release, Pulsar introduces <a href="functions-state.md">stateful function</a> for Pulsar Functions. If you would like to enable that feature, you need to enable table service on BookKeeper by setting following setting in <code>conf/bookkeeper.conf</code> file.</p>
-<pre><code class="hljs css language-conf"></code></pre>
+<p>Since Pulsar 2.1.0 release, Pulsar introduces <a href="/docs/fr/functions-develop#state-storage">stateful function</a> for Pulsar Functions. If you would like to enable that feature, you need to enable table service on BookKeeper by setting following setting in <code>conf/bookkeeper.conf</code> file.</p>
+<p><code>conf extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent</code></p>
 </blockquote>
-<p>extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent</p>
-<pre><code class="hljs">
-Once you've applied the desired configuration in <span class="hljs-code">`conf/bookkeeper.conf`</span>, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [<span class="hljs-string">nohup</span>](<span class="hljs-link">https://en.wikipedia.org/wiki/Nohup</span>), or in the foreground.
-
-To start the bookie in the background, use the [<span class="hljs-string">`pulsar-daemon`</span>](<span class="hljs-link">reference-cli-tools.md#pulsar-daemon</span>) CLI tool:
-
-<span class="hljs-code">```bash
-$ bin/pulsar-daemon start bookie
-</span></code></pre>
+<p>Once you've applied the desired configuration in <code>conf/bookkeeper.conf</code>, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
+<p>To start the bookie in the background, use the <a href="/docs/fr/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
+</code></pre>
 <p>To start the bookie in the foreground:</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper bookie
 </code></pre>
-<p>You can verify that a bookie is working properly by running the <code>bookiesanity</code> command for the <a href="reference-cli-tools.md#shell">BookKeeper shell</a> on it:</p>
+<p>You can verify that a bookie is working properly by running the <code>bookiesanity</code> command for the <a href="/docs/fr/reference-cli-tools#shell">BookKeeper shell</a> on it:</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
 </code></pre>
 <p>This will create an ephemeral BookKeeper ledger on the local bookie, write a few entries, read them back, and finally delete the ledger.</p>
-<p>After you have started all the bookies, you can use <code>simpletest</code> command for <a href="reference-cli-tools.md#shell">BookKeeper shell</a> on any bookie node, to verify all the bookies in the cluster are up running.</p>
+<p>After you have started all the bookies, you can use <code>simpletest</code> command for <a href="/docs/fr/reference-cli-tools#shell">BookKeeper shell</a> on any bookie node, to verify all the bookies in the cluster are up running.</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell simpletest --ensemble &lt;num-bookies&gt; --writeQuorum &lt;num-bookies&gt; --ackQuorum &lt;num-bookies&gt; --numEntries &lt;num-entries&gt;
 </code></pre>
 <p>This command will create a <code>num-bookies</code> sized ledger on the cluster, write a few entries, and finally delete the ledger.</p>
 <h2><a class="anchor" aria-hidden="true" id="deploying-pulsar-brokers"></a><a href="#deploying-pulsar-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying Pulsar brokers</h2>
 <p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running <strong>3 brokers</strong>, one for each machine that's already running a BookKeeper bookie.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuring-brokers"></a><a href="#configuring-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Brokers</h3>
-<p>The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the <a href="reference-configuration.md#broker-zookeeperServers"><code>zookeeperServers</code></a> and <a href="reference-configuration.md#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameters. In this case, since we only have 1 cluster and no configuration store setup, the <code>configurationStoreServers</code> will point to the same <code>zookeeperServers</code>.</p>
+<p>The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the <a href="/docs/fr/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a> and <a href="/docs/fr/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameters. In this case, since we only have 1 cluster and no configuration store setup, the <code>configurationStoreServers</code> will point to the same <code>zookeeperServers</code>.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
@@ -315,42 +310,36 @@ $ bin/pulsar-daemon start bookie
 </code></pre>
 <blockquote>
 <p>If you deploy Pulsar in a one-node cluster, you should update the replication settings in <code>conf/broker.conf</code> to <code>1</code></p>
-<pre><code class="hljs css language-properties"></code></pre>
+<pre><code class="hljs css language-properties"><span class="hljs-comment">
+# Number of bookies to use when creating a ledger</span>
+
+<span class="hljs-attr">managedLedgerDefaultEnsembleSize</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of copies to store for each message</span>
+
+<span class="hljs-attr">managedLedgerDefaultWriteQuorum</span>=<span class="hljs-string">1</span>
+<span class="hljs-comment">
+# Number of guaranteed copies (acks to wait before write is complete)</span>
+
+<span class="hljs-attr">managedLedgerDefaultAckQuorum</span>=<span class="hljs-string">1 ```</span>
+</code></pre>
 </blockquote>
-<h1><a class="anchor" aria-hidden="true" id="number-of-bookies-to-use-when-creating-a-ledger"></a><a href="#number-of-bookies-to-use-when-creating-a-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of bookies to use when creating a ledger</h1>
-<p>managedLedgerDefaultEnsembleSize=1</p>
-<h1><a class="anchor" aria-hidden="true" id="number-of-copies-to-store-for-each-message"></a><a href="#number-of-copies-to-store-for-each-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of copies to store for each message</h1>
-<p>managedLedgerDefaultWriteQuorum=1</p>
-<h1><a class="anchor" aria-hidden="true" id="number-of-guaranteed-copies-acks-to-wait-before-write-is-complete"></a><a href="#number-of-guaranteed-copies-acks-to-wait-before-write-is-complete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Number of guaranteed copies (acks to wait before write is complete)</h1>
-<p>managedLedgerDefaultAckQuorum=1</p>
-<pre><code class="hljs">
-<span class="hljs-section">### Enabling Pulsar Functions (optional)</span>
-
-If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/fr/functions-overview</span>), you can follow the instructions as below:
-<span class="hljs-bullet">
-1. </span>Edit <span class="hljs-code">`conf/broker.conf`</span> to enable functions worker, by setting <span class="hljs-code">`functionsWorkerEnabled`</span> to <span class="hljs-code">`true`</span>.
-
-<span class="hljs-code">    ```conf</span>
-<span class="hljs-code">    functionsWorkerEnabled=true</span>
-<span class="hljs-code">    ```</span>
-<span class="hljs-bullet">
-2. </span>Edit <span class="hljs-code">`conf/functions_worker.yml`</span> and set <span class="hljs-code">`pulsarFunctionsCluster`</span> to the cluster name that you provided when [<span class="hljs-string">initializing the cluster's metadata</span>](<span class="hljs-link">#initializing-cluster-metadata</span>). 
-
-<span class="hljs-code">    ```conf</span>
-<span class="hljs-code">    pulsarFunctionsCluster: pulsar-cluster-1</span>
-<span class="hljs-code">    ```</span>
-
-If you would like to learn more options about deploying functions worker, please checkout [<span class="hljs-string">Deploy and manage functions worker</span>](<span class="hljs-link">/docs/fr/functions-worker</span>).
-
-<span class="hljs-section">### Starting Brokers</span>
-
-You can then provide any other configuration changes that you'd like in the [<span class="hljs-string">`conf/broker.conf`</span>](<span class="hljs-link">/docs/fr/reference-configuration#broker</span>) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
-
-You can start a broker in the foreground using the [<span class="hljs-string">`pulsar broker`</span>](<span class="hljs-link">/docs/fr/reference-cli-tools#pulsar-broker</span>) command:
-
-<span class="hljs-code">```bash
-$ bin/pulsar broker
-</span></code></pre>
+<h3><a class="anchor" aria-hidden="true" id="enabling-pulsar-functions-optional"></a><a href="#enabling-pulsar-functions-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enabling Pulsar Functions (optional)</h3>
+<p>If you want to enable <a href="/docs/fr/functions-overview">Pulsar Functions</a>, you can follow the instructions as below:</p>
+<ol>
+<li><p>Edit <code>conf/broker.conf</code> to enable functions worker, by setting <code>functionsWorkerEnabled</code> to <code>true</code>.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">functionsWorkerEnabled</span>=<span class="hljs-literal">true</span>
+</code></pre></li>
+<li><p>Edit <code>conf/functions_worker.yml</code> and set <code>pulsarFunctionsCluster</code> to the cluster name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster's metadata</a>.</p>
+<pre><code class="hljs css language-conf">pulsarFunctionsCluster: pulsar-cluster<span class="hljs-number">-1</span>
+</code></pre></li>
+</ol>
+<p>If you would like to learn more options about deploying functions worker, please checkout <a href="/docs/fr/functions-worker">Deploy and manage functions worker</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="starting-brokers"></a><a href="#starting-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starting Brokers</h3>
+<p>You can then provide any other configuration changes that you'd like in the <a href="/docs/fr/reference-configuration#broker"><code>conf/broker.conf</code></a> file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.</p>
+<p>You can start a broker in the foreground using the <a href="/docs/fr/reference-cli-tools#pulsar-broker"><code>pulsar broker</code></a> command:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar broker
+</code></pre>
 <p>You can start a broker in the background using the <a href="/docs/fr/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
 </code></pre>
@@ -401,7 +390,7 @@ Hello Pulsar
 <p>You will see output as below:</p>
 <pre><code class="hljs css language-shell">hello world!
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/fr/deploy-bare-metal-multi-cluster"><span>Bare metal multi-cluster</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#preparation">Preparation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#installing-the-pulsar-binary-package">Installing the Pulsar binary package</a></li><li><a href="#installing-builtin-connectors-optional">Installing Builtin Connectors (optional)</a></li><li><a href="#installing-tiered-storage-offloaders-optional">Installing Tiered Storage Offloaders (optional)</a></li><li><a href="#deploying-a-zookeeper-cluster">Deploying a ZooKeeper cluster</a></li><li><a href="#initializing-cluster-metadata">Initializing cluster metadata</a></li><li><a href="#deploying-a-bookkeeper-cluster">Deploying a BookKeeper cluster</a></li><li><a href="#deploying-pulsar-brokers">Deploying Pulsar brokers</a><ul class="toc-headings"><li><a href="#configuring-brokers">Configuring Brokers</a></li></ul></li><li><a href="#connecting-to-the-running-cluster">Connecting to the running cluster</a></li><li><a href="#running-functions">Running Functions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/deploy-kubernetes"><span class="arrow-prev">← </span><span>Kubernetes</span></a><a class="docs-next button" href="/docs/fr/deploy-bare-metal-multi-cluster"><span>Bare metal multi-cluster</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#preparation">Preparation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#hardware-considerations">Hardware considerations</a></li></ul></li><li><a href="#installing-the-pulsar-binary-package">Installing the Pulsar binary package</a></li><li><a href="#installing-builtin-connectors-optional">Installing Builtin Connectors (optional)</a></li><li><a href="#installing-tiered-storage-offloaders-optional">Installing Tiered Storage Offloaders (optional)</a></li><li><a href="#deploying-a-zookeeper-cluster">Deploying a ZooKeeper cluster</a></li><li><a href="#initializing-cluster-metadata">Initializing cluster metadata</a></li><li><a href="#deploying-a-bookkeeper-cluster">Deploying a BookKeeper cluster</a></li><li><a href="#deploying-pulsar-brokers">Deploying Pulsar brokers</a><ul class="toc-headings"><li><a href="#configuring-brokers">Configuring Brokers</a></li><li><a href="#enabling-pulsar-functions-optional">Enabling Pulsar Functions (optional)</a></li><li><a href="#starting-brokers">Starting Brokers</a></li></ul></li><li><a href="#connecting-to-the-running-cluster">Connecting to the running cluster</a></li><li><a href="#running-functions">Running Functions</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
