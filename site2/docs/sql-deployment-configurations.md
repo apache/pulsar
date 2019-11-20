@@ -112,7 +112,6 @@ http-server.http.port=8080
 query.max-memory=50GB
 query.max-memory-per-node=1GB
 discovery.uri=<coordinator-url>
-
 ```
 
 2. Modify `pulsar.broker-service-url` and  `pulsar.zookeeper-uri` configuration in the `${project.root}/conf/presto/catalog/pulsar.properties` file accordingly for the three nodes.
@@ -146,4 +145,4 @@ presto> SELECT * FROM system.runtime.nodes;
  2       | http://192.168.2.3:8081 | testversion  | false       | active 
 ```
 
-For more information about deployment in Presto, refer to [Deploy Presto](https://prestodb.io/docs/current/installation/deployment.html).
+For more information about deployment in Presto, refer to [Presto deployment](https://prestodb.io/docs/current/installation/deployment.html).
