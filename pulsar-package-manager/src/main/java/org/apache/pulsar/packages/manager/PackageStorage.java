@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.packages.manager;
 
-import java.io.Closeable;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
@@ -28,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Package storage is used to store the package files.
  */
-public interface PackageStorage extends Closeable {
+public interface PackageStorage {
 
 
     /**

@@ -19,59 +19,76 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.io.IOException;
-import java.io.OutputStream;
-import org.apache.distributedlog.AppendOnlyStreamWriter;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import org.apache.distributedlog.LogRecord;
+import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * DistributedLog Output Stream.
  */
-public class DLOutputStream extends OutputStream {
+class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
-    private final AppendOnlyStreamWriter writer;
+    private final AsyncLogWriter writer;
+    private long offset = 0L;
 
-    /**
-     * Construct DistributedLog input stream.
-     *
-     * @param distributedLogManager the Distributed Log Manager to access the stream
-     * @param writer
-     */
-    DLOutputStream(DistributedLogManager distributedLogManager, AppendOnlyStreamWriter writer) {
+    private DLOutputStream(DistributedLogManager distributedLogManager, AsyncLogWriter writer) {
         this.distributedLogManager = distributedLogManager;
         this.writer = writer;
     }
 
-    @Override
-    public void write(int b) throws IOException {
-        byte[] data = new byte[]{ (byte) b };
-        write(data);
+    static CompletableFuture<DLOutputStream> openWriterAsync(DistributedLogManager distributedLogManager) {
+        return distributedLogManager.openAsyncLogWriter().thenApply(w -> new DLOutputStream(distributedLogManager, w));
     }
 
-    @Override
-    public void write(byte[] b, int off, int len) throws IOException {
-        ByteBuf data = Unpooled.wrappedBuffer(b, off, len);
-        write(data.array());
-        data.release();
+    /**
+     * Write all input stream data to the distribute log.
+     *
+     * @param inputStream the data we need to write
+     * @return
+     */
+    CompletableFuture<DLOutputStream> writeAsync(InputStream inputStream) {
+        List<CompletableFuture<DLOutputStream>> writeFuture = new ArrayList<>();
+        byte[] bytes = new byte[1024];
+        try {
+            while (inputStream.read(bytes) != -1) {
+                writeFuture.add(writeAsync(bytes));
+            }
+        } catch (IOException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return FutureUtil.waitForAll(writeFuture).thenApply(ignore -> this);
     }
 
-    @Override
-    public void write(byte[] b) throws IOException {
-        writer.write(b);
+    /**
+     * Write a bytes array data to the distribute log.
+     *
+     * @param data the data we need to write
+     * @return
+     */
+    CompletableFuture<DLOutputStream> writeAsync(byte[] data) {
+        offset += data.length;
+        LogRecord record = new LogRecord(offset, data);
+        return writer.write(record).thenApply(ignore -> this);
     }
 
-    @Override
-    public void flush() throws IOException {
-        writer.force(false);
-    }
-
-    @Override
-    public void close() throws IOException {
-        writer.markEndOfStream();
-        writer.close();
-        distributedLogManager.close();
+    /**
+     * Every package will be a stream. So we need mark the stream as EndOfStream when the stream
+     * write done.
+     *
+     * @return
+     */
+    CompletableFuture<Void> closeAsync() {
+        return writer
+            .markEndOfStream()
+            .thenCompose(ignore -> writer.asyncClose())
+            .thenCompose(ignore -> distributedLogManager.asyncClose());
     }
 }

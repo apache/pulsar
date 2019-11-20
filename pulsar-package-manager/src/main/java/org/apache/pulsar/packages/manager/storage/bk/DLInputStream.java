@@ -20,132 +20,130 @@
 package org.apache.pulsar.packages.manager.storage.bk;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.CompletableFuture;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.distributedlog.DLSN;
-import org.apache.distributedlog.LogRecordWithDLSN;
+import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.DistributedLogManager;
-import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
 
 /**
  * DistributedLog Input Stream.
  */
-public class DLInputStream extends InputStream {
+class DLInputStream {
 
-    private LogRecordWithInputStream currentLogRecord = null;
     private final DistributedLogManager distributedLogManager;
-    private LogReader reader;
-    private boolean eos = false;
+    private final AsyncLogReader reader;
 
-
-
-    /**
-     * Construct DistributedLog input stream.
-     *
-     * @param distributedLogManager the Distributed Log Manager to access the stream
-     */
-    DLInputStream(DistributedLogManager distributedLogManager) throws IOException {
+    private DLInputStream(DistributedLogManager distributedLogManager, AsyncLogReader reader) {
         this.distributedLogManager = distributedLogManager;
-        reader = distributedLogManager.getInputStream(DLSN.InitialDLSN);
+        this.reader = reader;
+    }
+
+    static CompletableFuture<DLInputStream> openReaderAsync(DistributedLogManager distributedLogManager) {
+        return distributedLogManager.openAsyncLogReader(DLSN.InitialDLSN)
+            .thenApply(r -> new DLInputStream(distributedLogManager, r));
     }
 
     /**
-     * Get input stream representing next entry in the
-     * ledger.
+     * Read data to output stream.
      *
-     * @return input stream, or null if no more entries
+     * @param outputStream
+     * @return
      */
-    private LogRecordWithInputStream nextLogRecord() throws IOException {
-        try {
-            return nextLogRecord(reader);
-        } catch (EndOfStreamException e) {
-            eos = true;
-            return null;
-        }
-    }
+    CompletableFuture<DLInputStream> readAsync(OutputStream outputStream) {
+        CompletableFuture<DLInputStream> future = new CompletableFuture<>();
 
-    private static LogRecordWithInputStream nextLogRecord(LogReader reader) throws IOException {
-        LogRecordWithDLSN record = reader.readNext(false);
-
-        if (null != record) {
-            return new LogRecordWithInputStream(record);
-        } else {
-            record = reader.readNext(false);
-            if (null != record) {
-                return new LogRecordWithInputStream(record);
-            } else {
-                return null;
+        CompletableFuture<ByteBuf> outputFuture = new CompletableFuture<>();
+        ByteBuf data = Unpooled.buffer();
+        read(data,outputFuture, 10);
+        outputFuture.whenComplete((byteBuf, throwable) -> {
+            if (throwable != null) {
+                future.completeExceptionally(throwable);
+                return;
             }
-        }
-    }
 
-    @Override
-    public int read() throws IOException {
-        byte[] b = new byte[1];
-        if (read(b, 0, 1) != 1) {
-            return -1;
-        } else {
-            return b[0];
-        }
-    }
-
-    @Override
-    public int read(byte[] b, int off, int len) throws IOException {
-        if (eos) {
-            return -1;
-        }
-
-        int read = 0;
-        if (currentLogRecord == null) {
-            currentLogRecord = nextLogRecord();
-            if (currentLogRecord == null) {
-                return read;
-            }
-        }
-
-        while (read < len) {
-            int thisread = currentLogRecord.getPayloadInputStream().read(b, off + read, len - read);
-            if (thisread == -1) {
-                currentLogRecord = nextLogRecord();
-                if (currentLogRecord == null) {
-                    return read;
+            if (byteBuf != null) {
+                try {
+                    byteBuf.readBytes(outputStream, byteBuf.readableBytes());
+                } catch (IOException e) {
+                    future.completeExceptionally(e);
                 }
-            } else {
-                read += thisread;
+                byteBuf.release();
             }
-        }
-        return read;
+
+            future.complete(this);
+        });
+
+        return future;
     }
 
-    @Override
-    public void close() throws IOException {
-        reader.close();
-        distributedLogManager.close();
+    /**
+     * Read data to a bytes array.
+     *
+     * @return
+     */
+    CompletableFuture<ByteResult> readAsync() {
+        CompletableFuture<ByteResult> result = new CompletableFuture<>();
+
+        CompletableFuture<ByteBuf> entriesFuture = new CompletableFuture<>();
+        ByteBuf data = Unpooled.buffer();
+        read(data, entriesFuture, 1);
+        entriesFuture.whenComplete((byteBuf, throwable) -> {
+            if (null != throwable) {
+                result.completeExceptionally(throwable);
+                return;
+            }
+
+            byteBuf.capacity(byteBuf.readableBytes());
+            result.complete(new ByteResult(this, byteBuf.array()));
+            byteBuf.release();
+        });
+
+        return result;
     }
 
-    // Cache the input stream for a log record
-    private static class LogRecordWithInputStream {
-        private final InputStream payloadStream;
-        private final LogRecordWithDLSN logRecord;
-
-        LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
-            this.logRecord = logRecord;
-            this.payloadStream = logRecord.getPayLoadInputStream();
-        }
-
-        InputStream getPayloadInputStream() {
-            return payloadStream;
-        }
-
-        LogRecordWithDLSN getLogRecord() {
-            return logRecord;
-        }
-
-        // The last txid of the log record is the position of the next byte in the stream.
-        // Subtract length to get starting offset.
-        long getOffset() {
-            return logRecord.getTransactionId() - logRecord.getPayload().length;
-        }
+    /**
+     * When reading the end of a stream, it will throw an EndOfStream exception. So we can use this to
+     * check if we read to the end.
+     *
+     * @param byteBuf received data
+     * @param result
+     * @param num how many entries read in one time
+     */
+    private void read(ByteBuf byteBuf,CompletableFuture<ByteBuf> result, int num) {
+        reader.readBulk(num)
+            .whenComplete((logRecordWithDLSNS, throwable) -> {
+                if (null != throwable) {
+                    if (throwable instanceof EndOfStreamException) {
+                        result.complete(byteBuf);
+                    } else {
+                        result.completeExceptionally(throwable);
+                    }
+                    return;
+                }
+                logRecordWithDLSNS.forEach(logRecord -> byteBuf.writeBytes(logRecord.getPayload()));
+                read(byteBuf, result, num);
+            });
     }
 
+    CompletableFuture<Void> closeAsync() {
+        return reader.asyncClose().thenCompose(ignore -> distributedLogManager.asyncClose());
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class ByteResult {
+        private DLInputStream dlInputStream;
+        private byte[] data;
+
+        CompletableFuture<byte[]> getResult() {
+            return dlInputStream.closeAsync().thenApply(ignore -> this.data);
+        }
+    }
 }

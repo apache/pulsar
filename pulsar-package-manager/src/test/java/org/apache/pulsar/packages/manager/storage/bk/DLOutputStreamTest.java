@@ -18,60 +18,77 @@
  */
 package org.apache.pulsar.packages.manager.storage.bk;
 
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-import org.apache.distributedlog.AppendOnlyStreamWriter;
+import org.apache.distributedlog.DLSN;
+import org.apache.distributedlog.LogRecord;
+import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import static org.mockito.Mockito.*;
 
 /**
  * Unit test of {@link DLOutputStream}.
  */
 public class DLOutputStreamTest {
 
+    private DistributedLogManager dlm;
+    private AsyncLogWriter writer;
+
+    @BeforeMethod
+    public void setup() {
+        dlm = mock(DistributedLogManager.class);
+        writer = mock(AsyncLogWriter.class);
+
+        when(dlm.openAsyncLogWriter()).thenReturn(CompletableFuture.completedFuture(writer));
+        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        when(writer.markEndOfStream()).thenReturn(CompletableFuture.completedFuture(null));
+        when(writer.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        when(writer.write(any(LogRecord.class))).thenReturn(CompletableFuture.completedFuture(DLSN.InitialDLSN));
+    }
+
+    @AfterMethod
+    public void teardown() throws IOException {
+        if (dlm != null) {
+            dlm.close();
+        }
+    }
+
     /**
-     * Test Case: close output stream.
+     * Test Case: write data using input stream.
      */
     @Test
-    public void testClose() throws Exception {
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);
-        DLOutputStream out = new DLOutputStream(dlm, writer);
+    public void writeInputStreamData() throws ExecutionException, InterruptedException {
+        byte[] data = "test-write".getBytes();
+        DLOutputStream.openWriterAsync(dlm)
+            .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
+                .thenCompose(DLOutputStream::closeAsync)).get();
 
-        out.close();
+        verify(writer, times(1)).write(any(LogRecord.class));
         verify(writer, times(1)).markEndOfStream();
-        verify(writer, times(1)).close();
-        verify(dlm, times(1)).close();
+        verify(writer, times(1)).asyncClose();
+        verify(dlm, times(1)).asyncClose();
     }
 
     /**
-     * Test Case: flush should force writing the data.
+     * Test Case: write data with byte array.
      */
     @Test
-    public void testFlush() throws Exception {
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);
-        DLOutputStream out = new DLOutputStream(dlm, writer);
+    public void writeBytesArrayData() throws ExecutionException, InterruptedException {
+        byte[] data = "test-write".getBytes();
+        DLOutputStream.openWriterAsync(dlm)
+            .thenCompose(w -> w.writeAsync(data)
+                .thenCompose(DLOutputStream::closeAsync)).get();
 
-        out.flush();
-        verify(writer, times(1)).force(eq(false));
+        verify(writer, times(1)).write(any(LogRecord.class));
+        verify(writer, times(1)).markEndOfStream();
+        verify(writer, times(1)).asyncClose();
+        verify(dlm, times(1)).asyncClose();
     }
-
-    /**
-     * Test Case: test writing the data.
-     */
-    @Test
-    public void testWrite() throws Exception {
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);
-        DLOutputStream out = new DLOutputStream(dlm, writer);
-
-        byte[] data = new byte[16];
-        out.write(data);
-        verify(writer, times(1)).write(data);
-    }
-
 }
