@@ -67,6 +67,11 @@ public interface TopicPoliciesService {
      */
     CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle);
 
+    /**
+     * Start the topic policy service.
+     */
+    void start();
+
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
@@ -94,6 +99,11 @@ public interface TopicPoliciesService {
         public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
             //No-op
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void start() {
+            //No-op
         }
     }
 }

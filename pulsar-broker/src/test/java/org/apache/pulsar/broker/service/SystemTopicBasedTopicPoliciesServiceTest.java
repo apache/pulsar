@@ -135,9 +135,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertEquals(policiesGet5, policies5);
         Assert.assertEquals(policiesGet6, policies6);
 
-        // Only cache 2 readers, reader for NAMESPACE1 is evicted
-        Assert.assertEquals(systemTopicBasedTopicPoliciesService.getReaderCacheCount(), 3);
-
         // Remove reader cache will remove policies cache
         Assert.assertEquals(systemTopicBasedTopicPoliciesService.getPoliciesCacheSize(), 6);
 

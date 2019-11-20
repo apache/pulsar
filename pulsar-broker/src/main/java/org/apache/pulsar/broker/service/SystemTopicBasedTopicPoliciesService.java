@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.ActionType;
@@ -182,6 +183,29 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public void start() {
+
+        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                addOwnedNamespaceBundleAsync(bundle);
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                removeOwnedNamespaceBundleAsync(bundle);
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return true;
+            }
+
+        });
     }
 
     private void initPolicesCache(SystemTopicClient.Reader reader, CompletableFuture<Void> future) {
