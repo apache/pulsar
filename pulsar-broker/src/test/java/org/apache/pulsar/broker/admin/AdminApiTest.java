@@ -84,6 +84,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -147,6 +148,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setMessageExpiryCheckIntervalInMinutes(1);
 
         super.internalSetup();
 
@@ -2117,5 +2119,22 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().compactionStatus(topicName).status,
                      LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.topics().compactionStatus(topicName).lastError.contains("Failed at something"));
+    }
+
+    @Test(timeOut = 90000)
+    public void testTopicStatsLastExpireTimestampForSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
+        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 60);
+        final String topic = "persistent://prop-xyz/ns1/testTopicStatsLastExpireTimestampForSubscription";
+        Consumer<byte[]> producer = pulsarClient.newConsumer()
+            .topic(topic)
+            .subscriptionName("sub-1")
+            .subscribe();
+
+        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 1);
+        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp, 0L);
+
+        Thread.sleep(60000);
+
+        Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
     }
 }
