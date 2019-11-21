@@ -71,7 +71,7 @@ public class TransactionMetadataStoreService {
                                 }
                             }
                         } else {
-                            LOG.error("Get owned topic list error when trigger bundle {} onload.", bundle, ex);
+                            LOG.error("Failed to get owned topic list when triggering on-loading bundle {}.", bundle, ex);
                         }
                     });
             }
