@@ -1407,18 +1407,19 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
         }
-        service.pulsar().getTransactionMetadataStoreService().newTransaction(TransactionCoordinatorID.get(command.getTcId()))
+        TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId)
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Send response {} for new txn request {}", command.getTcId(),  command.getRequestId());
+                        log.debug("Send response {} for new txn request {}", tcId.getId(),  command.getRequestId());
                     }
                     ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for new txn request {}", command.getRequestId(), ex);
                     }
-                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), tcId.getId(), BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }
             }));
     }
@@ -1436,12 +1437,12 @@ public class ServerCnx extends PulsarHandler {
                         log.debug("Send response success for add published partition to txn request {}",  command.getRequestId());
                     }
                     ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
-                            command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for add published partition to txn request {}",  command.getRequestId(), ex);
                     }
-                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
+                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }
             }));
@@ -1469,12 +1470,12 @@ public class ServerCnx extends PulsarHandler {
                         log.debug("Send response success for end txn request {}", command.getRequestId());
                     }
                     ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(),
-                            command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for end txn request {}", command.getRequestId());
                     }
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }
             });
