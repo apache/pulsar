@@ -80,7 +80,7 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean isAllowAutoUpdateSchema = true;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
-    
+
     protected volatile PublishRateLimiter publishRateLimiter;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
@@ -297,8 +297,8 @@ public abstract class AbstractTopic implements Topic {
     private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
             throws BrokerServiceException {
         boolean canOverwrite = false;
-        if (oldProducer.equals(newProducer) && !oldProducer.isUserProvidedProducerName()
-                && !newProducer.isUserProvidedProducerName() && newProducer.getEpoch() > oldProducer.getEpoch()) {
+        if (oldProducer.equals(newProducer) && !isUserProvidedProducerName(oldProducer)
+                && !isUserProvidedProducerName(newProducer) && newProducer.getEpoch() > oldProducer.getEpoch()) {
             oldProducer.close(false);
             canOverwrite = true;
         }
@@ -314,6 +314,11 @@ public abstract class AbstractTopic implements Topic {
             throw new BrokerServiceException.NamingException(
                     "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
+    }
+
+    private boolean isUserProvidedProducerName(Producer producer){
+        //considered replicator producer as generated name producer
+        return producer.isUserProvidedProducerName() && !producer.getProducerName().startsWith(replicatorPrefix);
     }
 
     protected abstract void handleProducerRemoved(Producer producer);
