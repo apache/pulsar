@@ -83,6 +83,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
+    @Category
+    private static final String CATEGORY_TRANSACTION = "Transaction";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -365,6 +367,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " unacked messages than this percentage limit and subscription will not receive any new messages "
             + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Tick time to schedule task that checks publish rate limiting across all topics  "
+                    + "Reducing to lower value can give more accuracy while throttling publish but "
+                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)" 
+        )
+    private int publisherThrottlingTickTimeMillis = 5;
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
@@ -826,19 +836,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "Number of bookies to use when creating a ledger"
     )
-    private int managedLedgerDefaultEnsembleSize = 1;
+    private int managedLedgerDefaultEnsembleSize = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
         doc = "Number of copies to store for each message"
     )
-    private int managedLedgerDefaultWriteQuorum = 1;
+    private int managedLedgerDefaultWriteQuorum = 2;
     @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
         doc = "Number of guaranteed copies (acks to wait before write is complete)"
     )
-    private int managedLedgerDefaultAckQuorum = 1;
+    private int managedLedgerDefaultAckQuorum = 2;
 
     //
     //
@@ -1311,6 +1321,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    /**** --- Transaction config variables --- ****/
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Enable transaction coordinator in broker"
+    )
+    private boolean transactionCoordinatorEnabled = true;
+
+    @FieldContext(
+        category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction metadata store provider"
+    )
+    private String transactionMetadataStoreProviderClassName =
+            "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

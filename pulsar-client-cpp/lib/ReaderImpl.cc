@@ -104,4 +104,11 @@ void ReaderImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) 
     consumer_->hasMessageAvailableAsync(callback);
 }
 
+void ReaderImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    consumer_->seekAsync(msgId, callback);
+}
+void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    consumer_->seekAsync(timestamp, callback);
+}
+
 }  // namespace pulsar

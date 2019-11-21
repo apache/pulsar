@@ -500,7 +500,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp or messageId")
+    @Parameters(commandDescription = "Reset position for subscription to a position that is closest to timestamp or messageId.")
     private class ResetCursor extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;

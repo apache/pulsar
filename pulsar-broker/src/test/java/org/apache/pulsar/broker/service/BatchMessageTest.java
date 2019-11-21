@@ -137,6 +137,55 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "codecAndContainerBuilder")
+    public void testSimpleBatchProducerWithFixedBatchBytes(CompressionType compressionType, BatcherBuilder builder) throws Exception {
+        int numMsgs = 50;
+        int numBytesInBatch = 600;
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize-" + UUID.randomUUID();
+        final String subscriptionName = "sub-1" + compressionType.toString();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
+        consumer.close();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .compressionType(compressionType)
+            .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+            .batchingMaxMessages(0)
+            .batchingMaxBytes(numBytesInBatch)
+            .enableBatching(true)
+            .batcherBuilder(builder)
+            .create();
+
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            sendFutureList.add(producer.sendAsync(message));
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        rolloverPerIntervalStats();
+        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        // we expect 2 messages in the backlog since we sent 50 messages with the batch size set to 25. We have set the
+        // batch time high enough for it to not affect the number of messages in the batch
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 2);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+        for (int i = 0; i < numMsgs; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            Assert.assertEquals(receivedMessage, expectedMessage,
+                    "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
+        }
+        consumer.close();
+        producer.close();
+    }
+
+    @Test(dataProvider = "codecAndContainerBuilder")
     public void testSimpleBatchProducerWithFixedBatchTime(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 100;
         final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchTime-" + UUID.randomUUID();
@@ -215,7 +264,10 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/testBatchProducerWithLargeMessage-" + UUID.randomUUID();
         final String subscriptionName = "large-message-sub-1" + compressionType.toString();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+
                 .subscribe();
         consumer.close();
 
@@ -247,7 +299,11 @@ public class BatchMessageTest extends BrokerTestBase {
         // we expect 3 messages in the backlog since the large message in the middle should
         // close out the batch and be sent in a batch of its own
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 3);
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         for (int i = 0; i <= numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);

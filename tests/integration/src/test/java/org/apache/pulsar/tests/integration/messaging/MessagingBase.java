@@ -32,6 +32,7 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.BeforeMethod;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -69,8 +70,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
             (List<Consumer<T>> consumerList, int messagesToReceive) throws PulsarClientException {
         Set<T> messagesReceived = Sets.newHashSet();
         for (Consumer<T> consumer : consumerList) {
-            Message<T> currentReceived = null;
-            Message<T> lastReceived = null;
+            Message<T> currentReceived;
+            Map<String, Message<T>> lastReceivedMap = new HashMap<>();
             while (true) {
                 try {
                     currentReceived = consumer.receive(3, TimeUnit.SECONDS);
@@ -79,20 +80,20 @@ public abstract class MessagingBase extends PulsarTestSuite {
                     break;
                 }
                 // Make sure that messages are received in order
-                if (lastReceived == null) {
-                    assertNotNull(currentReceived);
+                if (currentReceived != null) {
+                    consumer.acknowledge(currentReceived);
+                    if (lastReceivedMap.containsKey(currentReceived.getTopicName())) {
+                        assertTrue(currentReceived.getMessageId().compareTo(
+                                lastReceivedMap.get(currentReceived.getTopicName()).getMessageId()) > 0,
+                                "Received messages are not in order.");
+                    }
                 } else {
-                    assertTrue(currentReceived != null
-                                    && (currentReceived.getValue().compareTo(lastReceived.getValue()) > 0),
-                            "Received messages are not in order.");
+                    break;
                 }
-                lastReceived = currentReceived;
+                lastReceivedMap.put(currentReceived.getTopicName(), currentReceived);
                 // Make sure that there are no duplicates
                 assertTrue(messagesReceived.add(currentReceived.getValue()),
                         "Received duplicate message " + currentReceived.getValue());
-            }
-            if (currentReceived != null) {
-                consumer.acknowledgeCumulative(currentReceived);
             }
         }
         assertEquals(messagesReceived.size(), messagesToReceive);
@@ -110,12 +111,14 @@ public abstract class MessagingBase extends PulsarTestSuite {
                     log.info("no more messages to receive for consumer {}", consumer.getConsumerName());
                     break;
                 }
-                // Make sure that there are no duplicates
-                assertTrue(messagesReceived.add(currentReceived.getValue()),
-                        "Received duplicate message " + currentReceived.getValue());
-            }
-            if (currentReceived != null) {
-                consumer.acknowledgeCumulative(currentReceived);
+                if (currentReceived != null) {
+                    consumer.acknowledge(currentReceived);
+                    // Make sure that there are no duplicates
+                    assertTrue(messagesReceived.add(currentReceived.getValue()),
+                            "Received duplicate message " + currentReceived.getValue());
+                } else {
+                    break;
+                }
             }
         }
         assertEquals(messagesReceived.size(), messagesToReceive);
@@ -126,7 +129,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         Map<String, Set<String>> consumerKeys = Maps.newHashMap();
         Set<T> messagesReceived = Sets.newHashSet();
         for (Consumer<T> consumer : consumerList) {
-            Message<T> currentReceived = null;
+            Message<T> currentReceived;
             while (true) {
                 try {
                     currentReceived = consumer.receive(3, TimeUnit.SECONDS);
@@ -134,15 +137,17 @@ public abstract class MessagingBase extends PulsarTestSuite {
                     log.info("no more messages to receive for consumer {}", consumer.getConsumerName());
                     break;
                 }
-                assertNotNull(currentReceived.getKey());
-                consumerKeys.putIfAbsent(consumer.getConsumerName(), Sets.newHashSet());
-                consumerKeys.get(consumer.getConsumerName()).add(currentReceived.getKey());
-                // Make sure that there are no duplicates
-                assertTrue(messagesReceived.add(currentReceived.getValue()),
-                        "Received duplicate message " + currentReceived.getValue());
-            }
-            if (currentReceived != null) {
-                consumer.acknowledgeCumulative(currentReceived);
+                if (currentReceived != null) {
+                    consumer.acknowledge(currentReceived);
+                    assertNotNull(currentReceived.getKey());
+                    consumerKeys.putIfAbsent(consumer.getConsumerName(), Sets.newHashSet());
+                    consumerKeys.get(consumer.getConsumerName()).add(currentReceived.getKey());
+                    // Make sure that there are no duplicates
+                    assertTrue(messagesReceived.add(currentReceived.getValue()),
+                            "Received duplicate message " + currentReceived.getValue());
+                } else {
+                    break;
+                }
             }
         }
         // Make sure key will not be distributed to multiple consumers

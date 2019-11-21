@@ -28,8 +28,6 @@
   </weaver>
 
   <aspects>
-    <aspect
-      name="org.apache.pulsar.zookeeper.SerializeUtilsAspect" />
     <aspect name="org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect" />
   </aspects>
 </aspectj>

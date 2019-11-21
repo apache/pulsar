@@ -12,60 +12,177 @@ Using any of these connectors is as easy as writing a simple connector and runni
 
 Pulsar has various source connectors, which are sorted alphabetically as below.
 
-- [Canal source connector](io-cdc-canal.md)
+### Canal
 
-- [Data-generator source connector](io-data-generator.md)
+* [Configuration](io-canal-source.md#configuration)
 
-- [Debezium MySQL source connector](io-cdc-debezium.md)
+* [Example](io-canal-source.md#usage)
 
-- [Debezium PostgreSQL source Connector](io-postgresql-debezium.md)
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/java/org/apache/pulsar/io/canal/CanalStringSource.java)
 
-- [File source connector](io-file-source.md)
 
-- [Flume source connector](io-flume-source.md)
+### Debezium MySQL
 
-- [Twitter firehose source connector](io-twitter-source.md)
+* [Configuration](io-debezium-source.md#configuration)
 
-- [Kafka source connector](io-kafka-source.md)
+* [Example](io-debezium-source.md#example-of-mysql)
+ 
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/java/org/apache/pulsar/io/debezium/mysql/DebeziumMysqlSource.java)
 
-- [Kafka-connect-adaptor source connector](io-kafka-connect.md)
+### Debezium PostgreSQL
 
-- [Kinesis source connector](io-kinesis-source.md)
+* [Configuration](io-debezium-source.md#configuration)
 
-- [Netty source connector](io-netty-source.md)
+* [Example](io-debezium-source.md#example-of-postgresql)
 
-- [RabbitMQ source connector](io-rabbitmq-source.md)
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/java/org/apache/pulsar/io/debezium/postgres/DebeziumPostgresSource.java)
 
+
+### File
+
+* [Configuration](io-file-source.md#configuration)
+
+* [Example](io-file-source.md#usage)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/file/src/main/java/org/apache/pulsar/io/file/FileSource.java)
+
+### Flume
+
+* [Configuration](io-flume-source.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/java/org/apache/pulsar/io/flume/FlumeConnector.java)
+
+### Twitter firehose
+
+* [Configuration](io-twitter-source.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/io/twitter/TwitterFireHose.java)
+
+### Kafka
+
+* [Configuration](io-kafka-source.md#configuration)
+
+* [Example](io-kafka-source.md#usage)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java)
+
+### Kinesis
+
+* [Configuration](io-kinesis-source.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSource.java)
+  
+### Netty
+
+* [Configuration](io-netty-source.md#configuration)
+
+* [Example of TCP](io-netty-source.md#tcp)
+
+* [Example of HTTP](io-netty-source.md#http)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/netty/src/main/java/org/apache/pulsar/io/netty/NettySource.java)
+
+### RabbitMQ
+
+* [Configuration](io-rabbitmq-source.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java)
+  
 ## Sink connector
 
 Pulsar has various sink connectors, which are sorted alphabetically as below.
 
-- [Aerospike sink connector](io-aerospike-sink.md)
+### Aerospike
 
-- [Cassandra sink connector](io-cassandra-sink.md)
+* [Configuration](io-aerospike-sink.md#configuration)
 
-- [ElasticSearch sink connector](io-elasticsearch-sink.md)
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeStringSink.java)
+  
+### Cassandra
 
-- [Flume sink connector](io-flume-sink.md)
+* [Configuration](io-cassandra-sink.md#configuration)
+  
+* [Example](io-cassandra-sink.md#usage)  
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraStringSink.java)
 
-- [HBase sink connector](io-hbase.md)
+### ElasticSearch
 
-- [HDFS2 sink connector](io-hdfs2-sink.md)
+* [Configuration](io-elasticsearch-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/elastic-search/src/main/java/org/apache/pulsar/io/elasticsearch/ElasticSearchSink.java)
 
-- [HDFS3 sink connector](io-hdfs3-sink.md)
+### Flume
 
-- [InfluxDB sink connector](io-influxdb-sink.md)
+* [Configuration](io-flume-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/java/org/apache/pulsar/io/flume/sink/StringSink.java)
 
-- [JDBC sink connector](io-jdbc-sink.md)
+### HBase
 
-- [Kafka sink connector](io-kafka-sink.md)
+* [Configuration](io-hbase.md)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hbase/src/main/java/org/apache/pulsar/io/hbase/HbaseAbstractConfig.java)
+  
+### HDFS2
 
-- [Kinesis sink connector](io-kinesis-sink.md)
+* [Configuration](io-hdfs2-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hdfs2/src/main/java/org/apache/pulsar/io/hdfs2/AbstractHdfsConnector.java)
 
-- [MongoDB sink connector](io-mongo-sink.md)
+### HDFS3
 
-- [RabbitMQ sink connector](io-rabbitmq-sink.md)
+* [Configuration](io-hdfs3-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hdfs3/src/main/java/org/apache/pulsar/io/hdfs3/AbstractHdfsConnector.java)
 
-- [Redis sink connector](io-redis-sink.md)
+### InfluxDB
 
-- [Solr sink connector](io-solr-sink.md)
+* [Configuration](io-influxdb-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/influxdb/src/main/java/org/apache/pulsar/io/influxdb/InfluxDBAbstractSink.java)
+
+### JDBC
+
+* [Configuration](io-jdbc-sink.md#configuration)
+  
+* [Example](io-jdbc-sink.md#usage)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/src/main/java/org/apache/pulsar/io/jdbc/JdbcAbstractSink.java)
+  
+### Kafka
+
+* [Configuration](io-kafka-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSink.java)
+  
+### Kinesis
+
+* [Configuration](io-kinesis-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSink.java)
+  
+### MongoDB
+
+* [Configuration](io-mongo-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/mongo/src/main/java/org/apache/pulsar/io/mongodb/MongoSink.java)
+  
+### RabbitMQ
+
+* [Configuration](io-rabbitmq-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSink.java)
+  
+### Redis
+
+* [Configuration](io-redis-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/redis/src/main/java/org/apache/pulsar/io/redis/RedisAbstractConfig.java)
+  
+### Solr
+
+* [Configuration](io-solr-sink.md#configuration)
+  
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/solr/src/main/java/org/apache/pulsar/io/solr/SolrSinkConfig.java)
+  

@@ -64,7 +64,7 @@ public class SubscribeRateLimiter {
         }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
             resetTask = createTask();
-            log.info("[{}] [{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
         }
     }
 
@@ -163,7 +163,7 @@ public class SubscribeRateLimiter {
             }
             if (isSubscribeRateEnabled(this.subscribeRate)) {
                 this.resetTask = createTask();
-                log.info("[{}] [{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+                log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
             }
         }
     }

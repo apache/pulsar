@@ -57,6 +57,7 @@ public class MessageImpl<T> implements Message<T> {
     private ClientCnx cnx;
     private ByteBuf payload;
     private Schema<T> schema;
+    private SchemaState schemaState = SchemaState.None;
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
@@ -242,6 +243,10 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    public Schema getSchema() {
+        return this.schema;
+    }
+
     @Override
     public byte[] getSchemaVersion() {
         if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion()) {
@@ -403,6 +408,8 @@ public class MessageImpl<T> implements Message<T> {
         topic = null;
         payload = null;
         properties = null;
+        schema = null;
+        schemaState = SchemaState.None;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
@@ -445,5 +452,17 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public int getRedeliveryCount() {
         return redeliveryCount;
+    }
+
+    SchemaState getSchemaState() {
+        return schemaState;
+    }
+
+    void setSchemaState(SchemaState schemaState) {
+        this.schemaState = schemaState;
+    }
+
+    enum SchemaState {
+        None, Ready, Broken
     }
 }

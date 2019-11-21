@@ -41,6 +41,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 
+import lombok.Cleanup;
+
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -153,6 +155,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 startPartitions);
 
         // create consumer and subscriptions : check subscriptions
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -242,6 +245,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
@@ -258,7 +263,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
 
         consumer.close();
-        client.close();
 
         topicStats = admin.topics().getStats(persistentTopicName);
         assertTrue(topicStats.subscriptions.keySet().contains("my-sub"));
@@ -750,6 +754,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();

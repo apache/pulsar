@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 

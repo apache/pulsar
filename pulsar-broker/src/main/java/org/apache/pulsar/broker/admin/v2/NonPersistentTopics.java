@@ -29,6 +29,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -292,7 +293,12 @@ public class NonPersistentTopics extends PersistentTopics {
                     return null;
                 }
             }
-            asyncResponse.resume(topics);
+
+            final List<String> nonPersistentTopics =
+                topics.stream()
+                      .filter(name -> !TopicName.get(name).isPersistent())
+                      .collect(Collectors.toList());
+            asyncResponse.resume(nonPersistentTopics);
             return null;
         });
     }

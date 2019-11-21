@@ -112,6 +112,7 @@ public class RawReaderImpl implements RawReader {
                 consumerFuture,
                 SubscriptionMode.Durable,
                 MessageId.earliest,
+                0 /* startMessageRollbackDurationInSec */,
                 Schema.BYTES, null,
                 true
             );

@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.auth;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.Function;
 
 import java.util.Optional;
 
@@ -40,7 +41,7 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
+    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails, AuthenticationDataSource authenticationDataSource) throws Exception {
         String token = null;
         try {
             token = getToken(authenticationDataSource);
@@ -55,13 +56,13 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name,
+    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
                                                      Optional<FunctionAuthData> existingFunctionAuthData, AuthenticationDataSource authenticationDataSource) throws Exception {
-        return cacheAuthData(tenant, namespace, name, authenticationDataSource);
+        return cacheAuthData(funcDetails, authenticationDataSource);
     }
 
     @Override
-    public void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception {
+    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
         //no-op
     }
 }

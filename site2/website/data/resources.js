@@ -50,6 +50,48 @@ module.exports = {
     },
     {
         forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Powering Tencent Billing Platform with Apache Pulsar",
+        link: 'https://streamnative.io/blog/tech/2019-10-22-powering-tencent-billing-platform-with-apache-pulsar/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Use Apache SkyWalking to Trace Apache Pulsar Messages",
+        link: 'https://streamnative.io/blog/tech/2019-10-10-use-apache-skywalking-to-trace-apache-pulsar/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "StreamNative open sourced and contributed Apache Pulsar Manager to ASF",
+        link: 'https://streamnative.io/blog/tech/2019-09-24-streamnative-opensourced-pulsar-manager/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Apache Pulsar Adoption Story in ActorCloud (IoT Platform)",
+        link: 'https://streamnative.io/blog/tech/2019-09-09-apache-pulsar-adoption-in-actorcloud/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Apache Pulsar at Yahoo!JAPAN",
+        link: 'https://streamnative.io/blog/tech/2019-09-06-pular-at-yahoo-japan/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Build a Priority-based Push Notification System Using Apache Pulsar at GeTui",
+        link: 'https://streamnative.io/blog/tech/2019-07-23-build-a-priority-based-push-notification-system-using-apache-pulsar-at-getui/'
+    },
+    {
+        forum: 'StreamNative blog',
+        forum_link: 'https://streamnative.io/',
+        title: "Use Apache Pulsar as Streaming Table with 8 Lines of Code",
+        link: 'https://streamnative.io/blog/tech/2019-08-28-use-apache-pulsar-as-streaming-table-with-8-lines-of-code/'
+    },
+    {
+        forum: 'StreamNative blog',
         forum_link: 'https://medium.com/streamnative/',
         title: 'Apache Pulsar as One Unified Storage System for Real Time and Historical Analysis',
         link: 'https://medium.com/streamnative/apache-pulsar-as-one-storage-455222c59017'
@@ -201,6 +243,86 @@ module.exports = {
      }
   ],
   presentations: [
+    {
+      forum: 'Flink Forward Europe',
+      forum_link: 'https://europe-2019.flink-forward.org/',
+      presenter: 'Sijie Guo',
+      date: 'October 2019',
+      title: "Query Pulsar Streams using Apache Flink",
+      link: 'https://www.slideshare.net/streamnative/query-pulsar-streams-using-apache-flink'
+    },
+    {
+      forum: 'Strata Data Conference | New York',
+      forum_link: 'https://conferences.oreilly.com/strata/strata-ny',
+      presenter: 'Vincent Xie, Jia Zhai',
+      date: 'September 2019',
+      title: "How Orange Financial combat financial frauds over 50M transactions a day using Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/how-orange-financial-combat-financial-frauds-over-50m-transactions-a-day-using-apache-pulsar-176284080'
+    },
+    {
+      forum: 'ApacheCon NA 2019',
+      forum_link: 'https://www.apachecon.com/acna19/',
+      presenter: 'Xiaolong Ran',
+      date: 'September 2019',
+      title: "Serverless Event Streaming with Pulsar Functions",
+      link: 'https://www.slideshare.net/streamnative/serverless-event-streaming-with-pulsar-functions-171597848'
+    },
+    {
+      forum: 'ApacheCon NA 2019',
+      forum_link: 'https://www.apachecon.com/acna19/',
+      presenter: 'Penghui Li, Jia Zhai',
+      date: 'September 2019',
+      title: "Building Zhaopin's enterprise event center on Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/building-zhaopins-enterprise-event-center-on-apache-pulsar'
+    },
+    {
+      forum: '',
+      forum_link: '',
+      presenter: 'Sijie Guo',
+      date: 'August 2019',
+      title: "When Apache Pulsar meets Apache Flink",
+      link: 'https://www.slideshare.net/streamnative/when-apache-pulsar-meets-apache-flink'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/1502359221000',
+      presenter: 'Sijie Guo, Yong Zhang',
+      date: 'August 2019',
+      title: "Transaction Support in Pulsar 2.5.0",
+      link: 'https://www.slideshare.net/streamnative/transaction-support-in-pulsar-250'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/1502359221000',
+      presenter: 'Yijie Shen',
+      date: 'August 2019',
+      title: "Integrating Apache Pulsar with Big Data Ecosystem",
+      link: 'https://www.slideshare.net/streamnative/8-integrate-apachepulsarwithbigdataecosystem'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/1502359221000',
+      presenter: 'Penghui Li, Bo Cong',
+      date: 'August 2019',
+      title: "How Zhaopin contributes to Pulsar community",
+      link: 'https://www.slideshare.net/streamnative/3-zhaopin-inpulsarcommunity-165096725'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/1502359221000',
+      presenter: 'Jia Zhai',
+      date: 'August 2019',
+      title: "Kafka on Pulsar(KOP)",
+      link: 'https://www.slideshare.net/streamnative/2-kafkaonpulsarjia'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/1502359221000',
+      presenter: 'Nozomi Kurihara',
+      date: 'August 2019',
+      title: "Apache Pulsar at Yahoo!JAPAN",
+      link: 'https://www.slideshare.net/streamnative/1-apache-pulsaratyahoojapan-165095533'
+    },
     {
       forum: '',
       forum_link: '',

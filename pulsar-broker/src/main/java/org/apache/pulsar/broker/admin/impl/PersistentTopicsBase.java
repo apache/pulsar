@@ -376,6 +376,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
+        validatePartitionTopicName(topicName.getLocalName());
         try {
             boolean topicExist = pulsar().getNamespaceService()
                     .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
@@ -411,7 +412,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
-
+        validateNonPartitionTopicName(topicName.getLocalName());
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -439,6 +440,10 @@ public class PersistentTopicsBase extends AdminResource {
      */
     protected void internalUpdatePartitionedTopic(int numPartitions, boolean updateLocalTopicOnly) {
         validateAdminAccessForTenant(topicName.getTenant());
+        // Only do the validation if it's the first hop.
+        if (!updateLocalTopicOnly) {
+            validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
+        }
 
         if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
             Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
@@ -1901,6 +1906,127 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
         return;
+    }
+
+    /**
+     * Validate update of number of partition for partitioned topic.
+     * If there's already non partition topic with same name and contains partition suffix "-partition-"
+     * followed by numeric value X then the new number of partition of that partitioned topic can not be greater
+     * than that X else that non partition topic will essentially be overwritten and cause unexpected consequence.
+     *
+     * @param topicName
+     */
+    private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
+        List<String> existingTopicList = internalGetList();
+        TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
+        int oldPartition = metadata.partitions;
+        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        for (String exsitingTopicName : existingTopicList) {
+            if (exsitingTopicName.contains(prefix)) {
+                try {
+                    long suffix = Long.parseLong(exsitingTopicName.substring(
+                            exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                    // Skip partition of partitioned topic by making sure the numeric suffix greater than old partition number.
+                    if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
+                        log.warn("[{}] Already have non partition topic {} which contains partition " +
+                                "suffix '-partition-' and end with numeric value smaller than the new number of partition. " +
+                                "Update of partitioned topic {} could cause conflict.", clientAppId(), exsitingTopicName, topicName);
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Already have non partition topic" + exsitingTopicName + " which contains partition suffix '-partition-' " +
+                                        "and end with numeric value and end with numeric value smaller than the new " +
+                                        "number of partition. Update of partitioned topic " + topicName + " could cause conflict.");
+                    }
+                } catch (NumberFormatException e) {
+                    // Do nothing, if value after partition suffix is not pure numeric value,
+                    // as it can't conflict with internal created partitioned topic's name.
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate partitioned topic name.
+     * Validation will fail and throw RestException if
+     * 1) There's already a partitioned topic with same topic name and have some of its partition created.
+     * 2) There's already non partition topic with same name and contains partition suffix "-partition-"
+     * followed by numeric value. In this case internal created partition of partitioned topic could override
+     * the existing non partition topic.
+     *
+     * @param topicName
+     */
+    private void validatePartitionTopicName(String topicName) {
+        List<String> existingTopicList = internalGetList();
+        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        for (String existingTopicName : existingTopicList) {
+            if (existingTopicName.contains(prefix)) {
+                try {
+                    Long.parseLong(existingTopicName.substring(
+                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                    log.warn("[{}] Already have topic {} which contains partition " +
+                            "suffix '-partition-' and end with numeric value. Creation of partitioned topic {}"
+                            + "could cause conflict.", clientAppId(), existingTopicName, topicName);
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Already have topic " + existingTopicName + " which contains partition suffix '-partition-' " +
+                                    "and end with numeric value, Creation of partitioned topic " + topicName +
+                                    " could cause conflict.");
+                } catch (NumberFormatException e) {
+                    // Do nothing, if value after partition suffix is not pure numeric value,
+                    // as it can't conflict with internal created partitioned topic's name.
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate non partition topic name,
+     * Validation will fail and throw RestException if
+     * 1) Topic name contains partition suffix "-partition-" and the remaining part follow the partition
+     * suffix is numeric value larger than the number of partition if there's already a partition topic with same
+     * name(the part before suffix "-partition-").
+     * 2)Topic name contains partition suffix "-partition-" and the remaining part follow the partition
+     * suffix is numeric value but there isn't a partitioned topic with same name.
+     *
+     * @param topicName
+     */
+    private void validateNonPartitionTopicName(String topicName) {
+        if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+            try {
+                // First check if what's after suffix "-partition-" is number or not, if not number then can create.
+                int partitionIndex = topicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
+                long suffix = Long.parseLong(topicName.substring(partitionIndex
+                        + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName.substring(0, partitionIndex));
+                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
+
+                // Partition topic index is 0 to (number of partition - 1)
+                if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
+                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by" +
+                            " a number smaller then number of partition of partitioned topic {}.",
+                            clientAppId(), topicName, partitionTopicName.getLocalName());
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Can't create topic " + topicName + " with \"-partition-\" followed by" +
+                            " a number smaller then number of partition of partitioned topic " +
+                                    partitionTopicName.getLocalName());
+                } else if (metadata.partitions == 0) {
+                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by" +
+                                    " numeric value if there isn't a partitioned topic {} created.",
+                            clientAppId(), topicName, partitionTopicName.getLocalName());
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Can't create topic " + topicName + " with \"-partition-\" followed by" +
+                                    " numeric value if there isn't a partitioned topic " +
+                                    partitionTopicName.getLocalName() + " created.");
+                }
+                // If there is a  partitioned topic with the same name and numeric suffix is smaller than the
+                // number of partition for that partitioned topic, validation will pass.
+            } catch (NumberFormatException e) {
+                // Do nothing, if value after partition suffix is not pure numeric value,
+                // as it can't conflict if user want to create partitioned topic with same
+                // topic name prefix in the future.
+            }
+        }
     }
 
     protected MessageId internalGetLastMessageId(boolean authoritative) {

@@ -149,7 +149,7 @@ public class ReflectionsTest {
             fail("Should fail to load a class that isn't assignable");
         } catch (RuntimeException re) {
             assertEquals(
-                aImplementation.class.getName() + " not " + bInterface.class.getName(),
+                aImplementation.class.getName() + " does not implement " + bInterface.class.getName(),
                 re.getMessage());
         }
     }

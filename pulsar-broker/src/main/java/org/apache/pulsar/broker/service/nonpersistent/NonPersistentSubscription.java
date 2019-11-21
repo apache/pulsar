@@ -34,6 +34,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -120,7 +122,25 @@ public class NonPersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this);
+                    if (consumer.getKeySharedMeta() != null) {
+                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
+                            case STICKY:
+                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                        new HashRangeExclusiveStickyKeyConsumerSelector());
+                                break;
+                            case AUTO_SPLIT:
+                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                break;
+                            default:
+                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                break;
+                        }
+                    } else {
+                        dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    }
                 }
                 break;
             default:

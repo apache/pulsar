@@ -28,15 +28,21 @@ import java.util.Date;
  * A schema for `java.util.Date` or `java.sql.Date`.
  */
 public class DateSchema extends AbstractSchema<Date> {
+
+   private static final DateSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Date")
+             .setType(SchemaType.DATE)
+             .setSchema(new byte[0]);
+       INSTANCE = new DateSchema();
+   }
+
    public static DateSchema of() {
       return INSTANCE;
    }
-
-   private static final DateSchema INSTANCE = new DateSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Date")
-         .setType(SchemaType.DATE)
-         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Date message) {

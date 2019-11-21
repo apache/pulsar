@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -106,6 +107,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         return this;
     }
 
+    @Override
+    public ReaderBuilder<T> startMessageFromRollbackDuration(long rollbackDuration, TimeUnit timeunit) {
+        conf.setStartMessageFromRollbackDurationInSec(timeunit.toSeconds(rollbackDuration));
+        return this;
+    }
+    
     @Override
     public ReaderBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);

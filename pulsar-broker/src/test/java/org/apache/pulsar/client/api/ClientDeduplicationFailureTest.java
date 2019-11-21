@@ -22,6 +22,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -72,14 +73,18 @@ public class ClientDeduplicationFailureTest {
     final String tenant = "external-repl-prop";
     String primaryHost;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int brokerWebServicePort = PortManager.nextFreePort();
-    private final int brokerServicePort = PortManager.nextFreePort();
+    private int ZOOKEEPER_PORT;
+    private int brokerWebServicePort;
+    private int brokerServicePort;
 
     private static final Logger log = LoggerFactory.getLogger(ClientDeduplicationFailureTest.class);
 
     @BeforeMethod(timeOut = 300000)
     void setup(Method method) throws Exception {
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+        brokerWebServicePort = PortManager.nextFreePort();
+        brokerServicePort = PortManager.nextFreePort();
+
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
@@ -105,6 +110,7 @@ public class ClientDeduplicationFailureTest {
 
         url = new URL(brokerServiceUrl);
         pulsar = new PulsarService(config, Optional.empty());
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
         admin = PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build();
@@ -288,7 +294,7 @@ public class ClientDeduplicationFailureTest {
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(sourceTopic)
                 .consumerName(consumerName2).subscriptionName(subscriptionName2).subscribe();
 
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             while(true) {
                 try {
                     Message<String> msg = consumer2.receive();
@@ -296,9 +302,11 @@ public class ClientDeduplicationFailureTest {
                     consumer2.acknowledge(msg);
                 } catch (PulsarClientException e) {
                     log.error("Failed to consume message: {}", e, e);
+                    break;
                 }
             }
-        }).start();
+        });
+        thread.start();
 
         retryStrategically((test) -> {
             try {
@@ -414,5 +422,6 @@ public class ClientDeduplicationFailureTest {
 
         assertEquals(messageId.getLedgerId(), batchMessageId.getLedgerId());
         assertEquals(messageId.getEntryId(), batchMessageId.getEntryId());
+        thread.interrupt();
     }
 }

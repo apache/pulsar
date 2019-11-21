@@ -116,6 +116,15 @@ void Consumer_seek(Consumer& consumer, const MessageId& msgId) {
     CHECK_RESULT(res);
 }
 
+void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+    res = consumer.seek(timestamp);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+}
+
 void export_consumer() {
     using namespace boost::python;
 
@@ -137,5 +146,6 @@ void export_consumer() {
             .def("resume_message_listener", &Consumer_resumeMessageListener)
             .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
             .def("seek", &Consumer_seek)
+            .def("seek", &Consumer_seek_timestamp)
             ;
 }

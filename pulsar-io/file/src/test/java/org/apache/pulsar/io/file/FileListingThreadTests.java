@@ -33,13 +33,13 @@ import org.testng.annotations.Test;
 
 
 public class FileListingThreadTests extends AbstractFileTests {
-     
+
     @Test
-    public final void singleFileTest() throws IOException {  
-        
+    public final void singleFileTest() throws IOException {
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
-      
+        map.put("inputDirectory", directory.toString());
+
         try {
             generateFiles(1);
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
@@ -47,44 +47,44 @@ public class FileListingThreadTests extends AbstractFileTests {
             Thread.sleep(2000);
             verify(producedFiles, times(1)).put(any(File.class));
             verify(workQueue, times(1)).offer(any(File.class));
-            
+
             for (File produced : producedFiles) {
                 verify(workQueue, times(1)).offer(produced);
             }
-            
+
         } catch (InterruptedException | ExecutionException e) {
             fail("Unable to generate files" + e.getLocalizedMessage());
-        } 
+        }
     }
-    
+
     @Test
     public final void fiftyFileTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
-        
+        map.put("inputDirectory", directory.toString());
+
         try {
             generateFiles(50);
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
             executor.execute(listingThread);
             Thread.sleep(2000);
             verify(workQueue, times(50)).offer(any(File.class));
-            
+
             for (File produced : producedFiles) {
                 verify(workQueue, times(1)).offer(produced);
             }
-            
+
         } catch (InterruptedException | ExecutionException e) {
             fail("Unable to generate files" + e.getLocalizedMessage());
-        } 
+        }
     }
-    
+
     @Test
     public final void minimumSizeTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
-        
+        map.put("inputDirectory", directory.toString());
+
         try {
             // Create 50 zero size files
             generateFiles(50, 0);
@@ -94,16 +94,16 @@ public class FileListingThreadTests extends AbstractFileTests {
             verify(workQueue, times(0)).offer(any(File.class));
         } catch (InterruptedException | ExecutionException e) {
             fail("Unable to generate files" + e.getLocalizedMessage());
-        } 
+        }
     }
-    
+
     @Test
     public final void maximumSizeTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("maximumSize", "1000");
-        
+
         try {
             // Create 5 files that exceed the limit and 45 that don't
             generateFiles(5, 1000);
@@ -118,14 +118,14 @@ public class FileListingThreadTests extends AbstractFileTests {
             cleanUp();
         }
     }
-    
+
     @Test
     public final void minimumAgeTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("minimumFileAge", "5000");
-        
+
         try {
             // Create 5 files that will be too "new" for processing
             generateFiles(5);
@@ -139,19 +139,19 @@ public class FileListingThreadTests extends AbstractFileTests {
             cleanUp();
         }
     }
-    
+
     @Test
     public final void maximumAgeTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("maximumFileAge", "5000");
-        
+
         try {
             // Create 5 files that will be processed
             generateFiles(5);
             Thread.sleep(5000);
-            
+
             // Create 5 files that will be too "old" for processing
             generateFiles(5);
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
@@ -164,20 +164,20 @@ public class FileListingThreadTests extends AbstractFileTests {
             cleanUp();
         }
     }
-    
+
     @Test
     public final void doRecurseTest() throws IOException {
-       
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.TRUE);
-        
+
         try {
             // Create 5 files in the root folder
             generateFiles(5);
-            
+
             // Create 5 files in a sub-folder
-            generateFiles(5, 1, TMP_DIR + File.separator + "sub-dir");
+            generateFiles(5, 1, directory.toString() + File.separator + "sub-dir");
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
             executor.execute(listingThread);
             Thread.sleep(2000);
@@ -186,22 +186,22 @@ public class FileListingThreadTests extends AbstractFileTests {
             fail("Unable to generate files" + e.getLocalizedMessage());
         } finally {
             cleanUp();
-        }       
+        }
     }
-    
+
     @Test
     public final void doNotRecurseTest() throws IOException {
-        
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.FALSE);
-        
+
         try {
             // Create 5 files in the root folder
             generateFiles(5);
-            
+
             // Create 5 files in a sub-folder
-            generateFiles(5, 1, TMP_DIR + File.separator + "sub-dir");
+            generateFiles(5, 1, directory.toString() + File.separator + "sub-dir");
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
             executor.execute(listingThread);
             Thread.sleep(2000);
@@ -210,21 +210,21 @@ public class FileListingThreadTests extends AbstractFileTests {
             fail("Unable to generate files" + e.getLocalizedMessage());
         } finally {
             cleanUp();
-        }    
+        }
     }
-    
+
     @Test
     public final void pathFilterTest() throws IOException {
-         
+
         Map<String, Object> map = new HashMap<String, Object> ();
-        map.put("inputDirectory", TMP_DIR);
+        map.put("inputDirectory", directory.toString());
         map.put("recurse", Boolean.TRUE);
         map.put("pathFilter", "sub-.*");
-        
+
         try {
             // Create 5 files in a sub-folder
-            generateFiles(5, 1, TMP_DIR + File.separator + "sub-dir-a");
-            generateFiles(5, 1, TMP_DIR + File.separator + "dir-b");
+            generateFiles(5, 1, directory.toString() + File.separator + "sub-dir-a");
+            generateFiles(5, 1, directory.toString() + File.separator + "dir-b");
             listingThread = new FileListingThread(FileSourceConfig.load(map), workQueue, inProcess, recentlyProcessed);
             executor.execute(listingThread);
             Thread.sleep(2000);
@@ -233,6 +233,6 @@ public class FileListingThreadTests extends AbstractFileTests {
             fail("Unable to generate files" + e.getLocalizedMessage());
         } finally {
             cleanUp();
-        }       
+        }
     }
 }

@@ -27,6 +27,33 @@ yarn start
 > 2. After you enter the `yarn start` command, you will be navigated to a local address, for example, `http://localhost:3000`. Click `Docs` to see documentation for the latest release of Pulsar. 
 > 3. The `http://localhost:3000/en/versions` path shows the documentation for all versions. To view your local changes, click `Documentation` in **Latest Version**, or enter `http://localhost:3000/docs/en/next/standalone` in a browser.
 
+### Tests
+
+To run tests locally, enter the following commands
+```bash
+cd pulsar/site2/website
+yarn test
+```
+
+### Check
+
+Before submitting a pull request, run the following command to make sure no broken links exist.
+
+```
+cd pulsar/site2/website
+yarn build
+```
+
+If warning messages are shown as below, it means broken links exist.
+
+```
+[WARN] unresolved links in file 'version-2.4.1/getting-started-standalone.md' > [ 'security-overview.md' ]
+
+[WARN] unresolved links in file 'version-2.4.0/io-managing.md' > [ 'functions-overview.md' ]
+```
+
+Fix the broken links manually and then send a pull request.
+
 ## Documentation
 Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
 

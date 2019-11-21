@@ -333,6 +333,18 @@ public interface Schema<T> {
         return DefaultImplementation.newAutoProduceSchema();
     }
 
+    /**
+     * Create a schema instance that accepts a serialized payload
+     * and validates it against the schema specified.
+     *
+     * @return the auto schema instance
+     * @since 2.5.0
+     * @see #AUTO_PRODUCE_BYTES()
+     */
+    static Schema<byte[]> AUTO_PRODUCE_BYTES(Schema<?> schema) {
+        return DefaultImplementation.newAutoProduceSchema(schema);
+    }
+
     // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {

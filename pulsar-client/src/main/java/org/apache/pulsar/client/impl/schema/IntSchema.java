@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class IntSchema extends AbstractSchema<Integer> {
 
+    private static final IntSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT32")
+            .setType(SchemaType.INT32)
+            .setSchema(new byte[0]);
+        INSTANCE = new IntSchema();
+    }
+
     public static IntSchema of() {
         return INSTANCE;
     }
-
-    private static final IntSchema INSTANCE = new IntSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT32")
-        .setType(SchemaType.INT32)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

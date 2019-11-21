@@ -20,7 +20,7 @@ package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
@@ -113,7 +113,7 @@ public class SimpleTextOutputStreamTest {
     }
 
     public String str() {
-        String s = buf.toString(Charset.forName("utf-8"));
+        String s = buf.toString(StandardCharsets.UTF_8);
         reset();
         return s;
     }

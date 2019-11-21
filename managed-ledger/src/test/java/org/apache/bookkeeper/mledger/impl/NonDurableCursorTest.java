@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -80,7 +81,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
-        assertTrue(Iterables.isEmpty(ledger.getCursors()));
+        assertFalse(Iterables.isEmpty(ledger.getCursors()));
 
         c1.close();
         ledger.close();
@@ -607,6 +608,50 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertNotNull(c2.getName());
         assertNotNull(c3.getName());
         assertNotNull(c4.getName());
+        ledger.close();
+    }
+
+    @Test
+    public void testGetSlowestConsumer() throws Exception {
+        final String mlName = "test-get-slowest-consumer-ml";
+        final String c1 = "cursor1";
+        final String nc1 = "non-durable-cursor1";
+        final String ncEarliest = "non-durable-cursor-earliest";
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, new ManagedLedgerConfig());
+        Position p1 = ledger.addEntry(c1.getBytes(UTF_8));
+        log.info("write entry 1 : pos = {}", p1);
+        Position p2 = ledger.addEntry(nc1.getBytes(UTF_8));
+        log.info("write entry 2 : pos = {}", p2);
+        Position p3 = ledger.addEntry(nc1.getBytes(UTF_8));
+        log.info("write entry 3 : pos = {}", p3);
+
+        ManagedCursor cursor1 = ledger.openCursor(c1);
+        cursor1.seek(p3);
+        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+
+        ManagedCursor nonCursor1 = ledger.newNonDurableCursor(p2, nc1);
+        assertEquals(p2, ledger.getCursors().getSlowestReaderPosition());
+
+        PositionImpl earliestPos = new PositionImpl(-1, -2);
+
+        ManagedCursor nonCursorEarliest = ledger.newNonDurableCursor(earliestPos, ncEarliest);
+        PositionImpl expectedPos = new PositionImpl(((PositionImpl) p1).getLedgerId(), -1);
+        assertEquals(expectedPos, ledger.getCursors().getSlowestReaderPosition());
+
+        // move non-durable cursor should update the slowest reader position
+        nonCursorEarliest.markDelete(p1);
+        assertEquals(p1, ledger.getCursors().getSlowestReaderPosition());
+
+        nonCursorEarliest.markDelete(p2);
+        assertEquals(p2, ledger.getCursors().getSlowestReaderPosition());
+
+        nonCursorEarliest.markDelete(p3);
+        assertEquals(p2, ledger.getCursors().getSlowestReaderPosition());
+
+        nonCursor1.markDelete(p3);
+        assertEquals(p3, ledger.getCursors().getSlowestReaderPosition());
+
         ledger.close();
     }
 

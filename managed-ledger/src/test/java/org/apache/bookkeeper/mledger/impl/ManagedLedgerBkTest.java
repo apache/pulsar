@@ -109,10 +109,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             // ok
         }
 
+        bkc.close();
         bkc = new BookKeeperTestClient(baseClientConf);
         startNewBookie();
 
         // Reconnect a new bk client
+        factory.shutdown();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
         ledger = factory.open("my-ledger", config);
         cursor = ledger.openCursor("my-cursor");

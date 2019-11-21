@@ -65,16 +65,12 @@
                   <include>commons-*:*</include>
                   <include>org.apache.commons:*</include>
                   <include>org.asynchttpclient:*</include>
-                  <!-- netty below could be un-necessary -->
-                  <include>io.netty:netty-codec-http</include>
-                  <include>io.netty:netty-transport-native-epoll</include>
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
                   <include>com.google.*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
+                  <include>io.netty:*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>

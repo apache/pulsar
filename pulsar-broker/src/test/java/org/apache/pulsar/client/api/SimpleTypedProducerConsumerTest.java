@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -337,10 +337,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .build(),
                 SchemaCompatibilityStrategy.FULL
             ).get();
-
         Consumer<AvroEncodedPojo> consumer = pulsarClient
             .newConsumer(AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
-                    withPojo(AvroEncodedPojo.class).build()))
+                    withPojo(AvroEncodedPojo.class).withAlwaysAllowNull(false).build()))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();

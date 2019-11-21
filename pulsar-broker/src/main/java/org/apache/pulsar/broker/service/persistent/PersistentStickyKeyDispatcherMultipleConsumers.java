@@ -32,7 +32,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
@@ -45,10 +44,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private final StickyKeyConsumerSelector selector;
 
-    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription) {
+    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
+           Subscription subscription, StickyKeyConsumerSelector selector) {
         super(topic, cursor, subscription);
-        //TODO: Consumer selector Pluggable
-        selector = new HashRangeStickyKeyConsumerSelector();
+        this.selector = selector;
     }
 
     @Override
@@ -79,10 +78,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
                 final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
                 //TODO: None key policy
-                Consumer consumer = null;
-                if (selector instanceof HashRangeStickyKeyConsumerSelector) {
-                    consumer = ((HashRangeStickyKeyConsumerSelector)selector).select(entriesWithSameKey.getKey());
-                }
+                Consumer consumer = selector.select(entriesWithSameKey.getKey());
                 if (consumer == null) {
                     // Do nothing, cursor will be rewind at reconnection
                     log.info("[{}] rewind because no available consumer found for key {} from total {}", name,

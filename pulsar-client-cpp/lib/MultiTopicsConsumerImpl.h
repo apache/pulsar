@@ -79,6 +79,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     Future<Result, Consumer> subscribeOneTopicAsync(const std::string& topic);
     // not supported
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
     virtual void negativeAcknowledge(const MessageId& msgId);
 

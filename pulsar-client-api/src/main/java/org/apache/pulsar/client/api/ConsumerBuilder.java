@@ -473,7 +473,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**
-     * Set dead letter policy for consumer
+     * Set dead letter policy for consumer.
      *
      * <p>By default some message will redelivery so many times possible, even to the extent that it can be never stop.
      * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
@@ -510,4 +510,52 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            whether to auto update partition increasement
      */
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Set KeyShared subscription policy for consumer.
+     *
+     * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * set a different KeyShared policy, you can set by following example:
+     *
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 10)))
+     *          .subscribe();
+     * </pre>
+     * Details about sticky hash range policy, please see {@link KeySharedPolicy.KeySharedPolicySticky}.
+     *
+     * <p>Or
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
+     *          .subscribe();
+     * </pre>
+     * Details about auto split hash range policy, please see {@link KeySharedPolicy.KeySharedPolicyAutoSplit}.
+     *
+     * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
+     */
+    ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * Set the consumer to include the given position of any reset operation like {@link Consumer#seek(long) or
+     * {@link Consumer#seek(MessageId)}}.
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> startMessageIdInclusive();
+
+    /**
+     * Set batch receive policy {@link BatchReceivePolicy} for consumer.
+     * By default, consumer will use {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
+     *              .maxNumMessages(100)
+     *              .maxNumBytes(5 * 1024 * 1024)
+     *              .timeout(100, TimeUnit.MILLISECONDS)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
 }

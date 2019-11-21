@@ -411,4 +411,34 @@ Message deduplication makes Pulsar an ideal messaging system to be used in conju
 
 > More in-depth information can be found in [this post](https://streaml.io/blog/pulsar-effectively-once/) on the [Streamlio blog](https://streaml.io/blog)
 
+## Delayed message delivery
+Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, `DelayedDeliveryTracker` maintains the time index(time -> messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.  
 
+Delayed message delivery only works well in Shared subscription mode. In Exclusive and Failover subscription mode, the delayed message is dispatched immediately.
+
+The diagram below illustrates the concept of delayed message delivery:
+
+![Delayed Message Delivery](assets/message_delay.png)
+
+A broker saves a message without any check. When a consumer consumes a message, if the message is set to delay, then the message is added to `DelayedDeliveryTracker`. A subscription checks and gets timeout messages from `DelayedDeliveryTracker`.
+
+### Broker 
+Delayed message delivery is enabled by default. You can change it in the broker configuration file as below:
+
+```
+# Whether to enable the delayed delivery for messages.
+# If disabled, messages are immediately delivered and there is no tracking overhead.
+delayedDeliveryEnabled=true
+
+# Control the ticking time for the retry of delayed message delivery,
+# affecting the accuracy of the delivery time compared to the scheduled time.
+# Default is 1 second.
+delayedDeliveryTickTimeMillis=1000
+```
+
+### Producer 
+The following is an example of delayed message delivery for a producer in Java:
+```java
+// message to be delivered at the configured delay interval
+producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
+```

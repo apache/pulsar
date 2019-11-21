@@ -36,7 +36,6 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.bookkeeper.api.kv.Table;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -98,13 +97,17 @@ public class ContextImplTest {
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetCounterStateDisabled() {
-
         context.getCounter("test-key");
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testPutStateStateDisabled() {
         context.putState("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testDeleteStateStateDisabled() {
+        context.deleteState("test-key");
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
@@ -132,6 +135,14 @@ public class ContextImplTest {
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
         context.putStateAsync("test-key", buffer);
         verify(context.stateContext, times(1)).put(eq("test-key"), same(buffer));
+    }
+
+    @Test
+    public void testDeleteStateStateEnabled() throws Exception {
+        context.stateContext = mock(StateContextImpl.class);
+        ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
+        context.deleteStateAsync("test-key");
+        verify(context.stateContext, times(1)).delete(eq("test-key"));
     }
 
     @Test

@@ -228,27 +228,31 @@ class Download extends React.Component {
               </thead>
               <tbody>
                 {releaseInfo.map(
-                  info =>
-                    info.version !== latestVersion && (
-                      <tr key={info.version}>
+                  info => {
+                        var sha = "sha512"
+                        if (info.version.includes('1.19.0-incubating') || info.version.includes('1.20.0-incubating')) {
+                            sha = "sha"
+                        }
+                        return info.version !== latestVersion && (
+                            <tr key={info.version}>
                         <th>{info.version}</th>
                         <td>
-                          <a href={info.binArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a>
-                          &nbsp;
+                        <a href={info.binArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a> &nbsp;
                           (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
-                            <a href={`${info.binArchiveUrl}.sha512`}>sha512</a>)
-                        </td>
-                        <td>
-                          <a href={info.srcArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a>
-                          &nbsp;
-                          (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>&nbsp;
-                            <a href={`${info.srcArchiveUrl}.sha512`}>sha512</a>)
-                        </td>
-                        <td>
+                          <a href={`${info.binArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                          </td>
+                          <td>
+                          <a href={info.srcArchiveUrl}>apache-pulsar-{info.version}-src-tar.gz</a>
+                              &nbsp;
+                          (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>,&nbsp;
+                          <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                          </td>
+                          <td>
                           <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}><translate>Release Notes</translate></a>
-                        </td>
-                      </tr>
-                    )
+                          </td>
+                          </tr>
+                      )
+                    }
                 )}
               </tbody>
             </table>

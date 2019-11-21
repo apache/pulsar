@@ -62,7 +62,7 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
     cd zlib-1.2.11 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /v1.2.11.tar.gz /zlib-1.2.11
 
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
     tar xvfz OpenSSL_1_1_0j.tar.gz && \

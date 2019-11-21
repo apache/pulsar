@@ -18,24 +18,29 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -48,14 +53,18 @@ import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+@PrepareForTest(PersistentTopics.class)
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -218,11 +227,56 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateNonPartitionedTopic() {
-        final String topicName = "standard-topic";
+        final String topicName = "standard-topic-partition-a";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
         PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, false);
         Assert.assertEquals(pMetadata.partitions, 0);
+    }
+
+    @Test(expectedExceptions = RestException.class)
+    public void testCreateNonPartitionedTopicWithInvalidName() {
+        final String topicName = "standard-topic-partition-10";
+        doAnswer(invocation -> {
+            TopicName partitionedTopicname = invocation.getArgument(0, TopicName.class);
+            assert(partitionedTopicname.getLocalName().equals("standard-topic"));
+            return new PartitionedTopicMetadata(10);
+        }).when(persistentTopics).getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean());
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+    }
+
+    @Test(expectedExceptions = RestException.class)
+    public void testCreatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix() throws KeeperException, InterruptedException {
+        // Test the case in which user already has topic like topic-name-partition-123 created before we enforce the validation.
+        final String nonPartitionTopicName1 = "standard-topic";
+        final String nonPartitionTopicName2 = "special-topic-partition-123";
+        final String partitionedTopicName = "special-topic";
+        LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
+        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
+        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
+        doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
+        doReturn(ImmutableSet.of(nonPartitionTopicName1, nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, 5);
+    }
+
+    @Test(expectedExceptions = RestException.class)
+    public void testUpdatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix() throws Exception {
+        // Already have non partition topic special-topic-partition-10, shouldn't able to update number of partitioned topic to more than 10.
+        final String nonPartitionTopicName2 = "special-topic-partition-10";
+        final String partitionedTopicName = "special-topic";
+        LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
+        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
+        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
+        doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
+        doReturn(ImmutableSet.of(nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
+        doAnswer(invocation -> {
+            persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
+            persistentTopics.topicName = TopicName.get("persistent", "tenant", "cluster", "namespace", "topicname");
+            return null;
+        }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
+        doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, 5);
+        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, 10);
     }
 
     @Test

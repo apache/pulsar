@@ -225,7 +225,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
             Assert.fail("Should have failed to open old ledger");
-        } catch (BKException.BKNoSuchLedgerExistsException e) {
+        } catch (BKException.BKNoSuchLedgerExistsException
+            | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
             // correct, expected behaviour
         }
         bk.openLedger(newCompactedLedger.getId(),

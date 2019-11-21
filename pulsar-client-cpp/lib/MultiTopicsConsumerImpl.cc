@@ -726,3 +726,7 @@ std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(const std::v
 void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }
+
+void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    callback(ResultOperationNotSupported);
+}

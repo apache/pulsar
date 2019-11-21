@@ -27,15 +27,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class BytesSchema extends AbstractSchema<byte[]> {
 
+    private static final BytesSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("Bytes")
+            .setType(SchemaType.BYTES)
+            .setSchema(new byte[0]);
+        INSTANCE = new BytesSchema();
+    }
+
     public static BytesSchema of() {
         return INSTANCE;
     }
-
-    private static final BytesSchema INSTANCE = new BytesSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Bytes")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
 
     @Override
     public byte[] encode(byte[] message) {

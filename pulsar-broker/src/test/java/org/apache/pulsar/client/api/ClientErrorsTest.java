@@ -267,7 +267,7 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newSendError(0, 0, ServerError.PersistenceError, "Send Failed"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newSendReceipt(0, 0, 1, 1));
+            ctx.writeAndFlush(Commands.newSendReceipt(0, 0, 0, 1, 1));
         });
 
         try {
@@ -587,7 +587,7 @@ public class ClientErrorsTest {
 
         mockBrokerService.setHandleSend((ctx, sendCmd, headersAndPayload) -> {
             msgSent.set(true);
-            ctx.writeAndFlush(Commands.newSendReceipt(0, 0, 1, 1));
+            ctx.writeAndFlush(Commands.newSendReceipt(0, 0, 0, 1, 1));
         });
 
         PulsarClient client = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + WEB_SERVICE_PORT).build();

@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class LongSchema extends AbstractSchema<Long> {
 
+    private static final LongSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT64")
+            .setType(SchemaType.INT64)
+            .setSchema(new byte[0]);
+        INSTANCE = new LongSchema();
+    }
+
     public static LongSchema of() {
         return INSTANCE;
     }
-
-    private static final LongSchema INSTANCE = new LongSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT64")
-        .setType(SchemaType.INT64)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

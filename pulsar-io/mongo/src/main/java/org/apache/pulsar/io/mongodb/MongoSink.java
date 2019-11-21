@@ -34,7 +34,7 @@ import org.bson.BSONException;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -105,7 +105,7 @@ public class MongoSink implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) {
-        final String recordValue = new String(record.getValue(), Charset.forName("UTF-8"));
+        final String recordValue = new String(record.getValue(), StandardCharsets.UTF_8);
 
         if (log.isDebugEnabled()) {
             log.debug("Received record: " + recordValue);
@@ -143,7 +143,7 @@ public class MongoSink implements Sink<byte[]> {
 
             try {
                 final byte[] docAsBytes = record.getValue();
-                final Document doc = Document.parse(new String(docAsBytes, Charset.forName("UTF-8")));
+                final Document doc = Document.parse(new String(docAsBytes, StandardCharsets.UTF_8));
                 docsToInsert.add(doc);
             }
             catch (JsonParseException | BSONException e) {

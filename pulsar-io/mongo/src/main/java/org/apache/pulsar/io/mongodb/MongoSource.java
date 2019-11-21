@@ -35,7 +35,7 @@ import org.bson.Document;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -132,9 +132,9 @@ public class MongoSource extends PushSource<byte[]> {
 
                     consume(new DocRecord(
                             Optional.of(doc.getDocumentKey().toJson()),
-                            mapper.writeValueAsString(recordValue).getBytes("UTF-8")));
+                            mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
 
-                } catch (UnsupportedEncodingException | JsonProcessingException e) {
+                } catch (JsonProcessingException e) {
                     log.error("Processing doc from mongo", e);
                 }
             }

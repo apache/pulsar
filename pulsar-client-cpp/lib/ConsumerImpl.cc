@@ -20,6 +20,7 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
+#include "TimeUtils.h"
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -205,7 +206,7 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             scheduleReconnection(shared_from_this());
         } else {
             // Consumer was not yet created, retry to connect to broker if it's possible
-            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < now())) {
+            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < TimeUtils::now())) {
                 LOG_WARN(getName() << "Temporary error in creating consumer : " << strResult(result));
                 scheduleReconnection(shared_from_this());
             } else {
@@ -837,8 +838,12 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
+    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
+    state_ = Closing;
+
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
+        state_ = Closed;
         lock.unlock();
         // If connection is gone, also the consumer is closed on the broker side
         if (callback) {
@@ -847,9 +852,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     ClientImplPtr client = client_.lock();
     if (!client) {
+        state_ = Closed;
         lock.unlock();
         // Client was already destroyed
         if (callback) {
@@ -1047,6 +1052,38 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
                             << requestId);
         Future<Result, ResponseData> future =
             cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+
+        if (callback) {
+            future.addListener(
+                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
+        }
+        return;
+    }
+
+    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+    callback(ResultNotConnected);
+}
+
+void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (callback) {
+            callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        ClientImplPtr client = client_.lock();
+        uint64_t requestId = client->newRequestId();
+        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
+                            << requestId);
+        Future<Result, ResponseData> future =
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, timestamp), requestId);
 
         if (callback) {
             future.addListener(

@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -78,6 +79,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         super.setUp(m);
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         PulsarService pulsar = spy(new PulsarService(svcConfig));
+        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
@@ -121,7 +123,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -180,7 +182,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -243,7 +245,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -302,7 +304,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);

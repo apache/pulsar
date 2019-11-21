@@ -54,7 +54,7 @@ const std::string generateRandomName() {
     ss << nanoSeconds;
     SHA1(reinterpret_cast<const unsigned char*>(ss.str().c_str()), ss.str().length(), hash);
 
-    const int nameLength = 6;
+    const int nameLength = 10;
     std::stringstream hexHash;
     for (int i = 0; i < nameLength / 2; i++) {
         hexHash << hexDigits[(hash[i] & 0xF0) >> 4];

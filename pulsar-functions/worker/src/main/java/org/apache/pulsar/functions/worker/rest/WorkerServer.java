@@ -25,6 +25,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
@@ -63,6 +64,9 @@ public class WorkerServer {
     private final WebExecutorThreadPool webServerExecutor;
     private Server server;
 
+    private ServerConnector httpConnector;
+    private ServerConnector httpsConnector;
+
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
             final URI uri = server.getURI();
@@ -88,9 +92,9 @@ public class WorkerServer {
         server = new Server(webServerExecutor);
 
         List<ServerConnector> connectors = new ArrayList<>();
-        ServerConnector connector = new ServerConnector(server, 1, 1);
-        connector.setPort(this.workerConfig.getWorkerPort());
-        connectors.add(connector);
+        httpConnector = new ServerConnector(server, 1, 1);
+        httpConnector.setPort(this.workerConfig.getWorkerPort());
+        connectors.add(httpConnector);
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(
@@ -124,9 +128,9 @@ public class WorkerServer {
                         this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
                         true,
                         this.workerConfig.getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
-                connectors.add(tlsConnector);
+                httpsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
+                connectors.add(httpsConnector);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -161,6 +165,7 @@ public class WorkerServer {
     public void stop() {
         if (this.server != null) {
             try {
+                this.server.stop();
                 this.server.destroy();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);
@@ -175,4 +180,19 @@ public class WorkerServer {
         }
     }
 
+    public Optional<Integer> getListenPortHTTP() {
+        if (httpConnector != null) {
+            return Optional.of(httpConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (httpsConnector != null) {
+            return Optional.of(httpsConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
 }

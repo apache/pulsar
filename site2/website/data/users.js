@@ -75,7 +75,7 @@ module.exports = [
     {
         name: 'Quantel AI',
         url: 'http://quantel.ai/',
-        logo: 'http://quantel.ai/wp-content/uploads/2019/02/Quantel.png'
+        logo: 'https://quantel.ai/wp-content/uploads/2019/09/Quantel-AI-Black-Font-Trans-1024x1024.png'
     },
     {
         name: 'Streamlio',
@@ -121,7 +121,8 @@ module.exports = [
     {
         name: 'One Click Retail',
         url: 'https://oneclickretail.com/',
-        logo: 'https://oneclickretail.com/wp-content/uploads/2018/08/colored_logo-1.png'
+        logo: 'https://www.ascentialedge.com/themes/contrib/custom/images/edge-by-ascential.svg',
+        logo_white: true
     },
     {
         name: 'Tuya',
@@ -199,7 +200,7 @@ module.exports = [
     {
         name: 'OVHcloud',
         url: 'https://www.ovhcloud.com/',
-        logo: 'https://eu.ovhcloud.com/themes/contrib/ovh_theme_base/logo.svg'
+        logo: 'https://www.ovh.com/world/images/logo/ovhLogoColor.svg'
     },
     {
         name: 'BrandsEye',
@@ -214,8 +215,7 @@ module.exports = [
     {
         name: 'HSL Developer Community of Helsinki Regional Transport Authority',
         url: 'https://dev.hsl.fi/',
-        logo: 'https://dev.hsl.fi/logo.png',
-        logo_white: true
+        logo: 'https://pbs.twimg.com/profile_images/2507371771/9toyr6r5ngcozfwg42zv_400x400.png'
     },
     {
         name: 'Ottoo',

@@ -1,5 +1,5 @@
 ---
-id: io-file
+id: io-file-source
 title: File source connector
 sidebar_label: File source connector
 ---

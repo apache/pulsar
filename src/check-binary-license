@@ -110,7 +110,7 @@ done
 for J in $LICENSEJARS; do
     echo "$JARS" | grep -q $J
     if [ $? != 0 ]; then
-        echo $J mentioned in LICENSE, but not bundled
+        echo $J mentioned in lib/presto/LICENSE, but not bundled
         EXIT=2
     fi
 done

@@ -583,7 +583,6 @@ public class PulsarClientException extends IOException {
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
         }  else if (t instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
             return new PulsarClientException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception

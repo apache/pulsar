@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class ByteSchema extends AbstractSchema<Byte> {
 
+    private static final ByteSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT8")
+            .setType(SchemaType.INT8)
+            .setSchema(new byte[0]);
+        INSTANCE = new ByteSchema();
+    }
+
     public static ByteSchema of() {
         return INSTANCE;
     }
-
-    private static final ByteSchema INSTANCE = new ByteSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT8")
-        .setType(SchemaType.INT8)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

@@ -13,6 +13,8 @@ This guide explains how to configure and use the Kafka sink connector.
 
 The configuration of the Kafka sink connector has the following parameters.
 
+### Property
+
 | Name | Type| Required | Default | Description 
 |------|----------|---------|-------------|-------------|
 |  `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |

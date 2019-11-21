@@ -19,8 +19,8 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +36,7 @@ public class KinesisRecord implements Record<byte[]> {
     public static final String PARTITION_KEY = "";
     public static final String SEQUENCE_NUMBER = "";
 
-    private static final CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
+    private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<String, String> ();

@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -119,10 +120,6 @@ public class SimpleLoadManagerImplTest {
     private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
     private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImplTest.class);
 
-    static {
-        System.setProperty("test.basePort", "16100");
-    }
-
     @BeforeMethod
     void setup() throws Exception {
 
@@ -137,8 +134,10 @@ public class SimpleLoadManagerImplTest {
         config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+        config1.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config1.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
         pulsar1 = new PulsarService(config1);
-
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -154,8 +153,10 @@ public class SimpleLoadManagerImplTest {
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+        config2.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config2.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
         pulsar2 = new PulsarService(config2);
-
+        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
 
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);

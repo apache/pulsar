@@ -62,8 +62,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *
      * @param sendMessageInfo
      *            an object where the total size in messages and bytes will be returned back to the caller
-     * @param subscription
-     *            the subscription object
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo) {

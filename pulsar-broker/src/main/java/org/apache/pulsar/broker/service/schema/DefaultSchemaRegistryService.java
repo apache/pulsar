@@ -23,6 +23,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
@@ -43,6 +45,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+        return completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
         return completedFuture(Collections.emptyList());
     }
@@ -52,10 +59,8 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         return completedFuture(NO_SCHEMA_VERSION);
     }
 
-
     @Override
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 

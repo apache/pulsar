@@ -68,7 +68,7 @@ public class AvroReader<T> implements SchemaReader<T> {
                 decoders.set(decoder);
             }
             return reader.read(null, DecoderFactory.get().binaryDecoder(inputStream, decoder));
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new SchemaSerializationException(e);
         } finally {
             try {

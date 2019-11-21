@@ -92,17 +92,33 @@ topicCompactionFrequencySec: 1800
 # Function Runtime Management
 ###############################
 
-#threadContainerFactory:
+#### Process Runtime  ####
+# Pulsar function instances are launched as processes
+
+functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
+functionRuntimeFactoryConfigs:
+    # location of log files for functions
+    logDirectory: /tmp
+    # change the jar location only when you put the java instance jar in a different location
+    javaInstanceJarLocation:
+    # change the python instance location only when you put the python instance jar in a different location
+    pythonInstanceLocation:
+    # change the extra dependencies location:
+    extraFunctionDependenciesDir:
+
+#### Thread Runtime ####
+# Pulsar function instances are run as threads
+
+#functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory
+#functionRuntimeFactoryConfigs:
+#  # thread group name
 #  threadGroupName: "Thread Function Container Group"
-processContainerFactory:
-  logDirectory:
-  # change the jar location only when you put the java instance jar in a different location
-  javaInstanceJarLocation:
-  # change the python instance location only when you put the python instance jar in a different location
-  pythonInstanceLocation:
-  # change the extra dependencies location:
-  extraFunctionDependenciesDir:
-#kubernetesContainerFactory:
+
+#### Kubernetes Runtime ####
+# Pulsar function are deployed to Kubernetes
+
+#functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
+#functionRuntimeFactoryConfigs:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:
 #  # the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty
@@ -116,7 +132,7 @@ processContainerFactory:
 #  # setting this to true is let function worker to submit functions to the same k8s cluster as function worker
 #  # is running. setting this to false if your function worker is not running as a k8 pod.
 #  submittingInsidePod: false
-#  # setting the pulsar service url that pulsar function should use to connect to pulsar 
+#  # setting the pulsar service url that pulsar function should use to connect to pulsar
 #  # if it is not set, it will use the pulsar service url configured in worker service
 #  pulsarServiceUrl:
 #  # setting the pulsar admin url that pulsar function should use to connect to pulsar

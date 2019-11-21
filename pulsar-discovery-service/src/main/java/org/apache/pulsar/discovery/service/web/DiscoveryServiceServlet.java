@@ -84,6 +84,15 @@ public class DiscoveryServiceServlet extends HttpServlet {
     }
 
     @Override
+    public void destroy() {
+        try {
+            zkCache.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         redirect(req, resp);
     }

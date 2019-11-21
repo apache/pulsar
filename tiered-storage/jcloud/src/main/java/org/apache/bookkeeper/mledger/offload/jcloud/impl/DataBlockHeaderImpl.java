@@ -123,5 +123,11 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
         // true means the input stream will release the ByteBuf on close
         return new ByteBufInputStream(out, true);
     }
+
+    @Override
+    public String toString() {
+        return String.format("DataBlockHeader(len:%d,hlen:%d,firstEntry:%d)",
+                             blockLength, headerLength, firstEntryId);
+    }
 }
 

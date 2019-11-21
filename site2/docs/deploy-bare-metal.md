@@ -268,7 +268,7 @@ Once you appropriately modify the `zkServers` parameter, you can provide any oth
 
 > ##### NOTES
 >
-> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-state.md) for Pulsar Functions. If you want to enable that feature,
+> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-develop.md#state-storage) for Pulsar Functions. If you want to enable that feature,
 > you need to enable table service on BookKeeper by doing the following setting in `conf/bookkeeper.conf` file.
 >
 > ```conf

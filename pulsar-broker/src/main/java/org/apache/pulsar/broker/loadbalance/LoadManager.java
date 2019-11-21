@@ -47,7 +47,7 @@ public interface LoadManager {
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
-    public void start() throws PulsarServerException;
+    void start() throws PulsarServerException;
 
     /**
      * Is centralized decision making to assign a new bundle.

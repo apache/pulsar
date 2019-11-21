@@ -148,6 +148,12 @@ public class EntryCacheImpl implements EntryCache {
     public void invalidateEntries(final PositionImpl lastPosition) {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
+        if (firstPosition.compareTo(lastPosition) > 0) {
+            log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
+                firstPosition, lastPosition);
+            return;
+        }
+
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();

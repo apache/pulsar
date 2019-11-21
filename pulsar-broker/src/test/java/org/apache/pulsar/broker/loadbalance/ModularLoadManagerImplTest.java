@@ -42,6 +42,7 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -104,19 +105,15 @@ public class ModularLoadManagerImplTest {
     private ModularLoadManagerImpl primaryLoadManager;
     private ModularLoadManagerImpl secondaryLoadManager;
 
-    private ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-        new LinkedBlockingQueue<>());
+    private ExecutorService executor;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
+    private int ZOOKEEPER_PORT;
+    private int PRIMARY_BROKER_WEBSERVICE_PORT;
+    private int SECONDARY_BROKER_WEBSERVICE_PORT;
+    private int PRIMARY_BROKER_PORT;
+    private int SECONDARY_BROKER_PORT;
+
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImplTest.class);
-
-    static {
-        System.setProperty("test.basePort", "16100");
-    }
 
     // Invoke non-overloaded method.
     private Object invokeSimpleMethod(final Object instance, final String methodName, final Object... args)
@@ -144,6 +141,14 @@ public class ModularLoadManagerImplTest {
 
     @BeforeMethod
     void setup() throws Exception {
+        executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_PORT = PortManager.nextFreePort();
+        SECONDARY_BROKER_PORT = PortManager.nextFreePort();
+
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
@@ -158,8 +163,10 @@ public class ModularLoadManagerImplTest {
 
         config1.setAdvertisedAddress("localhost");
         config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
+        config1.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config1.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
         pulsar1 = new PulsarService(config1);
-
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
         primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -174,7 +181,10 @@ public class ModularLoadManagerImplTest {
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
+        config2.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config2.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
         pulsar2 = new PulsarService(config2);
+        pulsar2.setShutdownService(new NoOpShutdownService());
         secondaryHost = String.format("%s:%d", "localhost",
                 SECONDARY_BROKER_WEBSERVICE_PORT);
 
@@ -606,6 +616,7 @@ public class ModularLoadManagerImplTest {
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config.setBrokerServicePort(Optional.ofNullable(brokerServicePort));
         PulsarService pulsar = new PulsarService(config);
+        pulsar.setShutdownService(new NoOpShutdownService());
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
                 + brokerWebServicePort;

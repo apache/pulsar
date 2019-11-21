@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "HandlerBase.h"
+#include "TimeUtils.h"
 
 #include <cassert>
 
@@ -31,7 +32,7 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
       topic_(topic),
       connection_(),
       mutex_(),
-      creationTimestamp_(now()),
+      creationTimestamp_(TimeUtils::now()),
       operationTimeut_(seconds(client->conf().getOperationTimeoutSeconds())),
       state_(Pending),
       backoff_(backoff),
@@ -143,12 +144,4 @@ void HandlerBase::handleTimeout(const boost::system::error_code& ec, HandlerBase
     }
 }
 
-ptime now() { return microsec_clock::universal_time(); }
-
-int64_t currentTimeMillis() {
-    static ptime time_t_epoch(boost::gregorian::date(1970, 1, 1));
-
-    time_duration diff = now() - time_t_epoch;
-    return diff.total_milliseconds();
-}
 }  // namespace pulsar

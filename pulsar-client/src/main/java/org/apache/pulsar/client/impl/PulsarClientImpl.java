@@ -206,7 +206,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
-          ProducerInterceptors<T> interceptors) {
+          ProducerInterceptors interceptors) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -230,6 +230,9 @@ public class PulsarClientImpl implements PulsarClient {
 
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
+            if (autoProduceBytesSchema.schemaInitialized()) {
+                return createProducerAsync(topic, conf, schema, interceptors);
+            }
             return lookup.getSchema(TopicName.get(conf.getTopicName()))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent()) {
@@ -248,7 +251,7 @@ public class PulsarClientImpl implements PulsarClient {
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
                                                                    ProducerConfigurationData conf,
                                                                    Schema<T> schema,
-                                                                   ProducerInterceptors<T> interceptors) {
+                                                                   ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {

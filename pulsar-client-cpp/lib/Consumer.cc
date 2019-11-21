@@ -216,6 +216,14 @@ void Consumer::seekAsync(const MessageId& msgId, ResultCallback callback) {
     impl_->seekAsync(msgId, callback);
 }
 
+void Consumer::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+    impl_->seekAsync(timestamp, callback);
+}
+
 Result Consumer::seek(const MessageId& msgId) {
     if (!impl_) {
         return ResultConsumerNotInitialized;
@@ -223,6 +231,18 @@ Result Consumer::seek(const MessageId& msgId) {
 
     Promise<bool, Result> promise;
     impl_->seekAsync(msgId, WaitForCallback(promise));
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
+Result Consumer::seek(uint64_t timestamp) {
+    if (!impl_) {
+        return ResultConsumerNotInitialized;
+    }
+
+    Promise<bool, Result> promise;
+    impl_->seekAsync(timestamp, WaitForCallback(promise));
     Result result;
     promise.getFuture().get(result);
     return result;

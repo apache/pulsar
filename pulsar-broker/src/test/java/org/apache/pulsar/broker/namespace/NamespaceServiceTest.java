@@ -360,7 +360,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
 
         // update to new load mananger
-        pulsar.getLoadManager().set(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
+        LoadManager oldLoadManager = pulsar.getLoadManager()
+                .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
+        oldLoadManager.stop();
         LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2).get();
         Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
         Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);

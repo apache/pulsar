@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -32,7 +33,9 @@ import io.prometheus.client.Gauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,8 +56,8 @@ import org.slf4j.LoggerFactory;
 public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
-    private final String serviceUrl;
-    private final String serviceUrlTls;
+    private String serviceUrl;
+    private String serviceUrlTls;
     private ConfigurationCacheService configurationCacheService;
     private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
@@ -62,6 +65,9 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+
+    private Channel listenChannel;
+    private Channel listenChannelTls;
 
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-proxy-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-proxy-io");
@@ -100,24 +106,6 @@ public class ProxyService implements Closeable {
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
-        String hostname;
-        try {
-            hostname = InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-        if (proxyConfig.getServicePort().isPresent()) {
-            this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort().get());
-        } else {
-            this.serviceUrl = null;
-        }
-
-        if (proxyConfig.getServicePortTls().isPresent()) {
-            this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls().get());
-        } else {
-            this.serviceUrlTls = null;
-        }
-
         if (proxyConfig.getproxyLogLevel().isPresent()) {
             ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getproxyLogLevel().get());
         } else {
@@ -150,19 +138,37 @@ public class ProxyService implements Closeable {
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
-                bootstrap.bind(proxyConfig.getServicePort().get()).sync();
-                LOG.info("Started Pulsar Proxy at {}", serviceUrl);
+                listenChannel = bootstrap.bind(proxyConfig.getServicePort().get()).sync().channel();
+                LOG.info("Started Pulsar Proxy at {}", listenChannel.localAddress());
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
             }
         }
-        LOG.info("Started Pulsar Proxy at {}", serviceUrl);
 
         if (proxyConfig.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-            tlsBootstrap.bind(proxyConfig.getServicePortTls().get()).sync();
-            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls().get());
+            listenChannelTls = tlsBootstrap.bind(proxyConfig.getServicePortTls().get()).sync().channel();
+            LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
+        }
+
+        String hostname;
+        try {
+            hostname = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (proxyConfig.getServicePort().isPresent()) {
+            this.serviceUrl = String.format("pulsar://%s:%d/", hostname, getListenPort().get());
+        } else {
+            this.serviceUrl = null;
+        }
+
+        if (proxyConfig.getServicePortTls().isPresent()) {
+            this.serviceUrlTls = String.format("pulsar+ssl://%s:%d/", hostname, getListenPortTls().get());
+        } else {
+            this.serviceUrlTls = null;
         }
     }
 
@@ -182,6 +188,15 @@ public class ProxyService implements Closeable {
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }
+
+        if (listenChannel != null) {
+            listenChannel.close();
+        }
+
+        if (listenChannelTls != null) {
+            listenChannelTls.close();
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }
@@ -220,6 +235,22 @@ public class ProxyService implements Closeable {
 
     public EventLoopGroup getWorkerGroup() {
         return workerGroup;
+    }
+
+    public Optional<Integer> getListenPort() {
+        if (listenChannel != null) {
+            return Optional.of(((InetSocketAddress) listenChannel.localAddress()).getPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortTls() {
+        if (listenChannelTls != null) {
+            return Optional.of(((InetSocketAddress) listenChannelTls.localAddress()).getPort());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

@@ -16,6 +16,7 @@ Commands
 * `brokers`
 * `clusters`
 * `functions`
+* `functions-worker`
 * `namespaces`
 * `ns-isolation-policy`
 * `sources`
@@ -170,6 +171,21 @@ Usage
 ```bash
 $ pulsar-admin brokers list-dynamic-config
 ```
+
+### `delete-dynamic-config`
+Delete dynamic-serviceConfiguration of broker
+
+Usage
+```bash
+$ pulsar-admin brokers delete-dynamic-config options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--config`|Service configuration parameter name||
+
 
 ### `get-all-dynamic-config`
 Get all overridden dynamic-configuration values
@@ -734,6 +750,66 @@ Options
 |`--trigger-file`|The path to the file that contains the data with which you'd like to trigger the function||
 |`--trigger-value`|The value with which you want to trigger the function||
 
+
+## `functions-worker`
+Operations to collect function-worker statistics
+
+```bash
+$ pulsar-admin functions-worker subcommand
+```
+
+Subcommands
+
+* `function-stats`
+* `get-cluster`
+* `get-cluster-leader`
+* `get-function-assignments`
+* `monitoring-metrics`
+
+### `function-stats`
+
+Dump all functions stats running on this broker
+
+Usage
+```bash
+$ pulsar-admin functions-worker function-stats
+```
+
+### `get-cluster`
+
+Get all workers belonging to this cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster
+```
+
+### `get-cluster-leader`
+
+Get the leader of the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster-leader
+```
+
+### `get-function-assignments`
+
+Get the assignments of the functions across the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-function-assignments
+```
+
+### `monitoring-metrics`
+
+Dump metrics for Monitoring
+
+Usage
+```bash
+$ pulsar-admin functions-worker monitoring-metrics
+```
 
 ## `namespaces`
 
@@ -1902,7 +1978,7 @@ Options
 
 
 ### `reset-cursor`
-Reset position for subscription to closest to timestamp
+Reset position for subscription to a position that is closest to timestamp or messageId.
 
 Usage
 ```bash
@@ -1910,10 +1986,12 @@ $ pulsar-admin topics reset-cursor topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|Subscription to reset position on||
-|`-t`, `--time`|The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
 
 

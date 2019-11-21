@@ -28,6 +28,7 @@
 DECLARE_LOG_OBJECT()
 
 #include "ObjectPool.h"
+#include "TimeUtils.h"
 
 using namespace pulsar;
 
@@ -112,6 +113,16 @@ MessageBuilder& MessageBuilder::setSequenceId(int64_t sequenceId) {
     }
     checkMetadata();
     impl_->metadata.set_sequence_id(sequenceId);
+    return *this;
+}
+
+MessageBuilder& MessageBuilder::setDeliverAfter(std::chrono::milliseconds delay) {
+    return setDeliverAt(TimeUtils::currentTimeMillis() + delay.count());
+}
+
+MessageBuilder& MessageBuilder::setDeliverAt(uint64_t deliveryTimestamp) {
+    checkMetadata();
+    impl_->metadata.set_deliver_at_time(deliveryTimestamp);
     return *this;
 }
 

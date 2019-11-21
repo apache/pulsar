@@ -49,17 +49,17 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
-    private final ProducerBase<T> producer;
+    private final ProducerBase<?> producer;
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
     private ByteBuffer content;
     private final TransactionImpl txn;
 
-    public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema) {
+    public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
     }
 
-    public TypedMessageBuilderImpl(ProducerBase<T> producer,
+    public TypedMessageBuilderImpl(ProducerBase<?> producer,
                                    Schema<T> schema,
                                    TransactionImpl txn) {
         this.producer = producer;
@@ -252,7 +252,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public Message<T> getMessage() {
         beforeSend();
-        return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
+        return MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 
     public long getPublishTime() {

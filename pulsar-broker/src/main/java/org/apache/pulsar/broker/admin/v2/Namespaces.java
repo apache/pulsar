@@ -53,10 +53,13 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -349,6 +352,26 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("unload") @DefaultValue("false") boolean unload) {
         validateNamespaceName(tenant, namespace);
         internalSplitNamespaceBundle(bundleRange, authoritative, unload);
+    }
+
+    @POST
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            PublishRate publishRate) {
+        validateNamespaceName(property, namespace);
+        internalSetPublishRate(publishRate);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Get publish-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public PublishRate getPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetPublishRate();
     }
 
     @POST
@@ -943,6 +966,59 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "The strategy of the namespace schema compatibility ")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSchemaCompatibilityStrategy();
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/schemaCompatibilityStrategy")
+    @ApiOperation(value = "Update the strategy used to check the compatibility of new schema")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setSchemaCompatibilityStrategy(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace,
+                                               SchemaCompatibilityStrategy strategy) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSchemaCompatibilityStrategy(strategy);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/isAllowAutoUpdateSchema")
+    @ApiOperation(value = "The flag of whether allow auto update schema")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public boolean getIsAllowAutoUpdateSchema(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetIsAllowAutoUpdateSchema();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/isAllowAutoUpdateSchema")
+    @ApiOperation(value = "Update flag of whether allow auto update schema")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setIsAllowAutoUpdateSchema(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           boolean isAllowAutoUpdateSchema) {
+        validateNamespaceName(tenant, namespace);
+        internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
+    }
+
 
     @GET
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")

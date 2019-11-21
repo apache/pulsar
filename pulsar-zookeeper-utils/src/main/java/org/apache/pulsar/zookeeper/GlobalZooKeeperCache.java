@@ -53,7 +53,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
     public GlobalZooKeeperCache(ZooKeeperClientFactory zkClientFactory, int zkSessionTimeoutMillis,
             int zkOperationTimeoutSeconds, String globalZkConnect, OrderedExecutor orderedExecutor,
             ScheduledExecutorService scheduledExecutor) {
-        super(null, zkOperationTimeoutSeconds, orderedExecutor);
+        super("global-zk", null, zkOperationTimeoutSeconds, orderedExecutor);
         this.zlClientFactory = zkClientFactory;
         this.zkSessionTimeoutMillis = zkSessionTimeoutMillis;
         this.globalZkConnect = globalZkConnect;

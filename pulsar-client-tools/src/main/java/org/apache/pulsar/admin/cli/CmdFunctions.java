@@ -300,6 +300,8 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
         protected Integer maxMessageRetries;
         @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
+        protected String customRuntimeOptions;
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
@@ -435,6 +437,10 @@ public class CmdFunctions extends CmdBase {
 
             if (timeoutMs != null) {
                 functionConfig.setTimeoutMs(timeoutMs);
+            }
+
+            if (customRuntimeOptions != null) {
+                functionConfig.setCustomRuntimeOptions(customRuntimeOptions);
             }
 
             // window configs

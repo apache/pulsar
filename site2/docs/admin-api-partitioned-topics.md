@@ -34,6 +34,7 @@ need to provide a name for the topic as well as the desired number of partitions
 
 You can create partitioned topics using the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
 command and specifying the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
+
 Here's an example:
 
 ```shell
@@ -41,6 +42,13 @@ $ bin/pulsar-admin topics create-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
 ```
+
+> #### Note
+>
+> If there already exists a non partitioned topic with suffix '-partition-' followed by numeric value like
+> 'xyz-topic-partition-10', then you can not create partitioned topic with name 'xyz-topic' as the partitions
+> of the partitioned topic could override the existing non partitioned topic. You have to delete that non
+> partitioned topic first then create the partitioned topic.
 
 #### REST API
 

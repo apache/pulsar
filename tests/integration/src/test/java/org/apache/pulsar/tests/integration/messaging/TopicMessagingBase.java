@@ -20,13 +20,14 @@ package org.apache.pulsar.tests.integration.messaging;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -54,17 +55,15 @@ public class TopicMessagingBase extends MessagingBase {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
-        Exception exception = null;
         try {
             client.newConsumer(Schema.STRING)
                     .topic(topicName)
                     .subscriptionName("test-sub")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
+            fail("should be failed");
+        } catch (PulsarClientException ignore) {
         }
-        assertNotNull(exception);
         final int messagesToSend = 10;
         final String producerName = "producerForExclusive";
         @Cleanup
@@ -93,31 +92,30 @@ public class TopicMessagingBase extends MessagingBase {
         List<Consumer<String>> consumerList = new ArrayList<>(3);
         for (int i = 0; i < partitions; i++) {
             Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
+                    .topic(topicName + "-partition-" + i)
                     .subscriptionName("test-sub")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscribe();
             consumerList.add(consumer);
         }
         assertEquals(partitions, consumerList.size());
-        Exception exception = null;
         try {
             client.newConsumer(Schema.STRING)
-                    .topic(topicName)
+                    .topic(topicName + "-partition-" + 0)
                     .subscriptionName("test-sub")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
+            fail("should be failed");
+        } catch (PulsarClientException ignore) {
         }
-        assertNotNull(exception);
-        final int messagesToSend = 10;
+        final int messagesToSend = 9;
         final String producerName = "producerForExclusive";
         @Cleanup
         final Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(false)
                 .producerName(producerName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
@@ -132,7 +130,7 @@ public class TopicMessagingBase extends MessagingBase {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
             assertNotNull(messageId);
         }
-        receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
+        receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend - 3);
         closeConsumers(consumerList);
         log.info("-- Exiting {} test --", methodName);
     }
@@ -144,27 +142,21 @@ public class TopicMessagingBase extends MessagingBase {
         final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .build();
-        List<Consumer<String>> consumerList = new ArrayList<>(3);
+        List<Consumer<String>> consumerList = new ArrayList<>(2);
         final Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
         consumerList.add(consumer);
-        Exception exception = null;
-        Consumer<String> standbyConsumer = null;
-        try {
-            standbyConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Failover)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
+        final Consumer<String> standbyConsumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
         assertNotNull(standbyConsumer);
         assertTrue(standbyConsumer.isConnected());
+        consumerList.add(standbyConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForFailover";
         @Cleanup
@@ -181,11 +173,12 @@ public class TopicMessagingBase extends MessagingBase {
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         // To simulate a consumer crashed
         Consumer<String> crashedConsumer = consumerList.remove(0);
+        // wait ack send
+        Thread.sleep(3000);
         crashedConsumer.close();
-        consumerList.add(standbyConsumer);
         for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+                MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
+                assertNotNull(messageId);
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -201,30 +194,22 @@ public class TopicMessagingBase extends MessagingBase {
                 .serviceUrl(serviceUrl)
                 .build();
         List<Consumer<String>> consumerList = new ArrayList<>(3);
-        for (int i = 0; i < partitions; i++) {
-            Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Failover)
-                    .subscribe();
-            consumerList.add(consumer);
-        }
-        assertEquals(partitions, consumerList.size());
-        Exception exception = null;
-        Consumer<String> standbyConsumer = null;
-        try {
-            standbyConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Failover)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        consumerList.add(consumer);
+        Consumer<String> standbyConsumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
         assertNotNull(standbyConsumer);
         assertTrue(standbyConsumer.isConnected());
-        final int messagesToSend = 10;
+        consumerList.add(standbyConsumer);
+        assertEquals(consumerList.size(), 2);
+        final int messagesToSend = 9;
         final String producerName = "producerForFailover";
         @Cleanup
         final Producer<String> producer = client.newProducer(Schema.STRING)
@@ -240,8 +225,9 @@ public class TopicMessagingBase extends MessagingBase {
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         // To simulate a consumer crashed
         Consumer<String> crashedConsumer = consumerList.remove(0);
+        // wait ack send
+        Thread.sleep(3000);
         crashedConsumer.close();
-        consumerList.add(standbyConsumer);
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
             assertNotNull(messageId);
@@ -265,18 +251,11 @@ public class TopicMessagingBase extends MessagingBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         consumerList.add(consumer);
-        Exception exception = null;
-        Consumer<String> moreConsumer = null;
-        try {
-            moreConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Shared)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
+        Consumer<String> moreConsumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
         assertNotNull(moreConsumer);
         assertTrue(moreConsumer.isConnected());
         consumerList.add(moreConsumer);
@@ -324,20 +303,6 @@ public class TopicMessagingBase extends MessagingBase {
             consumerList.add(consumer);
         }
         assertEquals(partitions, consumerList.size());
-        Exception exception = null;
-        Consumer<String> moreConsumer = null;
-        try {
-            moreConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Shared)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
-        assertNotNull(moreConsumer);
-        assertTrue(moreConsumer.isConnected());
         final int messagesToSend = 10;
         final String producerName = "producerForFailover";
         @Cleanup
@@ -371,25 +336,19 @@ public class TopicMessagingBase extends MessagingBase {
         final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .build();
-        List<Consumer<String>> consumerList = new ArrayList<>(4);
-        final Consumer<String> consumer = client.newConsumer(Schema.STRING)
+        List<Consumer<String>> consumerList = new ArrayList<>(2);
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
+        assertTrue(consumer.isConnected());
         consumerList.add(consumer);
-        Exception exception = null;
-        Consumer<String> moreConsumer = null;
-        try {
-            moreConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
+        Consumer<String> moreConsumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
         assertNotNull(moreConsumer);
         assertTrue(moreConsumer.isConnected());
         consumerList.add(moreConsumer);
@@ -408,7 +367,7 @@ public class TopicMessagingBase extends MessagingBase {
                     .send();
             assertNotNull(messageId);
         }
-        log.info("public messages complete.");
+        log.info("publish messages complete.");
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         // To simulate a consumer crashed
         Consumer<String> crashedConsumer = consumerList.remove(0);
@@ -433,30 +392,22 @@ public class TopicMessagingBase extends MessagingBase {
         final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .build();
-        List<Consumer<String>> consumerList = new ArrayList<>(3);
-        for (int i = 0; i < partitions; i++) {
-            Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscribe();
-            consumerList.add(consumer);
-        }
-        assertEquals(partitions, consumerList.size());
-        Exception exception = null;
-        Consumer<String> moreConsumer = null;
-        try {
-            moreConsumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("test-sub")
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscribe();
-        } catch (PulsarClientException e) {
-            exception = e;
-        }
-        assertNull(exception);
+        List<Consumer<String>> consumerList = new ArrayList<>(2);
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        assertTrue(consumer.isConnected());
+        consumerList.add(consumer);
+        Consumer<String> moreConsumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
         assertNotNull(moreConsumer);
         assertTrue(moreConsumer.isConnected());
+        consumerList.add(moreConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForKeyShared";
         @Cleanup

@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -127,7 +128,7 @@ public class IOUtilsTest {
             String data = "\n";
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
-            System.setIn(new ByteArrayInputStream(data.getBytes("UTF-8")));
+            System.setIn(new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8)));
             ExecutorService executor = Executors.newSingleThreadExecutor();
             @SuppressWarnings("unchecked")
             Future<Void> future = (Future<Void>) executor.submit(() -> {

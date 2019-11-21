@@ -124,6 +124,7 @@ class Footer extends React.Component {
     const teamUrl = this.pageUrl('team', this.props.language)
     const poweredByUrl = this.pageUrl('powered-by', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)
+    const codingUrl = this.pageUrl('coding-guide', this.props.language)
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;
@@ -134,6 +135,7 @@ class Footer extends React.Component {
           '<ul id="community-dropdown-items">' +
             '<li><a href="${contactUrl}">Contact</a></li>' +
             '<li><a href="${contributingUrl}">Contributing</a></li>' +
+            '<li><a href="${codingUrl}">Coding guide</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
             '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +

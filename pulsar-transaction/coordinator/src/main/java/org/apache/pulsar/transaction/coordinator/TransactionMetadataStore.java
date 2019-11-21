@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.transaction.impl.common.TxnID;
@@ -92,5 +93,9 @@ public interface TransactionMetadataStore {
     CompletableFuture<Void> updateTxnStatus(
         TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
 
+    /**
+     * Close the transaction metadata store.
+     */
+    CompletableFuture<Void> closeAsync();
 
 }

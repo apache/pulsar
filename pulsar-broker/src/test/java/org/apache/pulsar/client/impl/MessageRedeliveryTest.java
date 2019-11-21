@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -32,7 +34,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -214,6 +219,42 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             executor.shutdown();
         }
 
+    }
+
+    @Test
+    public void testDoNotRedeliveryMarkDeleteMessages() throws PulsarClientException, PulsarAdminException {
+        final String topic = "testDoNotRedeliveryMarkDeleteMessages";
+        final String subName = "my-sub";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        producer.send("Pulsar".getBytes());
+
+        for (int i = 0; i < 2; i++) {
+            Message message = consumer.receive();
+            assertNotNull(message);
+        }
+
+        admin.topics().skipAllMessages(topic, subName);
+
+        Message message = null;
+
+        try {
+            message = consumer.receive(2, TimeUnit.SECONDS);
+        } catch (Exception ignore) {
+        }
+
+        assertNull(message);
     }
 
 }

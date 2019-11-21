@@ -45,7 +45,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * care about ledgers to be deleted.
  *
  */
-class ManagedCursorContainer implements Iterable<ManagedCursor> {
+public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
     private static class Item {
         final ManagedCursor cursor;

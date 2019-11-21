@@ -84,6 +84,7 @@ You can configure the Pulsar proxy using the [`proxy.conf`](reference-configurat
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath | Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
+|authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||
 |authorizationEnabled|  Whether authorization is enforced by the Pulsar proxy |false|
 |authorizationProvider| Authorization provider as a fully qualified class name  |org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider|

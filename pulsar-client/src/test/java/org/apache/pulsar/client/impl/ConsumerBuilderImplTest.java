@@ -241,6 +241,20 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNull() {
+        consumerBuilderImpl.batchReceivePolicy(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNotValid() {
+        consumerBuilderImpl.batchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(0)
+                .maxNumBytes(0)
+                .timeout(0, TimeUnit.MILLISECONDS)
+                .build());
+    }
+
     @Test
     public void testConsumerBuilderImplWhenNumericPropertiesAreValid() {
         consumerBuilderImpl.negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS);

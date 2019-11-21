@@ -59,7 +59,3 @@ PULSAR_EXTRA_OPTS=${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Di
 #Wait time before forcefully kill the pulser server instance, if the stop is not successful
 #PULSAR_STOP_TIMEOUT=
 
-# Set BOOKIE_EXTRA_OPTS option here to ensure that all pulsar scripts can work seamless with bookkeeper
-
-# Extra options to be passed to the jvm
-BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"

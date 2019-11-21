@@ -146,6 +146,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -169,6 +171,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** started broker-2 ****/
 
         URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
+
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         // load namespace-bundle by calling Broker2
@@ -197,8 +201,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
 
-        pulsarClient2.close();
-        pulsar2.close();
         loadManager1 = null;
         loadManager2 = null;
 
@@ -211,7 +213,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5437
     public void testMultipleBrokerDifferentClusterLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -233,11 +235,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
         URI brokerServiceUrl = new URI(broker2ServiceUrl);
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         // enable authorization: so, broker can validate cluster and redirect if finds different cluster
@@ -285,8 +289,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // disable authorization
         pulsar.getConfiguration().setAuthorizationEnabled(false);
-        pulsarClient2.close();
-        pulsar2.close();
         loadManager2 = null;
     }
 
@@ -313,6 +315,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -360,7 +364,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         consumer.close();
         admin.topics().deletePartitionedTopic(topicName.toString());
 
-        pulsar2.close();
         loadManager2 = null;
 
         log.info("-- Exiting {} test --", methodName);
@@ -392,6 +395,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
 
         // restart broker1 with tls enabled
@@ -422,11 +427,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
-        
+
 
         /**** started broker-2 ****/
 
         URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
@@ -459,8 +465,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertEquals(new Integer(con.getURL().getPort()), conf.getWebServicePortTls().get());
         is.close();
 
-        pulsarClient2.close();
-        pulsar2.close();
         loadManager1 = null;
         loadManager2 = null;
     }
@@ -478,12 +482,16 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfig config = new ServiceConfig();
         config.setServicePort(Optional.of(nextFreePort()));
         config.setBindOnLocalhost(true);
+
+        @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
         discoveryService.start();
 
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
+
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(discoverySvcUrl).build();
         Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
@@ -542,6 +550,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setBindOnLocalhost(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+
+        @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
         discoveryService.start();
@@ -555,6 +565,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         Authentication auth = new AuthenticationTls();
         auth.configure(authParams);
 
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
                 .enableTls(true).allowTlsInsecureConnection(true).build();
         Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
@@ -597,6 +608,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // enable authentication and authorization
         config.setAuthenticationEnabled(true);
         config.setAuthorizationEnabled(true);
+
+        @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
         discoveryService.start();
@@ -632,6 +645,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             }
         };
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
@@ -670,6 +684,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // enable authentication
         config.setAuthenticationEnabled(true);
         config.setAuthorizationEnabled(true);
+
+        @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
         discoveryService.start();
@@ -729,6 +745,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // enable authentication
         config.setAuthenticationEnabled(true);
         config.setAuthorizationEnabled(true);
+
+        @Cleanup
         DiscoveryService discoveryService = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
         discoveryService.start();
@@ -808,6 +826,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
         conf2.setZookeeperServers("localhost:2181");
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -832,6 +852,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
+        @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(broker2ServiceUrl.toString()).build();
 
         // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
@@ -873,9 +894,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         consumer1.close();
         consumer2.close();
-        pulsarClient2.close();
-        pulsar2.close();
-
     }
 
     /**
@@ -913,6 +931,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
             conf2.setZookeeperServers("localhost:2181");
+
+            @Cleanup
             PulsarService pulsar2 = startBroker(conf2);
 
             // configure broker-1 with ModularLoadlManager
@@ -941,6 +961,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
             URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort().get());
+            @Cleanup
             PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(broker2ServiceUrl.toString()).build();
 
             // (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
@@ -952,7 +973,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
             retryStrategically((test) -> pulsar.getNamespaceService().getOwnedServiceUnits().stream()
                     .map(nb -> nb.toString()).collect(Collectors.toSet()).contains(unsplitBundle), 5, 100);
-            Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()    
+            Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()
                     .map(nb -> nb.toString()).collect(Collectors.toSet());
             assertTrue(serviceUnits1.contains(unsplitBundle));
 
@@ -1004,8 +1025,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             consumer1.close();
             consumer2.close();
-            pulsarClient2.close();
-            pulsar2.close();
         } finally {
             conf.setLoadManagerClassName(loadBalancerName);
         }

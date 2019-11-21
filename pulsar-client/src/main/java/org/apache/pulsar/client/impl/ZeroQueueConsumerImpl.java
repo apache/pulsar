@@ -51,8 +51,9 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
             ConsumerInterceptors<T> interceptors,
             boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode, startMessageId,
-              schema, interceptors, createTopicIfDoesNotExist);
+        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+                subscriptionMode, startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+                createTopicIfDoesNotExist);
     }
 
     @Override

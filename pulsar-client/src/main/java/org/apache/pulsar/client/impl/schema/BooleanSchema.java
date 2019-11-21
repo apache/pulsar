@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class BooleanSchema extends AbstractSchema<Boolean> {
 
+    private static final BooleanSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+                .setName("Boolean")
+                .setType(SchemaType.BOOLEAN)
+                .setSchema(new byte[0]);
+        INSTANCE = new BooleanSchema();
+    }
+
     public static BooleanSchema of() {
         return INSTANCE;
     }
-
-    private static final BooleanSchema INSTANCE = new BooleanSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-            .setName("Boolean")
-            .setType(SchemaType.BOOLEAN)
-            .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

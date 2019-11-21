@@ -111,6 +111,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleSeek(Result result, ResultCallback callback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);

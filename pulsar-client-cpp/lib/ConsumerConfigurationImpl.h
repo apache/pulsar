@@ -28,7 +28,7 @@ struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
 
-    std::chrono::milliseconds negativeAckRedeliveryDelay;
+    long negativeAckRedeliveryDelayMs;
     ConsumerType consumerType;
     MessageListener messageListener;
     bool hasMessageListener;
@@ -45,6 +45,7 @@ struct ConsumerConfigurationImpl {
     ConsumerConfigurationImpl()
         : schemaInfo(),
           unAckedMessagesTimeoutMs(0),
+          negativeAckRedeliveryDelayMs(60000),
           consumerType(ConsumerExclusive),
           messageListener(),
           hasMessageListener(false),

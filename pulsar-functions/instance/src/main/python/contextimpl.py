@@ -135,6 +135,9 @@ class ContextImpl(pulsar.Context):
 
     self.user_metrics_map[metric_name].observe(metric_value)
 
+  def get_input_topics(self):
+    return list(self.instance_config.function_details.source.inputSpecs.keys())
+
   def get_output_topic(self):
     return self.instance_config.function_details.output
 

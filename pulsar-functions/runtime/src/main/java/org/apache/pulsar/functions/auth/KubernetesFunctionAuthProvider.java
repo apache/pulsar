@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.Reflections;
 
 import java.util.Optional;
 
@@ -28,10 +32,30 @@ import java.util.Optional;
  */
 public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
 
+    void initialize(CoreV1Api coreClient);
+
+    default void initialize(CoreV1Api coreClient, byte[] caBytes, java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc) {
+        setCaBytes(caBytes);
+        setNamespaceProviderFunc(namespaceCustomizerFunc);
+        initialize(coreClient);
+    }
+
+    default void setCaBytes(byte[] caBytes) {
+
+    }
+
+    default void setNamespaceProviderFunc(java.util.function.Function<Function.FunctionDetails, String> funcDetails) {
+
+    }
+
     /**
      * Configure function statefulset spec based on function auth data
      * @param statefulSet statefulset spec for function
      * @param functionAuthData function auth data
      */
     void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData);
+
+    static KubernetesFunctionAuthProvider getAuthProvider(String className) {
+        return Reflections.createInstance(className, KubernetesFunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
+    }
 }

@@ -60,13 +60,13 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.baseSetup();
     }
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 

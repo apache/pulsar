@@ -111,4 +111,10 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
             }
         });
     }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        transactions.clear();
+        return CompletableFuture.completedFuture(null);
+    }
 }

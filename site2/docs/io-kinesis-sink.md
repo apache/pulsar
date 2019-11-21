@@ -8,9 +8,9 @@ The Kinesis sink connector pulls data from Pulsar and persists data into Amazon 
 
 ## Configuration
 
-The configuration of the Kinesis sink connector has the following parameters.
+The configuration of the Kinesis sink connector has the following property.
 
-### Parameter
+### Property
 
 | Name | Type|Required | Default | Description
 |------|----------|----------|---------|-------------|
@@ -21,6 +21,26 @@ The configuration of the Kinesis sink connector has the following parameters.
 `awsKinesisStreamName`|String|true|" " (empty string)|The Kinesis stream name.
 `awsCredentialPluginName`|String|false|" " (empty string)|The fully-qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. <br/><br/>It is a factory class which creates an AWSCredentialsProvider that is used by Kinesis sink. <br/><br/>If it is empty, the Kinesis sink creates a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam`.
 `awsCredentialPluginParam`|String |false|" " (empty string)|The JSON parameter to initialize `awsCredentialsProviderPlugin`.
+
+### Built-in plugins
+
+The following are built-in `AwsCredentialProviderPlugin` plugins:
+
+* `org.apache.pulsar.io.kinesis.AwsDefaultProviderChainPlugin`
+  
+    This plugin takes no configuration, it uses the default AWS provider chain. 
+    
+    For more information, see [AWS documentation](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html#credentials-default).
+
+* `org.apache.pulsar.io.kinesis.STSAssumeRoleProviderPlugin`
+  
+    This plugin takes a configuration (via the `awsCredentialPluginParam`) that describes a role to assume when running the KCL.
+
+    This configuration takes the form of a small json document like:
+
+    ```json
+    {"roleArn": "arn...", "roleSessionName": "name"}
+    ```
 
 ### Example
 
@@ -50,16 +70,3 @@ Before using the Kinesis sink connector, you need to create a configuration file
         messageFormat: "ONLY_RAW_PAYLOAD"
         retainOrdering: "true"
     ```
-
-### Built-in `AwsCredentialProviderPlugin` plugins
-
-#### `org.apache.pulsar.io.kinesis.AwsDefaultProviderChainPlugin`
-This plugin takes no configuration, it uses the default AWS provider chain. See the [AWS documentation](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html#credentials-default) for more details
-
-#### `org.apache.pulsar.io.kinesis.STSAssumeRoleProviderPlugin`
-This plugin takes a configuration (via the `awsCredentialPluginParam`) that describes a role to assume when running the KCL.
-
-This configuration takes the form of a small json document like:
-```Json
-{"roleArn": "arn...", "roleSessionName": "name"}
-```

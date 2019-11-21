@@ -45,6 +45,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
@@ -124,6 +125,24 @@ public class MessageDuplicationTest {
         assertEquals(status, MessageDeduplication.MessageDupStatus.Dup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 5);
+
+        // update highest sequence persisted
+        messageDeduplication.highestSequencedPushed.put(producerName1, 0L);
+        messageDeduplication.highestSequencedPersisted.put(producerName1, 0L);
+        byteBuf1 = getMessage(producerName1, 0);
+        publishContext1 = getPublishContext(producerName1, 1, 5);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertNotNull(lastSequenceIdPushed);
+        assertEquals(lastSequenceIdPushed.longValue(), 5);
+
+        publishContext1 = getPublishContext(producerName1, 4, 8);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
     }
 
@@ -311,6 +330,30 @@ public class MessageDuplicationTest {
 
             public long getSequenceId() {
                 return seqId;
+            }
+
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+
+            }
+        });
+    }
+
+    public Topic.PublishContext getPublishContext(String producerName, long seqId, long lastSequenceId) {
+        return spy(new Topic.PublishContext() {
+            @Override
+            public String getProducerName() {
+                return producerName;
+            }
+
+            @Override
+            public long getSequenceId() {
+                return seqId;
+            }
+
+            @Override
+            public long getHighestSequenceId() {
+                return lastSequenceId;
             }
 
             @Override

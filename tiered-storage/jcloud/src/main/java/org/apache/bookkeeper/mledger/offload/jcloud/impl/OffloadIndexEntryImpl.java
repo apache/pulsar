@@ -58,5 +58,11 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
         this.offset = offset;
         this.blockHeaderSize = blockHeaderSize;
     }
+
+    @Override
+    public String toString() {
+        return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]",
+                             entryId, partId, offset, getDataOffset());
+    }
 }
 

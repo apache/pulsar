@@ -425,7 +425,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             verifyTopicStat(client, baseUrl + "persistent/", topic);
 
         } finally {
-            stopWebSocketClient(consumeClient1, produceClient);
+            stopWebSocketClient(consumeClient1, produceClient, readClient);
         }
     }
 
@@ -598,18 +598,19 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
-                try {
-                    for (WebSocketClient client : clients) {
+                for (WebSocketClient client : clients) {
+                    try {
                         client.stop();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
                     }
-                    log.info("proxy clients are stopped successfully");
-                } catch (Exception e) {
-                    log.error(e.getMessage());
                 }
+                log.info("proxy clients are stopped successfully");
             }).get(2, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("failed to close proxy clients", e);
         }
+        executor.shutdownNow();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

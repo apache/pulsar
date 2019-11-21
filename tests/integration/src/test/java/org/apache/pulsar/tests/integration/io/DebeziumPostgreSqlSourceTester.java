@@ -88,24 +88,6 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
         return null;
     }
 
-    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {
-        int recordsNumber = 0;
-        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
-            final String key = new String(msg.getValue().getKey());
-            final String value = new String(msg.getValue().getValue());
-            log.info("Received message: key = {}, value = {}.", key, value);
-            Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
-            Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
-            consumer.acknowledge(msg);
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-        }
-
-        Assert.assertEquals(recordsNumber, number);
-        log.info("Stop debezium postgresql server container. topic: {} has {} records.", consumer.getTopic(), recordsNumber);
-    }
-
     @Override
     public void close() {
         if (pulsarCluster != null) {

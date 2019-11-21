@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -50,7 +51,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
-    static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
+    public static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -414,6 +415,10 @@ public class RuntimeUtils {
      */
     public static String[] splitRuntimeArgs(String input) {
         return input.split("\\s(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+    }
+
+    public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
+        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
 }

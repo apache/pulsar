@@ -187,9 +187,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             byte[] valueBytes = valueConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
-            if (keyBytes != null) {
-                this.key = Optional.of(Base64.getEncoder().encodeToString(keyBytes));
-            }
+            this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
             this.value = new KeyValue(keyBytes, valueBytes);
 
             this.topicName = Optional.of(srcRecord.topic());

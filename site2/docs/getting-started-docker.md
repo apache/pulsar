@@ -12,32 +12,22 @@ and follow the instructions for your OS.
 
 ## Start Pulsar in Docker
 
-* For MacOS and Linux:
+* For MacOS, Linux, and Windows:
 
   ```shell
   $ docker run -it \
     -p 6650:6650 \
     -p 8080:8080 \
-    -v $PWD/data:/pulsar/data \
-    apachepulsar/pulsar:{{pulsar:version}} \
-    bin/pulsar standalone
-  ```
-
-* For Windows:  
-  
-  ```shell
-  $ docker run -it \
-    -p 6650:6650 \
-    -p 8080:8080 \
-    -v "$PWD/data:/pulsar/data".ToLower() \
+    --mount source=pulsardata,target=/pulsar/data \
+    --mount source=pulsarconf,target=/pulsar/conf \
     apachepulsar/pulsar:{{pulsar:version}} \
     bin/pulsar standalone
   ```
 
 A few things to note about this command:
- * `$PWD/data` : The docker host directory in Windows operating system must be lowercase.`$PWD/data` provides you with the specified directory, for example: `E:/data`.
- * `-v $PWD/data:/pulsar/data`: This makes the process inside the container to store the
-   data and metadata in the filesystem outside the container, in order not to start "fresh" every time the container is restarted.
+ * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
+time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
+ * For Docker on Windows make sure to configure it to use Linux containers
 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 

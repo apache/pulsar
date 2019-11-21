@@ -192,7 +192,7 @@ void PartitionedConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
 void PartitionedConsumerImpl::start() {
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
     std::shared_ptr<ConsumerImpl> consumer;
-    ConsumerConfiguration config;
+    ConsumerConfiguration config = conf_.clone();
     // all the partitioned-consumer belonging to one partitioned topic should have same name
     config.setConsumerName(conf_.getConsumerName());
     config.setConsumerType(conf_.getConsumerType());
@@ -471,6 +471,10 @@ void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
 }
 
 void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    callback(ResultOperationNotSupported);
+}
+
+void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }
 

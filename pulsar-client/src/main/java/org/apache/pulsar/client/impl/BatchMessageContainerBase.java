@@ -31,8 +31,9 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      *
      * @param msg message will add to the batch message container
      * @param callback message send callback
+     * @return true if the batch is full, otherwise false
      */
-    void add(MessageImpl<?> msg, SendCallback callback);
+    boolean add(MessageImpl<?> msg, SendCallback callback);
 
     /**
      * Check the batch message container have enough space for the message want to add.
@@ -42,6 +43,15 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      *         otherwise return false.
      */
     boolean haveEnoughSpace(MessageImpl<?> msg);
+
+    /**
+     * Check the batch message container has same schema with the message want to add.
+     *
+     * @param msg the message want to add
+     * @return return true if the container has same schema with the specific message,
+     *         otherwise return false.
+     */
+    boolean hasSameSchema(MessageImpl<?> msg);
 
     /**
      * Set producer of the message batch container.

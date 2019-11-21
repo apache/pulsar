@@ -20,7 +20,9 @@ package org.apache.pulsar.zookeeper;
 
 import java.io.Closeable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.zookeeper.AsyncCallback.StatCallback;
@@ -43,6 +45,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 public class ZooKeeperSessionWatcher implements Watcher, StatCallback, Runnable, Closeable {
 
     public interface ShutdownService {
+        default void run() {
+            shutdown(0);
+        }
+
         void shutdown(int exitCode);
     }
 
@@ -60,6 +66,7 @@ public class ZooKeeperSessionWatcher implements Watcher, StatCallback, Runnable,
     private long disconnectedAt = 0;
     private boolean shuttingDown = false;
     private volatile boolean zkOperationCompleted = false;
+    private ScheduledFuture<?> task;
 
     public ZooKeeperSessionWatcher(ZooKeeper zk, long zkSessionTimeoutMillis, ShutdownService shutdownService) {
         this.zk = zk;
@@ -70,7 +77,7 @@ public class ZooKeeperSessionWatcher implements Watcher, StatCallback, Runnable,
 
     public void start() {
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-zk-session-watcher"));
-        scheduler.scheduleAtFixedRate(this, tickTimeMillis, tickTimeMillis, TimeUnit.MILLISECONDS);
+        task = scheduler.scheduleAtFixedRate(this, tickTimeMillis, tickTimeMillis, TimeUnit.MILLISECONDS);
     }
 
     public Watcher.Event.KeeperState getKeeperState() {
@@ -128,11 +135,14 @@ public class ZooKeeperSessionWatcher implements Watcher, StatCallback, Runnable,
         try {
             zkOperationCompleted = false;
             if (zk != null) {
-                zk.exists("/", false, this, null);
                 try {
+                    zk.exists("/", false, this, null);
                     this.wait(tickTimeMillis);
-                } catch (InterruptedException e) {
+                } catch (RejectedExecutionException | InterruptedException e) {
                     LOG.info("ZooKeeperSessionWatcher interrupted");
+                    if (task != null) {
+                        task.cancel(true);
+                    }
                     return;
                 }
             }

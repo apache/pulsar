@@ -45,8 +45,6 @@ class NegativeAcksTracker {
     void scheduleTimer();
     void handleTimer(const boost::system::error_code &ec);
 
-    static const std::chrono::milliseconds MIN_NACK_DELAY_NANOS;
-
     ConsumerImpl &consumer_;
     std::mutex mutex_;
 

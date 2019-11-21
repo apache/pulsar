@@ -67,7 +67,7 @@ void BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
                                                        maxAllowedMessageBatchSizeInBytes_);
     LOG_DEBUG(*this << " After serialization payload size in bytes = " << impl_->payload.readableBytes());
 
-    messagesContainerListPtr_->push_back(MessageContainer(msg, sendCallback));
+    messagesContainerListPtr_->push_back(MessageContainer(msg, sendCallback, msg.getMessageId()));
 
     LOG_DEBUG(*this << " Number of messages in Batch = " << messagesContainerListPtr_->size());
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);

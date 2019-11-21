@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.UUID;
+
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.testng.annotations.AfterMethod;
@@ -43,7 +45,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
     @Test
     public void testCreateNamespaceWithDefaultBundles() throws Exception {
-        String namespaceName = "prop/default-bundles";
+        String namespaceName = "prop/" + UUID.randomUUID().toString();
 
         admin.namespaces().createNamespace(namespaceName);
 

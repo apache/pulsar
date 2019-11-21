@@ -28,11 +28,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import org.apache.avro.AvroTypeException;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -94,7 +96,10 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
     public T decode(byte[] bytes, byte[] schemaVersion) {
         try {
             return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | AvroTypeException e) {
+            if (e instanceof AvroTypeException) {
+                throw new SchemaSerializationException(e);
+            }
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());

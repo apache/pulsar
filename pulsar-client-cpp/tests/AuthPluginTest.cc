@@ -40,12 +40,9 @@ static const std::string clientPublicKeyPath =
 static const std::string clientPrivateKeyPath =
     "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
 
-static void sendCallBackTls(Result r, const Message& msg) {
+static void sendCallBackTls(Result r, const MessageId& msgId) {
     ASSERT_EQ(r, ResultOk);
-    std::string prefix = "test-tls-message-";
-    std::string messageContent = prefix + std::to_string(globalTestTlsMessagesCounter++);
-    ASSERT_EQ(messageContent, msg.getDataAsString());
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
+    globalTestTlsMessagesCounter++;
 }
 
 TEST(AuthPluginTest, testTls) {

@@ -93,6 +93,7 @@ public class SLAMonitoringTest {
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
+            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
@@ -125,7 +126,7 @@ public class SLAMonitoringTest {
     }
 
     @AfterClass
-    void shutdown() throws Exception {
+    public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
 
@@ -161,7 +162,7 @@ public class SLAMonitoringTest {
 
                 Map<String, NamespaceOwnershipStatus> nsMap = pulsarAdmins[i].brokers().getOwnedNamespaces("my-cluster",
                         list.get(0));
-                Assert.assertEquals(2, nsMap.size());
+                Assert.assertEquals(nsMap.size(), 3);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,6 +218,7 @@ public class SLAMonitoringTest {
         // Check if the namespace is properly unloaded and reowned by the broker
         try {
             pulsarServices[crashIndex] = new PulsarService(configurations[crashIndex]);
+            pulsarServices[crashIndex].setShutdownService(new NoOpShutdownService());
             pulsarServices[crashIndex].start();
             assertEquals(pulsarServices[crashIndex].getConfiguration().getBrokerServicePort().get(),
                     new Integer(brokerNativeBrokerPorts[crashIndex]));

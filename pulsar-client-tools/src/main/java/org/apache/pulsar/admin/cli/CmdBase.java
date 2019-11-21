@@ -39,14 +39,23 @@ public abstract class CmdBase {
         jcommander.setProgramName("pulsar-admin " + cmdName);
     }
 
+    private void tryShowCommandUsage() {
+        try {
+            String chosenCommand = jcommander.getParsedCommand();
+            jcommander.usage(chosenCommand);
+        } catch (Exception e) {
+            // it is caused by an invalid command, the invalid command can not be parsed
+            System.err.println("Invalid command, please use `pulsar-admin --help` to check out how to use");
+        }
+    }
+
     public boolean run(String[] args) {
         try {
             jcommander.parse(args);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            String chosenCommand = jcommander.getParsedCommand();
-            jcommander.usage(chosenCommand);
+            tryShowCommandUsage();
             return false;
         }
 

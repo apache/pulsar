@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.netty.channel.EventLoopGroup;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,7 +33,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -50,6 +50,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
@@ -59,6 +60,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
@@ -77,9 +79,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -91,10 +92,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.AdminResource.PARTITIONED_TOPIC_PATH_ZNODE;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
+import static org.apache.pulsar.common.util.Codec.decode;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -141,6 +144,8 @@ public class NamespaceService {
 
     private final ConcurrentOpenHashMap<ClusterData, PulsarClientImpl> namespaceClients;
 
+    private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
+
     /**
      * Default constructor.
      *
@@ -153,8 +158,9 @@ public class NamespaceService {
         this.loadManager = pulsar.getLoadManager();
         ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getSafeBrokerServiceUrl());
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
+        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
         this.namespaceClients = new ConcurrentOpenHashMap<>();
+        this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
     }
 
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic,
@@ -260,7 +266,7 @@ public class NamespaceService {
      * @throws PulsarServerException
      * @throws Exception
      */
-    private boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
+    public boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
 
         String myUrl = pulsar.getSafeBrokerServiceUrl();
 
@@ -858,6 +864,49 @@ public class NamespaceService {
         bundleFactory.invalidateBundleCache(nsName);
     }
 
+    protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
+        for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
+            notifyNamespaceBundleOwnershipListener(bundle, bundleOwnedListener);
+        }
+    }
+
+    protected void onNamespaceBundleUnload(NamespaceBundle bundle) {
+        for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
+            try {
+                if (bundleOwnedListener.test(bundle)) {
+                    bundleOwnedListener.unLoad(bundle);
+                }
+            } catch (Throwable t) {
+                LOG.error("Call bundle {} ownership lister error", bundle, t);
+            }
+        }
+    }
+
+    public void addNamespaceBundleOwnershipListener(NamespaceBundleOwnershipListener... listeners) {
+        checkNotNull(listeners);
+        for (NamespaceBundleOwnershipListener listener : listeners) {
+            if (listener != null) {
+                bundleOwnershipListeners.add(listener);
+            }
+        }
+        getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+    }
+
+    private void notifyNamespaceBundleOwnershipListener(NamespaceBundle bundle,
+                    NamespaceBundleOwnershipListener... listeners) {
+        if (listeners != null) {
+            for (NamespaceBundleOwnershipListener listener : listeners) {
+                try {
+                    if (listener.test(bundle)) {
+                        listener.onLoad(bundle);
+                    }
+                } catch (Throwable t) {
+                    LOG.error("Call bundle {} ownership lister error", bundle, t);
+                }
+            }
+        }
+    }
+
     public NamespaceBundleFactory getNamespaceBundleFactory() {
         return bundleFactory;
     }
@@ -872,6 +921,25 @@ public class NamespaceService {
                         (persistentTopics, nonPersistentTopics) -> {
                             return ListUtils.union(persistentTopics, nonPersistentTopics);
                         });
+    }
+
+    public CompletableFuture<List<String>> getOwnedTopicListForNamespaceBundle(NamespaceBundle bundle) {
+        return getFullListOfTopics(bundle.getNamespaceObject()).thenCompose(topics ->
+                CompletableFuture.completedFuture(
+                        topics.stream()
+                                .filter(topic -> bundle.includes(TopicName.get(topic)))
+                                .collect(Collectors.toList())))
+                .thenCombine(getAllPartitions(bundle.getNamespaceObject()).thenCompose(topics ->
+                        CompletableFuture.completedFuture(
+                                topics.stream().filter(topic -> bundle.includes(TopicName.get(topic)))
+                                        .collect(Collectors.toList()))), (left, right) -> {
+                    for (String topic : right) {
+                        if (!left.contains(topic)) {
+                            left.add(topic);
+                        }
+                    }
+                    return left;
+                });
     }
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
@@ -895,6 +963,57 @@ public class NamespaceService {
             default:
                 return getListOfPersistentTopics(namespaceName);
         }
+    }
+
+    public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {
+        return getPartitions(namespaceName, TopicDomain.persistent)
+                .thenCombine(getPartitions(namespaceName, TopicDomain.non_persistent),
+                        ListUtils::union);
+    }
+
+
+    public CompletableFuture<List<String>> getPartitions(NamespaceName namespaceName, TopicDomain topicDomain) {
+        String path = PulsarWebResource.path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(),
+                topicDomain.toString());
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Getting children from partitioned-topics now: {}", path);
+        }
+
+        return pulsar.getLocalZkCache().getChildrenAsync(path, null).thenCompose(topics -> {
+            CompletableFuture<List<String>> result = new CompletableFuture<>();
+            List<String> resultPartitions = Collections.synchronizedList(Lists.newArrayList());
+            if (CollectionUtils.isNotEmpty(topics)) {
+                List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+                for (String topic : topics) {
+                    String partitionedTopicName = String.format("%s://%s/%s", topicDomain.value(),
+                            namespaceName.toString(), decode(topic));
+                    CompletableFuture<List<String>> future = getPartitionsForTopic(TopicName.get(partitionedTopicName));
+                    futures.add(future);
+                    future.thenAccept(resultPartitions::addAll);
+                }
+                FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
+                    if (ex != null) {
+                        result.completeExceptionally(ex);
+                    } else {
+                        result.complete(resultPartitions);
+                    }
+                });
+            } else {
+                result.complete(resultPartitions);
+            }
+            return result;
+        });
+    }
+
+    private CompletableFuture<List<String>> getPartitionsForTopic(TopicName topicName) {
+        return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenCompose(meta -> {
+            List<String> result = Lists.newArrayList();
+            for (int i = 0; i < meta.partitions; i++) {
+                result.add(topicName.getPartition(i).toString());
+            }
+            return CompletableFuture.completedFuture(result);
+        });
     }
 
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {

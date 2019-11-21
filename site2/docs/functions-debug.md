@@ -6,10 +6,17 @@ sidebar_label: How-to: Debug
 
 You can use the following methods to debug Pulsar Functions:
 
+* [Captured stderr](functions-debug.md#captured-stderr)
 * [Use unit test](functions-debug.md#use-unit-test)
 * [Debug with localrun mode](functions-debug.md#debug-with-localrun-mode)
 * [Use log topic](functions-debug.md#use-log-topic)
 * [Use Functions CLI](functions-debug.md#use-functions-cli)
+
+## Captured stderr
+
+Function startup information and captured stderr output is written to `logs/functions/<tenant>/<namespace>/<function>/<function>-<instance>.log`
+
+This is useful for debugging why a function fails to start.
 
 ## Use unit test
 

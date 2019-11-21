@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ReaderBuilder} is used to configure and create instances of {@link Reader}.
@@ -121,6 +122,18 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
+
+    /**
+     * The initial reader positioning can be set at specific timestamp by providing total rollback duration. so, broker
+     * can find a latest message that was published before given duration. <br/>
+     * eg: rollbackDuration in minute = 5 suggests broker to find message which was published 5 mins back and set the
+     * inital position on that messageId.
+     *
+     * @param rollbackDuration
+     *            duration which position should be rolled back.
+     * @return
+     */
+    ReaderBuilder<T> startMessageFromRollbackDuration(long rollbackDuration, TimeUnit timeunit);
 
     /**
      * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}

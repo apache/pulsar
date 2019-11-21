@@ -115,22 +115,6 @@
       <outputFileNameMapping>${artifact.groupId}-${artifact.artifactId}-${artifact.version}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
 
       <excludes>
-        <!-- All these dependencies are already included in netty-all -->
-        <exclude>io.netty:netty-buffer</exclude>
-        <exclude>io.netty:netty-common</exclude>
-        <exclude>io.netty:netty-codec</exclude>
-        <exclude>io.netty:netty-codec-dns</exclude>
-        <exclude>io.netty:netty-codec-http</exclude>
-        <exclude>io.netty:netty-codec-http2</exclude>
-        <exclude>io.netty:netty-codec-socks</exclude>
-        <exclude>io.netty:netty-handler</exclude>
-        <exclude>io.netty:netty-handler-proxy</exclude>
-        <exclude>io.netty:netty-resolver</exclude>
-        <exclude>io.netty:netty-resolver-dns</exclude>
-        <exclude>io.netty:netty-transport</exclude>
-        <exclude>io.netty:netty-transport-native-epoll</exclude>
-        <exclude>io.netty:netty-transport-native-unix-common</exclude>
-
         <exclude>org.apache.pulsar:pulsar-functions-runtime-all</exclude>
 
         <!-- Already included in pulsar-zookeeper instrumented jar -->

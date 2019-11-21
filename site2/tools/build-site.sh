@@ -35,4 +35,5 @@ node ./scripts/replace.js
 
 rm -rf ${ROOT_DIR}/generated-site/content
 mkdir -p ${ROOT_DIR}/generated-site/content
+cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
 cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content

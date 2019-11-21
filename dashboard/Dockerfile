@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM python:3.7
+FROM python:3.7-stretch
 
 MAINTAINER Pulsar
 

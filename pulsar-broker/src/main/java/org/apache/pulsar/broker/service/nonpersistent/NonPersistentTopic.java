@@ -47,7 +47,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -60,10 +59,10 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -144,8 +143,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+            setSchemaCompatibilityStrategy(policies);
+
             schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
@@ -192,24 +192,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         try {
             brokerService.checkTopicNsOwnership(getName());
 
-            if (isFenced) {
-                log.warn("[{}] Attempting to add producer to a fenced topic", topic);
-                throw new TopicFencedException("Topic is temporarily unavailable");
-            }
+            checkTopicFenced();
 
-            if (isProducersExceeded()) {
-                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-                throw new ProducerBusyException("Topic reached max producers limit");
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
-            }
-
-            if (!producers.add(producer)) {
-                throw new NamingException(
-                        "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
-            }
+            internalAddProducer(producer);
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
@@ -230,22 +215,27 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
-        if (producers.remove(producer)) {
-            // decrement usage only if this was a valid producer close
-            USAGE_COUNT_UPDATER.decrementAndGet(this);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
-                        USAGE_COUNT_UPDATER.get(this));
-            }
-            lastActive = System.nanoTime();
+        if (producers.remove(producer.getProducerName(), producer)) {
+            handleProducerRemoved(producer);
         }
+    }
+
+    @Override
+    public void handleProducerRemoved(Producer producer) {
+        // decrement usage only if this was a valid producer close
+        USAGE_COUNT_UPDATER.decrementAndGet(this);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
+                    USAGE_COUNT_UPDATER.get(this));
+        }
+        lastActive = System.nanoTime();
     }
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState) {
+            long resetStartMessageBackInSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -296,7 +286,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                                             cnx.getRole(), metadata, readCompacted, initialPosition);
+                                             cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();
@@ -362,7 +352,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                producers.forEach(producer -> futures.add(producer.disconnect()));
+                producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
@@ -451,7 +441,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.forEach(producer -> futures.add(producer.disconnect()));
+        producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
@@ -641,7 +631,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.startObject(topic);
 
         topicStatsStream.startList("publishers");
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
 
@@ -759,7 +749,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
@@ -782,21 +772,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats ReplicatorStats = replicator.getStats();
+            NonPersistentReplicatorStats replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
             PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                ReplicatorStats.msgRateIn = pubStats.msgRateIn;
-                ReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                ReplicatorStats.inboundConnection = pubStats.getAddress();
-                ReplicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
+                replicatorStats.msgRateIn = pubStats.msgRateIn;
+                replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
+                replicatorStats.inboundConnection = pubStats.getAddress();
+                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
-            stats.msgRateOut += ReplicatorStats.msgRateOut;
-            stats.msgThroughputOut += ReplicatorStats.msgThroughputOut;
+            stats.msgRateOut += replicatorStats.msgRateOut;
+            stats.msgThroughputOut += replicatorStats.msgThroughputOut;
 
-            stats.getReplication().put(replicator.getRemoteCluster(), ReplicatorStats);
+            stats.getReplication().put(replicator.getRemoteCluster(), replicatorStats);
         });
 
         return stats;
@@ -870,11 +860,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
         }
         isEncryptionRequired = data.encryption_required;
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });
@@ -922,13 +912,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
 
     @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
-            .thenCompose((hasSchema) -> {
+                .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
-                        return isSchemaCompatible(schema);
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        return addSchema(schema).thenCompose(schemaVersion->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
     }

@@ -117,9 +117,7 @@
                   <include>com.fasterxml.jackson.module</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.dataformat</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
-                  <include>io.netty:netty-tcnative-boringssl-static</include>
+                  <include>io.netty:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>

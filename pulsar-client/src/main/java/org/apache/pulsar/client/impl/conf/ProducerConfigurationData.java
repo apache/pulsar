@@ -51,12 +51,16 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
+    public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+
     private String topicName = null;
     private String producerName = null;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
-    private int maxPendingMessages = 1000;
-    private int maxPendingMessagesAcrossPartitions = 50000;
+    private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
+    private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
     private MessageRoutingMode messageRoutingMode = null;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
@@ -66,7 +70,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private MessageRouter customMessageRouter = null;
 
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
-    private int batchingMaxMessages = 1000;
+    private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+    private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
     private boolean batchingEnabled = true; // enabled by default
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
@@ -83,6 +88,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private Long initialSequenceId = null;
 
     private boolean autoUpdatePartitions = true;
+
+    private boolean multiSchema = true;
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
@@ -123,8 +130,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setBatchingMaxMessages(int batchingMaxMessages) {
-        checkArgument(batchingMaxMessages > 1, "batchingMaxMessages needs to be > 1");
         this.batchingMaxMessages = batchingMaxMessages;
+    }
+
+    public void setBatchingMaxBytes(int batchingMaxBytes) {
+        this.batchingMaxBytes = batchingMaxBytes;
     }
 
     public void setSendTimeoutMs(int sendTimeout, TimeUnit timeUnit) {

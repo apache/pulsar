@@ -134,7 +134,7 @@ properties:
 ```
 
 For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
-See [Token Authentication](security-token-admin.md) for more details.
+See [Token Authentication](security-jwt.md) for more details.
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 

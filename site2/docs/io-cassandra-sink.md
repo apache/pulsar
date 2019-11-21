@@ -20,7 +20,34 @@ The configuration of the Cassandra sink connector has the following properties.
 | `columnFamily` | String|true| " " (empty string)| The Cassandra column family name.<br><br>**Note: `columnFamily` should be created prior to a Cassandra sink.**|
 | `columnName` | String|true| " " (empty string) | The column name of the Cassandra column family.<br><br> The column is used for storing Pulsar message values. |
 
+### Example
+
+Before using the Cassandra sink connector, you need to create a configuration file through one of the following methods.
+
+* JSON
+
+    ```json
+    {
+        "roots": "localhost:9042",
+        "keyspace": "pulsar_test_keyspace",
+        "columnFamily": "pulsar_test_table",
+        "keyname": "key",
+        "columnName": "col"
+    }
+    ```
+
+* YAML
+  
+    ```
+    configs:
+        roots: "localhost:9042"
+        keyspace: "pulsar_test_keyspace"
+        columnFamily: "pulsar_test_table"
+        keyname: "key"
+        columnName: "col"
+    ```
+
 
 ## Usage
 
-For more information about **How to connect Pulsar with Apache Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-apache-cassandra).
+For more information about **how to connect Pulsar with Cassandra**, see [here](io-quickstart.md#connect-pulsar-to-apache-cassandra).

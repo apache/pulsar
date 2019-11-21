@@ -71,7 +71,7 @@ spec:
             annotations:
                 pod.alpha.kubernetes.io/initialized: "true"
                 prometheus.io/scrape: "true"
-                prometheus.io/port: "8080"
+                prometheus.io/port: "8000"
 
         spec:
             # Make sure multiple pods of ZK don't get scheduled on the

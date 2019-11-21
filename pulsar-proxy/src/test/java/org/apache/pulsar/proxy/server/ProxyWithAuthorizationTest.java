@@ -133,7 +133,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         return new Object[][] { { ciphers_1, protocols_1, Boolean.FALSE }, { ciphers_2, protocols_2, Boolean.FALSE },
                 { ciphers_3, protocols_3, Boolean.TRUE }, { ciphers_4, protocols_4, Boolean.TRUE },
                 { ciphers_5, protocols_5, Boolean.TRUE }, { ciphers_6, protocols_6, Boolean.FALSE },
-                { ciphers_7, protocols_7, Boolean.TRUE }, { ciphers_8, protocols_8, Boolean.FALSE } };
+                { ciphers_7, protocols_7, Boolean.FALSE }, { ciphers_8, protocols_8, Boolean.FALSE } };
     }
 
     @BeforeMethod

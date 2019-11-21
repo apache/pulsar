@@ -22,6 +22,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignExc
 
 public interface StickyKeyConsumerSelector {
 
+    int DEFAULT_RANGE_SIZE =  2 << 15;
+
     /**
      * Add a new consumer
      * @param consumer new consumer
@@ -41,4 +43,11 @@ public interface StickyKeyConsumerSelector {
      * @return consumer
      */
     Consumer select(byte[] stickyKey);
+
+    /**
+     * Select a consumer by hash of the sticky they
+     * @param keyHash hash of sticky key
+     * @return
+     */
+    Consumer select(int keyHash);
 }
