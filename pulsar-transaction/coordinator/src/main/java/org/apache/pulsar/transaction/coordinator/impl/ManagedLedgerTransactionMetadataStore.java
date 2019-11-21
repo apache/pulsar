@@ -113,7 +113,6 @@ public class ManagedLedgerTransactionMetadataStore
         }
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.incrementAndGet();
-
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         long currentTimeMillis = System.currentTimeMillis();
         TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
