@@ -58,7 +58,7 @@ public class SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
-    /** Last message expire execution timestamp*/
+    /** Last message expire execution timestamp. */
     public long lastExpireTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */
