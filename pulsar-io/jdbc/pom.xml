@@ -64,34 +64,11 @@
       <version>${mysql-jdbc.version}</version>
       <scope>runtime</scope>
     </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>${postgresql.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>ru.yandex.clickhouse</groupId>
-      <artifactId>clickhouse-jdbc</artifactId>
-      <version>${clickhouse-jdbc.version}</version>
-      <scope>runtime</scope>
-    </dependency>
+
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
       <version>${sqlite-jdbc.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.sqlserver</groupId>
-      <artifactId>mssql-jdbc</artifactId>
-      <version>${mssql-jdbc.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mariadb.jdbc</groupId>
-      <artifactId>mariadb-java-client</artifactId>
-      <version>${mariadb.version}</version>
       <scope>runtime</scope>
     </dependency>
 
