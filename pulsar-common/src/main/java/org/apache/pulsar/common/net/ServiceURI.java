@@ -29,7 +29,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.google.common.net.HostAndPort;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
