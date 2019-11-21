@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TransactionMetaStoreAssignTest extends TransactionMetaStoreTestBase {
+public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTestBase {
 
     @Test
     public void testTransactionMetaStoreAssignAndFailover() throws IOException, InterruptedException {
