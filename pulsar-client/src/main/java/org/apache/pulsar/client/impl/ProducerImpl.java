@@ -1298,7 +1298,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             pendingMessages.size());
 
                     PulsarClientException te = new PulsarClientException.TimeoutException(
-                            "Could not send message to broker within given timeout");
+                            "Could not send message to broker within given timeout for topic : " + topic);
                     failPendingMessages(cnx(), te);
                     stats.incrementSendFailed(pendingMessages.size());
                     // Since the pending queue is cleared now, set timer to expire after configured value.
