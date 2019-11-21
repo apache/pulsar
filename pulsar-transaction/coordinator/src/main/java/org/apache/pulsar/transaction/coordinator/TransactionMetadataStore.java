@@ -111,5 +111,4 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
-
 }
