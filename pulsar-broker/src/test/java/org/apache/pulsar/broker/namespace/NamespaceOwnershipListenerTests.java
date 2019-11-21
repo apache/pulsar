@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.namespace;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;

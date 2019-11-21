@@ -199,8 +199,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         boolean isEmpty;
+        List<String> topics;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join().isEmpty()
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            isEmpty = topics.isEmpty()
                     && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
                     && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
@@ -212,8 +214,17 @@ public abstract class NamespacesBase extends AdminResource {
             if (log.isDebugEnabled()) {
                 log.debug("Found topics on namespace {}", namespaceName);
             }
-            asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
-            return;
+            boolean hasNonSystemTopic = false;
+            for (String topic : topics) {
+                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                    hasNonSystemTopic = true;
+                    break;
+                }
+            }
+            if (hasNonSystemTopic) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
+                return;
+            }
         }
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
@@ -231,6 +242,14 @@ public abstract class NamespacesBase extends AdminResource {
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
+            // remove system topics first.
+            if (!topics.isEmpty()) {
+                for (String topic : topics) {
+                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
+                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
+                    });
+                }
+            }
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
