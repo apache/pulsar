@@ -18,24 +18,21 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
  * A starter to start function worker.
