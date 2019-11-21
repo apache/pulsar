@@ -89,7 +89,7 @@ public class TransactionMetadataStoreService {
                                 }
                             }
                         } else {
-                            LOG.error("Get owned topic list error when trigger bundle {} unLoad.", bundle, ex);
+                            LOG.error("Failed to get owned topic list error when triggering un-loading bundle {}.", bundle, ex);
                         }
                      });
             }
