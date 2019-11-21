@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.buffer.ByteBuf;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
@@ -34,15 +39,19 @@ import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry.Tra
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.exceptions.TransactionMetadataStoreStateException;
 import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
-import org.apache.pulsar.transaction.coordinator.exceptions.TxnStoreStateUpdateException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.util.TransactionUtil;
+
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,33 +59,32 @@ import org.slf4j.LoggerFactory;
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
-public class ManagedLedgerTransactionMetadataStore implements TransactionMetadataStore {
+public class ManagedLedgerTransactionMetadataStore
+        extends TransactionMetadataStoreState implements TransactionMetadataStore {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStore.class);
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
     private AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
-    private final ManagedLedgerTransactionLog transactionLog;
+    private final ManagedLedgerTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
-    private volatile State state;
     private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
+    private SpscArrayQueue<Entry> entryQueue;
+    private volatile long loadCount;
 
     public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
                                                  ManagedLedgerFactory managedLedgerFactory) throws Exception {
+        super(State.None);
         this.tcID = tcID;
-        this.state = State.NONE;
-        this.transactionLog = new ManagedLedgerTransactionLogImpl(tcID.getId(), managedLedgerFactory, this);
-        this.transactionLog.init();
+        this.transactionLog =
+                new ManagedLedgerTransactionLogImpl(tcID.getId(), managedLedgerFactory);
+        this.entryQueue = new SpscArrayQueue<>(2000);
+        init();
     }
 
-    ConcurrentMap<TxnID, TxnMeta> getTxnMetaMap() {
+    private ConcurrentMap<TxnID, TxnMeta> getTxnMetaMap() {
         return txnMetaMap;
     }
-
-    public State getState() {
-        return state;
-    }
-
 
     public AtomicLong getSequenceId() {
         return sequenceId;
@@ -99,9 +107,9 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
-        if (state != State.READY) {
-            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
-                    + state.name() + " when new transaction with tcId : " + tcID));
+        if (!checkIfReady()) {
+            return FutureUtil.failedFuture(
+                    new TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
         }
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.incrementAndGet();
@@ -133,9 +141,10 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<Void> addProducedPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
-        if (state != State.READY) {
-            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
-                    + state.name() + " when add have produced partition with txnID : " + txnID));
+        if (!checkIfReady()) {
+            return FutureUtil.failedFuture(
+                    new TransactionMetadataStoreStateException(txnID,
+                            State.Ready, getState(), "add produced partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
@@ -157,7 +166,7 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                                 transactionMetadataEntry.recycle();
                                 return CompletableFuture.completedFuture(null);
                             } catch (InvalidTxnStatusException e) {
-                                LOGGER.error("TxnID : " + txn.id().toString()
+                                log.error("TxnID : " + txn.id().toString()
                                         + " add produced partition error with TxnStatus : "
                                         + txn.status().name(), e);
                                 CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -172,9 +181,10 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
-        if (state != State.READY) {
-            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
-                    + state.name() + " when add acked partition with txnID : " + txnID));
+        if (!checkIfReady()) {
+            return FutureUtil.failedFuture(
+                    new TransactionMetadataStoreStateException(txnID,
+                            State.Ready, getState(), "add acked partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
@@ -196,7 +206,7 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                                 transactionMetadataEntry.recycle();
                                 return CompletableFuture.completedFuture(null);
                             } catch (InvalidTxnStatusException e) {
-                                LOGGER.error("TxnID : " + txn.id().toString()
+                                log.error("TxnID : " + txn.id().toString()
                                         + " add acked subscription error with TxnStatus : "
                                         + txn.status().name(), e);
                                 CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -211,25 +221,15 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<Void> updateTxnStatusAsync(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
-        if (state != State.READY) {
-            return FutureUtil.failedFuture(new TxnStoreStateUpdateException("Transaction metadata store state : "
-                    + state.name() + " when update txn status with txnID : " + txnID));
+        if (!checkIfReady()) {
+            return FutureUtil.failedFuture(
+                    new TransactionMetadataStoreStateException(txnID,
+                            State.Ready, getState(), "update transaction status"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
                 return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
             } else {
-                synchronized (txn) {
-                    try {
-                        txn.checkTxnStatus(expectedStatus);
-                    } catch (InvalidTxnStatusException e) {
-                        return FutureUtil.failedFuture(e);
-                    }
-                    if (!TransactionUtil.canTransitionTo(txn.status(), newStatus)) {
-                        return FutureUtil.failedFuture(new InvalidTxnStatusException(
-                                "Transaction `" + txnID + "` CANNOT transaction from status "
-                                        + txn.status() + " to " + newStatus));
-                    }
                 TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                         .newBuilder()
                         .setTxnidMostBits(txnID.getMostSigBits())
@@ -239,68 +239,201 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                         .setLastModificationTime(System.currentTimeMillis())
                         .setNewStatus(newStatus)
                         .build();
-                    return transactionLog.write(transactionMetadataEntry)
-                            .thenCompose(txnMeta -> {
-                                try {
-                                    txn.updateTxnStatus(newStatus, expectedStatus);
-                                    transactionMetadataEntry.recycle();
-                                    return CompletableFuture.completedFuture(null);
-                                } catch (InvalidTxnStatusException e) {
-                                    LOGGER.error("TxnID : " + txn.id().toString()
-                                            + " add update txn status error with TxnStatus : "
-                                            + txn.status().name(), e);
-                                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                                    completableFuture.completeExceptionally(e);
-                                    transactionMetadataEntry.recycle();
-                                    return completableFuture;
-                                }
-                            });
-                }
+                return transactionLog.write(transactionMetadataEntry)
+                        .thenCompose(txnMeta -> {
+                            try {
+                                txn.updateTxnStatus(newStatus, expectedStatus);
+                                transactionMetadataEntry.recycle();
+                                return CompletableFuture.completedFuture(null);
+                            } catch (InvalidTxnStatusException e) {
+                                log.error("TxnID : " + txn.id().toString()
+                                        + " add update txn status error with TxnStatus : "
+                                        + txn.status().name(), e);
+                                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                                completableFuture.completeExceptionally(e);
+                                transactionMetadataEntry.recycle();
+                                return completableFuture;
+                            }
+                        });
             }
         });
     }
 
-
-
     @Override
     public CompletableFuture<Void> closeAsync() {
-        try {
-            transactionLog.close();
-            this.updateMetadataStoreState(State.CLOSE);
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-        return CompletableFuture.completedFuture(null);
+        return transactionLog.close().thenCompose(v -> {
+            entryQueue.clear();
+            txnMetaMap.clear();
+            if (!this.changeToClose()) {
+                return FutureUtil.failedFuture(
+                        new IllegalStateException("Managed ledger transaction metadata store state to close error!"));
+            }
+            return CompletableFuture.completedFuture(null);
+        });
     }
 
-    void updateMetadataStoreState(State state) throws TxnStoreStateUpdateException {
-        switch (state) {
-            case NONE:
-                if (!this.state.equals(State.NONE)) {
-                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+    public void init() {
+
+        if (!changeToInitializingState()) {
+            log.error("Managed ledger transaction metadata store change state error when init it");
+            return;
+        }
+        new Thread(new LoadLogToCache(this, transactionLog),
+                "Transaction log read entry thread").start();
+    }
+
+    class LoadLogToCache implements Runnable {
+
+        private final ConcurrentMap<TxnID, TxnMeta> txnMetaMap;
+        private final AtomicLong sequenceId;
+        private volatile long addCount = 0;
+        private ManagedLedgerTransactionLogImpl ledgerTransactionLog;
+        private ManagedLedgerTransactionMetadataStore metadataStore;
+        private FillEntryQueueCallback fillEntryQueueCallback;
+
+        LoadLogToCache(ManagedLedgerTransactionMetadataStore metadataStore,
+                  ManagedLedgerTransactionLogImpl ledgerTransactionLog) {
+            this.txnMetaMap = metadataStore.getTxnMetaMap();
+            this.sequenceId = metadataStore.getSequenceId();
+            this.ledgerTransactionLog = ledgerTransactionLog;
+            this.metadataStore = metadataStore;
+            this.fillEntryQueueCallback = new FillEntryQueueCallback(metadataStore, ledgerTransactionLog);
+        }
+
+        @Override
+        public void run() {
+            while ((addCount != metadataStore.loadCount
+                    || (addCount == metadataStore.loadCount && !fillEntryQueueCallback.isFinished()))
+                    && checkCurrentState(State.Initializing)) {
+                fillEntryQueueCallback.fillQueue();
+                convertEntry(metadataStore.entryQueue.poll());
+            }
+            try {
+                ledgerTransactionLog.getReadOnlyCursor().close();
+            } catch (InterruptedException | ManagedLedgerException e) {
+                log.error("Transaction log close ReadOnlyCursor fail", e);
+            }
+            if (!changeToReadyState()) {
+                log.error("Managed ledger transaction metadata store load log to cache change state to ready error!");
+            }
+        }
+
+        private void convertEntry(Entry entry) {
+            if (entry != null) {
+                addCount++;
+                try {
+                    ByteBuf buffer = entry.getDataBuffer();
+                    ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
+                    TransactionMetadataEntry.Builder transactionMetadataEntryBuilder =
+                            TransactionMetadataEntry.newBuilder();
+                    TransactionMetadataEntry transactionMetadataEntry =
+                            transactionMetadataEntryBuilder.mergeFrom(stream, null).build();
+                    TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
+                            transactionMetadataEntry.getTxnidLeastBits());
+                    switch (transactionMetadataEntry.getMetadataOp()) {
+                        case NEW:
+                            if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
+                                sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
+                            }
+                            txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                            transactionMetadataEntryBuilder.recycle();
+                            stream.recycle();
+                            break;
+                        case ADD_PARTITION:
+                            txnMetaMap.get(txnID)
+                                    .addProducedPartitions(transactionMetadataEntry.getPartitionsList());
+                            transactionMetadataEntryBuilder.recycle();
+                            stream.recycle();
+                            break;
+                        case ADD_SUBSCRIPTION:
+                            txnMetaMap.get(txnID)
+                                    .addAckedPartitions(
+                                            subscriptionToTxnSubscription
+                                                    (transactionMetadataEntry.getSubscriptionsList()));
+                            transactionMetadataEntryBuilder.recycle();
+                            stream.recycle();
+                            break;
+                        case UPDATE:
+                            txnMetaMap.get(txnID)
+                                    .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
+                                            transactionMetadataEntry.getExpectedStatus());
+                            transactionMetadataEntryBuilder.recycle();
+                            stream.recycle();
+                            break;
+                        default:
+
+                            throw new InvalidTxnStatusException("Transaction `"
+                                    + txnID + "` load bad metadata operation from transaction log ");
+                    }
+                    entry.release();
+                } catch (InvalidTxnStatusException e) {
+                    log.error(e.getMessage(), e);
+                } catch (IOException e) {
+                    log.error(e.getMessage(), e);
+                    throw new RuntimeException("TransactionLog convert entry error : ", e);
                 }
-                this.state = state;
-                break;
-            case INITIALIZING:
-                if (!this.state.equals(State.NONE)) {
-                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+            } else {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    //no-op
                 }
-                this.state = state;
-                break;
-            case READY:
-                if (!this.state.equals(State.INITIALIZING)) {
-                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+            }
+        }
+    }
+
+    class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
+
+        private ManagedLedgerTransactionLogImpl managedLedgerTransactionLog;
+
+        private ManagedLedgerTransactionMetadataStore managedLedgerTransactionMetadataStore;
+
+        private AtomicLong outstandingReadsRequests = new AtomicLong(0);
+
+        private volatile boolean isDone = false;
+
+        FillEntryQueueCallback(ManagedLedgerTransactionMetadataStore managedLedgerTransactionMetadataStore,
+                               ManagedLedgerTransactionLogImpl managedLedgerTransactionLog) {
+            this.managedLedgerTransactionMetadataStore = managedLedgerTransactionMetadataStore;
+            this.managedLedgerTransactionLog = managedLedgerTransactionLog;
+        }
+
+        void fillQueue() {
+            if (!isDone && managedLedgerTransactionMetadataStore.entryQueue.size()
+                    < managedLedgerTransactionMetadataStore.entryQueue.capacity()
+                    && outstandingReadsRequests.get() == 0) {
+                if (managedLedgerTransactionLog.getReadOnlyCursor().hasMoreEntries()) {
+                    outstandingReadsRequests.incrementAndGet();
+                    managedLedgerTransactionLog.read(100, this, System.nanoTime());
+                } else {
+                    isDone = true;
                 }
-                this.state = state;
-                break;
-            case CLOSE:
-                if (this.state.equals(State.CLOSE)) {
-                    throw new TxnStoreStateUpdateException(tcID.toString(), this.state, state);
+            }
+        }
+
+        public boolean isFinished() {
+            return isDone && outstandingReadsRequests.get() == 0;
+        }
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
+                private int i = 0;
+                @Override
+                public Entry get() {
+                    Entry entry = entries.get(i);
+                    i++;
+                    return entry;
                 }
-                this.state = state;
-                break;
-            default:
-                throw new TxnStoreStateUpdateException("Unknown state the transaction store to be change");
+            }, entries.size());
+            managedLedgerTransactionMetadataStore.loadCount += entries.size();
+            outstandingReadsRequests.decrementAndGet();
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            log.error("Transaction log init fail error", exception);
+            outstandingReadsRequests.decrementAndGet();
         }
     }
 
@@ -315,29 +448,14 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
         return subscriptions;
     }
 
-    /**
-     * A reader for read transaction metadata.
-     */
-    protected interface ManagedLedgerTransactionLog {
-
-        /**
-         * Init the managedLedger log.
-         */
-        void init();
-
-        /**
-         * Close the transaction log.
-         */
-        void close() throws ManagedLedgerException, InterruptedException;
-
-        /**
-         * Write the transaction operation to the transaction log.
-         *
-         * @param transactionMetadataEntry {@link TransactionMetadataEntry} transaction metadata entry
-         * @return a future represents the result of this operation
-         */
-        CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry);
-
+    private static List<TxnSubscription> subscriptionToTxnSubscription(List<Subscription> subscriptions) {
+        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
+        for (Subscription subscription : subscriptions) {
+            txnSubscriptions
+                    .add(new TxnSubscription(subscription.getTopic(), subscription.getSubscription()));
+            subscription.recycle();
+        }
+        return txnSubscriptions;
     }
 }
 

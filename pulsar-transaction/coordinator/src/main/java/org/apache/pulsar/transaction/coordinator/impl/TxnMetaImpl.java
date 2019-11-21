@@ -29,9 +29,8 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-
-import org.apache.pulsar.transaction.util.TransactionUtil;
 
 /**
  * A class represents the metadata of a transaction stored in

@@ -46,8 +46,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                 new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
 
         while (true) {
-            if (transactionMetadataStore.getState()
-                    == TransactionMetadataStore.State.READY) {
+            if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID = transactionMetadataStore.newTransactionAsync(1000).get();
                 Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
 
@@ -93,8 +92,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                 new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
 
         while (true) {
-            if (transactionMetadataStore.getState()
-                    == TransactionMetadataStore.State.READY) {
+            if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID1 = transactionMetadataStore.newTransactionAsync(1000).get();
                 TxnID txnID2 = transactionMetadataStore.newTransactionAsync(1000).get();
                 Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
@@ -127,8 +125,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                         new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
 
                 while (true) {
-                    if (transactionMetadataStoreTest.getState()
-                            == TransactionMetadataStore.State.READY) {
+                    if (transactionMetadataStoreTest.checkIfReady()) {
                         TxnMeta txnMeta1 = transactionMetadataStoreTest.getTxnMetaAsync(txnID1).get();
                         TxnMeta txnMeta2 = transactionMetadataStoreTest.getTxnMetaAsync(txnID2).get();
                         Assert.assertEquals(txnMeta1.producedPartitions(), partitions);
@@ -137,6 +134,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                         Assert.assertEquals(txnMeta2.ackedPartitions().size(), transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().size());
                         Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID1).get().ackedPartitions().containsAll(txnMeta1.ackedPartitions()));
                         Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().containsAll(txnMeta2.ackedPartitions()));
+                        //because managedledger can't read the last entry, when it fix, we should change this test
                         Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
                         Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
                         TxnID txnID = transactionMetadataStoreTest.newTransactionAsync(1000).get();

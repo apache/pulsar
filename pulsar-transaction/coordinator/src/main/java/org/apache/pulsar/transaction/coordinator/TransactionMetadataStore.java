@@ -33,16 +33,6 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 public interface TransactionMetadataStore {
 
     /**
-     * The state of the transactionMetadataStore {@link TransactionMetadataStore}.
-     */
-    enum State {
-        NONE,
-        INITIALIZING,
-        READY,
-        CLOSE
-    }
-
-    /**
      * Query the {@link TxnStatus} of a given transaction <tt>txnId</tt>.
      *
      * @param txnID {@link TxnID} for get transaction status
@@ -74,7 +64,7 @@ public interface TransactionMetadataStore {
     /**
      * Create a new transaction in the transaction metadata store.
      *
-     * @param timeOut the timeout time
+     * @param timeOut the timeout duration of the transaction in mills
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
@@ -121,5 +111,5 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
-
+    
 }

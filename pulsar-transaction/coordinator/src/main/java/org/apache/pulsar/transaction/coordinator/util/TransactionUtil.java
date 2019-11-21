@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.util;
+package org.apache.pulsar.transaction.coordinator.util;
 
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTED;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTING;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.impl.common;
+package org.apache.pulsar.transaction.coordinator;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -24,8 +24,8 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Set;
 
-import org.apache.pulsar.transaction.util.TransactionUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
