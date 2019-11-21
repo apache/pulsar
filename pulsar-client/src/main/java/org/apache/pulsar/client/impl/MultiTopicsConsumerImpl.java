@@ -185,21 +185,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkState(topics != null && topics.size() >= 1,
             "topics should contain more than 1 topic");
 
-        final String namespace = TopicName.get(topics.stream().findFirst().get()).getNamespace();
-
         Optional<String> result = topics.stream()
             .filter(topic -> {
                 boolean topicInvalid = !TopicName.isValid(topic);
                 if (topicInvalid) {
                     return true;
                 }
-
-                String newNamespace =  TopicName.get(topic).getNamespace();
-                if (!namespace.equals(newNamespace)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return false;
             }).findFirst();
 
         if (result.isPresent()) {
