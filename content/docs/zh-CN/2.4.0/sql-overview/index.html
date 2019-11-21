@@ -74,7 +74,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Pulsar SQL Overview</h1></header><article><div><span><p>Pulsar的一个常见用例是存储事件数据流。 通常，事件数据由预定义字段构成。 用户查询已存储在Pulsar主题中的现有数据具有巨大的价值。 通过内嵌的<a href="/docs/zh-CN/2.4.0/concepts-schema-registry">schema registry</a>，结构化数据可以存储在Pulsar中，并允许通过SQL语言查询该数据。</p>
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar SQL Overview</h1></header><article><div><span><p>Pulsar的一个常见用例是存储事件数据流。 通常，事件数据由预定义字段构成。 用户查询已存储在Pulsar主题中的现有数据具有巨大的价值。 通过内嵌的<a href="/docs/zh-CN/2.4.0/concepts-schema-registry">schema registry</a>，结构化数据可以存储在Pulsar中，并允许通过SQL语言查询该数据。</p>
 <p>By leveraging <a href="https://prestosql.io/">Presto</a>, we have created a method for users to be able to query structured data stored within Pulsar in a very efficient and scalable manner. 我们将在下面的<a href="#performance">性能</a>部分讨论为什么Pulsar可以做到如此高效和可扩展。</p>
 <p>Pulsar SQL的核心是Presto Pulsar连接器，它允许Presto worker从Pulsar查询数据。</p>
 <p><img src="/docs/assets/pulsar-sql-arch-2.png" alt="Pulsar的消费者和读取器接口"></p>

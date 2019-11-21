@@ -74,7 +74,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Architecture Overview</h1></header><article><div><span><p>At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can <a href="/docs/ja/concepts-replication">replicate</a> data amongst themselves.</p>
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Architecture Overview</h1></header><article><div><span><p>At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can <a href="/docs/ja/concepts-replication">replicate</a> data amongst themselves.</p>
 <p>In a Pulsar cluster:</p>
 <ul>
 <li>One or more brokers handles and load balances incoming messages from producers, dispatches messages to consumers, communicates with the Pulsar configuration store to handle various coordination tasks, stores messages in BookKeeper instances (aka bookies), relies on a cluster-specific ZooKeeper cluster for certain tasks, and more.</li>
