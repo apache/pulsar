@@ -40,6 +40,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -281,8 +282,8 @@ public class ConnectionPool implements Closeable {
 
     @Override
     public void close() throws IOException {
-        eventLoopGroup.shutdownGracefully();
         dnsResolver.close();
+        eventLoopGroup.shutdown();
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,
