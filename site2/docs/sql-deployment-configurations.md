@@ -26,13 +26,12 @@ pulsar.entry-read-batch-size=100
 pulsar.target-num-splits=4
 ```
 
-You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers or ZooKeepers, you can add multiple URLs to `pulsar.broker-service-url`. The following is an example.
+You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.broker-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.
   
 ```
 pulsar.broker-service-url=http://localhost:8080,localhost:8081,localhost:8082
-
+pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
-
 
 ## Query data from existing Presto clusters
 
