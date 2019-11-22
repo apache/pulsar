@@ -87,6 +87,8 @@ public class PersistentSubscription implements Subscription {
     private volatile int isFenced = FALSE;
     private PersistentMessageExpiryMonitor expiryMonitor;
 
+    private long lastExpireTimestamp = 0L;
+
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
@@ -902,6 +904,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void expireMessages(int messageTTLInSeconds) {
+        this.lastExpireTimestamp = System.currentTimeMillis();
         if ((getNumberOfEntriesInBacklog() == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
                 && getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
@@ -921,7 +924,7 @@ public class PersistentSubscription implements Subscription {
 
     public SubscriptionStats getStats() {
         SubscriptionStats subStats = new SubscriptionStats();
-
+        subStats.lastExpireTimestamp = lastExpireTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
