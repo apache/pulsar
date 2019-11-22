@@ -245,7 +245,7 @@ public class ManagedLedgerTransactionMetadataStore
                         transactionLog.write(transactionMetadataEntry).get();
                         txn.updateTxnStatus(newStatus, expectedStatus);
                         completableFuture.complete(null);
-                    } catch (InterruptedException | ExecutionException |InvalidTxnStatusException e) {
+                    } catch (InterruptedException | ExecutionException | InvalidTxnStatusException e) {
                         log.error("TxnID : " + txn.id().toString()
                                 + " add update txn status error with TxnStatus : "
                                 + txn.status().name(), e);
