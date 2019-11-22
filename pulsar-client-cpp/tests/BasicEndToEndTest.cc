@@ -264,37 +264,45 @@ TEST(BasicEndToEndTest, testRedeliveryCount) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
     std::string topicName = "persistent://public/default/test-redelivery-count";
+    std::string subName = "my-sub-name";
 
     Producer producer;
-    ProducerConfiguration producerConf;
-    producerConf.setBatchingEnabled(true);
-    Result result = client.createProducer(topicName, producerConf, producer);
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
     ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setNegativeAckRedeliveryDelayMs(500);
+    consumerConf.setConsumerType(ConsumerShared);
+    client.subscribeAsync(topicName, subName, consumerConf, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
     std::string content = "msg-content";
     Message msg = MessageBuilder().setContent(content).build();
     producer.send(msg);
 
-    Consumer consumer;
-    ConsumerConfiguration consumerConf;
-    consumerConf.setNegativeAckRedeliveryDelayMs(500);
-    consumerConf.setConsumerType(ConsumerShared);
-    result = client.subscribe(topicName, "sub", consumerConf, consumer);
-    ASSERT_EQ(ResultOk, result);
-
-    do {
-        Message msgReceived;
+    int redeliveryCount = 0;
+    Message msgReceived;
+    for (int i = 0; i < 4; i++) {
         consumer.receive(msgReceived);
         LOG_INFO("Received message " << msgReceived.getDataAsString());
         consumer.negativeAcknowledge(msgReceived);
-        int redeliveryCount = msgReceived.getRedeliveryCount();
-        if (redeliveryCount > 2) {
-            consumer.acknowledge(msgReceived);
-            ASSERT_EQ(3, redeliveryCount);
-            break;
-        }
-    } while (true);
+        redeliveryCount = msgReceived.getRedeliveryCount();
+    }
 
+    ASSERT_EQ(3, redeliveryCount);
+    consumer.acknowledge(msgReceived);
     consumer.close();
     producer.close();
 }
