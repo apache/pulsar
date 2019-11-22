@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -229,31 +230,30 @@ public class ManagedLedgerTransactionMetadataStore
             if (txn == null) {
                 return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
             } else {
-                TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
-                        .newBuilder()
-                        .setTxnidMostBits(txnID.getMostSigBits())
-                        .setTxnidLeastBits(txnID.getLeastSigBits())
-                        .setExpectedStatus(expectedStatus)
-                        .setMetadataOp(TransactionMetadataOp.UPDATE)
-                        .setLastModificationTime(System.currentTimeMillis())
-                        .setNewStatus(newStatus)
-                        .build();
-                return transactionLog.write(transactionMetadataEntry)
-                        .thenCompose(txnMeta -> {
-                            try {
-                                txn.updateTxnStatus(newStatus, expectedStatus);
-                                transactionMetadataEntry.recycle();
-                                return CompletableFuture.completedFuture(null);
-                            } catch (InvalidTxnStatusException e) {
-                                log.error("TxnID : " + txn.id().toString()
-                                        + " add update txn status error with TxnStatus : "
-                                        + txn.status().name(), e);
-                                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                                completableFuture.completeExceptionally(e);
-                                transactionMetadataEntry.recycle();
-                                return completableFuture;
-                            }
-                        });
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                synchronized (txn) {
+                    TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
+                            .newBuilder()
+                            .setTxnidMostBits(txnID.getMostSigBits())
+                            .setTxnidLeastBits(txnID.getLeastSigBits())
+                            .setExpectedStatus(expectedStatus)
+                            .setMetadataOp(TransactionMetadataOp.UPDATE)
+                            .setLastModificationTime(System.currentTimeMillis())
+                            .setNewStatus(newStatus)
+                            .build();
+                    try {
+                        transactionLog.write(transactionMetadataEntry).get();
+                        txn.updateTxnStatus(newStatus, expectedStatus);
+                        completableFuture.complete(null);
+                    } catch (InterruptedException | ExecutionException |InvalidTxnStatusException e) {
+                        log.error("TxnID : " + txn.id().toString()
+                                + " add update txn status error with TxnStatus : "
+                                + txn.status().name(), e);
+                        completableFuture.completeExceptionally(e);
+                    }
+                    transactionMetadataEntry.recycle();
+                }
+                return completableFuture;
             }
         });
     }
