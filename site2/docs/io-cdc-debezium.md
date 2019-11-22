@@ -332,7 +332,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
 * YAML 
 
-    You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
+    You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
 
     ```yaml
     tenant: "public"
@@ -344,13 +344,13 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
     configs:
 
-        ## config for pg, docker image: debezium/example-postgress:0.8
-        "mongodb.hosts": "rs0/mongodb:27017",
-        "mongodb.name": "dbserver1",
-        "mongodb.user": "debezium",
-        "mongodb.password": "dbz",
-        "mongodb.task.id": "1",
-        "schema.whitelist": "inventory",
+        ## config for pg, docker image: debezium/example-postgress:0.10
+        mongodb.hosts: "rs0/mongodb:27017",
+        mongodb.name: "dbserver1",
+        mongodb.user: "debezium",
+        mongodb.password: "dbz",
+        mongodb.task.id: "1",
+        schema.whitelist: "inventory",
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
@@ -361,12 +361,17 @@ You need to create a configuration file before using the Pulsar Debezium connect
 This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.
 
 
-1. Start a PostgreSQL server with a database from which Debezium can capture changes.
+1. Start a MongoDB server with a database from which Debezium can capture changes.
 
     ```bash
     $ docker pull debezium/example-mongodb:0.10
     $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
     ```
+     Use the following commands to init the data.
+    
+     ``` bash
+     ./usr/local/bin/init-inventory.sh
+     ```
 
 2. Start a Pulsar service locally in standalone mode.
 
@@ -378,11 +383,11 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    * Use the **JSON** configuration file as shown previously. 
      
-     Make sure the nar file is available at `connectors/pulsar-io-mongodb-postgres-{{pulsar:version}}.nar`.
+     Make sure the nar file is available at `connectors/pulsar-io-mongodb-{{pulsar:version}}.nar`.
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar \
+        --archive connectors/pulsar-io-debezium-mongodb-{{pulsar:version}}.nar \
         --name debezium-mongodb-source \
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \
@@ -411,15 +416,14 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 6. A MongoDB client pops out. 
    
-   Use the following commands to init the data.
-
-    ``` bash
-    ./usr/local/bin/init-inventory.sh
+    ```bash
+    mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
+    db.products.update({"_id":NumberLong(104)},{$set:{weight:1.25}})
     ```
 
     In the terminal window of subscribing topic, you can receive the following messages.
         
     ```bash
     ----- got message -----
-    {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 0.75,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
+    {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
     ```
