@@ -198,6 +198,8 @@ PULSAR_PUBLIC uint64_t pulsar_message_get_event_timestamp(pulsar_message_t *mess
 
 PULSAR_PUBLIC const char *pulsar_message_get_topic_name(pulsar_message_t *message);
 
+PULSAR_PUBLIC int pulsar_message_get_redelivery_count(pulsar_message_t *message);
+
 #ifdef __cplusplus
 }
 #endif
