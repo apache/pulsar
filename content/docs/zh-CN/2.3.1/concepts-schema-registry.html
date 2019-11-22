@@ -74,7 +74,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema Registry</h1></header><article><div><span><p>对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。 生产者和消费者需要某种机制来协调topic层面的类型, 以免出现各种各样的潜在问题 (例如序列化和反序列化问题)。 应用通常采用两种基本方法之一，在消息传递中确保类型安全:</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema Registry</h1></header><article><div><span><p>对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。 生产者和消费者需要某种机制来协调topic层面的类型, 以免出现各种各样的潜在问题 (例如序列化和反序列化问题)。 应用通常采用两种基本方法之一，在消息传递中确保类型安全:</p>
 <ol>
 <li>&quot;客户端&quot; 方法, 消息生产者和消费者不仅负责序列化和反序列处理消息 (包括原始字节), 而且还 &quot;知道&quot; 哪些类型是通过哪些topic传输的。 如果生产者往主题 <code>topic-1</code>发送温度感应数据，而这个topic的consumer按照读取湿度感应的方式来转换数据，将会遇到问题。</li>
 <li>&quot;服务器端&quot; 方法, 生产者和消费者告知系统哪些数据类型可以通过topic传输。 通过这种方法，消息系统强制执行类型安全, 并确保生产者和消费者保持同步。</li>

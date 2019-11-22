@@ -4934,7 +4934,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "401" : {
@@ -9045,15 +9045,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -9080,6 +9071,15 @@
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -9247,10 +9247,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -9948,10 +9948,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
