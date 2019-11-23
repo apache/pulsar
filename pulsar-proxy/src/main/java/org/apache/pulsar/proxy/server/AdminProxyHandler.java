@@ -260,8 +260,13 @@ class AdminProxyHandler extends ProxyServlet {
 
         boolean isFunctionsRestRequest = false;
         String requestUri = request.getRequestURI();
-        if (requestUri.startsWith("/admin/v2/functions")
-            || requestUri.startsWith("/admin/functions")) {
+        // Functions workers handle function, sources, and sinks endpoints
+        if (requestUri.startsWith("/admin/v3/functions")
+                || requestUri.startsWith("/admin/v2/functions")
+                || requestUri.startsWith("/admin/functions")
+                || requestUri.startsWith("/admin/v3/sources")
+                || requestUri.startsWith("/admin/v3/sinks")
+        ) {
             isFunctionsRestRequest = true;
         }
 
