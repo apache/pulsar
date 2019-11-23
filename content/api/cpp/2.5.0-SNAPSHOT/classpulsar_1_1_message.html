@@ -135,6 +135,8 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasPartitionKey</b> (
 <tr class="separator:a0e87338a9b4ebd3b41d53826664f900c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a220ce3bef7b8e5bfdcb64c22cc8c1f79"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a220ce3bef7b8e5bfdcb64c22cc8c1f79">getTopicName</a> () const </td></tr>
 <tr class="separator:a220ce3bef7b8e5bfdcb64c22cc8c1f79"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8f47033662118123b86d257df85e069d"><td class="memItemLeft" align="right" valign="top">const int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html#a8f47033662118123b86d257df85e069d">getRedeliveryCount</a> () const </td></tr>
+<tr class="separator:a8f47033662118123b86d257df85e069d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb23b1f6a00e4378ce26355dd83912a1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afb23b1f6a00e4378ce26355dd83912a1"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg) const </td></tr>
 <tr class="separator:afb23b1f6a00e4378ce26355dd83912a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -354,6 +356,22 @@ PULSAR_PUBLIC std::ostream &amp;&#160;</td><td class="memItemRight" valign="bott
       </table>
 </div><div class="memdoc">
 <p>Get the UTC based timestamp in milliseconds referring to when the message was published by the client producer </p>
+
+</div>
+</div>
+<a class="anchor" id="a8f47033662118123b86d257df85e069d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const int pulsar::Message::getRedeliveryCount </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get the redelivery count for this message </p>
 
 </div>
 </div>
