@@ -325,7 +325,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
         "mongodb.user": "debezium",
         "mongodb.password": "dbz",
         "mongodb.task.id": "1",
-        "schema.whitelist": "inventory",
+        "database.whitelist": "inventory",
         "pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
@@ -350,7 +350,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
         mongodb.user: "debezium",
         mongodb.password: "dbz",
         mongodb.task.id: "1",
-        schema.whitelist: "inventory",
+        database.whitelist: "inventory",
 
         ## PULSAR_SERVICE_URL_CONFIG
         pulsar.service.url: "pulsar://127.0.0.1:6650"
@@ -372,6 +372,8 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
      ``` bash
      ./usr/local/bin/init-inventory.sh
      ```
+     If the local host cannot access the container network, you can update the file ```/etc/hosts``` and add a rule ```127.0.0.1 6 f114527a95f```. f114527a95f is container id, you can try to get by ```docker ps -a```
+
 
 2. Start a Pulsar service locally in standalone mode.
 
@@ -392,7 +394,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \
         --namespace default \
-        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
         ```
    
    * Use the **YAML** configuration file as shown previously.
