@@ -63,7 +63,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
             return SchemaRegistryServiceWithSchemaDataValidator.of(
                 new SchemaRegistryServiceImpl(schemaStorage, checkers));
         } catch (Exception e) {
-            log.warn("Unable to create schema registry storage, defaulting to empty storage: {}", e);
+            log.warn("Unable to create schema registry storage, defaulting to empty storage", e);
         }
         return new DefaultSchemaRegistryService();
     }

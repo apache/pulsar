@@ -86,7 +86,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
                 200);
         Assert.assertNotEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().get(0);
+        Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
         int total = 200;
@@ -150,7 +150,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
                 200);
         Assert.assertNotEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().get(0);
+        Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
         int total = 100;

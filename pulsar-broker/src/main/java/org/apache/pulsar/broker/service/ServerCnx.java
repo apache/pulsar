@@ -34,7 +34,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
-import java.util.List;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -183,7 +183,7 @@ public class ServerCnx extends PulsarHandler {
         producers.values().forEach((producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
                 Producer producer = producerFuture.getNow(null);
-                producer.closeNow();
+                producer.closeNow(true);
             }
         });
 
@@ -555,6 +555,7 @@ public class ServerCnx extends PulsarHandler {
                 sslSession);
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            authenticationData = authState.getAuthDataSource();
             doAuthentication(clientData, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             String msg = "Unable to authenticate";
@@ -623,6 +624,7 @@ public class ServerCnx extends PulsarHandler {
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
+        final PulsarApi.KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta() ? subscribe.getKeySharedMeta() : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -702,24 +704,15 @@ public class ServerCnx extends PulsarHandler {
 
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                            .thenCompose(isCompatible -> {
-                                                    if (isCompatible) {
-                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                subType, priorityLevel, consumerName, isDurable,
-                                                                startMessageId, metadata,
-                                                                readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated);
-                                                    } else {
-                                                        return FutureUtil.failedFuture(
-                                                                new IncompatibleSchemaException(
-                                                                        "Trying to subscribe with incompatible schema"
-                                                        ));
-                                                    }
-                                                });
+                                            .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata,
+                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated, keySharedMeta));
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            startMessageRollbackDurationSec, isReplicated);
+                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
                                     }
                                 })
                                 .thenAccept(consumer -> {
@@ -824,6 +817,8 @@ public class ServerCnx extends PulsarHandler {
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
                 : service.generateUniqueProducerName();
+        final long epoch = cmdProducer.getEpoch();
+        final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
@@ -945,7 +940,7 @@ public class ServerCnx extends PulsarHandler {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata, schemaVersion);
+                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
 
                                 try {
                                     topic.addProducer(producer);
@@ -959,12 +954,12 @@ public class ServerCnx extends PulsarHandler {
                                         } else {
                                             // The producer's future was completed before by
                                             // a close command
-                                            producer.closeNow();
+                                            producer.closeNow(true);
                                             log.info("[{}] Cleared producer created after timeout on client side {}",
                                                 remoteAddress, producer);
                                         }
                                     } else {
-                                        producer.closeNow();
+                                        producer.closeNow(true);
                                         log.info("[{}] Cleared producer created after connection was closed: {}",
                                             remoteAddress, producer);
                                         producerFuture.completeExceptionally(
@@ -1045,8 +1040,9 @@ public class ServerCnx extends PulsarHandler {
             if (nonPersistentPendingMessages > MaxNonPersistentPendingMessages) {
                 final long producerId = send.getProducerId();
                 final long sequenceId = send.getSequenceId();
+                final long highestSequenceId = send.getHighestSequenceId();
                 service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), SafeRun.safeRun(() -> {
-                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, -1, -1), ctx.voidPromise());
+                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, -1, -1), ctx.voidPromise());
                 }));
                 producer.recordMessageDrop(send.getNumMessages());
                 return;
@@ -1058,7 +1054,12 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                    headersAndPayload, send.getNumMessages());
+        } else {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {
@@ -1221,7 +1222,7 @@ public class ServerCnx extends PulsarHandler {
         Producer producer = producerFuture.getNow(null);
         log.info("[{}][{}] Closing producer on cnx {}", producer.getTopic(), producer.getProducerName(), remoteAddress);
 
-        producer.close().thenAccept(v -> {
+        producer.close(true).thenAccept(v -> {
             log.info("[{}][{}] Closed producer on cnx {}", producer.getTopic(), producer.getProducerName(),
                     remoteAddress);
             ctx.writeAndFlush(Commands.newSuccess(requestId));

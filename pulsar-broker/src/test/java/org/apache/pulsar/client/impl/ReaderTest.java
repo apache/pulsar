@@ -105,9 +105,37 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
+        Set<String> keys = publishMessages(topic, 10, false);
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                            .startMessageIdInclusive().readerName(subscription).create();
+
+        Assert.assertTrue(reader.hasMessageAvailable());
+        Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
     public void testReadMessageWithBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching";
         testReadMessages(topic, true);
+    }
+
+    @Test
+    public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
+        Set<String> keys = publishMessages(topic, 10, true);
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                            .startMessageIdInclusive().readerName(subscription).create();
+
+        while (reader.hasMessageAvailable()) {
+            Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        }
+        Assert.assertTrue(keys.isEmpty());
+        Assert.assertFalse(reader.hasMessageAvailable());
     }
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
@@ -125,6 +153,10 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(keys.remove(message.getKey()));
         }
         Assert.assertTrue(keys.isEmpty());
+
+        Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                                .readerName(subscription + "latest").create();
+        Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
 

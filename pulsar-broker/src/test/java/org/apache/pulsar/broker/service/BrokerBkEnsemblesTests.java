@@ -21,13 +21,9 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 
-import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -38,100 +34,26 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.StringUtils;
-import org.apache.pulsar.broker.NoOpShutdownService;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  */
-public class BrokerBkEnsemblesTests {
-    protected static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
-    protected PulsarService pulsar;
-    ServiceConfiguration config;
-
-    URL adminUrl;
-    protected PulsarAdmin admin;
-
-    LocalBookkeeperEnsemble bkEnsemble;
-
-    protected int BROKER_WEBSERVICE_PORT;
-
-    private final int numberOfBookies;
+public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     public BrokerBkEnsemblesTests() {
         this(3);
     }
 
     public BrokerBkEnsemblesTests(int numberOfBookies) {
-        this.numberOfBookies = numberOfBookies;
-    }
-
-    @BeforeMethod
-    protected void setup() throws Exception {
-        try {
-            int ZOOKEEPER_PORT = PortManager.nextFreePort();
-            BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-            // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
-            bkEnsemble.start();
-
-            // start pulsar service
-            config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-            config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
-            config.setClusterName("usc");
-            config.setBrokerServicePort(Optional.ofNullable(BROKER_SERVICE_PORT));
-            config.setAuthorizationEnabled(false);
-            config.setAuthenticationEnabled(false);
-            config.setManagedLedgerMaxEntriesPerLedger(5);
-            config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-            config.setAdvertisedAddress("127.0.0.1");
-            config.setAllowAutoTopicCreationType("non-partitioned");
-
-            pulsar = new PulsarService(config);
-            pulsar.setShutdownService(new NoOpShutdownService());
-            pulsar.start();
-
-            adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
-
-            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
-            admin.tenants().createTenant("prop",
-                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
-        } catch (Throwable t) {
-            LOG.error("Error setting up broker test", t);
-            Assert.fail("Broker test setup failed");
-        }
-    }
-
-    @AfterMethod
-    protected void shutdown() throws Exception {
-        try {
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
-        } catch (Throwable t) {
-            LOG.warn("Error cleaning up broker test setup state", t);
-        }
+        super(numberOfBookies);
     }
 
     /**
@@ -372,5 +294,4 @@ public class BrokerBkEnsemblesTests {
         client.close();
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);
 }

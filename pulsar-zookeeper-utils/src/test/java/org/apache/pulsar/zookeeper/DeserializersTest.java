@@ -21,10 +21,11 @@ package org.apache.pulsar.zookeeper;
 import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.zookeeper.Deserializers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.nio.charset.StandardCharsets;
 
 @Test
 public class DeserializersTest {
@@ -40,7 +41,7 @@ public class DeserializersTest {
     @Test
     void testSimpleStringDeserialize() throws Exception {
         String key = "test_key";
-        byte[] content = "test_content".getBytes("UTF-8");
+        byte[] content = "test_content".getBytes(StandardCharsets.UTF_8);
         String result = Deserializers.STRING_DESERIALIZER.deserialize(key, content);
         assertEquals(result, "test_content");
     }
@@ -50,7 +51,7 @@ public class DeserializersTest {
         String key = "test_key";
         String jsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],"
                 + "\"bundles_activated\":true,\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":0}";
-        byte[] content = jsonPolicy.getBytes("UTF-8");
+        byte[] content = jsonPolicy.getBytes(StandardCharsets.UTF_8);
         Policies result = Deserializers.POLICY_DESERIALIZER.deserialize(key, content);
         assertEquals(result, new Policies());
     }

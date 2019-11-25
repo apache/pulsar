@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class DoubleSchema extends AbstractSchema<Double> {
 
-    public static DoubleSchema of() {
-        return INSTANCE;
-    }
-
     private static final DoubleSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -43,6 +39,9 @@ public class DoubleSchema extends AbstractSchema<Double> {
         INSTANCE = new DoubleSchema();
     }
 
+    public static DoubleSchema of() {
+        return INSTANCE;
+    }
 
     @Override
     public void validate(byte[] message) {

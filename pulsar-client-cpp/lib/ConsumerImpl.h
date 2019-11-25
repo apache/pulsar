@@ -111,6 +111,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleSeek(Result result, ResultCallback callback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
@@ -135,7 +136,8 @@ class ConsumerImpl : public ConsumerImplBase,
                                  proto::CommandAck::ValidationError validationError);
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
     void drainIncomingMessageQueue(size_t count);
-    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage);
+    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
+                                                int redeliveryCount);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,

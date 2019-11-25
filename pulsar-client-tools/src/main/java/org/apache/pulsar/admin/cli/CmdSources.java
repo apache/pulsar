@@ -301,6 +301,8 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_sourceConfigString;
         @Parameter(names = "--source-config", description = "Source config key/values")
         protected String sourceConfigString;
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        protected String customRuntimeOptions;
 
         protected SourceConfig sourceConfig;
 
@@ -394,6 +396,9 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
 
+            if (customRuntimeOptions != null) {
+                sourceConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
         }

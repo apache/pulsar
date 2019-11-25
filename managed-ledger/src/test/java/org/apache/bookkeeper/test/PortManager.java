@@ -18,11 +18,6 @@
  */
 package org.apache.bookkeeper.test;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
@@ -36,8 +31,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 import lombok.Cleanup;
-
-import org.jboss.netty.util.internal.ByteBufferUtil;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this

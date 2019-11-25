@@ -56,7 +56,7 @@
 
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <artifactId>netty-transport</artifactId>
     </dependency>
 
     <dependency>
@@ -310,6 +310,17 @@
       <groupId>com.sun.activation</groupId>
       <artifactId>javax.activation</artifactId>
     </dependency>
+
+    <!-- transaction related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-transaction-coordinator</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- transaction related dependencies (end) -->
+
   </dependencies>
 
   <build>

@@ -20,6 +20,7 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
+#include "TimeUtils.h"
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -205,7 +206,7 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             scheduleReconnection(shared_from_this());
         } else {
             // Consumer was not yet created, retry to connect to broker if it's possible
-            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < now())) {
+            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < TimeUtils::now())) {
                 LOG_WARN(getName() << "Temporary error in creating consumer : " << strResult(result));
                 scheduleReconnection(shared_from_this());
             } else {
@@ -282,6 +283,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
+    m.impl_->setRedeliveryCount(msg.redelivery_count());
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
@@ -290,7 +292,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     unsigned int numOfMessageReceived = 1;
     if (metadata.has_num_messages_in_batch()) {
         Lock lock(mutex_);
-        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
+        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m, msg.redelivery_count());
     } else {
         Lock lock(pendingReceiveMutex_);
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
@@ -357,7 +359,7 @@ void ConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
 
 // Zero Queue size is not supported with Batch Messages
 uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx,
-                                                          Message& batchedMessage) {
+                                                          Message& batchedMessage, int redeliveryCount) {
     unsigned int batchSize = batchedMessage.impl_->metadata.num_messages_in_batch();
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
@@ -368,6 +370,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     for (int i = 0; i < batchSize; i++) {
         // This is a cheap copy since message contains only one shared pointer (impl_)
         Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
+        msg.impl_->setRedeliveryCount(redeliveryCount);
 
         if (startMessageId_.is_present()) {
             const MessageId& msgId = msg.getMessageId();
@@ -1051,6 +1054,38 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
                             << requestId);
         Future<Result, ResponseData> future =
             cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+
+        if (callback) {
+            future.addListener(
+                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
+        }
+        return;
+    }
+
+    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+    callback(ResultNotConnected);
+}
+
+void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (callback) {
+            callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        ClientImplPtr client = client_.lock();
+        uint64_t requestId = client->newRequestId();
+        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
+                            << requestId);
+        Future<Result, ResponseData> future =
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, timestamp), requestId);
 
         if (callback) {
             future.addListener(

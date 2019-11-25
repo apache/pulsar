@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class ShortSchema extends AbstractSchema<Short> {
 
-    public static ShortSchema of() {
-        return INSTANCE;
-    }
-
     private static final ShortSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class ShortSchema extends AbstractSchema<Short> {
             .setType(SchemaType.INT16)
             .setSchema(new byte[0]);
         INSTANCE = new ShortSchema();
+    }
+
+    public static ShortSchema of() {
+        return INSTANCE;
     }
 
     @Override
