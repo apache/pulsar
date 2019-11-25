@@ -173,7 +173,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram below, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
