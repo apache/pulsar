@@ -1874,6 +1874,9 @@ Usage
 $ pulsar-admin topics stats topic
 ```
 
+> Note   
+> The unit of `storageSize` and `averageMsgSize` is Byte.
+
 ### `stats-internal`
 Get the internal stats for the topic
 
