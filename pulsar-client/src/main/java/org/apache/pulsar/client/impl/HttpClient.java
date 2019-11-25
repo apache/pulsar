@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -128,9 +127,8 @@ public class HttpClient implements Closeable {
     public <T> CompletableFuture<T> get(String path, Class<T> clazz) {
         final CompletableFuture<T> future = new CompletableFuture<>();
         try {
-            URI hostUri = serviceNameResolver.resolveHostUri();
-            String requestUrl = new URL(hostUri.toURL(), path).toString();
-            String remoteHostName = hostUri.getHost();
+            String requestUrl = new URL(serviceNameResolver.resolveHostUri().toURL(), path).toString();
+            String remoteHostName = serviceNameResolver.resolveHostUri().getHost();
             AuthenticationDataProvider authData = authentication.getAuthData(remoteHostName);
 
             CompletableFuture<Map<String, String>>  authFuture = new CompletableFuture<>();
