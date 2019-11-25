@@ -40,7 +40,7 @@ cd front-end
 npm install --save
 npm run build:prod
 cd ..
-docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=`git rev-parse --short HEAD` -t apachepulsar/pulsar-manager .
+docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`latest` --build-arg VERSION=`latest` -t apachepulsar/pulsar-manager .
 ```
 
 ### Use custom databases
