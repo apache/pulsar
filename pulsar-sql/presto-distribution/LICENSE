@@ -459,6 +459,7 @@ Protocol Buffers License
  * Protocol Buffers
    - protobuf-shaded-2.1.0-incubating.jar
    - protobuf-java-3.5.1.jar
+   - protobuf-java-util-3.5.1.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
