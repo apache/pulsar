@@ -388,6 +388,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startMessageExpiryMonitor();
         this.startCompactionMonitor();
         this.startBacklogQuotaChecker();
+        this.updateBrokerPublisherThrottlingMaxRate();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -576,6 +577,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ClientCnxnAspect.registerExecutor(null);
         topicOrderedExecutor.shutdown();
         delayedDeliveryTrackerFactory.close();
+        if (topicPublishRateLimiterMonitor != null) {
+            topicPublishRateLimiterMonitor.shutdown();
+        }
+        if (brokerPublishRateLimiterMonitor != null) {
+            brokerPublishRateLimiterMonitor.shutdown();
+        }
+
         log.info("Broker service completely shut down");
     }
 
