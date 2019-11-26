@@ -531,7 +531,7 @@ public class Producer {
             msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
-        
+
     }
 
     public boolean isRemote() {

@@ -21,30 +21,28 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.TimeUnit;
-import com.google.common.base.MoreObjects;
 
 public abstract class AbstractTopic implements Topic {
 
@@ -81,7 +79,7 @@ public abstract class AbstractTopic implements Topic {
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
-    protected volatile PublishRateLimiter publishRateLimiter;
+    protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -246,23 +244,35 @@ public abstract class AbstractTopic implements Topic {
             .register();
 
     @Override
-    public void checkPublishThrottlingRate() {
-        this.publishRateLimiter.checkPublishRate();
+    public void checkTopicPublishThrottlingRate() {
+        this.topicPublishRateLimiter.checkPublishRate();
     }
 
-     @Override
+    @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        this.publishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
+        // increase topic publish rate limiter
+        this.topicPublishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
+        // increase broker publish rate limiter
+        getBrokerPublishRateLimiter().incrementPublishCount(numOfMessages, msgSizeInBytes);
     }
 
-     @Override
-    public void resetPublishCountAndEnableReadIfRequired() {
-        if (this.publishRateLimiter.resetPublishCount()) {
+    @Override
+    public void resetTopicPublishCountAndEnableReadIfRequired() {
+        // broker rate not exceeded. and completed topic limiter reset.
+        if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
             enableProducerRead();
         }
     }
 
-     /**
+    @Override
+    public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
+        // topic rate not exceeded, and completed broker limiter reset.
+        if (!topicPublishRateLimiter.isPublishRateExceeded() && doneBrokerReset) {
+            enableProducerRead();
+        }
+    }
+
+    /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
     protected void enableProducerRead() {
@@ -323,20 +333,26 @@ public abstract class AbstractTopic implements Topic {
 
     protected abstract void handleProducerRemoved(Producer producer);
 
-     @Override
+    @Override
     public boolean isPublishRateExceeded() {
-        return this.publishRateLimiter.isPublishRateExceeded();
+        // either topic or broker publish rate exceeded.
+        return this.topicPublishRateLimiter.isPublishRateExceeded() ||
+            getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
-     public PublishRateLimiter getPublishRateLimiter() {
-        return publishRateLimiter;
+    public PublishRateLimiter getTopicPublishRateLimiter() {
+        return topicPublishRateLimiter;
     }
 
-     public void updateMaxPublishRate(Policies policies) {
+    public PublishRateLimiter getBrokerPublishRateLimiter() {
+        return brokerService.getBrokerPublishRateLimiter();
+    }
+
+    public void updateMaxPublishRate(Policies policies) {
         updatePublishDispatcher(policies);
     }
 
-     private void updatePublishDispatcher(Policies policies) {
+    private void updatePublishDispatcher(Policies policies) {
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
         final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
@@ -345,17 +361,17 @@ public abstract class AbstractTopic implements Topic {
                 && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
             // lazy init Publish-rateLimiting monitoring if not initialized yet
-            this.brokerService.setupPublishRateLimiterMonitor();
-            if (this.publishRateLimiter == null
-                    || this.publishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+            this.brokerService.setupTopicPublishRateLimiterMonitor();
+            if (this.topicPublishRateLimiter == null
+                    || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                 // create new rateLimiter if rate-limiter is disabled
-                this.publishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+                this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
             } else {
-                this.publishRateLimiter.update(policies, clusterName);
+                this.topicPublishRateLimiter.update(policies, clusterName);
             }
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
-            this.publishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerRead();
         }
     }
