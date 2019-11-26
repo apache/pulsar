@@ -30,7 +30,6 @@ import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -41,7 +40,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -66,11 +64,9 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -130,6 +126,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.Metrics;
@@ -189,7 +186,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
-    private ScheduledExecutorService publishRateLimiterMonitor;
+    private ScheduledExecutorService topicPublishRateLimiterMonitor;
+    private ScheduledExecutorService brokerPublishRateLimiterMonitor;
+    protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -454,32 +453,75 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * Schedules and monitors publish-throttling for all owned topics that has publish-throttling configured. It also
      * disables and shutdowns publish-rate-limiter monitor task if broker disables it.
      */
-    public synchronized void setupPublishRateLimiterMonitor() {
-        long tickTimeMs = pulsar().getConfiguration().getPublisherThrottlingTickTimeMillis();
-        if (tickTimeMs > 0) {
-            if (this.publishRateLimiterMonitor == null) {
-                this.publishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
-                        new DefaultThreadFactory("pulsar-publish-rate-limiter-monitor"));
-                if (tickTimeMs > 0) {
+    public synchronized void setupTopicPublishRateLimiterMonitor() {
+        // set topic PublishRateLimiterMonitor
+        long topicTickTimeMs = pulsar().getConfiguration().getTopicPublisherThrottlingTickTimeMillis();
+        if (topicTickTimeMs > 0) {
+            if (this.topicPublishRateLimiterMonitor == null) {
+                this.topicPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
+                        new DefaultThreadFactory("pulsar-topic-publish-rate-limiter-monitor"));
+                if (topicTickTimeMs > 0) {
                     // schedule task that sums up publish-rate across all cnx on a topic
-                    publishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkPublishThrottlingRate()),
-                            tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
+                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
+                            topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
                     // schedule task that refreshes rate-limitting bucket
-                    publishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshPublishRate()), 1, 1,
+                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
                             TimeUnit.SECONDS);
                 }
             }
         } else {
             // disable publish-throttling for all topics
-            if (this.publishRateLimiterMonitor != null) {
+            if (this.topicPublishRateLimiterMonitor != null) {
                 try {
-                    this.publishRateLimiterMonitor.awaitTermination(30, TimeUnit.SECONDS);
+                    this.topicPublishRateLimiterMonitor.awaitTermination(30, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
-                    log.warn("failed to shutdown publishRateLimiterMonitor", e);
+                    log.warn("failed to shutdown topicPublishRateLimiterMonitor", e);
                 }
                 // make sure topics are not being throttled
-                refreshPublishRate();
-                this.publishRateLimiterMonitor = null;
+                refreshTopicPublishRate();
+                this.topicPublishRateLimiterMonitor = null;
+            }
+        }
+    }
+
+    /**
+     * Schedules and monitors publish-throttling for broker that has publish-throttling configured. It also
+     * disables and shutdowns publish-rate-limiter monitor for broker task if broker disables it.
+     */
+    public synchronized void setupBrokerPublishRateLimiterMonitor() {
+        // set broker PublishRateLimiterMonitor
+        long brokerTickTimeMs = pulsar().getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();
+        if (brokerTickTimeMs > 0) {
+            if (this.brokerPublishRateLimiterMonitor == null) {
+                this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
+                    new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
+                if (brokerTickTimeMs > 0) {
+                    // schedule task that sums up publish-rate across all cnx on a topic,
+                    // and check the rate limit exceeded or not.
+                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                        safeRun(() -> checkBrokerPublishThrottlingRate()),
+                        brokerTickTimeMs,
+                        brokerTickTimeMs,
+                        TimeUnit.MILLISECONDS);
+                    // schedule task that refreshes rate-limitting bucket
+                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                        safeRun(() -> refreshBrokerPublishRate()),
+                        1,
+                        1,
+                        TimeUnit.SECONDS);
+                }
+            }
+        } else {
+            // disable publish-throttling for broker.
+            if (this.brokerPublishRateLimiterMonitor != null) {
+                try {
+                    this.brokerPublishRateLimiterMonitor.awaitTermination(30, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    log.warn("failed to shutdown brokerPublishRateLimiterMonitor", e);
+                }
+                // make sure topics are not being throttled
+                refreshBrokerPublishRate();
+                this.brokerPublishRateLimiterMonitor = null;
             }
         }
     }
@@ -1067,12 +1109,21 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         forEachTopic(Topic::checkInactiveSubscriptions);
     }
 
-    public void checkPublishThrottlingRate() {
-        forEachTopic(Topic::checkPublishThrottlingRate);
+    public void checkTopicPublishThrottlingRate() {
+        forEachTopic(Topic::checkTopicPublishThrottlingRate);
     }
 
-    private void refreshPublishRate() {
-        forEachTopic(Topic::resetPublishCountAndEnableReadIfRequired);
+    private void refreshTopicPublishRate() {
+        forEachTopic(Topic::resetTopicPublishCountAndEnableReadIfRequired);
+    }
+
+    public void checkBrokerPublishThrottlingRate() {
+        brokerPublishRateLimiter.checkPublishRate();
+    }
+
+    private void refreshBrokerPublishRate() {
+        boolean doneReset = brokerPublishRateLimiter.resetPublishCount();
+        forEachTopic(topic -> topic.resetBrokerPublishCountAndEnableReadIfRequired(doneReset));
     }
 
     /**
@@ -1415,11 +1466,52 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             updateReplicatorMessageDispatchRate();
         });
 
-        // add listener to notify publish-rate monitoring
-        registerConfigurationListener("publisherThrottlingTickTimeMillis", (publisherThrottlingTickTimeMillis) -> {
-            setupPublishRateLimiterMonitor();
+        // add listener to notify broker publish-rate monitoring
+        registerConfigurationListener("brokerPublisherThrottlingTickTimeMillis", (publisherThrottlingTickTimeMillis) -> {
+            setupBrokerPublishRateLimiterMonitor();
         });
+        // add listener to notify broker publish-rate dynamic config
+        registerConfigurationListener("brokerPublisherThrottlingMaxMessageRate",
+            (brokerPublisherThrottlingMaxMessageRate) ->
+                updateBrokerPublisherThrottlingMaxRate());
+        registerConfigurationListener("brokerPublisherThrottlingMaxByteRate",
+            (brokerPublisherThrottlingMaxByteRate) ->
+                updateBrokerPublisherThrottlingMaxRate());
+
+        // add listener to notify topic publish-rate monitoring
+        registerConfigurationListener("topicPublisherThrottlingTickTimeMillis", (publisherThrottlingTickTimeMillis) -> {
+            setupTopicPublishRateLimiterMonitor();
+        });
+
         // add more listeners here
+    }
+
+    private void updateBrokerPublisherThrottlingMaxRate() {
+        int currentMaxMessageRate = pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate();
+        long currentMaxByteRate = pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate();
+        int brokerTickMs = pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();
+
+        // not enable
+        if (brokerTickMs <= 0 || (currentMaxByteRate <= 0 && currentMaxMessageRate <= 0)) {
+            if (brokerPublishRateLimiter != PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                refreshBrokerPublishRate();
+                brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            }
+            return;
+        }
+
+        final PublishRate publishRate = new PublishRate(currentMaxMessageRate, currentMaxByteRate);
+
+        log.info("Update broker publish rate limiting {}", publishRate);
+        // lazy init broker Publish-rateLimiting monitoring if not initialized yet
+        this.setupBrokerPublishRateLimiterMonitor();
+        if (brokerPublishRateLimiter == null
+            || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+            // create new rateLimiter if rate-limiter is disabled
+            brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+        } else {
+            brokerPublishRateLimiter.update(publishRate);
+        }
     }
 
     private void updateTopicMessageDispatchRate() {
@@ -1514,7 +1606,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * Updates pulsar.ServiceConfiguration's dynamic field with value persent into zk-dynamic path. It also validates
+     * Updates pulsar.ServiceConfiguration's dynamic field with value persistent into zk-dynamic path. It also validates
      * dynamic-value before updating it and throws {@code IllegalArgumentException} if validation fails
      */
     private void updateDynamicServiceConfiguration() {

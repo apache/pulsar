@@ -370,11 +370,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Tick time to schedule task that checks publish rate limiting across all topics  "
+            doc = "Tick time to schedule task that checks topic publish rate limiting across all topics  "
                     + "Reducing to lower value can give more accuracy while throttling publish but "
-                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)" 
+                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
-    private int publisherThrottlingTickTimeMillis = 5;
+    private int topicPublisherThrottlingTickTimeMillis = 5;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Tick time to schedule task that checks broker publish rate limiting across all topics  "
+            + "Reducing to lower value can give more accuracy while throttling publish but "
+            + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
+    )
+    private int brokerPublisherThrottlingTickTimeMillis = 50;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a broker "
+            + "when broker publish rate limiting enabled. (Disable message rate limit with value 0)"
+    )
+    private int brokerPublisherThrottlingMaxMessageRate = 0;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a broker "
+            + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
+    )
+    private long brokerPublisherThrottlingMaxByteRate = 0;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
