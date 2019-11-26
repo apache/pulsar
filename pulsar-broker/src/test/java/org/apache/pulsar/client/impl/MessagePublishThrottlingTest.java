@@ -247,7 +247,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(-1));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0));
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,
@@ -326,7 +326,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(-1));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0));
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,
@@ -504,7 +504,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable broker throttling, expected no throttling.
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(-1));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0));
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,
