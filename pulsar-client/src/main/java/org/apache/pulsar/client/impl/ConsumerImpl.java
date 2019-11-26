@@ -305,7 +305,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             });
         } else {
-            unsubscribeFuture.completeExceptionally(new PulsarClientException("Not connected to broker"));
+            unsubscribeFuture.completeExceptionally(
+                new PulsarClientException(
+                    String.format("[%s][%s] Not connected to broker", topicName.toString(), subscription)));
         }
         return unsubscribeFuture;
     }
@@ -775,7 +777,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
                     if (receiveFuture != null) {
                         receiveFuture.completeExceptionally(
-                                new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
+                            new PulsarClientException.AlreadyClosedException(
+                                String.format("[%s][%s] Consumer is already closed",
+                                    topicName.toString(), subscription)));
                     } else {
                         break;
                     }
@@ -1442,11 +1446,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> seekAsync(long timestamp) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
-                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+                .failedFuture(new PulsarClientException.AlreadyClosedException(
+                    String.format("[%s][%s] Consumer was already closed", topicName.toString(), subscription)));
         }
 
         if (!isConnected()) {
-            return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+            return FutureUtil.failedFuture(new PulsarClientException(
+                String.format("[%s][%s] Not connected to broker", topicName.toString(), subscription)));
         }
 
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
@@ -1476,11 +1482,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
-                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+                .failedFuture(new PulsarClientException.AlreadyClosedException(
+                    String.format("[%s][%s] Consumer was already closed", topicName.toString(), subscription)));
         }
 
         if (!isConnected()) {
-            return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+            return FutureUtil.failedFuture(new PulsarClientException(
+                String.format("[%s][%s] Not connected to broker", topicName.toString(), subscription)));
         }
 
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
@@ -1562,7 +1570,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
-                .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+                .failedFuture(new PulsarClientException.AlreadyClosedException(
+                    String.format("[%s][%s] Consumer was already closed", topicName.toString(), subscription)));
         }
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
@@ -1584,9 +1593,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ClientCnx cnx = cnx();
         if (isConnected() && cnx != null) {
             if (!Commands.peerSupportsGetLastMessageId(cnx.getRemoteEndpointProtocolVersion())) {
-                future.completeExceptionally(new PulsarClientException
-                    .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
-                    cnx.getRemoteEndpointProtocolVersion()));
+                future.completeExceptionally(
+                    new PulsarClientException.NotSupportedException(
+                        String.format("[%s][%s] GetLastMessageId Not supported for ProtocolVersion: " +
+                            cnx.getRemoteEndpointProtocolVersion(), topicName.toString(), subscription)));
             }
 
             long requestId = client.newRequestId();
@@ -1606,8 +1616,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                future.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getLastMessageId within configured timeout."));
+                future.completeExceptionally(
+                    new PulsarClientException.TimeoutException(
+                        String.format("[%s][%s] Could not getLastMessageId within configured timeout",
+                            topicName.toString(), subscription)));
                 return;
             }
 
