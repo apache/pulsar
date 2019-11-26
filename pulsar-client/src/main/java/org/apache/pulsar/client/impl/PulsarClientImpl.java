@@ -554,7 +554,11 @@ public class PulsarClientImpl implements PulsarClient {
             consumersToClose.forEach(c -> futures.add(c.closeAsync()));
         }
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
+        // Need to run the shutdown sequence in a separate thread to prevent deadlocks
+        // If there are consumers or producers that need to be shutdown we cannot use the same thread
+        // to shutdown the EventLoopGroup as well as that would be trying to shutdown itself thus a deadlock
+        // would happen
+        FutureUtil.waitForAll(futures).thenRun(() -> new Thread(() -> {
             // All producers & consumers are now closed, we can stop the client safely
             try {
                 shutdown();
@@ -563,7 +567,7 @@ public class PulsarClientImpl implements PulsarClient {
             } catch (PulsarClientException e) {
                 closeFuture.completeExceptionally(e);
             }
-        }).exceptionally(exception -> {
+        }, "pulsar-client-shutdown-thread").start()).exceptionally(exception -> {
             closeFuture.completeExceptionally(exception);
             return null;
         });
