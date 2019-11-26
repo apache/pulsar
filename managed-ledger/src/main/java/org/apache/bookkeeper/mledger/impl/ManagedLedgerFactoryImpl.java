@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +105,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private static final int StatsPeriodSeconds = 60;
 
     public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, String zkConnection) throws Exception {
-        this(bkClientConfiguration, new ManagedLedgerFactoryConfig(), zkConnection);
+        this(bkClientConfiguration, zkConnection, new ManagedLedgerFactoryConfig());
     }
 
     @SuppressWarnings("deprecation")
@@ -116,17 +117,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build(), bkClientConfiguration, config);
     }
 
-    public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, ManagedLedgerFactoryConfig config,
-                                    String zkConnection) throws Exception {
-        this(ZooKeeperClient.newBuilder()
-                            .connectString(zkConnection)
-                            .sessionTimeoutMs(bkClientConfiguration.getZkTimeout())
-                            .build(), bkClientConfiguration, config);
-    }
-
     private ManagedLedgerFactoryImpl(ZooKeeper zkc, ClientConfiguration bkClientConfiguration,
             ManagedLedgerFactoryConfig config) throws Exception {
         this(new DefaultBkFactory(bkClientConfiguration, zkc), true /* isBookkeeperManaged */, zkc, config);
+    }
+
+    private ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
+        this(new DefaultBkFactory(clientConfiguration),
+            true,
+            ZooKeeperClient.newBuilder()
+                .connectString(zkConnection)
+                .sessionTimeoutMs(clientConfiguration.getZkTimeout()).build(), config);
     }
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
@@ -179,6 +180,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         public DefaultBkFactory(ClientConfiguration bkClientConfiguration, ZooKeeper zkc)
                 throws BKException, IOException, InterruptedException {
+            bkClient = new BookKeeper(bkClientConfiguration, zkc);
+        }
+
+        public DefaultBkFactory(ClientConfiguration bkClientConfiguration) throws InterruptedException, BKException, IOException {
             bkClient = new BookKeeper(bkClientConfiguration);
         }
 
