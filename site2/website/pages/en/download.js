@@ -51,7 +51,7 @@ function getLatestPulsarManagerArchiveMirrorUrl(version, type) {
 }
 
 function pulsarManagerDistUrl(version, type) {
-  return `https://www.apache.org/dist/pulsar/pulsar-manager/apache-pulsar-manager-${version}-${type}.tar.gz`
+  return `https://www.apache.org/dist/pulsar/pulsar-manager/pulsar-manager-${version}/apache-pulsar-manager-${version}-${type}.tar.gz`
 }
 
 class Download extends React.Component {
