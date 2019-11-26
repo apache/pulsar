@@ -607,6 +607,19 @@ consumer 2 will receive:
 ("key-4", "message-4-2")
 ```
 
+By default, consumer in `Key_Shared` subscription will be assigned a fixed hash range of key automatically. If you want to specify the hash ranges of a consumer, you can using the key shared policy:
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Key_Shared)
+  			.keySharedPolicy(KeySharedPolicy.sticky().ranges(Range.of(0, 10)))
+        .subscribe()
+```
+
+The consumer with specific key hash ranges also can be called a sticky consumer. Available key hash range is [0, 65535] , consumers of the subscription must cover the whole key hash range and no overlap .
+
 > Note:
 >
 > If the message key is not specified, messages without key will be dispatched to one consumer in order by default.
