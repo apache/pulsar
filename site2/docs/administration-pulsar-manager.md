@@ -22,7 +22,7 @@ docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.0.104 -e REDIRECT_PO
 
 * DRIVER_CLASS_NAME: the driver class name of PostgreSQL.
 
-* URL: the url of PostgreSQL JDBC, For example: `jdbc:postgresql://127.0.0.1:5432/pulsar_manager`.
+* URL: the URL of PostgreSQL JDBC, For example, `jdbc:postgresql://127.0.0.1:5432/pulsar_manager`.
 
 * USERNAME: the username of PostgreSQL.
 
@@ -69,20 +69,24 @@ spring.datasource.password=postgres
 If you want to turn on JWT authentication, configure the following parameters:
 
 * `backend.jwt.token`:  token for the superuser. You need to configure this parameter during cluster initialization.
-* `jwt.broker.token.mode`:  Two modes of generating token, SECRET and PRIVATE.
-* `jwt.broker.public.key`: Configure this option if you are using the PRIVATE mode.
-* `jwt.broker.private.key`: Configure this option if you are using the PRIVATE mode.
-* `jwt.broker.secret.key`: Configure this option if you are using the SECRET mode.
+* `jwt.broker.token.mode`:  two modes of generating token, SECRET and PRIVATE.
+* `jwt.broker.public.key`: configure this option if you are using the PRIVATE mode.
+* `jwt.broker.private.key`: configure this option if you are using the PRIVATE mode.
+* `jwt.broker.secret.key`: configure this option if you are using the SECRET mode.
 
-For more information, see [Token Authentication Admin of Pulsar](http://pulsar.apache.org/docs/en/security-token-admin/)
+For more information, see [Token Authentication Admin of Pulsar](http://pulsar.apache.org/docs/en/security-token-admin/).
 
-* Method 1: Use command-line tool
+
+If you want to enable JWT authentication, use one of the following methods.
+
+
+* Method 1: use command-line tool
 
 ```
 ./build/distributions/pulsar-manager/bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key
 ```
 
-* Method 2: Configure the application.properties file
+* Method 2: configure the application.properties file
 
 ```
 backend.jwt.token=token
@@ -96,14 +100,14 @@ jwt.broker.token.mode=SECRET
 jwt.broker.secret.key=file:///path/broker-secret.key
 ```
 
-* Method 3: Use Docker and turn on token authentication.
+* Method 3: use Docker and turn on token authentication.
 
 ```
 export JWT_TOKEN="your-token"
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -v $PWD:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
-* Method 4: Use Docker, turn on token authentication and turn on token management by private key and public key.
+* Method 4: use Docker and turn on **token authentication** and **token management** by private key and public key.
 
 ```
 export JWT_TOKEN="your-token"
@@ -112,7 +116,7 @@ export PUBLIC_KEY="file:///public-key-path"
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/private-key-path:/pulsar-manager/private-key-path -v $PWD/public-key-path:/pulsar-manager/public-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
-* Method 5: Use Docker, turn on token authentication and turn on token management by secret key.
+* Method 5: use Docker and turn on **token authentication** and **token management** by secret key.
 
 ```
 export JWT_TOKEN="your-token"
@@ -120,9 +124,9 @@ export SECRET_KEY="file:///secret-key-path"
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
-For more information about backend configurations, see [here.](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md) about backend.
-For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/front-end/README.md) about frontend.
+* For more information about backend configurations, see [here.](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md) about backend.
+* For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/front-end/README.md) about frontend.
 
-## Log in platform
+## Log in
 
-Visit http://localhost:9527
+Visit http://localhost:9527 to log in.
