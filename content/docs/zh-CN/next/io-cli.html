@@ -281,10 +281,10 @@
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--archive</code></td><td>The path to the NAR archive for the Source. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.</td></tr>
-<tr><td><code>--broker-service-url</code></td><td>The URL for the Pulsar broker.</td></tr>
+<tr><td><code>--broker-service-url</code></td><td>Pulsar broker 的 URL。</td></tr>
 <tr><td><code>--classname</code></td><td>The source's class name if <code>archive</code> is file-url-path (file://).</td></tr>
-<tr><td><code>--client-auth-params</code></td><td>Client authentication parameter.</td></tr>
-<tr><td><code>--client-auth-plugin</code></td><td>Client authentication plugin using which function-process can connect to broker.</td></tr>
+<tr><td><code>--client-auth-params</code></td><td>客户端身份验证参数。</td></tr>
+<tr><td><code>--client-auth-plugin</code></td><td>客户端身份验证插件使用哪个函数进程可以连接到 broker。</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--deserialization-classname</code></td><td>The SerDe classname for the source.</td></tr>
 <tr><td><code>--destination-topic-name</code></td><td>The Pulsar topic to which data is sent.</td></tr>
@@ -350,7 +350,7 @@
 <tr><td><code>--classname</code></td><td>The sink's class name if <code>archive</code> is file-url-path (file://).</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to schema types or class names (as a JSON string).</td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string).</td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入主题到 SerDe 类名称的映射（作为 JSON 字符串）。</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per sink instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>-i, --inputs</code></td><td>The sink's input topic or topics (multiple topics can be specified as a comma-separated list).</td></tr>
 <tr><td><code>--name</code></td><td>The sink's name.</td></tr>
@@ -384,7 +384,7 @@
 <tr><td><code>--classname</code></td><td>The sink's class name if <code>archive</code> is file-url-path (file://).</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to schema types or class names (as a JSON string).</td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string).</td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入主题到 SerDe 类名称的映射（作为 JSON 字符串）。</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per sink instance (applicable only to Docker runtime).</td></tr>
 <tr><td><code>-i, --inputs</code></td><td>The sink's input topic or topics (multiple topics can be specified as a comma-separated list).</td></tr>
 <tr><td><code>--name</code></td><td>The sink's name.</td></tr>
@@ -531,13 +531,13 @@
 <tbody>
 <tr><td><code>-a</code>, <code>--archive</code></td><td>The path to the archive file for the sink. <br> It also supports url-path (http/https/file [file protocol assumes that file already exists on worker host]) from which worker can download the package.</td></tr>
 <tr><td><code>--auto-ack</code></td><td>Whether or not the framework will automatically acknowledge messages.</td></tr>
-<tr><td><code>--broker-service-url</code></td><td>The URL for the Pulsar broker.</td></tr>
+<tr><td><code>--broker-service-url</code></td><td>Pulsar broker 的 URL。</td></tr>
 <tr><td><code>--classname</code></td><td>The sink's class name if <code>archive</code> is file-url-path (file://).</td></tr>
-<tr><td><code>--client-auth-params</code></td><td>Client authentication parameter.</td></tr>
-<tr><td><code>--client-auth-plugin</code></td><td>Client authentication plugin using which function-process can connect to broker.</td></tr>
+<tr><td><code>--client-auth-params</code></td><td>客户端身份验证参数。</td></tr>
+<tr><td><code>--client-auth-plugin</code></td><td>客户端身份验证插件使用哪个函数进程可以连接到 broker。</td></tr>
 <tr><td><code>--cpu</code></td><td>The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema types or class names (as a JSON string).</td></tr>
-<tr><td><code>--custom-serde-inputs</code></td><td>The map of input topics to SerDe class names (as a JSON string).</td></tr>
+<tr><td><code>--custom-serde-inputs</code></td><td>输入主题到 SerDe 类名称的映射（作为 JSON 字符串）。</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
 <tr><td><code>--hostname-verification-enabled</code></td><td>Enable hostname verification.<br><strong>Default value: false</strong>.</td></tr>
 <tr><td><code>-i</code>, <code>--inputs</code></td><td>The sink's input topic or topics (multiple topics can be specified as a comma-separated list).</td></tr>
