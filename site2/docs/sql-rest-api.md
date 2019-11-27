@@ -200,4 +200,4 @@ The `error` field is for distinguishing between a successfully completed query a
 
 ## More information
 
-For more information about Presto REST API. See the https://github.com/prestodb/presto/wiki/HTTP-Protocol
+For more information about Presto REST API. See the https://github.com/prestosql/presto/wiki/HTTP-Protocol
