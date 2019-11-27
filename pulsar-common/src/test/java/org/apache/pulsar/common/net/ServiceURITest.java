@@ -135,6 +135,18 @@ public class ServiceURITest {
     }
 
     @Test
+    public void testIpv6UriWithoutPulsarPort() {
+        String serviceUri = "pulsar://[fec0:0:0:ffff::1]/path/to/namespace";
+        assertServiceUri(
+            serviceUri,
+            "pulsar",
+            new String[0],
+            null,
+            new String[] { "[fec0:0:0:ffff::1]:6650" },
+            "/path/to/namespace");
+    }
+
+    @Test
     public void testMultipleHostsSemiColon() {
         String serviceUri = "pulsar://host1:6650;host2:6650;host3:6650/path/to/namespace";
         assertServiceUri(
