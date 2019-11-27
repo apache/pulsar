@@ -8,9 +8,9 @@ This section lists resources that make up the Presto REST API v1.
 
 ## Request for Presto services
 
-All requests should use Presto REST API v1 version to request the presto service. 
+All requests for Presto services should use Presto REST API v1 version. 
 
-To request services, use explicit URL `http://presto.service:8081/v1`. When you send requests, you need to update `presto.service:8081` with your real presto address.
+To request services, use explicit URL `http://presto.service:8081/v1`. You need to update `presto.service:8081` with your real Presto address before sending requests.
 
 `POST` requests require the `X-Presto-User` header. If you use authentication, you must use the same `username` that is specified in the authentication configuration. If you do not use authentication, you can specify anything for `username`.
 
@@ -18,13 +18,13 @@ To request services, use explicit URL `http://presto.service:8081/v1`. When you 
 X-Presto-User: username
 ```
 
-For more information about headers, see [PrestoHeaders](https://github.com/prestosql/presto/blob/master/presto-client/src/main/java/io/prestosql/client/PrestoHeaders.java).
+For more information about headers, refer to [PrestoHeaders](https://github.com/prestosql/presto/blob/master/presto-client/src/main/java/io/prestosql/client/PrestoHeaders.java).
 
 ## Schema
 
-You can use statement in the HTTP body. All data is received as JSON document that might contain a `nextUri` link. If the received JSON document contains a `nextUri` link, the request continues with the `nextUri` link until the received data does not contain a `nextUri` link. If a query completes successfully, no error is returned. However, if a query fails, an `error` field is displayed in `stats`.
+You can use statement in the HTTP body. All data is received as JSON document that might contain a `nextUri` link. If the received JSON document contains a `nextUri` link, the request continues with the `nextUri` link until the received data does not contain a `nextUri` link. If no error is returned, the query completes successfully. If an `error` field is displayed in `stats`, it means the query fails.
 
-The following is an example of `show catalogs`. The query continues until the received JSON document does not contain a `nextUri` link. Since no `error` is displayed in `stats`, it means that the query complete successfully.
+The following is an example of `show catalogs`. The query continues until the received JSON document does not contain a `nextUri` link. Since no `error` is displayed in `stats`, it means that the query completes successfully.
 
 ```powershell
 ➜  ~ curl --header "X-Presto-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement
