@@ -159,7 +159,7 @@ SerDe option | When to use
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.
 
 <!--Go-->
-The feature is not available in Go.
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -561,6 +561,8 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
+<!--Go--> 
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -705,7 +707,7 @@ class MetricRecorderFunction(Function):
             context.record_metric('elevens-count', 1)
 ```
 <!--Go-->
-The feature is not available in Go.
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
