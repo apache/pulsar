@@ -12,22 +12,30 @@ This describes the resources that make up the Presto REST API v1. If you have an
 
 All requests should use the v1 version of REST API to request the presto service. You need to use explicitly URL `http://presto.service:8081/v1` to request service.
 
+> Note
+> 
+> The `presto.service:8081` need to update to your real presto address when you are ready to send request.
+
 Also, the header `X-Presto-User` is required when you send a `POST` request.
 
 ```properties
 X-Presto-User: username
 ```
 
-For more information about headers, see the [presto/PrestoHeaders.java at master · prestodb/presto · GitHub](https://github.com/prestodb/presto/blob/master/presto-client/src/main/java/com/facebook/presto/client/PrestoHeaders.java)
+> Note
+>
+> The username have to have one if you are using authentication. If you are not, you can use anything like user, anonymous, and etc.
+
+For more information about headers, see the [PrestoHeaders](https://github.com/prestodb/presto/blob/master/presto-client/src/main/java/com/facebook/presto/client/PrestoHeaders.java)
 
 ## Schema
 
-You can type statement in the HTTP body. And all data is received as JSON that might contain a `nextUri` link. If there is no `nextUri` link, then the query is finished (either successfully completed or failed). Otherwise., keep following the `nextUri` link.
+You can type statement in the HTTP body. And all data is received as JSON that might contain a `nextUri` link. If there is no `nextUri` link, then the query is finished (either successfully completed or failed). Otherwise, keep requesting the `nextUri` link.
 
 **Example**: Execute `show catalogs`.
 
 ```powershell
-➜  ~ curl --header "X-Presto-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement | json_pp
+➜  ~ curl --header "X-Presto-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement
 {
    "infoUri" : "http://localhost:8081/ui/query.html?20191113_033653_00006_dg6hb",
    "stats" : {
@@ -52,7 +60,7 @@ You can type statement in the HTTP body. And all data is received as JSON that m
    "nextUri" : "http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1"
 }
 
-➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1 | json_pp
+➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1
 {
    "infoUri" : "http://localhost:8081/ui/query.html?20191113_033653_00006_dg6hb",
    "nextUri" : "http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2",
@@ -77,7 +85,7 @@ You can type statement in the HTTP body. And all data is received as JSON that m
    }
 }
 
-➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2 | json_pp
+➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2
 {
    "id" : "20191113_033653_00006_dg6hb",
    "data" : [
@@ -178,13 +186,12 @@ You can type statement in the HTTP body. And all data is received as JSON that m
 }
 ```
 
+> Note
+> 
+> All response data is only for displaying to humans as a hint about the query's state on the server. It is not in sync in the query state from the client's perspective and must not be used to determine whether the query is finished.
 
 
 ## Response JSON field
-
-- `status`
-
-The `status` field is only for displaying to humans as a hint about the query’s state on the server. 
 
 - `error`
 
