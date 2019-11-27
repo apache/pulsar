@@ -46,7 +46,7 @@ For more information, see [Schema compatibility check strategy](#schema-compatib
 
 ## Schema compatibility check strategy
 
-Pulsar has 8 schema compatibility check strategies, which are summarized in the following table.
+Pulsar has 9 schema compatibility check strategies, which are summarized in the following table.
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 
@@ -442,6 +442,47 @@ Disable schema evolution, that is, any schema change is rejected.
 
 </table>
 
+### UNDEFINED 
+
+<table style="table">
+
+<tr>
+
+<th>
+    
+Compatibility check strategy
+
+</th>
+
+<th>
+    
+Note 
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`UNDEFINED`
+
+</td> 
+
+<td> 
+
+The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+
 #### Example 
   
 * Example  1
@@ -781,3 +822,168 @@ Consequently, you can upgrade the producers and consumers in **any order**.
 </tr>
 
 </table>
+
+## Schema verification for producers
+
+For a producer which tries to connect to a topic (omitting the schema auto creation part), Broker has to do the following checks:
+
+* 1.Check if the schema carried by the producer exists in the schema registry or not.
+
+* 2.If the schema is already registered, allow producers connects and produce messages with that schema.
+
+* 3.If the schema is not registered yet, verify if the producer schema is allowed to be registered according to the configured compatibility check strategy.
+
+## Schema verification for consumers
+
+Different from Producers, when a consumer connects to a topic, Pulsar brokers will check if the carried schema is compatible with the registered schemas according to the configured schema compatibility check strategy.
+
+<table style="table">
+
+<tr>
+
+<th>
+    
+Compatibility check strategy
+
+</th>
+
+<th>
+    
+Check logic
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_COMPATIBLE`
+
+</td> 
+
+<td> 
+
+All pass
+
+</td>  
+
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_INCOMPATIBLE`
+
+</td> 
+
+<td> 
+
+No pass
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD`
+
+</td> 
+
+<td> 
+
+Can read last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD`
+
+</td> 
+
+<td> 
+
+Can read last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL`
+
+</td> 
+
+<td> 
+
+Can read last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+</table>
+
+
+

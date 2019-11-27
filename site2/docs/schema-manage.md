@@ -36,11 +36,19 @@ For a producer, the `AutoUpdate` happens in the following cases:
 
   * If a **producer carries a schema**:
   
-    A broker performs the compatibility check based on the configured compatibility check strategy of the namespace to which the topic belongs. 
+    A broker performs the compatibility check based on the configured compatibility check strategy of the namespace to which the topic belongs.
     
-    * If it is a new schema and it passes the compatibility check, the broker registers a new schema automatically for the topic.
-
-    * If the schema does not pass the compatibility check, the broker does not register a schema.
+    * If the schema is registered, producer is connected. 
+    
+    * If the schema isn't registered
+    
+        * If`isAllowAutoUpdateSchema` = false, producer is rejected.
+    
+        * If `isAllowAutoUpdateSchema` = true
+     
+            * If schema pass the compatibility check then the broker registers a new schema automatically for the topic and producer is connected.
+        
+            * If the schema does not pass the compatibility check, the broker does not register a schema and producer is rejected.
 
 ![AutoUpdate Producer](assets/schema-autoupdate-producer.png)
 
@@ -50,17 +58,22 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 
 * If a **consumer connects to a topic without a schema** (which means the consumer receiving raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.
 
-* If a **consumer connects to a topic with a schema**:
+* If a **consumer connects to a topic with a schema.
 
-  * If the **topic is idle** (no producers, no entries, no other consumers and no registered schemas), the broker registers a schema for the topic automatically.
-
-  * If the **topic is not idle**, the broker verifies if the schema provided by the consumer is compatible with the registered schema of the topic. 
+    * If topic don't have schema, no data or no local consumers and no local producers.
     
-    * If the **schema passes the compatibility check**, the consumer can connect to the topic and receive messages. 
+        * If `isAllowAutoUpdateSchema` = true, register the schema and connect.
+        
+        * If `isAllowAutoUpdateSchema` = false, rejected.
+        
+    * If topic have schema, have data or have local consumers and have local producers., schema do compatibility check
     
-    * If the **schema does not pass the compatibility check**, the consumer is rejected and disconnected.
-
-![AutoUpdate Producer](assets/schema-autoupdate-consumer.png)
+        * If schema pass the compatibility check, the consumer is connected.
+        
+        * If schema does not pass the compatibility, the consumer is rejected.
+        
+![AutoUpdate Consumer](assets/schema-autoupdate-consumer.png)
+        
 
 ### Manage AutoUpdate strategy
 
@@ -75,7 +88,7 @@ You can use the `pulsar-admin` command to manage the `AutoUpdate` strategy as be
 To disable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-bin/pulsar-admin namespaces set-schema-autoupdate-strategy --disabled tenant/namespace
+bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disabled tenant/namespace
 ```
 
 Once the `AutoUpdate` is disabled, you can only register a new schema using the `pulsar-admin` command.
@@ -85,7 +98,7 @@ Once the `AutoUpdate` is disabled, you can only register a new schema using the 
 To adjust the schema compatibility level on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-bin/pulsar-admin namespaces set-schema-autoupdate-strategy --compatibility <compatibility-level> tenant/namespace
+bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility <compatibility-level> tenant/namespace
 ```
 
 ### Schema validation

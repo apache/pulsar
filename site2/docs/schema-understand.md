@@ -539,14 +539,17 @@ This diagram illustrates how does schema work on the Producer side.
 3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
    
 4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
+
+5. If no, the broker judge whether this namespace can automatically create schema.
+   isAllowAutoUpdateSchema can be modified by Admin-Api and REST-API 
   
-5. If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
+6. If yes, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
   
-6. If the schema is compatible, the broker stores it and returns the schema version to the producer. 
+7. If the schema is compatible, the broker stores it and returns the schema version to the producer. 
 
     All the messages produced by this producer are tagged with the schema version. 
 
-7. If the schema is incompatible, the broker rejects it.
+8. If the schema is incompatible, the broker rejects it.
 
 ### Consumer side
 
@@ -560,16 +563,10 @@ This diagram illustrates how does Schema work on the consumer side.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
-3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
+3. If the schema is compatible, the consumer will be connected. 
    
-4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.
+4. If the schema is incompatible, the consumer will be disconnected.
 
-5. If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
-   
-6. If the schema is compatible, the broker stores it and returns the schema version to the consumer. 
-   
-7. If the schema is incompatible, the consumer will be disconnected.
+5. The consumer receives the messages from the broker. 
 
-8. The consumer receives the messages from the broker. 
-
-    If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  `SchemaInfo` of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
+   If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  `SchemaInfo` of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
