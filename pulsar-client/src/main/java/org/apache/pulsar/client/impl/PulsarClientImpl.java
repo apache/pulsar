@@ -653,9 +653,9 @@ public class PulsarClientImpl implements PulsarClient {
             TopicName topicName = TopicName.get(topic);
             AtomicLong opTimeoutMs = new AtomicLong(conf.getOperationTimeoutMs());
             Backoff backoff = new BackoffBuilder()
-                    .setInitialTime(100, TimeUnit.MILLISECONDS)
+                    .setInitialTime(TimeUnit.MILLISECONDS.toNanos(100), TimeUnit.NANOSECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(0, TimeUnit.MILLISECONDS)
+                    .setMax(TimeUnit.SECONDS.toNanos(60), TimeUnit.NANOSECONDS)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {
@@ -671,8 +671,7 @@ public class PulsarClientImpl implements PulsarClient {
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                future.completeExceptionally(new PulsarClientException
-                        .TimeoutException("Could not getPartitionedTopicMetadata within configured timeout."));
+                future.completeExceptionally(e);
                 return null;
             }
 
