@@ -64,12 +64,12 @@ public interface TransactionMetadataStore {
     /**
      * Create a new transaction in the transaction metadata store.
      *
-     * @param timeOut the timeout duration of the transaction in mills
+     * @param timeoutInMills the timeout duration of the transaction in mills
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransactionAsync(long timeOut);
+    CompletableFuture<TxnID> newTransactionAsync(long timeoutInMills);
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnId</tt>.

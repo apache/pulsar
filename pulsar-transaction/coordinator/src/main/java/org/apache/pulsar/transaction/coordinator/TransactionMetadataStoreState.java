@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.UnaryOperator;
 
 /**
  * The implement of transaction metadata store state.
@@ -55,7 +54,7 @@ public abstract class TransactionMetadataStoreState {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
 
-    protected boolean changeToClose() {
+    protected boolean changeToCloseState() {
         return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close));
@@ -65,19 +64,7 @@ public abstract class TransactionMetadataStoreState {
         return STATE_UPDATER.get(this) == State.Ready;
     }
 
-    public boolean checkCurrentState(State state) {
-        return STATE_UPDATER.get(this) == state;
-    }
-
     public State getState() {
         return STATE_UPDATER.get(this);
-    }
-
-    protected void setState(State s) {
-        STATE_UPDATER.set(this, s);
-    }
-
-    protected State getAndUpdateState(final UnaryOperator<State> updater) {
-        return STATE_UPDATER.getAndUpdate(this, updater);
     }
 }

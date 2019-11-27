@@ -78,7 +78,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                 Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTED);
                 break;
             } else {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             }
         }
     }
@@ -121,6 +121,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
 
                 transactionMetadataStore.updateTxnStatusAsync(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
                 transactionMetadataStore.updateTxnStatusAsync(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                transactionMetadataStore.closeAsync();
                 ManagedLedgerTransactionMetadataStore transactionMetadataStoreTest =
                         new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
 
@@ -134,19 +135,18 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                         Assert.assertEquals(txnMeta2.ackedPartitions().size(), transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().size());
                         Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID1).get().ackedPartitions().containsAll(txnMeta1.ackedPartitions()));
                         Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().containsAll(txnMeta2.ackedPartitions()));
-                        //because managedledger can't read the last entry, when it fix, we should change this test
                         Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
-                        Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
+                        Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTED);
                         TxnID txnID = transactionMetadataStoreTest.newTransactionAsync(1000).get();
                         Assert.assertEquals(txnID.getLeastSigBits(), 2L);
                         break;
                     } else {
-                        Thread.sleep(1000);
+                        Thread.sleep(100);
                     }
                 }
                 break;
             } else {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             }
         }
 

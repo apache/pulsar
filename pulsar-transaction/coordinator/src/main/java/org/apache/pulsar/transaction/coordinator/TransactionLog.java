@@ -19,14 +19,28 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A log interface for transaction to read and write transaction operation.
  */
 public interface TransactionLog {
+
+
+    /**
+     * Replay transaction log to load the transaction map.
+     *
+     * @param txnMetaMap the map of transaction metadata store to load
+     * @param sequenceId the sequence id for transaction metadata store to create new transaction
+     * @param replayCallback the call back for replaying the transaction log
+     */
+    void replayAsync(ConcurrentMap<TxnID, TxnMeta> txnMetaMap,
+                AtomicLong sequenceId, ReplayCallback replayCallback);
 
     /**
      * Read the entry from bookkeeper.
@@ -34,12 +48,12 @@ public interface TransactionLog {
      * @param numberOfEntriesToRead the number of reading entry
      * @param callback the callback to executing when reading entry async finished
      */
-    void read(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx);
+    void readAsync(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx);
 
     /**
      * Close the transaction log.
      */
-    CompletableFuture<Void> close();
+    CompletableFuture<Void> closeAsync();
 
     /**
      * Write the transaction operation to the transaction log.
