@@ -124,8 +124,8 @@ export SECRET_KEY="file:///secret-key-path"
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
-* For more information about backend configurations, see [here](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md) about backend.
-* For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/front-end/README.md) about frontend.
+* For more information about backend configurations, see [here](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md).
+* For more information about frontend configurations, see [here](https://github.com/apache/pulsar-manager/blob/master/front-end/README.md).
 
 ## Log in
 
