@@ -185,7 +185,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newSendReceipt(producerId, send.getSequenceId(), 0, 0));
+            ctx.writeAndFlush(Commands.newSendReceipt(producerId, send.getSequenceId(), 0, 0, 0));
         }
 
         @Override

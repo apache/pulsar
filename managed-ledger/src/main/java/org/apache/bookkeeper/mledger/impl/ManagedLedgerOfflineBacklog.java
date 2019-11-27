@@ -37,6 +37,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -165,7 +166,7 @@ public class ManagedLedgerOfflineBacklog {
                                             .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis()).build();
                                     ledgers.put(id, info);
                                     mlMetaCounter.countDown();
-                                } else if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                                } else if (Errors.isNoSuchLedgerExistsException(rc)) {
                                     log.warn("[{}] Ledger not found: {}", managedLedgerName, ledgers.lastKey());
                                     ledgers.remove(ledgers.lastKey());
                                     mlMetaCounter.countDown();

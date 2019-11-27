@@ -59,7 +59,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected SendCallback firstCallback;
 
     @Override
-    public void add(MessageImpl<?> msg, SendCallback callback) {
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
@@ -72,7 +72,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
             batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
+                    .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
         }
 
         if (previousCallback != null) {
@@ -81,12 +81,15 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+
         if (lowestSequenceId == -1L) {
             lowestSequenceId = msg.getSequenceId();
             messageMetadata.setSequenceId(lowestSequenceId);
         }
         highestSequenceId = msg.getSequenceId();
         producer.lastSequenceIdPushed = msg.getSequenceId();
+
+        return isBatchFull();
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {

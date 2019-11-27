@@ -83,4 +83,8 @@ public class SinkConfig {
 
     // Any flags that you want to pass to the runtime.
     private String runtimeFlags;
+    // This is an arbitrary string that can be interpreted by the function runtime
+    // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
+    // interface
+    private String customRuntimeOptions;
 }
