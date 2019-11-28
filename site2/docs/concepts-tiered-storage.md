@@ -8,7 +8,7 @@ Pulsar's segment oriented architecture allows for topic backlogs to grow very la
 
 One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from BookKeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
 
-![Tiered Storage](assets/pulsar-tiered-storage.png)
+![Tiered Storage](assets/pulsar-tiered-storage-jclouds.png)
 
 > Data written to BookKeeper is replicated to 3 physical machines by default. However, once a segment is sealed in BookKeeper it becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
 

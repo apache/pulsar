@@ -6,20 +6,23 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports
+*Uses [Apache Jclouds](https://jclouds.apache.org) to supports
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+
+*Uses [Apache Hadoop](http://hadoop.apache.org/) to supports filesystem for long term storage. 
+With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
 
 Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. For example, if you have a topic containing user actions which you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm you can rerun it against your full user history.
 
-## The offloading mechanism
+## The Apache Jclouds offloading mechanism
 
 A topic in Pulsar is backed by a log, known as a managed ledger. This log is composed of an ordered list of segments. Pulsar only every writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable. This is known as a segment oriented architecture.
 
-![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
+![Tiered storage](assets/pulsar-tiered-storage-jclouds.png "Jclouds Tiered Storage")
 
 The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
 
@@ -29,6 +32,14 @@ The configured bucket must exist before attempting to offload. If it does not ex
 Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data.
 We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid
 getting charged for incomplete uploads.
+
+## The Filesystem offloading mechanism
+
+A topic data was stored with a lot of ledgers. Offload these ledgers into filesystem, we need a path for it.
+The implementation of the Filesystem offload to generate the path for **tenant/namespace/topic/ledgerId**.
+The model for storing this use **org.apache.hadoop.io.MapFile**, so we can use all of the configuration in Apache Hadoop for **org.apache.hadoop.io.MapFile**
+
+![Tiered storage](assets/pulsar-tiered-storage-filesystem.png "Filesystem Tiered Storage")
 
 ## Configuring the offload driver
 
@@ -41,6 +52,7 @@ Currently we support driver of types:
 
 - `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
 - `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+- `filesystem`: [Filesystem Storage](http://hadoop.apache.org/)
 
 > Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
@@ -185,6 +197,24 @@ Pulsar also provides some knobs to configure the size of requests sent to GCS.
   read when reading back data from GCS. Default is 1MB.
 
 In both cases, these should not be touched unless you know what you are doing.
+
+### "filesystem" Driver configuration
+
+#### Configure connection address
+
+```conf
+fileSystemURI="hdfs://127.0.0.1:9000"
+```
+#### Profile path
+
+This is profile path for filesystem offload, you can configure all the configuration for filesystem offload.
+
+In this way, you can configure the base path and authentication and so on.
+
+```conf
+fileSystemProfilePath="../conf/filesystem_offload_core_site"
+```
+
 
 ## Configuring offload to run automatically
 
