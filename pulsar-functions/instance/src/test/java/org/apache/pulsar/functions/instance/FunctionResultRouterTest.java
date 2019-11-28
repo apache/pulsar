@@ -54,6 +54,7 @@ public class FunctionResultRouterTest {
 
         FunctionResultRouter router = new FunctionResultRouter(0);
         for (int i = 0; i < 10; i++) {
+            when(msg.getData()).thenReturn(new byte[128 * 1024]);
             assertEquals(i % 5, router.choosePartition(msg, topicMetadata));
         }
     }

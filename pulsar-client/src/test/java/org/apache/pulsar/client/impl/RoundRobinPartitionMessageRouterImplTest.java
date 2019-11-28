@@ -94,7 +94,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         when(msg.getKey()).thenReturn(null);
 
         RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, true, 10);
+                HashingScheme.JavaStringHash, 45, true, 10);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         // time at `12345*` milliseconds
