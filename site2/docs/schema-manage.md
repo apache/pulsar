@@ -58,7 +58,7 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 
 * If a **consumer connects to a topic without a schema** (which means the consumer receiving raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.
 
-* If a **consumer connects to a topic with a schema.
+* If a **consumer connects to a topic with a schema**.
 
     * If topic don't have schema, no data or no local consumers and no local producers.
     
