@@ -253,7 +253,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How often to check for inactive topics"
     )
-    private long brokerDeleteInactiveTopicsFrequencySeconds = 60;
+    private int brokerDeleteInactiveTopicsFrequencySeconds = 60;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -1219,9 +1219,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How often to check pulsar connection is still alive"
     )
     private int keepAliveIntervalSeconds = 30;
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
+        deprecated = true,
         doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)"
+            + "Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`"
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(
