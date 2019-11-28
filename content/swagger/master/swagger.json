@@ -9057,10 +9057,7 @@
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "msgThroughputIn" : {
@@ -9071,15 +9068,18 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
