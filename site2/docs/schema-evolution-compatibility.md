@@ -376,19 +376,19 @@ Any order
 
 <td> 
 
-NONE
-
-</td> 
-
-<td> 
-
-NONE
-
-</td> 
-
-<td> 
-
 The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
+
+</td> 
+
+<td> 
+
+NONE
+
+</td> 
+
+<td> 
+
+NONE
 
 </td> 
 
