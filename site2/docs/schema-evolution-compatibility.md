@@ -678,6 +678,8 @@ Note
 
 </th>
 
+</tr>
+
 <tr>
 
 <td> 
@@ -693,8 +695,6 @@ The schema compatibility check strategy in order to Upgrade to 2.5.0 or above fo
 </td> 
 
 </tr>
-
-<td>
 
 </table>
 
