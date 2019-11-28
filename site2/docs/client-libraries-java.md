@@ -566,7 +566,7 @@ consumer 2 will receive:
 
 `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
-#### Key_shared
+#### Key_Shared
 
 This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 
@@ -607,7 +607,7 @@ consumer 2 will receive:
 ("key-4", "message-4-2")
 ```
 
-By default, consumer in `Key_Shared` subscription will be assigned a fixed hash range of key automatically. If you want to specify the hash ranges of a consumer, you can using the key shared policy:
+By default, a consumer in the `Key_Shared` subscription is assigned a fixed hash range of key automatically. If you want to specify the key hash ranges of a consumer, you can use the key shared policy:
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -618,7 +618,7 @@ Consumer consumer = client.newConsumer()
         .subscribe()
 ```
 
-The consumer with specific key hash ranges also can be called a sticky consumer. Available key hash range is [0, 65535] , consumers of the subscription must cover the whole key hash range and no overlap .
+The consumer with specific key hash ranges can be called a **sticky consumer**. The available key hash range is [0, 65535]. Consumers of a subscription must cover the whole key hash range and can not overlap .
 
 > Note:
 >
