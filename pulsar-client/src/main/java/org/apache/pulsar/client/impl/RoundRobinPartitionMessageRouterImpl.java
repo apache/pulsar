@@ -44,32 +44,22 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     @SuppressWarnings("unused")
     private volatile int partitionIndex = 0;
 
-    private final int startPtnIdx;
+    private static final AtomicIntegerFieldUpdater<RoundRobinPartitionMessageRouterImpl> MESSAGE_BYTES_UPDATER =
+        AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "messageBytesInBatch");
+    @SuppressWarnings("unused")
+    private volatile int messageBytesInBatch = 0;
+
     private final boolean isBatchingEnabled;
-    private final long maxBatchingDelayMs;
-
-    private final Clock clock;
-
-    private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
+    private final int maxBatchingBytes;
 
     public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
                                                 int startPtnIdx,
                                                 boolean isBatchingEnabled,
-                                                long maxBatchingDelayMs) {
-        this(hashingScheme, startPtnIdx, isBatchingEnabled, maxBatchingDelayMs, SYSTEM_CLOCK);
-    }
-
-    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
-                                                int startPtnIdx,
-                                                boolean isBatchingEnabled,
-                                                long maxBatchingDelayMs,
-                                                Clock clock) {
+                                                int maxBatchingBytes) {
         super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
-        this.startPtnIdx = startPtnIdx;
         this.isBatchingEnabled = isBatchingEnabled;
-        this.maxBatchingDelayMs = Math.max(1, maxBatchingDelayMs);
-        this.clock = clock;
+        this.maxBatchingBytes = Math.max(1, maxBatchingBytes);
     }
 
     @Override
@@ -79,9 +69,15 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
         }
 
-        if (isBatchingEnabled) { // if batching is enabled, choose partition on `maxBatchingDelayMs` boundary.
-            long currentMs = clock.millis();
-            return signSafeMod(currentMs / maxBatchingDelayMs + startPtnIdx, topicMetadata.numPartitions());
+        if (isBatchingEnabled) {
+            int msgSize = msg.getData().length;
+            if (msgSize + MESSAGE_BYTES_UPDATER.get(this) <= maxBatchingBytes) {
+                MESSAGE_BYTES_UPDATER.addAndGet(this, msgSize);
+                return signSafeMod(PARTITION_INDEX_UPDATER.get(this), topicMetadata.numPartitions());
+            } else {
+                MESSAGE_BYTES_UPDATER.set(this, msgSize);
+                return signSafeMod(PARTITION_INDEX_UPDATER.incrementAndGet(this), topicMetadata.numPartitions());
+            }
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }

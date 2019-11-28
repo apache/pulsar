@@ -53,60 +53,20 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        // Fake clock, simulate 1 millisecond passes for each invocation
-        Clock clock = new Clock() {
-            private long current = 0;
-
-            @Override
-            public Clock withZone(ZoneId zone) {
-                return null;
-            }
-
-            @Override
-            public long millis() {
-                return current++;
-            }
-
-            @Override
-            public Instant instant() {
-                return Instant.ofEpochMilli(millis());
-            }
-
-            @Override
-            public ZoneId getZone() {
-                return ZoneId.systemDefault();
-            }
-        };
-
         RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, true, 5, clock);
+                HashingScheme.JavaStringHash, 0, true, 5);
 
         // Since the batching time is 5millis, first 5 messages will go on partition 0 and next five would go on
         // partition 1
         for (int i = 0; i < 5; i++) {
+            when(msg.getData()).thenReturn(new byte[1]);
             assertEquals(0, router.choosePartition(msg, new TopicMetadataImpl(5)));
         }
 
         for (int i = 5; i < 10; i++) {
+            when(msg.getData()).thenReturn(new byte[1]);
             assertEquals(1, router.choosePartition(msg, new TopicMetadataImpl(5)));
         }
-    }
-
-    @Test
-    public void testChoosePartitionWithNegativeTime() {
-        Message<?> msg = mock(Message.class);
-        when(msg.getKey()).thenReturn(null);
-
-        // Fake clock, simulate timestamp that resolves into a negative Integer value
-        Clock clock = mock(Clock.class);
-        when(clock.millis()).thenReturn((long) Integer.MAX_VALUE);
-
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 3, true, 5, clock);
-
-        int idx = router.choosePartition(msg, new TopicMetadataImpl(5));
-        assertTrue(idx >= 0);
-        assertTrue(idx < 5);;
     }
 
     @Test
@@ -133,22 +93,20 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        Clock clock = mock(Clock.class);
-
         RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
-                HashingScheme.JavaStringHash, 0, true, 10, clock);
+                HashingScheme.JavaStringHash, 0, true, 10);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         // time at `12345*` milliseconds
         for (int i = 0; i < 10; i++) {
-            when(clock.millis()).thenReturn(123450L + i);
+            when(msg.getData()).thenReturn(new byte[1]);
 
             assertEquals(45, router.choosePartition(msg, metadata));
         }
 
         // time at `12346*` milliseconds
         for (int i = 0; i < 10; i++) {
-            when(clock.millis()).thenReturn(123460L + i);
+            when(msg.getData()).thenReturn(new byte[1]);
 
             assertEquals(46, router.choosePartition(msg, metadata));
         }

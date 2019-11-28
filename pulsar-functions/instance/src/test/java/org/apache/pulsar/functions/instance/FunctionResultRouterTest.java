@@ -52,11 +52,8 @@ public class FunctionResultRouterTest {
         TopicMetadata topicMetadata = mock(TopicMetadata.class);
         when(topicMetadata.numPartitions()).thenReturn(5);
 
-        Clock clock = mock(Clock.class);
-
-        FunctionResultRouter router = new FunctionResultRouter(0, clock);
+        FunctionResultRouter router = new FunctionResultRouter(0);
         for (int i = 0; i < 10; i++) {
-            when(clock.millis()).thenReturn(123450L + i);
             assertEquals(i % 5, router.choosePartition(msg, topicMetadata));
         }
     }
@@ -66,9 +63,7 @@ public class FunctionResultRouterTest {
         TopicMetadata topicMetadata = mock(TopicMetadata.class);
         when(topicMetadata.numPartitions()).thenReturn(5);
 
-        Clock clock = mock(Clock.class);
-
-        FunctionResultRouter router = new FunctionResultRouter(0, clock);
+        FunctionResultRouter router = new FunctionResultRouter(0);
         for (int i = 0; i < 10; i++) {
             Message<?> msg = mock(Message.class);
             when(msg.hasKey()).thenReturn(false);
@@ -91,9 +86,7 @@ public class FunctionResultRouterTest {
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn(-1L);
 
-        Clock clock = mock(Clock.class);
-
-        FunctionResultRouter router = new FunctionResultRouter(0, clock);
+        FunctionResultRouter router = new FunctionResultRouter(0);
         TopicMetadata metadata = mock(TopicMetadata.class);
         when(metadata.numPartitions()).thenReturn(100);
 
@@ -115,9 +108,7 @@ public class FunctionResultRouterTest {
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn((long) ((key2.hashCode() % 100) + 1));
 
-        Clock clock = mock(Clock.class);
-
-        FunctionResultRouter router = new FunctionResultRouter(0, clock);
+        FunctionResultRouter router = new FunctionResultRouter(0);
         TopicMetadata metadata = mock(TopicMetadata.class);
         when(metadata.numPartitions()).thenReturn(100);
 

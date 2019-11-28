@@ -35,17 +35,16 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
     private static final FunctionResultRouter INSTANCE = new FunctionResultRouter();
 
     public FunctionResultRouter() {
-        this(Math.abs(ThreadLocalRandom.current().nextInt()), Clock.systemUTC());
+        this(Math.abs(ThreadLocalRandom.current().nextInt()));
     }
 
     @VisibleForTesting
-    public FunctionResultRouter(int startPtnIdx, Clock clock) {
+    public FunctionResultRouter(int startPtnIdx) {
         super(
             HashingScheme.Murmur3_32Hash,
             startPtnIdx,
             true,
-            1,
-            clock);
+            128 * 1024);
     }
 
     public static FunctionResultRouter of() {

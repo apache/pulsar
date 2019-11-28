@@ -147,10 +147,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         pulsarProducerBuilder = PulsarProducerKafkaConfig.getProducerBuilder(client, properties);
 
-        // To mimic the same batching mode as Kafka, we need to wait a very little amount of
-        // time to batch if the client is trying to send messages fast enough
-        long lingerMs = Long.parseLong(properties.getProperty(ProducerConfig.LINGER_MS_CONFIG, "1"));
-        pulsarProducerBuilder.batchingMaxPublishDelay(lingerMs, TimeUnit.MILLISECONDS);
+        // To mimic the same batching mode as Kafka, we need to wait until a batch is full
+        int batchSize = Integer.parseInt(properties.getProperty(ProducerConfig.BATCH_SIZE_CONFIG, "1"));
+        pulsarProducerBuilder.batchingMaxBytes(batchSize);
 
         String compressionType = properties.getProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG);
         if ("gzip".equals(compressionType)) {
@@ -159,7 +158,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
             pulsarProducerBuilder.compressionType(CompressionType.LZ4);
         }
 
-        pulsarProducerBuilder.messageRouter(new KafkaMessageRouter(lingerMs));
+        pulsarProducerBuilder.messageRouter(new KafkaMessageRouter(batchSize));
 
         int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "30000"));
         pulsarProducerBuilder.sendTimeout(sendTimeoutMillis, TimeUnit.MILLISECONDS);

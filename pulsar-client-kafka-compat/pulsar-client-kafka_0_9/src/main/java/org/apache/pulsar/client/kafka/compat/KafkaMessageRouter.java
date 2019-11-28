@@ -29,8 +29,8 @@ public class KafkaMessageRouter extends RoundRobinPartitionMessageRouterImpl {
 
     public static final String PARTITION_ID = "pulsar.partition.id";
 
-    public KafkaMessageRouter(long maxBatchingDelayMs) {
-        super(HashingScheme.JavaStringHash, ThreadLocalRandom.current().nextInt(), true, maxBatchingDelayMs);
+    public KafkaMessageRouter(int maxBatchingBytes) {
+        super(HashingScheme.JavaStringHash, ThreadLocalRandom.current().nextInt(), true, maxBatchingBytes);
     }
 
     @Override
