@@ -255,7 +255,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (readOnlyCursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    readAsync(2, this, System.nanoTime());
+                    readAsync(100, this, System.nanoTime());
                 }
             }
         }
