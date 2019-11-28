@@ -390,12 +390,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
-            consumerList.forEach(Consumer::disconnect);
+            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor));
             if (havePendingRead && cursor.cancelPendingReadRequest()) {
                 havePendingRead = false;
             }

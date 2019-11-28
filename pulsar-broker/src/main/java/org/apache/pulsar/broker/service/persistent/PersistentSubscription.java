@@ -255,7 +255,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
         cursor.updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
@@ -287,7 +287,13 @@ public class PersistentSubscription implements Subscription {
                     topic.removeSubscription(subName);
                     // Also need remove the cursor here, otherwise the data deletion will not work well.
                     // Because data deletion depends on the mark delete position of all cursors.
-                    ((ManagedCursorContainer)topic.getManagedLedger().getCursors()).removeCursor(subName);
+                    if (!isResetCursor) {
+                        try {
+                            topic.getManagedLedger().deleteCursor(cursor.getName());
+                        } catch (InterruptedException | ManagedLedgerException e) {
+                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                        }
+                    }
                 });
             }
         }
@@ -680,7 +686,7 @@ public class PersistentSubscription implements Subscription {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                disconnectFuture = dispatcher.disconnectAllConsumers();
+                disconnectFuture = dispatcher.disconnectAllConsumers(true);
             } else {
                 disconnectFuture = CompletableFuture.completedFuture(null);
             }
