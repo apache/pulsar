@@ -366,6 +366,40 @@ Any order
 
 </tr>
 
+<tr>
+
+<td> 
+
+`UNDEFINED`
+
+</td> 
+
+<td> 
+
+NONE
+
+</td> 
+
+<td> 
+
+NONE
+
+</td> 
+
+<td> 
+
+The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
+
+</td> 
+
+<td> 
+
+NONE
+
+</td> 
+
+</tr>
+
 </table>
 
 ### ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE 
@@ -440,48 +474,7 @@ Disable schema evolution, that is, any schema change is rejected.
 
 </tr>
 
-</table>
-
-### UNDEFINED 
-
-<table style="table">
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Note 
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-
-`UNDEFINED`
-
-</td> 
-
-<td> 
-
-The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
+</table> 
 
 #### Example 
   
@@ -666,6 +659,46 @@ None
 #### Example  
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
+
+### UNDEFINED 
+
+<table style="table">
+
+<tr>
+
+<th>
+    
+Compatibility check strategy
+
+</th>
+
+<th>
+    
+Note 
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`UNDEFINED`
+
+</td> 
+
+<td> 
+
+The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
+
+</td> 
+
+</tr>
+
+<td>
+
+</table>
 
 ## Order of upgrading clients
 
