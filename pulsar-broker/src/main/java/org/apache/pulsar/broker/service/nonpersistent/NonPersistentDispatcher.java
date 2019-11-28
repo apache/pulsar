@@ -30,7 +30,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 
-public interface NonPersistentDispatcher extends Dispatcher{
+public interface NonPersistentDispatcher extends Dispatcher {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
@@ -44,7 +44,7 @@ public interface NonPersistentDispatcher extends Dispatcher{
 
     CompletableFuture<Void> close() ;
 
-    CompletableFuture<Void> disconnectAllConsumers();
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
 
     void reset();
 
