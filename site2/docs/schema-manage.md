@@ -62,7 +62,7 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 
     * If a topic does not have all of them (a schema/data/a local consumer and a local producer):
     
-        * If `isAllowAutoUpdateSchema` = true, register the schema and connect.
+        * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
         
         * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
         
@@ -80,10 +80,15 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 You can use the `pulsar-admin` command to manage the `AutoUpdate` strategy as below:
 
 * [Enable AutoUpdate](#enable-autoupdate)
+
 * [Disable AutoUpdate](#disable-autoupdate)
+
 * [Adjust compatibility](#adjust-compatibility)
+
 #### Enable AutoUpdate
+
 To enable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
+
 ```bash
 bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/namespace
 ```

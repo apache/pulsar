@@ -626,45 +626,6 @@ None
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
 
-### UNDEFINED 
-
-<table style="table">
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Note 
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-
-`UNDEFINED`
-
-</td> 
-
-<td> 
-
-The schema compatibility check strategy in order to Upgrade to 2.5.0 or above for compatibility with pulsar version below 2.5.0.
-
-</td> 
-
-</tr>
-
-</table>
-
-
 ## Schema verification
 
 When a producer or a consumer tries to connect to a topic, a broker performs some checks to verify a schema.
