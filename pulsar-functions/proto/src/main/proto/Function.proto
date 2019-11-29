@@ -80,6 +80,7 @@ message FunctionDetails {
     RetryDetails retryDetails = 15;
     string runtimeFlags = 17;
     ComponentType componentType = 18;
+    string customRuntimeOptions = 19;
 }
 
 message ConsumerSpec {

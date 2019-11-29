@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -95,12 +96,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile Timeout sendTimeout = null;
     private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
-    private final int maxNumMessagesInBatch;
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
     private String producerName;
+    private boolean userProvidedProducerName = false;
 
     private String connectionId;
     private String connectedSince;
@@ -111,6 +112,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final CompressionCodec compressor;
 
     private volatile long lastSequenceIdPublished;
+    protected volatile long lastSequenceIdPushed;
+
     private MessageCrypto msgCrypto = null;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
@@ -131,6 +134,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
+        if (StringUtils.isNotBlank(producerName)) {
+            this.userProvidedProducerName = true;
+        }
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
@@ -141,10 +147,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (conf.getInitialSequenceId() != null) {
             long initialSequenceId = conf.getInitialSequenceId();
             this.lastSequenceIdPublished = initialSequenceId;
-            this.msgIdGenerator = initialSequenceId + 1;
+            this.lastSequenceIdPushed = initialSequenceId;
+            this.msgIdGenerator = initialSequenceId + 1L;
         } else {
-            this.lastSequenceIdPublished = -1;
-            this.msgIdGenerator = 0;
+            this.lastSequenceIdPublished = -1L;
+            this.lastSequenceIdPushed = -1L;
+            this.msgIdGenerator = 0L;
         }
 
         if (conf.isEncryptionEnabled()) {
@@ -171,7 +179,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         if (conf.isBatchingEnabled()) {
-            this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
             BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
                 containerBuilder = BatcherBuilder.DEFAULT;
@@ -179,7 +186,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.batchMessageContainer = (BatchMessageContainerBase)containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
         } else {
-            this.maxNumMessagesInBatch = 1;
             this.batchMessageContainer = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
@@ -383,15 +389,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
                 if (canAddToBatch(msg)) {
-                    // handle boundary cases where message being added would exceed
-                    // batch size and/or max message size
                     if (canAddToCurrentBatch(msg)) {
-                        batchMessageContainer.add(msg, callback);
-                        lastSendFuture = callback.getFuture();
-                        payload.release();
-                        if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
-                                || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
-                            batchMessageAndSend();
+                        // should trigger complete the batch message, new message will add to a new batch and new batch
+                        // sequence id use the new message, so that broker can handle the message duplication
+                        if (sequenceId <= lastSequenceIdPushed) {
+                            if (sequenceId <= lastSequenceIdPublished) {
+                                log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
+                            } else {
+                                log.info("Message with sequence id {} might be a duplicate but cannot be determined at this time.",
+                                    sequenceId);
+                            }
+                            doBatchSendAndAdd(msg, callback, payload);
+                        } else {
+                            // handle boundary cases where message being added would exceed
+                            // batch size and/or max message size
+                            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+                            lastSendFuture = callback.getFuture();
+                            payload.release();
+                            if (isBatchFull) {
+                                batchMessageAndSend();
+                            }
                         }
                     } else {
                         doBatchSendAndAdd(msg, callback, payload);
@@ -535,15 +552,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) {
-        ChecksumType checksumType;
+        return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    }
 
+    protected ByteBufPair sendMessage(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages, MessageMetadata msgMetadata,
+                                      ByteBuf compressedPayload) {
+        return Commands.newSend(producerId, lowestSequenceId, highestSequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    }
+
+    private ChecksumType getChecksumType() {
         if (connectionHandler.getClientCnx() == null
                 || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
-            checksumType = ChecksumType.Crc32c;
+            return ChecksumType.Crc32c;
         } else {
-            checksumType = ChecksumType.None;
+            return ChecksumType.None;
         }
-        return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
     private boolean canAddToBatch(MessageImpl<?> msg) {
@@ -766,45 +789,52 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    void ackReceived(ClientCnx cnx, long sequenceId, long ledgerId, long entryId) {
+    void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
         OpSendMsg op = null;
         boolean callback = false;
         synchronized (this) {
             op = pendingMessages.peek();
             if (op == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg {}", topic, producerName, sequenceId);
+                    log.debug("[{}] [{}] Got ack for timed out msg {} - {}", topic, producerName, sequenceId, highestSequenceId);
                 }
                 return;
             }
 
-            long expectedSequenceId = op.sequenceId;
-            if (sequenceId > expectedSequenceId) {
-                log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
-                        expectedSequenceId, sequenceId, pendingMessages.size());
+            if (sequenceId > op.sequenceId) {
+                log.warn("[{}] [{}] Got ack for msg. expecting: {} - {} - got: {} - {} - queue-size: {}", topic, producerName,
+                        op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId, pendingMessages.size());
                 // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
-            } else if (sequenceId < expectedSequenceId) {
+            } else if (sequenceId < op.sequenceId) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg {} last-seq: {}", topic, producerName, sequenceId,
-                            expectedSequenceId);
+                    log.debug("[{}] [{}] Got ack for timed out msg. expecting: {} - {} - got: {} - {}", topic, producerName,
+                            op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId);
                 }
             } else {
-                // Message was persisted correctly
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
+                // Add check `sequenceId >= highestSequenceId` for backward compatibility.
+                if (sequenceId >= highestSequenceId || highestSequenceId == op.highestSequenceId) {
+                    // Message was persisted correctly
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
+                    }
+                    pendingMessages.remove();
+                    releaseSemaphoreForSendOp(op);
+                    callback = true;
+                    pendingCallbacks.add(op);
+                } else {
+                    log.warn("[{}] [{}] Got ack for batch msg error. expecting: {} - {} - got: {} - {} - queue-size: {}", topic, producerName,
+                            op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId, pendingMessages.size());
+                    // Force connection closing so that messages can be re-transmitted in a new connection
+                    cnx.channel().close();
                 }
-                pendingMessages.remove();
-                releaseSemaphoreForSendOp(op);
-                callback = true;
-                pendingCallbacks.add(op);
             }
         }
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
-                lastSequenceIdPublished = op.sequenceId + op.numMessagesInBatch - 1;
+                lastSequenceIdPublished = Math.max(lastSequenceIdPublished, getHighestSequenceId(op));
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -818,6 +848,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.recycle();
             }
         }
+    }
+
+    private long getHighestSequenceId(OpSendMsg op) {
+        return Math.max(op.highestSequenceId, op.sequenceId);
     }
 
     private void releaseSemaphoreForSendOp(OpSendMsg op) {
@@ -844,7 +878,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.debug("[{}] [{}] Got send failure for timed out msg {}", topic, producerName, sequenceId);
             }
         } else {
-            long expectedSequenceId = op.sequenceId;
+            long expectedSequenceId = getHighestSequenceId(op);
             if (sequenceId == expectedSequenceId) {
                 boolean corrupted = !verifyLocalBufferIsNotCorrupted(op);
                 if (corrupted) {
@@ -928,6 +962,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long createdAt;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
+        long highestSequenceId;
 
         static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
@@ -949,14 +984,27 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
+                                long highestSequenceId,  SendCallback callback) {
+            OpSendMsg op = RECYCLER.get();
+            op.msgs = msgs;
+            op.cmd = cmd;
+            op.callback = callback;
+            op.sequenceId = lowestSequenceId;
+            op.highestSequenceId = highestSequenceId;
+            op.createdAt = System.currentTimeMillis();
+            return op;
+        }
+
         void recycle() {
             msg = null;
             msgs = null;
             cmd = null;
             callback = null;
             rePopulate = null;
-            sequenceId = -1;
-            createdAt = -1;
+            sequenceId = -1L;
+            createdAt = -1L;
+            highestSequenceId = -1L;
             recyclerHandle.recycle(this);
         }
 
@@ -1030,7 +1078,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo),
+                       schemaInfo, connectionHandler.epoch, userProvidedProducerName),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1394,11 +1442,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void processOpSendMsg(OpSendMsg op) {
+        if (op == null) {
+            return;
+        }
         try {
             if (op.msg != null && isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
             pendingMessages.put(op);
+            if (op.msg != null) {
+                lastSequenceIdPushed = Math.max(lastSequenceIdPushed, getHighestSequenceId(op));
+            }
             ClientCnx cnx = cnx();
             if (isConnected()) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {

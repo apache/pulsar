@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -320,6 +321,20 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+
+    public ConsumerBuilder<T> startMessageIdInclusive() {
+        conf.setResetIncludeHead(true);
+        return this;
+    }
+
+    public ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy) {
+        checkArgument(batchReceivePolicy != null, "batchReceivePolicy must not be null.");
+        batchReceivePolicy.verify();
+        conf.setBatchReceivePolicy(batchReceivePolicy);
         return this;
     }
 

@@ -148,14 +148,14 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.9.2</bookkeeper.version>
+    <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.6</zookeeper.version>
     <netty.version>4.1.43.Final</netty.version>
     <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.20.v20190813</jetty.version>
     <jersey.version>2.27</jersey.version>
-    <athenz.version>1.8.17</athenz.version>
+    <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
     <rocksdb.version>5.13.3</rocksdb.version>
@@ -202,7 +202,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
     <guava.version>25.1-jre</guava.version>
-    
+    <jcip.version>1.0</jcip.version>
+
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
@@ -1095,6 +1096,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
+      <dependency>
+        <groupId>net.jcip</groupId>
+        <artifactId>jcip-annotations</artifactId>
+        <version>${jcip.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1422,6 +1428,29 @@ flexible messaging model and an intuitive client API.</description>
           </gitDescribe>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.0.0-M2</version>
+        <executions>
+            <execution>
+                <id>enforce-maven</id>
+                <goals>
+                    <goal>enforce</goal>
+                </goals>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[1.8.0,)</version>
+                        </requireJavaVersion>
+                        <requireMavenVersion>
+                            <version>[3.3.9,)</version>
+                        </requireMavenVersion>
+                    </rules>
+                </configuration>
+            </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -1492,7 +1521,7 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
-      </plugin>
+        </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
