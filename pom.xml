@@ -333,6 +333,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${bookkeeper.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>bookkeeper-tools-framework</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+
       <!-- reflection libs -->
       <dependency>
         <groupId>org.reflections</groupId>
