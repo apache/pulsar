@@ -32,9 +32,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -97,6 +97,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     private DeadLetterPolicy deadLetterPolicy;
+
+    @JsonIgnore
+    private BatchReceivePolicy batchReceivePolicy;
 
     private boolean autoUpdatePartitions = true;
 

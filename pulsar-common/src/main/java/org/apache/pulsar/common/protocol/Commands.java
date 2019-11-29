@@ -336,10 +336,12 @@ public class Commands {
 
     }
 
-    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long ledgerId, long entryId) {
+    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
+             long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
+        sendReceiptBuilder.setHighestSequenceId(highestId);
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
@@ -682,7 +684,7 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null);
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false);
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -721,14 +723,17 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
+          boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+          long epoch, boolean userProvidedProducerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
         producerBuilder.setRequestId(requestId);
+        producerBuilder.setEpoch(epoch);
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+        producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
         producerBuilder.setEncrypted(encrypted);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));

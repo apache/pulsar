@@ -350,6 +350,7 @@ public class ClientCnx extends PulsarHandler {
 
         long producerId = sendReceipt.getProducerId();
         long sequenceId = sendReceipt.getSequenceId();
+        long highestSequenceId = sendReceipt.getHighestSequenceId();
         long ledgerId = -1;
         long entryId = -1;
         if (sendReceipt.hasMessageId()) {
@@ -367,7 +368,7 @@ public class ClientCnx extends PulsarHandler {
                     ledgerId, entryId);
         }
 
-        producers.get(producerId).ackReceived(this, sequenceId, ledgerId, entryId);
+        producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
     }
 
     @Override

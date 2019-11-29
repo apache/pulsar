@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -86,6 +87,8 @@ public class PersistentSubscription implements Subscription {
             AtomicIntegerFieldUpdater.newUpdater(PersistentSubscription.class, "isFenced");
     private volatile int isFenced = FALSE;
     private PersistentMessageExpiryMonitor expiryMonitor;
+
+    private long lastExpireTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
@@ -254,7 +257,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
         cursor.updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
@@ -284,6 +287,15 @@ public class PersistentSubscription implements Subscription {
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().submit(() ->{
                     topic.removeSubscription(subName);
+                    // Also need remove the cursor here, otherwise the data deletion will not work well.
+                    // Because data deletion depends on the mark delete position of all cursors.
+                    if (!isResetCursor) {
+                        try {
+                            topic.getManagedLedger().deleteCursor(cursor.getName());
+                        } catch (InterruptedException | ManagedLedgerException e) {
+                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                        }
+                    }
                 });
             }
         }
@@ -676,7 +688,7 @@ public class PersistentSubscription implements Subscription {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                disconnectFuture = dispatcher.disconnectAllConsumers();
+                disconnectFuture = dispatcher.disconnectAllConsumers(true);
             } else {
                 disconnectFuture = CompletableFuture.completedFuture(null);
             }
@@ -902,6 +914,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void expireMessages(int messageTTLInSeconds) {
+        this.lastExpireTimestamp = System.currentTimeMillis();
         if ((getNumberOfEntriesInBacklog() == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
                 && getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
@@ -921,7 +934,7 @@ public class PersistentSubscription implements Subscription {
 
     public SubscriptionStats getStats() {
         SubscriptionStats subStats = new SubscriptionStats();
-
+        subStats.lastExpireTimestamp = lastExpireTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {

@@ -44,7 +44,13 @@ FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
 
+# Check bookkeeper env and load bkenv.sh
+if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/bkenv.sh"
+fi
 
+# Check pulsar env and load pulser_env.sh
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"

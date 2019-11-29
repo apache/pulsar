@@ -217,7 +217,7 @@ public class FunctionActionerTest {
         actioner.terminateFunction(functionRuntimeInfo);
 
         // make sure cache
-        verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any(), any(), any());
+        verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any());
     }
 
 }

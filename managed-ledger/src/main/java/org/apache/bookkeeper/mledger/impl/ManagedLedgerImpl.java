@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
@@ -68,6 +69,7 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -306,7 +308,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 initializeBookKeeper(callback);
-                            } else if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                            } else if (isNoSuchLedgerExistsException(rc)) {
                                 log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
                                 ledgers.remove(ledgers.lastKey());
                                 initializeBookKeeper(callback);
@@ -2159,7 +2161,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
-            if (rc == BKException.Code.NoSuchLedgerExistsException) {
+            if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {}", name, ledgerId, BKException.getMessage(rc));
@@ -2190,7 +2192,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
                 switch (rc) {
-                case BKException.Code.NoSuchLedgerExistsException:
+                case Code.NoSuchLedgerExistsException:
+                case Code.NoSuchLedgerExistsOnMetadataServerException:
                     log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
                     // Continue anyway
 
@@ -3010,8 +3013,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     private static boolean isBkErrorNotRecoverable(int rc) {
         switch (rc) {
-        case BKException.Code.NoSuchLedgerExistsException:
-        case BKException.Code.NoSuchEntryException:
+        case Code.NoSuchLedgerExistsException:
+        case Code.NoSuchLedgerExistsOnMetadataServerException:
+        case Code.NoSuchEntryException:
             return true;
 
         default:

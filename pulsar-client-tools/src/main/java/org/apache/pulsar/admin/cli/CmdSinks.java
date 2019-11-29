@@ -314,6 +314,8 @@ public class CmdSinks extends CmdBase {
         protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        protected String customRuntimeOptions;
 
         protected SinkConfig sinkConfig;
 
@@ -444,6 +446,10 @@ public class CmdSinks extends CmdBase {
             
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            }
+
+            if (customRuntimeOptions != null) {
+                sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
             }
 
             // check if configs are valid

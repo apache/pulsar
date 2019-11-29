@@ -24,6 +24,7 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLed
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -63,6 +64,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.BKException.Code;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -2429,7 +2431,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (rc != BKException.Code.OK) {
                 log.warn("[{}] Failed to delete ledger {}: {}", ledger.getName(), lh.getId(),
                         BKException.getMessage(rc));
-                if (rc != BKException.Code.NoSuchLedgerExistsException) {
+                if (!isNoSuchLedgerExistsException(rc)) {
                     ledger.getScheduledExecutor().schedule(safeRun(() -> {
                         asyncDeleteLedger(lh, retry - 1);
                     }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
@@ -2465,7 +2467,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             } else {
                 log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
                         BKException.getMessage(rc));
-                if (rc != BKException.Code.NoSuchLedgerExistsException) {
+                if (!isNoSuchLedgerExistsException(rc)) {
                     ledger.getScheduledExecutor().schedule(safeRun(() -> {
                         asyncDeleteCursorLedger(retry - 1);
                     }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
@@ -2477,12 +2479,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     /**
      * return BK error codes that are considered not likely to be recoverable.
      */
-    private static boolean isBkErrorNotRecoverable(int rc) {
+    public static boolean isBkErrorNotRecoverable(int rc) {
         switch (rc) {
-        case BKException.Code.NoSuchLedgerExistsException:
-        case BKException.Code.ReadException:
-        case BKException.Code.LedgerRecoveryException:
-        case BKException.Code.NoSuchEntryException:
+        case Code.NoSuchLedgerExistsException:
+        case Code.NoSuchLedgerExistsOnMetadataServerException:
+        case Code.ReadException:
+        case Code.LedgerRecoveryException:
+        case Code.NoSuchEntryException:
             return true;
 
         default:

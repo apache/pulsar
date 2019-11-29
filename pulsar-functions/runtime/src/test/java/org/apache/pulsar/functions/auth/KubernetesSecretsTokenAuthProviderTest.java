@@ -39,6 +39,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -51,7 +52,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
 
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", testBytes);
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, testBytes, (fd) -> "default");
 
 
         V1StatefulSet statefulSet = new V1StatefulSet();
@@ -77,7 +78,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     public void testConfigureAuthDataStatefulSetNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", null);
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
 
 
         V1StatefulSet statefulSet = new V1StatefulSet();
@@ -104,9 +105,9 @@ public class KubernetesSecretsTokenAuthProviderTest {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString());
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", null);
-        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData("test-tenant",
-                "test-ns", "test-func", new AuthenticationDataSource() {
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
+        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
+        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData(funcDetails, new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;
@@ -127,7 +128,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", testBytes);
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, testBytes, (fd) -> "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
         kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
@@ -141,7 +142,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     public void configureAuthenticationConfigNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", null);
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
         kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
@@ -156,11 +157,11 @@ public class KubernetesSecretsTokenAuthProviderTest {
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
-        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default", null);
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         // test when existingFunctionAuthData is empty
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData("test-tenant",
-                "test-ns", "test-func", existingFunctionAuthData, new AuthenticationDataSource() {
+        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
+        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails, existingFunctionAuthData, new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;
@@ -178,8 +179,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
 
         // test when existingFunctionAuthData is NOT empty
         existingFunctionAuthData = Optional.of(new FunctionAuthData("pf-secret-z7mxx".getBytes(), null));
-        functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData("test-tenant",
-                "test-ns", "test-func", existingFunctionAuthData, new AuthenticationDataSource() {
+        functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails, existingFunctionAuthData, new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;
