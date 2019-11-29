@@ -540,10 +540,12 @@ This diagram illustrates how does schema work on the Producer side.
    
 4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
 
-5. If no, the broker judge whether this namespace can automatically create schema.
-   isAllowAutoUpdateSchema can be modified by Admin-Api and REST-API 
-  
-6. If yes, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
+5. If no, the broker verifies whether a schema can be automatically created in this namespace:
+  * If `isAllowAutoUpdateSchema` sets to **true**, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+  * If `isAllowAutoUpdateSchema` sets to **false**, then a schema can not be created, and the consumer is rejected to connect to the broker.
+**Tip**:
+`isAllowAutoUpdateSchema` can be set via **Pulsar admin API** or **REST API.** 
+For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoUpdate Strategy](schema-manage.md/#manage-autoupdate-strategy). 
   
 7. If the schema is compatible, the broker stores it and returns the schema version to the producer. 
 
@@ -563,9 +565,9 @@ This diagram illustrates how does Schema work on the consumer side.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
-3. If the schema is compatible, the consumer will be connected. 
+3. If the schema is compatible, the consumer is connected to the broker. 
    
-4. If the schema is incompatible, the consumer will be disconnected.
+4. If the schema is incompatible, the consumer is disconnected to the broker.
 
 5. The consumer receives the messages from the broker. 
 
