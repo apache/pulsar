@@ -698,6 +698,172 @@ The schema compatibility check strategy in order to Upgrade to 2.5.0 or above fo
 
 </table>
 
+
+## Schema verification
+
+When a producer or a consumer tries to connect to a topic, a broker performs some checks to verify a schema.
+
+### Producer
+
+When a producer tries to connect to a topic (suppose ignore the schema auto creation), a broker does the following checks:
+
+* Check if the schema carried by the producer exists in the schema registry or not.
+
+    * If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.
+    
+    * If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.
+    
+### Consumer
+When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.
+
+<table style="table">
+
+<tr>
+
+<th>
+
+Compatibility check strategy
+
+</th>
+
+<th>
+
+Check logic
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_COMPATIBLE`
+
+</td> 
+
+<td> 
+
+All pass
+
+</td> 
+ 
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_INCOMPATIBLE`
+
+</td> 
+
+<td> 
+
+No pass
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+</table>
+
 ## Order of upgrading clients
 
 The order of upgrading client applications is determined by the compatibility check strategy.
@@ -854,167 +1020,6 @@ Consequently, you can upgrade the producers and consumers in **any order**.
 
 </table>
 
-## Schema verification for producers
-
-For a producer which tries to connect to a topic (omitting the schema auto creation part), Broker has to do the following checks:
-
-* 1.Check if the schema carried by the producer exists in the schema registry or not.
-
-* 2.If the schema is already registered, allow producers connects and produce messages with that schema.
-
-* 3.If the schema is not registered yet, verify if the producer schema is allowed to be registered according to the configured compatibility check strategy.
-
-## Schema verification for consumers
-
-Different from Producers, when a consumer connects to a topic, Pulsar brokers will check if the carried schema is compatible with the registered schemas according to the configured schema compatibility check strategy.
-
-<table style="table">
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Check logic
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-
-`ALWAYS_COMPATIBLE`
-
-</td> 
-
-<td> 
-
-All pass
-
-</td>  
-
-</tr>
-
-<tr>
-
-<td> 
-
-`ALWAYS_INCOMPATIBLE`
-
-</td> 
-
-<td> 
-
-No pass
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`BACKWARD`
-
-</td> 
-
-<td> 
-
-Can read last schema
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`BACKWARD_TRANSITIVE`
-
-</td> 
-
-<td> 
-
-Can read all schemas
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`FORWARD`
-
-</td> 
-
-<td> 
-
-Can read last schema
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`FORWARD_TRANSITIVE`
-
-</td> 
-
-<td> 
-
-Can read last schema
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`FULL`
-
-</td> 
-
-<td> 
-
-Can read last schema
-
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-
-`FULL_TRANSITIVE`
-
-</td> 
-
-<td> 
-
-Can read all schemas
-
-</td> 
-
-</tr>
-
-</table>
 
 
 

@@ -38,9 +38,9 @@ For a producer, the `AutoUpdate` happens in the following cases:
   
     A broker performs the compatibility check based on the configured compatibility check strategy of the namespace to which the topic belongs.
     
-    * If the schema is registered, producer is connected. 
+    * If the schema is registered, a producer is connected to a broker. 
     
-    * If the schema isn't registered
+    * If the schema is not registered:
     
         * If`isAllowAutoUpdateSchema` = false, producer is rejected.
     
