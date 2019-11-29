@@ -49,7 +49,6 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         configuration.setUseV2WireProtocol(true);
         configuration.setEnableDigestTypeAutodetection(true);
         configuration.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
-        configuration.setZkTimeout(10);
 
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(configuration, zkConnectString);
 
