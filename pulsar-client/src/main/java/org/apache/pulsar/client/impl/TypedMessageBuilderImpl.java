@@ -73,7 +73,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             return -1L;
         }
         msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdLeastBits());
-        msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdMostBits());
+        msgMetadataBuilder.setTxnidMostBits(txn.getTxnIdMostBits());
         long sequenceId = txn.nextSequenceId();
         msgMetadataBuilder.setSequenceId(sequenceId);
         return sequenceId;

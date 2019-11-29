@@ -40,8 +40,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 > 
 > If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 > start the functions. In this case, you can create a symlink. Your system will fail if
-> you subsequently install any other package that depends on Python 2.x. A solution is under development in
-> [Issue 5518](https://github.com/apache/pulsar/issues/5518).
+> you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
 > 
 > ```bash
 > sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
@@ -159,6 +158,9 @@ SerDe option | When to use
 `PickleSerDe` | When you work with complex, application-specific types and are comfortable with the "best effort" approach of `pickle`.
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.
 
+<!--Go-->
+Currently, the feature is not available in Go.
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Example
@@ -235,20 +237,18 @@ In order to use this class in Pulsar Functions, you have two options:
 2. You can create your own SerDe class. The following is an example.
 
   ```python
-  from pulsar import SerDe
+from pulsar import SerDe
 
-  class TweetSerDe(SerDe):
-      def __init__(self, tweet):
-          self.tweet = tweet
+class TweetSerDe(SerDe):
 
-      def serialize(self, input):
-          return bytes("{0}|{1}".format(self.tweet.username, self.tweet.tweet_content))
+    def serialize(self, input):
+        return bytes("{0}|{1}".format(input.username, input.tweet_content))
 
-      def deserialize(self, input_bytes):
-          tweet_components = str(input_bytes).split('|')
-          return Tweet(tweet_components[0], tweet_componentsp[1])
+    def deserialize(self, input_bytes):
+        tweet_components = str(input_bytes).split('|')
+        return Tweet(tweet_components[0], tweet_componentsp[1])
   ```
-
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -561,6 +561,8 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
+<!--Go--> 
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -704,6 +706,8 @@ class MetricRecorderFunction(Function):
         if input == 11:
             context.record_metric('elevens-count', 1)
 ```
+<!--Go-->
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -717,7 +721,10 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](pulsar-admin.md#querystate) and [putstate](pulsar-admin.md#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
+
+> Note  
+> State storage is not available in Go.
 
 ### API
 

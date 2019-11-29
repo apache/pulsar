@@ -144,6 +144,10 @@ public class SourceConfigUtils {
 
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SOURCE);
 
+        if (!StringUtils.isEmpty(sourceConfig.getCustomRuntimeOptions())) {
+            functionDetailsBuilder.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -194,9 +198,14 @@ public class SourceConfigUtils {
             sourceConfig.setResources(resources);
         }
 
-        if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getRuntimeFlags())) {
-            sourceConfig .setRuntimeFlags(functionDetails.getRuntimeFlags());
+        if (!isEmpty(functionDetails.getRuntimeFlags())) {
+            sourceConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
+
+        if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
+            sourceConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
+        }
+
         return sourceConfig;
     }
 
@@ -370,6 +379,9 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
             mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
+        if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
+            mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
     }

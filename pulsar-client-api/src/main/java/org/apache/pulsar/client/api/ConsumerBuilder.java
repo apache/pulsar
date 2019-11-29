@@ -535,4 +535,27 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
      */
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * Set the consumer to include the given position of any reset operation like {@link Consumer#seek(long) or
+     * {@link Consumer#seek(MessageId)}}.
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> startMessageIdInclusive();
+
+    /**
+     * Set batch receive policy {@link BatchReceivePolicy} for consumer.
+     * By default, consumer will use {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
+     *              .maxNumMessages(100)
+     *              .maxNumBytes(5 * 1024 * 1024)
+     *              .timeout(100, TimeUnit.MILLISECONDS)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
 }

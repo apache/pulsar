@@ -293,15 +293,23 @@ public class Consumer {
      * pending message acks
      */
     public void close() throws BrokerServiceException {
-        subscription.removeConsumer(this);
+        close(false);
+    }
+
+    public void close(boolean isResetCursor) throws BrokerServiceException {
+        subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
     }
 
     public void disconnect() {
+        disconnect(false);
+    }
+
+    public void disconnect(boolean isResetCursor) {
         log.info("Disconnecting consumer: {}", this);
         cnx.closeConsumer(this);
         try {
-            close();
+            close(isResetCursor);
         } catch (BrokerServiceException e) {
             log.warn("Consumer {} was already closed: {}", this, e.getMessage(), e);
         }

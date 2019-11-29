@@ -215,6 +215,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes) {
+        conf.setBatchingMaxBytes(batchingMaxBytes);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
         conf.setBatcherBuilder(batcherBuilder);
         return this;
