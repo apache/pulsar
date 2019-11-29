@@ -6,12 +6,12 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-* Tiered storage uses [Apache Jclouds](https://jclouds.apache.org) to supports
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to supports filesystem for long term storage. 
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
 With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
@@ -195,18 +195,21 @@ In both cases, these should not be touched unless you know what you are doing.
 
 #### Configure connection address
 
+You can configure the connection address in the `broker.conf` file.
+
 ```conf
 fileSystemURI="hdfs://127.0.0.1:9000"
 ```
 #### Configure Hadoop profile path
 
-In the configuration file under this path, you can configure the base path and authentication and so on.
+The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
 
 ```conf
 fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
 ```
 
-The model for storing this topic data use `org.apache.hadoop.io.MapFile`, so we can use all of the configuration in Apache Hadoop for `org.apache.hadoop.io.MapFile`, the following example :
+The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can use all of the configurations in `org.apache.hadoop.io.MapFile` for Hadoop.
+**Example**
 
 ```conf
 
@@ -242,7 +245,7 @@ The model for storing this topic data use `org.apache.hadoop.io.MapFile`, so we 
     
 ```
 
-A detailed explanation of the role of these configurations and other configurations can be found in [Filesystem Storage](http://hadoop.apache.org/).
+For more information about the configurations in `org.apache.hadoop.io.MapFile`, see [Filesystem Storage](http://hadoop.apache.org/).
 ## Configuring offload to run automatically
 
 Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.
