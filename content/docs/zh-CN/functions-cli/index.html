@@ -101,8 +101,8 @@
 <tr><td>instance-id-offset</td><td>从这个偏移量启动 instanceIds。</td><td>0</td></tr>
 <tr><td>log-topic</td><td>产生 Pulsar Function 的日志主题。</td><td></td></tr>
 <tr><td>max-message-retries</td><td>应该放弃多少次来尝试处理一条消息。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
 <tr><td>output</td><td>Pulsar Function 的输出主题 (如果没有指定，即没有输出)。</td><td></td></tr>
 <tr><td>output-serde-classname</td><td>该函数用于输出消息的SerDe类。</td><td></td></tr>
 <tr><td>parallelism</td><td>Pulsar Function 的并行度因子（即要运行函数实例的数量）。</td><td></td></tr>
@@ -114,7 +114,7 @@
 <tr><td>sliding-interval-count</td><td>窗口滑动之后的消息数。</td><td></td></tr>
 <tr><td>sliding-interval-duration-ms</td><td>窗口滑动之后的持续时间。</td><td></td></tr>
 <tr><td>subs-name</td><td>如果用户想要输入主题使用者的特定订阅名称，则为 Pulsar 源订阅名称。</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 <tr><td>timeout-ms</td><td>消息超时以毫秒计。</td><td></td></tr>
 <tr><td>tls-allow-insecure</td><td>允许不安全的 tls 连接。</td><td>false</td></tr>
 <tr><td>tls-trust-cert-path</td><td>tls 信任证书文件路径。</td><td></td></tr>
@@ -146,8 +146,8 @@
 <tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http /https /file（文件协议假定该文件在工作主机上已经存在）]，工作人员可以从中下载软件包。</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>应该放弃多少次来尝试处理一条消息。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
 <tr><td>output</td><td>Pulsar Function 的输出主题 (如果没有指定，即没有输出)。</td><td></td></tr>
 <tr><td>output-serde-classname</td><td>该函数用于输出消息的SerDe类。</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
@@ -159,7 +159,7 @@
 <tr><td>sliding-interval-count</td><td>窗口滑动之后的消息数。</td><td></td></tr>
 <tr><td>sliding-interval-duration-ms</td><td>窗口滑动之后的持续时间。</td><td></td></tr>
 <tr><td>subs-name</td><td>如果用户想要输入主题使用者的特定订阅名称，则为 Pulsar 源订阅名称。</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 <tr><td>timeout-ms</td><td>消息超时以毫秒计。</td><td></td></tr>
 <tr><td>topics-pattern</td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 在--custom-serde-inputs 中添加模式的 SerDe 类名称（仅 Java 功能支持）。</td><td></td></tr>
 <tr><td>user-config</td><td>用户定义的配置键/值。</td><td></td></tr>
@@ -175,9 +175,9 @@
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>该功能的完全限定 Function 名称（FQFN）。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>update</h2>
@@ -201,8 +201,8 @@
 <tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http /https /file（文件协议假定该文件在工作主机上已经存在）]，工作人员可以从中下载软件包。</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>应该放弃多少次来尝试处理一条消息。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
 <tr><td>output</td><td>Pulsar Function 的输出主题 (如果没有指定，即没有输出)。</td><td></td></tr>
 <tr><td>output-serde-classname</td><td>该函数用于输出消息的SerDe类。</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
@@ -214,7 +214,7 @@
 <tr><td>sliding-interval-count</td><td>窗口滑动之后的消息数。</td><td></td></tr>
 <tr><td>sliding-interval-duration-ms</td><td>窗口滑动之后的持续时间。</td><td></td></tr>
 <tr><td>subs-name</td><td>如果用户想要输入主题使用者的特定订阅名称，则为 Pulsar 源订阅名称。</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 <tr><td>timeout-ms</td><td>消息超时以毫秒计。</td><td></td></tr>
 <tr><td>topics-pattern</td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. 在--custom-serde-inputs 中添加模式的 SerDe 类名称（仅 Java 功能支持）。</td><td></td></tr>
 <tr><td>update-auth-data</td><td>Whether or not to update the auth data.</td><td>false</td></tr>
@@ -231,9 +231,9 @@
 </thead>
 <tbody>
 <tr><td>fqfn</td><td>该功能的完全限定 Function 名称（FQFN）。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>restart</h2>
@@ -245,9 +245,9 @@
 <tbody>
 <tr><td>fqfn</td><td>该功能的完全限定 Function 名称（FQFN）。</td><td></td></tr>
 <tr><td>instance-id</td><td>函数 instanceId (如果没有提供实例id，请重新启动所有实例。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>stop</h2>
@@ -259,9 +259,9 @@
 <tbody>
 <tr><td>fqfn</td><td>该功能的完全限定 Function 名称（FQFN）。</td><td></td></tr>
 <tr><td>instance-id</td><td>函数 instanceId (如果没有提供实例id，请重新启动所有实例。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>start</h2>
@@ -273,9 +273,9 @@
 <tbody>
 <tr><td>fqfn</td><td>该功能的完全限定 Function 名称（FQFN）。</td><td></td></tr>
 <tr><td>instance-id</td><td>函数 instanceId (如果没有提供实例id，请重新启动所有实例。</td><td></td></tr>
-<tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
-<tr><td>namespace</td><td>The namespace of a Pulsar Function.</td><td></td></tr>
-<tr><td>tenant</td><td>The tenant of a Pulsar Function.</td><td></td></tr>
+<tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
+<tr><td>namespace</td><td>Pulsar Function 的命名空间。</td><td></td></tr>
+<tr><td>tenant</td><td>Pulsar Function 的租户</td><td></td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/functions-troubleshoot"><span class="arrow-prev">← </span><span>上一页</span></a><a class="docs-next button" href="/docs/zh-CN/io-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#localrun">localrun</a></li><li><a href="#create">create</a></li><li><a href="#delete">delete</a></li><li><a href="#update">update</a></li><li><a href="#get">get</a></li><li><a href="#restart">restart</a></li><li><a href="#stop">stop</a></li><li><a href="#start">start</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
