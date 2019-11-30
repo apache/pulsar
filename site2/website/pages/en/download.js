@@ -47,7 +47,7 @@ function connectorDownloadUrl(name, version) {
 }
 
 function getLatestPulsarManagerArchiveMirrorUrl(version, type) {
-  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-manager/apache-pulsar-manager-${version}-${type}.tar.gz`
+  return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-manager/pulsar-manager-${version}/apache-pulsar-manager-${version}-${type}.tar.gz`
 }
 
 function pulsarManagerDistUrl(version, type) {
