@@ -144,6 +144,7 @@ where command is one of:
     initialize-transaction-coordinator-metadata     One-time transaction coordinator metadata initialization
     compact-topic       Run compaction against a topic
     zookeeper-shell     Open a ZK shell client
+    broker-tool         CLI to operate a specific broker
     tokens              Utility to create authentication tokens
 
     help                This help message
@@ -339,6 +340,8 @@ elif [ $COMMAND == "initialize-transaction-coordinator-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
+elif [ $COMMAND == "broker-tool" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.broker.tools.BrokerTool $@
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
