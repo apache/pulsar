@@ -1056,7 +1056,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
-        <version>1.18.4</version>
+        <version>1.18.10</version>
       </dependency>
 
       <dependency>
