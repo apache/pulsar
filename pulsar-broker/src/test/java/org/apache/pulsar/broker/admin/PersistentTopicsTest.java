@@ -342,11 +342,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
                 partitionedTopicName);
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName = TopicName.get(partitionedTopicName);
+        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
+                partitionedTopicName);
         for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
             Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
-                    testNamespace, partition.toString());
+                    testNamespace, partition.getEncodedLocalName());
             Assert.assertEquals(partitionPermissions.get(role), expectActions);
         }
     }
@@ -378,11 +379,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
                 partitionedTopicName);
         Assert.assertEquals(permissions.get(role), null);
-        TopicName topicName = TopicName.get(partitionedTopicName);
+        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
+                partitionedTopicName);
         for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
             Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
-                    testNamespace, partition.toString());
+                    testNamespace, partition.getEncodedLocalName());
             Assert.assertEquals(partitionPermissions.get(role), null);
         }
     }
