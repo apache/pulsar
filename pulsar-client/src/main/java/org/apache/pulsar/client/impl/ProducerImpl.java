@@ -166,7 +166,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } catch (CryptoException e) {
                     if (!producerCreatedFuture.isDone()) {
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
-                        producerCreatedFuture.completeExceptionally(e);
+                        producerCreatedFuture.completeExceptionally(
+                            new PulsarClientException.WrapperException(
+                                String.format("[%s] Failed to add public key cipher.", topic), e));
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);

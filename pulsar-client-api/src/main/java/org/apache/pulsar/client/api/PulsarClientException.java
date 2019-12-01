@@ -577,8 +577,25 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Wrap an exception for enriching more info messages.
+     */
+    public static class WrapperException extends Exception {
+        /**
+         * Constructs an {@code WrapperException} with the specified detail message and cause.
+         *
+         * @param msg
+         * @param throwable
+         */
+        public WrapperException(String msg, Throwable throwable) {
+            super(msg, throwable);
+        }
+    }
+
     public static PulsarClientException unwrap(Throwable t) {
-        if (t instanceof PulsarClientException) {
+        if (t instanceof WrapperException) {
+            return unwrap(t.getCause());
+        } else if (t instanceof PulsarClientException) {
             return (PulsarClientException) t;
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
