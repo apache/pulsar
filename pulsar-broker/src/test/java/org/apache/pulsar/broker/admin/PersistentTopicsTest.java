@@ -333,10 +333,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testGrantPartitionedTopic() {
         final String partitionedTopicName = "partitioned-topic";
         final int numPartitions = 5;
-        LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
-        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
-        doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
 
         String role = "role";
@@ -346,8 +342,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
                 partitionedTopicName);
         Assert.assertEquals(permissions.get(role), expectActions);
-        TopicName topicName=TopicName.get(partitionedTopicName);
-        for (int i=0; i<numPartitions; i++) {
+        TopicName topicName = TopicName.get(partitionedTopicName);
+        for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
             Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
                     testNamespace, partition.toString());
@@ -372,10 +368,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testRevokePartitionedTopic() {
         final String partitionedTopicName = "partitioned-topic";
         final int numPartitions = 5;
-        LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
-        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
-        doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
 
         String role = "role";
@@ -386,8 +378,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
                 partitionedTopicName);
         Assert.assertEquals(permissions.get(role), null);
-        TopicName topicName=TopicName.get(partitionedTopicName);
-        for (int i=0; i<numPartitions; i++) {
+        TopicName topicName = TopicName.get(partitionedTopicName);
+        for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
             Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
                     testNamespace, partition.toString());
