@@ -168,7 +168,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
                         producerCreatedFuture.completeExceptionally(
                             new PulsarClientException.WrapperException(
-                                String.format("[%s] Failed to add public key cipher.", topic), e));
+                                String.format("[%s] Failed to add public key cipher", topic), e));
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
@@ -348,7 +348,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                            ? "Compressed"
                                            : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                    format("[%s] %s Message payload size %d cannot exceed %d bytes", topic, compressedStr, compressedSize,
+                    format("[%s][%s] Message payload size %d cannot exceed %d bytes", topic, compressedStr, compressedSize,
                         ClientCnx.getMaxMessageSize()));
                 callback.sendComplete(invalidMessageException);
                 return;
