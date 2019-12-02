@@ -282,8 +282,13 @@ public class ConnectionPool implements Closeable {
 
     @Override
     public void close() throws IOException {
+        try {
+            eventLoopGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).await();
+        } catch (InterruptedException e) {
+            log.warn("EventLoopGroup shutdown was interrupted", e);
+        }
+
         dnsResolver.close();
-        eventLoopGroup.shutdown();
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,
