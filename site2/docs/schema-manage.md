@@ -50,7 +50,7 @@ For a producer, the `AutoUpdate` happens in the following cases:
         
             * If the schema does not pass the compatibility check, then the broker does not register a schema and the producer is rejected to connect to a broker.
 
-![AutoUpdate Producer](assets/schema-autoupdate-producer.png)
+![AutoUpdate Producer](assets/schema-producer.png)
 
 ### AutoUpdate for consumer
 
@@ -72,7 +72,7 @@ For a consumer, the `AutoUpdate` happens in the following cases:
         
         * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.
         
-![AutoUpdate Consumer](assets/schema-autoupdate-consumer.png)
+![AutoUpdate Consumer](assets/schema-consumer.png)
         
 
 ### Manage AutoUpdate strategy

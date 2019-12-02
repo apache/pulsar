@@ -571,11 +571,21 @@ This diagram illustrates how does Schema work on the consumer side.
     The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
-   
-3. If the schema is compatible, the consumer is connected to the broker. 
-   
-4. If the schema is incompatible, the consumer is disconnected to the broker.
 
-5. The consumer receives the messages from the broker. 
+3. The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).
 
-   If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  `SchemaInfo` of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
+4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
+    
+      * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+        
+      * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
+        
+5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
+    
+      * If the schema passes the compatibility check, then the consumer is connected to the broker.
+        
+      * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker. 
+
+6. The consumer receives messages from the broker. 
+
+    If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the `SchemaInfo` of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.
