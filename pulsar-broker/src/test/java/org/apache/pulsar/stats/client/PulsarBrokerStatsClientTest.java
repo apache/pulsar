@@ -142,12 +142,10 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name";
 
-
-
         try {
-            String url = "http://localhost:51000,localhost:" + BROKER_WEBSERVICE_PORT;
+            String url = "http://localhost:" + BROKER_WEBSERVICE_PORT;
             if (isTcpLookup) {
-                url = "pulsar://localhost:51000,localhost:" + BROKER_PORT;
+                url = "pulsar://localhost:" + BROKER_PORT;
             }
             PulsarClient client = newPulsarClient(url, 0);
 
