@@ -657,9 +657,9 @@ public class PulsarClientImpl implements PulsarClient {
             TopicName topicName = TopicName.get(topic);
             AtomicLong opTimeoutMs = new AtomicLong(conf.getOperationTimeoutMs());
             Backoff backoff = new BackoffBuilder()
-                    .setInitialTime(TimeUnit.MILLISECONDS.toNanos(100), TimeUnit.NANOSECONDS)
+                    .setInitialTime(100, TimeUnit.NANOSECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(TimeUnit.SECONDS.toNanos(60), TimeUnit.NANOSECONDS)
+                    .setMax(0, TimeUnit.NANOSECONDS)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {
