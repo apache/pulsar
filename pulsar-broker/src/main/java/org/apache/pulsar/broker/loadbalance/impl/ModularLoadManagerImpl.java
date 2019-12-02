@@ -869,6 +869,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             updateLocalBrokerData();
             if (needBrokerDataUpdate()) {
                 localData.setLastUpdate(System.currentTimeMillis());
+                createZPathIfNotExists(zkClient,brokerZnodePath);
                 zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
 
                 // Clear deltas.
