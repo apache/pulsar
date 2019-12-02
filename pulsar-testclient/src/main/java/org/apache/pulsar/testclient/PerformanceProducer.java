@@ -87,8 +87,8 @@ public class PerformanceProducer {
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     static class Arguments {
 
@@ -521,6 +521,11 @@ public class PerformanceProducer {
                             cumulativeRecorder.recordValue(latencyMicros);
                         }
                     }).exceptionally(ex -> {
+                        // Ignore the exception of recorder since a very large latencyMicros will lead
+                        // ArrayIndexOutOfBoundsException in AbstractHistogram
+                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                            return null;
+                        }
                         log.warn("Write error on message", ex);
                         messagesFailed.increment();
                         if (arguments.exitOnFailure) {
