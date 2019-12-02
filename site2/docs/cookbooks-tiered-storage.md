@@ -209,6 +209,7 @@ fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
 ```
 
 The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can use all of the configurations in `org.apache.hadoop.io.MapFile` for Hadoop.
+
 **Example**
 
 ```conf
