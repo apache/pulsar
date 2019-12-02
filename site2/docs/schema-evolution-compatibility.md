@@ -46,7 +46,7 @@ For more information, see [Schema compatibility check strategy](#schema-compatib
 
 ## Schema compatibility check strategy
 
-Pulsar has 9 schema compatibility check strategies, which are summarized in the following table.
+Pulsar has 8 schema compatibility check strategies, which are summarized in the following table.
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 

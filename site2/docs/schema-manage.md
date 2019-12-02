@@ -98,7 +98,7 @@ bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/name
 To disable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disabled tenant/namespace
+bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disable tenant/namespace
 ```
 
 Once the `AutoUpdate` is disabled, you can only register a new schema using the `pulsar-admin` command.
