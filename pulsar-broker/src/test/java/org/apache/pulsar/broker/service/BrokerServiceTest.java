@@ -389,7 +389,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         JsonObject topicStats = brokerStatsClient.getTopics();
-        assertEquals(topicStats.size(), 2, topicStats.toString());
+        // original topics and system topic for namespace event change
+        assertEquals(topicStats.size(), 3, topicStats.toString());
 
         for (String ns : nsList) {
             JsonObject nsObject = topicStats.getAsJsonObject(ns);

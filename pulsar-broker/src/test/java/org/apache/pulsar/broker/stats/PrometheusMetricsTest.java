@@ -104,8 +104,22 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // There should be 2 metrics with different tags for each topic
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
-        // 2 topics and 1 system topic
-        assertEquals(cm.size(), 2 + 1);
+        cm.removeIf(f -> {
+            String topicName = f.tags.get("topic");
+            if (StringUtils.isNotBlank(topicName)) {
+                return SystemTopicClient.isSystemTopic(TopicName.get(topicName));
+            } else {
+                return false;
+            }
+        });        // 2 topics and 1 system topic
+        assertEquals(cm.size(), 2);
+
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+
+        cm = (List<Metric>) metrics.get("pulsar_producers_count");
         cm.removeIf(f -> {
             String topicName = f.tags.get("topic");
             if (StringUtils.isNotBlank(topicName)) {
@@ -114,15 +128,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 return false;
             }
         });
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-
-        cm = (List<Metric>) metrics.get("pulsar_producers_count");
 
         // 3 topics and 1 system topic
-        assertEquals(cm.size(), 3 + 1);
+        assertEquals(cm.size(), 3);
         cm.removeIf(f -> {
             String topicName = f.tags.get("topic");
             if (StringUtils.isNotBlank(topicName)) {
@@ -141,8 +149,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         cm = (List<Metric>) metrics.get("topic_load_times_count");
         assertEquals(cm.size(), 1);
 
-        // add 1.0 for system topic
-        assertEquals(cm.get(0).value, 2.0 + 1.0);
+        // add 2.0 for system topic
+        assertEquals(cm.get(0).value, 4.0);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
@@ -223,14 +231,30 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // There should be 1 metric aggregated per namespace
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
-        assertEquals(cm.size(), 1);
-        assertNull(cm.get(0).tags.get("topic"));
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
 
-        cm = (List<Metric>) metrics.get("pulsar_producers_count");
         assertEquals(cm.size(), 2);
         assertNull(cm.get(1).tags.get("topic"));
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+
+        for (Metric metric : cm) {
+            assertNull(metric.tags.get("topic"));
+            assertTrue(metric.tags.get("namespace").equals("my-property/use/my-ns")
+                    || metric.tags.get("namespace").startsWith("pulsar/test"));
+        }
+        cm = (List<Metric>) metrics.get("pulsar_producers_count");
+        assertEquals(cm.size(), 3);
+        for (Metric metric : cm) {
+            if (metric.tags.get("namespaces") != null) {
+                if (metric.tags.get("namespace").equals("my-property/use/my-ns")) {
+                    assertEquals(metric.value, 2.0);
+                } else {
+                    assertEquals(metric.value, 0.0);
+                }
+                assertTrue(metric.tags.get("namespace").equals("my-property/use/my-ns")
+                        || metric.tags.get("namespace").startsWith("pulsar/test"));
+            }
+            assertNull(metric.tags.get("topic"));
+        }
 
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
         assertEquals(cm.size(), 1);
