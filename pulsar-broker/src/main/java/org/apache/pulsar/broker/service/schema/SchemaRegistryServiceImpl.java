@@ -111,7 +111,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
+                                                              SchemaCompatibilityStrategy strategy,
+                                                              boolean isAllowCreateSchema) {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
             final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
             SchemaVersion schemaVersion;
@@ -122,6 +123,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     completableFuture.complete(schemaVersion);
                     return completableFuture;
                 }
+            }
+            if (!isAllowCreateSchema) {
+                completableFuture
+                        .completeExceptionally(new IncompatibleSchemaException("Don't allow auto update schema."));
+                return completableFuture;
             }
             CompletableFuture<Void> checkCompatibilityFurture = new CompletableFuture<>();
             if (schemaAndMetadataList.size() != 0) {

@@ -185,13 +185,10 @@ public abstract class AbstractTopic implements Topic {
 
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
-        if (isAllowAutoUpdateSchema) {
-            return brokerService.pulsar()
-                    .getSchemaRegistryService()
-                    .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
-        } else {
-            return FutureUtil.failedFuture(new IncompatibleSchemaException("Don't allow auto update schema."));
-        }
+        return brokerService.pulsar()
+                .getSchemaRegistryService()
+                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy, isAllowAutoUpdateSchema);
+
     }
 
     @Override

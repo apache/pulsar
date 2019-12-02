@@ -80,13 +80,14 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId,
                                                               SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
+                                                              SchemaCompatibilityStrategy strategy,
+                                                              boolean isAllowCreateSchema) {
         try {
             SchemaDataValidator.validateSchemaData(schema);
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
-        return service.putSchemaIfAbsent(schemaId, schema, strategy);
+        return service.putSchemaIfAbsent(schemaId, schema, strategy, isAllowCreateSchema);
     }
 
     @Override
