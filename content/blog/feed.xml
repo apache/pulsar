@@ -6,7 +6,7 @@
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
         <lastBuildDate>Fri, 05 Jul 2019 06:00:00 GMT</lastBuildDate>
         <docs>http://blogs.law.harvard.edu/tech/rss</docs>
-        <generator>Feed for Node.js</generator>
+        <generator>https://github.com/jpmonette/feed</generator>
         <image>
             <title>Apache Pulsar Blog</title>
             <url>https://pulsar.incubator.apache.org/img/pulsar.svg</url>

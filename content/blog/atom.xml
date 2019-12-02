@@ -2,8 +2,8 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2019-07-05T06:00:00Z</updated>
-    <generator>Feed for Node.js</generator>
+    <updated>2019-07-05T06:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
@@ -11,9 +11,8 @@
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.4.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html</id>
-        <link href="https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html">
-        </link>
-        <updated>2019-07-05T06:00:00Z</updated>
+        <link href="https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html"/>
+        <updated>2019-07-05T06:00:00.000Z</updated>
         <summary type="html"><![CDATA[<p>We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge
 effort from the community, with over 460 commits and a long list of new features,
 general improvements and bug fixes.</p>
@@ -23,15 +22,15 @@ the changes, with links to the relevant pull requests, discussions and documenta
 ]]></summary>
         <author>
             <name>Penghui Li</name>
+            <email/>
             <uri>https://twitter.com/lipenghui6</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.3.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html</id>
-        <link href="https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html">
-        </link>
-        <updated>2019-02-20T06:00:00Z</updated>
+        <link href="https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html"/>
+        <updated>2019-02-20T06:00:00.000Z</updated>
         <summary type="html"><![CDATA[<p>The Apache Pulsar PMC is happy to announce the release of Pulsar 2.3.0. This
 is the result of huge effort from the community, with over 480 commits and
 a long list of new features, general improvements and bug fixes.</p>
@@ -46,15 +45,15 @@ subset of them:</p>
 ]]></summary>
         <author>
             <name>Matteo Merli</name>
+            <email/>
             <uri>https://twitter.com/merlimat</uri>
         </author>
     </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.1.0-incubating]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html</id>
-        <link href="https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html">
-        </link>
-        <updated>2018-08-06T06:00:00Z</updated>
+        <link href="https://pulsar.incubator.apache.org/blog/2018/08/06/Apache-Pulsar-2-1-0.html"/>
+        <updated>2018-08-06T06:00:00.000Z</updated>
         <summary type="html"><![CDATA[<p>We are glad to present the new 2.1.0-incubating release of Pulsar.
 This release is the culmination of 2 months of work that have
 brought multiple new features and improvements to Pulsar.</p>
@@ -71,6 +70,7 @@ and <a href="https://github.com/apache/incubator-pulsar/blob/v2.1.0-incubating/p
 ]]></summary>
         <author>
             <name>Sijie Guo</name>
+            <email/>
             <uri>https://twitter.com/sijieg</uri>
         </author>
     </entry>
