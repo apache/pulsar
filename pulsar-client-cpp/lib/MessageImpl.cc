@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_() {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_(), redeliveryCount_() {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -91,5 +91,9 @@ void MessageImpl::setTopicName(const std::string& topicName) {
 }
 
 const std::string& MessageImpl::getTopicName() { return *topicName_; }
+
+int MessageImpl::getRedeliveryCount() { return redeliveryCount_; }
+
+void MessageImpl::setRedeliveryCount(int count) { redeliveryCount_ = count; }
 
 }  // namespace pulsar

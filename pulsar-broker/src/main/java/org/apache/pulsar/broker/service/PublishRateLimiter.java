@@ -34,7 +34,7 @@ public interface PublishRateLimiter {
 
     /**
      * increments current publish count.
-     *  
+     *
      * @param numOfMessages
      * @param msgSizeInBytes
      */
@@ -42,7 +42,7 @@ public interface PublishRateLimiter {
 
     /**
      * reset current publish count.
-     * 
+     *
      * @return
      */
     boolean resetPublishCount();
@@ -60,6 +60,12 @@ public interface PublishRateLimiter {
      */
     void update(Policies policies, String clusterName);
 
+    /**
+     * updates rate-limiting threshold based on passed in rate limiter.
+     * @param policies
+     * @param clusterName
+     */
+    void update(PublishRate maxPublishRate);
 }
 
 class PublishRateLimiterImpl implements PublishRateLimiter {
@@ -72,6 +78,10 @@ class PublishRateLimiterImpl implements PublishRateLimiter {
 
     public PublishRateLimiterImpl(Policies policies, String clusterName) {
         update(policies, clusterName);
+    }
+
+    public PublishRateLimiterImpl(PublishRate maxPublishRate) {
+        update(maxPublishRate);
     }
 
     @Override
@@ -128,6 +138,21 @@ class PublishRateLimiterImpl implements PublishRateLimiter {
             resetPublishCount();
         }
     }
+
+    public void update(PublishRate maxPublishRate) {
+        if (maxPublishRate != null
+            && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
+            this.publishThrottlingEnabled = true;
+            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
+            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
+            resetPublishCount();
+        } else {
+            this.publishMaxMessageRate = 0;
+            this.publishMaxByteRate = 0;
+            this.publishThrottlingEnabled = false;
+            resetPublishCount();
+        }
+    }
 }
 
 class PublishRateLimiterDisable implements PublishRateLimiter {
@@ -160,4 +185,8 @@ class PublishRateLimiterDisable implements PublishRateLimiter {
         // No-op
     }
 
+    @Override
+    public void update(PublishRate maxPublishRate) {
+        // No-op
+    }
 }

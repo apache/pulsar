@@ -50,7 +50,7 @@ Learn more about Pulsar at https://pulsar.apache.org
 
 Requirements:
  * Java JDK 1.8
- * Maven
+ * Maven 3.3.9+
 
 Compile and install:
 

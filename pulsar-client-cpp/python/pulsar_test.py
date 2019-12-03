@@ -174,6 +174,23 @@ class PulsarTest(TestCase):
         consumer.unsubscribe()
         client.close()
 
+    def test_consumer_queue_size_is_zero(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-consumer-init-queue-size-is-zero',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    receiver_queue_size=0,
+                                    initial_position=InitialPosition.Earliest)
+        producer = client.create_producer('my-python-topic-consumer-init-queue-size-is-zero')
+        producer.send(b'hello')
+        time.sleep(0.1)
+        msg = consumer.receive()
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        consumer.unsubscribe()
+        client.close()
+
     def test_message_properties(self):
         client = Client(self.serviceUrl)
         topic = 'my-python-test-message-properties'

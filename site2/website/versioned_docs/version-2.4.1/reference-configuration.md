@@ -219,7 +219,6 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |defaultRetentionTimeInMinutes| Default message retention time  ||
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|  How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected) |60|
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
@@ -393,7 +392,6 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|    |60|
 
 
 

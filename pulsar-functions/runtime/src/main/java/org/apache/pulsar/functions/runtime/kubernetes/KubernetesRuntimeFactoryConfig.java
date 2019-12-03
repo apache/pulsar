@@ -125,4 +125,14 @@ public class KubernetesRuntimeFactoryConfig {
                     "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
     )
     protected double memoryOverCommitRatio = 1.0;
+
+    @FieldContext(
+      doc = "The port inside the function pod which is used by the worker to communicate with the pod"
+    )
+    private Integer grpcPort = 9093;
+
+    @FieldContext(
+      doc = "The port inside the function pod on which prometheus metrics are exposed"
+    )
+    private Integer metricsPort = 9094;
 }
