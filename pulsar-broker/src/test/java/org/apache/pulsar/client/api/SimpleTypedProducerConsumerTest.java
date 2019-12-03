@@ -131,8 +131,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .data(jsonSchema.getSchemaInfo().getSchema())
                     .props(Collections.emptyMap())
                     .build(),
-                SchemaCompatibilityStrategy.FULL,
-                    true
+                SchemaCompatibilityStrategy.FULL
             ).get();
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
@@ -175,8 +174,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                         .data(randomSchemaBytes)
                         .props(Collections.emptyMap())
                         .build(),
-                    SchemaCompatibilityStrategy.FULL,
-                        true
+                    SchemaCompatibilityStrategy.FULL
                 ).get();
             fail("Should fail to add corrupted schema data");
         } catch (Exception e) {
@@ -252,8 +250,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                                 .data(schema.getSchemaInfo().getSchema())
                                 .props(Collections.emptyMap())
                                 .build(),
-                        SchemaCompatibilityStrategy.FULL,
-                        true
+                        SchemaCompatibilityStrategy.FULL
                 ).get();
 
         Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong> consumer = pulsarClient
@@ -338,8 +335,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                     .data(randomSchemaBytes)
                     .props(Collections.emptyMap())
                     .build(),
-                SchemaCompatibilityStrategy.FULL,
-                    true
+                SchemaCompatibilityStrategy.FULL
             ).get();
         Consumer<AvroEncodedPojo> consumer = pulsarClient
             .newConsumer(AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().

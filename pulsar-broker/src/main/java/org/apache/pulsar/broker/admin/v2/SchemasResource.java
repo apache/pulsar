@@ -337,8 +337,7 @@ public class SchemasResource extends AdminResource {
                     .user(defaultIfEmpty(clientAppId(), ""))
                     .props(payload.getProperties())
                     .build(),
-                schemaCompatibilityStrategy,
-                    true
+                schemaCompatibilityStrategy
             ).thenAccept(version ->
                     response.resume(
                             Response.accepted().entity(

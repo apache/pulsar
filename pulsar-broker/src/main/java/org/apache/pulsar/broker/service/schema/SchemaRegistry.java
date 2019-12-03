@@ -37,8 +37,7 @@ public interface SchemaRegistry extends AutoCloseable {
     CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId);
 
     CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                       SchemaCompatibilityStrategy strategy,
-                                                       boolean isAllowCreateSchema);
+                                                       SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
 
@@ -54,6 +53,9 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
                                                        SchemaCompatibilityStrategy strategy);
+
+    CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                  SchemaData schemaData);
 
     SchemaVersion versionFromBytes(byte[] version);
 
