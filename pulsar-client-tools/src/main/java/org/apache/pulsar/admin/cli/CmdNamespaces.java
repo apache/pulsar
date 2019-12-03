@@ -1082,7 +1082,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace", hidden = true)
     private class GetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1095,7 +1095,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace", hidden = true)
     private class SetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;

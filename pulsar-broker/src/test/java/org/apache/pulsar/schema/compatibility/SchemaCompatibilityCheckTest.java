@@ -45,6 +45,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 
 @Slf4j
@@ -233,6 +234,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet(CLUSTER_NAME)
         );
 
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+                SchemaCompatibilityStrategy.FULL);
+        
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
