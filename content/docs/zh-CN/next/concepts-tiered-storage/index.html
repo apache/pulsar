@@ -81,7 +81,7 @@
 <blockquote>
 <p>默认情况下写入到BookKeeper的数据有三个物理机器作为副本。 但是，一旦一个段被BookKeep封上后，该段就变得不可改变，此时可以复制到长期存储中去了。 长期存储可以达到节省存储的目的，通过使用如 <a href="https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction">Reed-Solomon error correction</a> 的机制，只需更少的物理数据备份。</p>
 </blockquote>
-<p>Pulsar目前支持亚马逊的S3以及Google云存储GCS来作为长期存储。 可以通过Rest API或者命令行接口，将数据从短期数据卸载Offloading长期存储。 用户传入他们想要保留在BookKeeper上的大量Topic数据，Broker会复制backlog数据到长期存储。 通过一个可配置的延时（默认是4小时），与那时数据会从BookKeeper上被删除。</p></p>
+<p>Pulsar currently supports S3, Google Cloud Storage (GCS), and filesystem for <a href="https://pulsar.apache.org/docs/en/cookbooks-tiered-storage/">long term store</a>. 可以通过Rest API或者命令行接口，将数据从短期数据卸载Offloading长期存储。 用户传入他们想要保留在BookKeeper上的大量Topic数据，Broker会复制backlog数据到长期存储。 通过一个可配置的延时（默认是4小时），与那时数据会从BookKeeper上被删除。</p>
 <blockquote>
 <p>搭建分层存储的指导，请参考 <a href="/docs/zh-CN/next/cookbooks-tiered-storage">Tiered storage cookbook</a>。</p>
 </blockquote>
