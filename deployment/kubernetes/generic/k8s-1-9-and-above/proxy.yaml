@@ -23,10 +23,10 @@ kind: ConfigMap
 metadata:
     name: proxy-config
 data:
-    PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
-    zookeeperServers: zookeeper
-    configurationStoreServers: zookeeper
-    clusterName: local
+    PULSAR_PREFIX_PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
+    PULSAR_PREFIX_zookeeperServers: zookeeper
+    PULSAR_PREFIX_configurationStoreServers: zookeeper
+    PULSAR_PREFIX_clusterName: local
 ---
 ##
 ## Expose all nodes on port so that you can reach cluster from outside k8
