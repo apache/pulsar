@@ -289,6 +289,11 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
+	// Clear StrEntry regardless gi.context.logAppender is set or not
+	defer func() {
+		log.StrEntry = nil
+	}()
+
 	if gi.context.logAppender == nil {
 		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
