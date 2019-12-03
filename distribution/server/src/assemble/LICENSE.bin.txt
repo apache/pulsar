@@ -314,14 +314,14 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.9.9.jar
-     - com.fasterxml.jackson.core-jackson-core-2.9.9.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.9.9.3.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.9.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.9.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.9.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.9.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.10.1.jar
+     - com.fasterxml.jackson.core-jackson-core-2.10.1.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.10.1.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.10.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.10.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.10.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.10.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.10.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
@@ -429,7 +429,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-common-9.4.20.v20190813.jar
     - org.eclipse.jetty.websocket-websocket-server-9.4.20.v20190813.jar
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.20.v20190813.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.23.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.24.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
@@ -557,6 +557,10 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.jersey.media-jersey-media-multipart-2.27.jar
     - org.glassfish.jersey.inject-jersey-hk2-2.27.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
+
+Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
+ * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
