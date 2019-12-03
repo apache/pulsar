@@ -44,6 +44,7 @@ public class AvroSchema<T> extends StructSchema<T> {
     //      the aim to fix avro's bug
 //      https://issues.apache.org/jira/browse/AVRO-1891  bug address explain
 //      fix the avro logical type read and write
+    /*
     static {
         try {
             ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
@@ -74,6 +75,7 @@ public class AvroSchema<T> extends StructSchema<T> {
             }
         }
     }
+    */
 
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
