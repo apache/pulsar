@@ -254,7 +254,7 @@ public class BinaryProtoLookupService implements LookupService {
             if (nextDelay <= 0) {
                 topicsFuture.completeExceptionally(
                     new PulsarClientException.TimeoutException(
-                        format("[%s] Could not getTopicsUnderNamespace within configured timeout",
+                        format("Could not get topics of namespace %s within configured timeout",
                             namespace.toString())));
                 return null;
             }
