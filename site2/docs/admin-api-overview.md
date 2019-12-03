@@ -30,6 +30,14 @@ In this document, examples from each of the three available interfaces will be s
 
 Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
+> If you are using an old version of a namespace, you need to use `v1` to replace `v2` in the request URL
+if you are requesting the HTTP service directly. If you are using the pulsar-admin to request the v1
+service, you will encounter an exception with HTTP code 405 that shows you are requesting a not supported
+method in the v1 version. About the supported method in the v1, please refer to the
+[v1 Admin API](https://github.com/apache/pulsar/tree/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/admin/v1).
+About the old version of a namespace, please refer to the
+[namespace name changes](https://github.com/apache/pulsar/wiki/PIP-10:-Remove-cluster-for-namespace-and-topic-names).
+
 ### pulsar-admin
 
 If you have [authentication](security-overview.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin.md) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
