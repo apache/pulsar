@@ -158,6 +158,9 @@ SerDe option | When to use
 `PickleSerDe` | When you work with complex, application-specific types and are comfortable with the "best effort" approach of `pickle`.
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.
 
+<!--Go-->
+Currently, the feature is not available in Go.
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Example
@@ -558,6 +561,8 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
+<!--Go--> 
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -701,6 +706,8 @@ class MetricRecorderFunction(Function):
         if input == 11:
             context.record_metric('elevens-count', 1)
 ```
+<!--Go-->
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -715,6 +722,9 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
 You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
+
+> Note  
+> State storage is not available in Go.
 
 ### API
 

@@ -55,7 +55,7 @@ func main() {
 }
 ```
 
-### Key_shared subscription
+### Key_Shared subscription
 
 A new subscription mode `Key_shared` is introduced in 2.4.0. In `Key_shared` subscription mode, 
 one partition could have several consumers to consume messages in parallelism and ensure messages 

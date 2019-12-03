@@ -1442,6 +1442,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void processOpSendMsg(OpSendMsg op) {
+        if (op == null) {
+            return;
+        }
         try {
             if (op.msg != null && isBatchMessagingEnabled()) {
                 batchMessageAndSend();

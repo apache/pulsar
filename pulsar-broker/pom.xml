@@ -103,6 +103,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-tools-framework</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
       <version>${project.version}</version>

@@ -122,3 +122,7 @@ pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message) {
 const char *pulsar_message_get_topic_name(pulsar_message_t *message) {
     return message->message.getTopicName().c_str();
 }
+
+int pulsar_message_get_redelivery_count(pulsar_message_t *message) {
+    return message->message.getRedeliveryCount();
+}

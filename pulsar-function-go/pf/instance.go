@@ -69,8 +69,13 @@ func (gi *goInstance) startFunction(function function) error {
 		return err
 	}
 
+	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)
+	idleTimer := time.NewTimer(idleDuration)
+	defer idleTimer.Stop()
+
 CLOSE:
 	for {
+		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -94,7 +99,7 @@ CLOSE:
 
 			gi.processResult(msgInput, output)
 
-		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)):
+		case <-idleTimer.C:
 			close(channel)
 			break CLOSE
 		}
@@ -107,6 +112,7 @@ CLOSE:
 
 func (gi *goInstance) setupClient() error {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
+
 		URL: gi.context.instanceConf.pulsarServiceURL,
 	})
 	if err != nil {
@@ -271,7 +277,7 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 func (gi *goInstance) setupLogHandler() error {
 	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
 		gi.context.logAppender = NewLogAppender(
-			gi.client,                                         //pulsar client
+			gi.client, //pulsar client
 			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
 			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
 				gi.context.instanceConf.funcDetails.Namespace,

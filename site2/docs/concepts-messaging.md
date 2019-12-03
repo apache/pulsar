@@ -36,7 +36,7 @@ Producers can send messages to brokers either synchronously (sync) or asynchrono
 | Mode       | Description                                                                                                                                                                                                                                                                                                                                                              |
 |:-----------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Sync send  | The producer will wait for acknowledgement from the broker after sending each message. If acknowledgment isn't received then the producer will consider the send operation a failure.                                                                                                                                                                                    |
-| Async send | The producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size [configurable](reference-configuration.md#broker), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer. |
+| Async send | The producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size [configurable](reference-configuration.md#broker)), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer. |
 
 ### Compression
 
@@ -173,7 +173,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram below, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
@@ -202,7 +202,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
-### Key_shared
+### Key_Shared
 
 In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 

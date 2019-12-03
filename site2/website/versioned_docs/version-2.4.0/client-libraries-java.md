@@ -453,7 +453,7 @@ consumer 2 will receive:
 
 `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
-#### Key_shared
+#### Key_Shared
 
 This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 

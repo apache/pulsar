@@ -109,6 +109,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+            return null;
+        }
+
         final int numMessagesInBatch = keyedBatch.messages.size();
         long currentBatchSizeBytes = 0;
         for (MessageImpl<?> message : keyedBatch.messages) {
@@ -120,15 +126,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-            cmd.release();
-            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
-            if (op != null) {
-                op.recycle();
-            }
-            return null;
-        }
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
@@ -241,7 +238,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                 log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
                         sequenceId, t);
             }
-            ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
             clear();
         }
 

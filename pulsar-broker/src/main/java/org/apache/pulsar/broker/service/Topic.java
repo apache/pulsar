@@ -131,12 +131,14 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
-    void checkPublishThrottlingRate();
-    
+    void checkTopicPublishThrottlingRate();
+
     void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-    
-    void resetPublishCountAndEnableReadIfRequired();
-    
+
+    void resetTopicPublishCountAndEnableReadIfRequired();
+
+    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
+
     boolean isPublishRateExceeded();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
