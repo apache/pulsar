@@ -75,7 +75,7 @@ public class ManagedLedgerTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnStatus> getTxnStatus(TxnID txnID) {
+    public CompletableFuture<TxnStatus> getTxnStatusAsync(TxnID txnID) {
         return CompletableFuture.completedFuture(txnMetaMap.get(txnID).status());
     }
 

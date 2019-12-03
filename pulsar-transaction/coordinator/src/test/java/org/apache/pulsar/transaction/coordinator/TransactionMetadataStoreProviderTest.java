@@ -68,7 +68,7 @@ public class TransactionMetadataStoreProviderTest {
     @Test
     public void testGetTxnStatusNotFound() throws Exception {
         try {
-            this.store.getTxnStatus(
+            this.store.getTxnStatusAsync(
                 new TxnID(tcId.getId(), 12345L)).get();
             fail("Should fail to get txn status of a non-existent transaction");
         } catch (ExecutionException ee) {
@@ -79,28 +79,28 @@ public class TransactionMetadataStoreProviderTest {
     @Test
     public void testGetTxnStatusSuccess() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusSuccess() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
         this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // get the new status
-        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.COMMITTING);
     }
 
     @Test
     public void testUpdateTxnStatusNotExpectedStatus() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
@@ -112,14 +112,14 @@ public class TransactionMetadataStoreProviderTest {
         }
 
         // get the txn status, it should be changed.
-        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testUpdateTxnStatusCannotTransition() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         // update the status
@@ -131,14 +131,14 @@ public class TransactionMetadataStoreProviderTest {
         }
 
         // get the txn status, it should be changed.
-        TxnStatus newTxnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus newTxnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(newTxnStatus, TxnStatus.OPEN);
     }
 
     @Test
     public void testAddProducedPartition() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         List<String> partitions = new ArrayList<>();
@@ -192,7 +192,7 @@ public class TransactionMetadataStoreProviderTest {
     @Test
     public void testAddAckedPartition() throws Exception {
         TxnID txnID = this.store.newTransactionAsync().get();
-        TxnStatus txnStatus = this.store.getTxnStatus(txnID).get();
+        TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
         List<TxnSubscription> partitions = new ArrayList<>();

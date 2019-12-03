@@ -48,7 +48,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         while (true) {
             if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID = transactionMetadataStore.newTransactionAsync(1000).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
+                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
@@ -72,10 +72,10 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                         partitions);
 
                 transactionMetadataStore.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
+                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.COMMITTING);
 
                 transactionMetadataStore.updateTxnStatusAsync(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTED);
+                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.COMMITTED);
                 break;
             } else {
                 Thread.sleep(100);
@@ -95,8 +95,8 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
             if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID1 = transactionMetadataStore.newTransactionAsync(1000).get();
                 TxnID txnID2 = transactionMetadataStore.newTransactionAsync(1000).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
+                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID1).get(), TxnStatus.OPEN);
+                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID2).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
