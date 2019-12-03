@@ -121,8 +121,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
     private volatile BatchMessageIdImpl startMessageId;
-    private BatchMessageIdImpl initialStartMessageId;
-    private long startMessageRollbackDurationInSec;
+
+    private final BatchMessageIdImpl initialStartMessageId;
+    private final long startMessageRollbackDurationInSec;
 
     private volatile boolean hasReachedEndOfTopic;
 
