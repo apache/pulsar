@@ -35,7 +35,7 @@ data:
     PULSAR_PREFIX_managedLedgerDefaultAckQuorum: "1"
     # enable pulsar functions
     PULSAR_PREFIX_functionsWorkerEnabled: "true"
-    PULSAR_PREFIX_PF_pulsarFunctionsCluster: local
+    PF_pulsarFunctionsCluster: local
 ---
 ##
 ## Define the Broker headless service
