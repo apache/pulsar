@@ -353,7 +353,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Set the partition switch frequency while batching of messages is enabled and
      * using round-robin routing mode for non-keyed message <i>default: 10</i>.
      *
-     * The time period of partition switch is frequency * batchingMaxPublishDelay. During this period,
+     * <p>The time period of partition switch is frequency * batchingMaxPublishDelay. During this period,
      * all messages arrives will be route to the same partition.
      *
      * @param frequency the frequency of partition switch
