@@ -23,8 +23,8 @@ kind: ConfigMap
 metadata:
     name: zookeeper-config
 data:
-    PULSAR_PREFIX_PULSAR_MEM: "\" -Xms2g -Xmx2g \""
-    PULSAR_PREFIX_PULSAR_GC: "\" -XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
+    PULSAR_MEM: "\" -Xms2g -Xmx2g \""
+    PULSAR_GC: "\" -XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
 ---
 
 ## Define a storage class to ask for SSD

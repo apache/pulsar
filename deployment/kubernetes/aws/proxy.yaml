@@ -22,7 +22,7 @@ kind: ConfigMap
 metadata:
   name: pulsar-proxy-config
 data:
-  PULSAR_PREFIX_PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
+  PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
   PULSAR_PREFIX_brokerServiceURL: pulsar://broker:6650
   PULSAR_PREFIX_brokerWebServiceURL: http://broker:8080
   PULSAR_PREFIX_clusterName: pulsar-eks

@@ -54,7 +54,7 @@ kind: ConfigMap
 metadata:
   name: bookie-config
 data:
-  PULSAR_PREFIX_PULSAR_MEM: "\"-Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
+  PULSAR_MEM: "\"-Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
   PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "2048" # Write cache size (direct memory)
   PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "2048" # Read cache size (direct memory)
   PULSAR_PREFIX_dbStorage_rocksDB_blockCacheSize: "4294967296"
