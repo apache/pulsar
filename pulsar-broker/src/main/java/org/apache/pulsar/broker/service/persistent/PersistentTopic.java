@@ -174,6 +174,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     };
 
     private final AtomicLong pendingWriteOps = new AtomicLong(0);
+    private volatile double lastUpdatedAvgPublishRateInMsg = 0;
+    private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -1283,7 +1285,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
         topicStatsStream.endList();
-
+        // if publish-rate increases (eg: 0 to 1K) then pick max publish-rate and if publish-rate decreases then keep
+        // average rate.
+        lastUpdatedAvgPublishRateInMsg = topicStatsHelper.aggMsgRateIn > lastUpdatedAvgPublishRateInMsg
+                ? topicStatsHelper.aggMsgRateIn
+                : (topicStatsHelper.aggMsgRateIn + lastUpdatedAvgPublishRateInMsg) / 2;
+        lastUpdatedAvgPublishRateInByte = topicStatsHelper.aggMsgThroughputIn > lastUpdatedAvgPublishRateInByte
+                ? topicStatsHelper.aggMsgThroughputIn
+                : (topicStatsHelper.aggMsgThroughputIn + lastUpdatedAvgPublishRateInByte) / 2;
         // Start replicator stats
         topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
@@ -1445,6 +1454,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
         this.addEntryLatencyStatsUsec.reset();
+    }
+
+    public double getLastUpdatedAvgPublishRateInMsg() {
+        return lastUpdatedAvgPublishRateInMsg;
+    }
+
+    public double getLastUpdatedAvgPublishRateInByte() {
+        return lastUpdatedAvgPublishRateInByte;
     }
 
     public TopicStats getStats() {
