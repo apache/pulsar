@@ -104,7 +104,8 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        topic.getProducers().forEach(producer -> {
+        stats.producersCount = 0;
+        topic.getProducers().values().forEach(producer -> {
             if (producer.isRemote()) {
                 AggregatedReplicationStats replStats = stats.replicationStats
                         .computeIfAbsent(producer.getRemoteCluster(), k -> new AggregatedReplicationStats());
@@ -169,7 +170,7 @@ public class NamespaceStatsAggregator {
 
     private static void printDefaultBrokerStats(SimpleTextOutputStream stream, String cluster) {
         // Print metrics with 0 values. This is necessary to have the available brokers being
-        // reported in the brokers dashboard even if they don't have any topic or traffi
+        // reported in the brokers dashboard even if they don't have any topic or traffic
         metric(stream, cluster, "pulsar_topics_count", 0);
         metric(stream, cluster, "pulsar_subscriptions_count", 0);
         metric(stream, cluster, "pulsar_producers_count", 0);

@@ -29,20 +29,20 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestStart(ITestResult result) {
-        System.out.format("------- Starting test %s.%s(%s)-------\n", result.getTestClass(), result.getTestName(),
-                Arrays.toString(result.getParameters()));
+        System.out.format("------- Starting test %s.%s(%s)-------\n", result.getTestClass(),
+                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
-        System.out.format("------- SUCCESS -- %s.%s(%s)-------", result.getTestClass(), result.getTestName(),
-                Arrays.toString(result.getParameters()));
+        System.out.format("------- SUCCESS -- %s.%s(%s)-------", result.getTestClass(),
+                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
-        System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(), result.getTestName(),
-                Arrays.toString(result.getParameters()));
+        System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
+                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
 
         if (result.getThrowable() instanceof ThreadTimeoutException) {
             System.out.println("====== THREAD DUMPS ======");
@@ -52,8 +52,8 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------", result.getTestClass(), result.getTestName(),
-                Arrays.toString(result.getParameters()));
+        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------", result.getTestClass(),
+                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
 
     @Override
@@ -68,6 +68,5 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onFinish(ITestContext context) {
-
     }
 }

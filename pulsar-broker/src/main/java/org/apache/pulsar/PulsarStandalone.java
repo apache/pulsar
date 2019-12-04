@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -272,15 +273,6 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            boolean useTls = workerConfig.isUseTls();
-            String pulsarServiceUrl = useTls
-                    ? PulsarService.brokerUrlTls(config)
-                    : PulsarService.brokerUrl(config);
-            String webServiceUrl = useTls
-                    ? PulsarService.webAddressTls(config)
-                    : PulsarService.webAddress(config);
-            workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
-            workerConfig.setPulsarWebServiceUrl(webServiceUrl);
             if (this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
                 workerConfig.setStateStorageServiceUrl(null);
@@ -306,7 +298,6 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setUseTls(useTls);
             workerConfig.setTlsHostnameVerificationEnable(false);
 
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
@@ -325,6 +316,8 @@ public class PulsarStandalone implements AutoCloseable {
         // Start Broker
         broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
         broker.start();
+
+        broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
 
         URL webServiceUrl = new URL(
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort().get()));

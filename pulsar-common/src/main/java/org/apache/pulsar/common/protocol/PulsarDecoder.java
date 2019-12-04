@@ -48,6 +48,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscriptionR
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
@@ -316,6 +318,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getGetSchemaResponse().recycle();
                 break;
 
+            case GET_OR_CREATE_SCHEMA:
+                checkArgument(cmd.hasGetOrCreateSchema());
+                handleGetOrCreateSchema(cmd.getGetOrCreateSchema());
+                cmd.getGetOrCreateSchema().recycle();
+                break;
+
+            case GET_OR_CREATE_SCHEMA_RESPONSE:
+                checkArgument(cmd.hasGetOrCreateSchemaResponse());
+                handleGetOrCreateSchemaResponse(cmd.getGetOrCreateSchemaResponse());
+                cmd.getGetOrCreateSchemaResponse().recycle();
+                break;
+
             case AUTH_CHALLENGE:
                 checkArgument(cmd.hasAuthChallenge());
                 handleAuthChallenge(cmd.getAuthChallenge());
@@ -547,6 +561,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
         throw new UnsupportedOperationException();
     }
 

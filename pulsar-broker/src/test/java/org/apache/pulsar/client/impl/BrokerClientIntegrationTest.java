@@ -54,6 +54,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import lombok.Cleanup;
+
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -84,6 +86,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -304,7 +307,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @param subType
      * @throws Exception
      */
-    @Test(timeOut = 7000, dataProvider = "subType")
+    @Test(dataProvider = "subType")
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -394,7 +397,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 10000, dataProvider = "subType")
+    @Test(dataProvider = "subType")
     public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
         final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
@@ -412,6 +415,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().setRetention(topicName.getNamespace(), policy);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName.toString())
+                .startMessageIdInclusive()
                 .subscriptionName(subsId).subscriptionType(subType).messageListener((consumer, msg) -> {
                     try {
                         synchronized (received) {
@@ -512,30 +516,31 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testCloseConnectionOnBrokerRejectedRequest() throws Exception {
-
-        final PulsarClient pulsarClient;
-        final PulsarClient pulsarClient2;
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
         final int maxConccurentLookupRequest = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
+        final int concurrentLookupRequests = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
         try {
-            final int concurrentLookupRequests = 20;
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
             startBroker();
             String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-            pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+
+            @Cleanup
+            PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                     .maxNumberOfRejectedRequestPerConnection(0).build();
 
-            pulsarClient2 = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+            @Cleanup
+            PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                     .ioThreads(concurrentLookupRequests).connectionsPerBroker(20).build();
 
             ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
-            ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+
             final int totalProducer = 100;
             CountDownLatch latch = new CountDownLatch(totalProducer * 2);
             AtomicInteger failed = new AtomicInteger(0);
@@ -562,14 +567,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             latch.await(10, TimeUnit.SECONDS);
             // connection must be closed
             assertEquals(failed.get(), 1);
-            try {
-                pulsarClient.close();
-                pulsarClient2.close();
-            } catch (Exception e) {
-                // Ok
-            }
         } finally {
             pulsar.getConfiguration().setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
+            executor.shutdownNow();
         }
     }
 
@@ -585,7 +585,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testMaxConcurrentTopicLoading() throws Exception {
 
         final PulsarClientImpl pulsarClient;
@@ -593,10 +593,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
+        final int concurrentLookupRequests = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
 
         try {
             pulsar.getConfiguration().setAuthorizationEnabled(false);
-            final int concurrentLookupRequests = 20;
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             startBroker();
@@ -612,7 +613,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
-            ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+
             final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
             final int totalProducers = 10;
             CountDownLatch latch = new CountDownLatch(totalProducers);
@@ -638,6 +639,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         } finally {
             // revert back to original value
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
+            executor.shutdownNow();
         }
     }
 
@@ -646,7 +648,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
         final PulsarClient pulsarClient;
@@ -663,7 +665,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // Need broker to throw InternalServerError. so, make global-zk unavailable
         Field globalZkCacheField = PulsarService.class.getDeclaredField("globalZkCache");
         globalZkCacheField.setAccessible(true);
+        GlobalZooKeeperCache oldZkCache = (GlobalZooKeeperCache) globalZkCacheField.get(pulsar);
         globalZkCacheField.set(pulsar, null);
+
+        oldZkCache.close();
 
         try {
             pulsarClient.newProducer().topic(topicName).create();
@@ -704,14 +709,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
         dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
         mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
-
-        try {
-            stopBroker();
-            startBroker();
-            fail("it should have failed due to invalid argument");
-        } catch (Exception e) {
-            // Ok: should have failed due to invalid config value
-        }
     }
 
     static class TimestampEntryCount {
@@ -766,7 +763,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws PulsarClientException
      */
-    @Test(expectedExceptions = PulsarClientException.TimeoutException.class, timeOut = 10000)
+    @Test(expectedExceptions = PulsarClientException.TimeoutException.class)
     public void testOperationTimeout() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
@@ -783,7 +780,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testAddEntryOperationTimeout() throws Exception {
 
         log.info("-- Starting {} test --", methodName);

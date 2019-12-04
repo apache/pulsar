@@ -49,6 +49,7 @@ import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
@@ -265,6 +266,7 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setZkServers("127.0.0.1:" + ZooKeeperDefaultPort);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
+            bsConfs[i].setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
             try {
                 bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
@@ -288,7 +290,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    private void runStreamStorage(CompositeConfiguration conf) throws Exception {
+    public void runStreamStorage(CompositeConfiguration conf) throws Exception {
         String zkServers = "127.0.0.1:" + ZooKeeperDefaultPort;
         String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
@@ -367,6 +369,7 @@ public class LocalBookkeeperEnsemble {
         conf.setNumJournalCallbackThreads(0);
         conf.setServerNumIOThreads(1);
         conf.setNumLongPollWorkerThreads(1);
+        conf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
         runZookeeper(1000);
         initializeZookeper();

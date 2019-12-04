@@ -260,6 +260,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         public int getMetadataFormatVersion() { return 2; }
 
         @Override
+        public long getCToken() {
+            return 0;
+        }
+
+        @Override
         public int getEnsembleSize() {
             return this.ensembleSize;
         }

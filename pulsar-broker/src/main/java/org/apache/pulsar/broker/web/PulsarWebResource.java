@@ -200,8 +200,15 @@ public abstract class PulsarWebResource {
                 }
                 log.debug("Successfully authorized {} (proxied by {}) as super-user",
                           originalPrincipal, appId);
-            } else if (!config().getSuperUserRoles().contains(appId)) {
-                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+            } else {
+                if (config().isAuthorizationEnabled() && !pulsar.getBrokerService()
+                        .getAuthorizationService()
+                        .isSuperUser(appId)
+                        .join()) {
+                    throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+                }
+                log.debug("Successfully authorized {} as super-user",
+                          appId);
             }
         }
     }
@@ -277,14 +284,15 @@ public abstract class PulsarWebResource {
                 }
                 log.debug("Successfully authorized {} (proxied by {}) on tenant {}",
                           originalPrincipal, clientAppId, tenant);
-            } else if (pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)) {
-                // Super-user has access to configure all the policies
-                log.debug("granting access to super-user {} on tenant {}", clientAppId, tenant);
             } else {
-
-                if (!tenantInfo.getAdminRoles().contains(clientAppId)) {
-                    throw new RestException(Status.UNAUTHORIZED,
-                            "Don't have permission to administrate resources on this tenant");
+                if (!pulsar.getBrokerService()
+                        .getAuthorizationService()
+                        .isSuperUser(clientAppId)
+                        .join()) {
+                    if (!tenantInfo.getAdminRoles().contains(clientAppId)) {
+                        throw new RestException(Status.UNAUTHORIZED,
+                                "Don't have permission to administrate resources on this tenant");
+                    }
                 }
 
                 log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);

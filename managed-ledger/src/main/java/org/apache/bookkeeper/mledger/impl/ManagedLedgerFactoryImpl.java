@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,8 +104,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private static final int StatsPeriodSeconds = 60;
 
-    public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration) throws Exception {
-        this(bkClientConfiguration, new ManagedLedgerFactoryConfig());
+    public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, String zkConnection) throws Exception {
+        this(bkClientConfiguration, zkConnection, new ManagedLedgerFactoryConfig());
     }
 
     @SuppressWarnings("deprecation")
@@ -121,6 +122,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this(new DefaultBkFactory(bkClientConfiguration, zkc), true /* isBookkeeperManaged */, zkc, config);
     }
 
+    private ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
+        this(new DefaultBkFactory(clientConfiguration),
+            true,
+            ZooKeeperClient.newBuilder()
+                .connectString(zkConnection)
+                .sessionTimeoutMs(clientConfiguration.getZkTimeout()).build(), config);
+    }
+
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
         this((policyConfig) -> bookKeeper, zooKeeper, new ManagedLedgerFactoryConfig());
     }
@@ -134,7 +143,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             throws Exception {
         this(bookKeeperGroupFactory, false /* isBookkeeperManaged */, zooKeeper, config);
     }
-    
+
     private ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory, boolean isBookkeeperManaged, ZooKeeper zooKeeper,
             ManagedLedgerFactoryConfig config) throws Exception {
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
@@ -174,12 +183,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             bkClient = new BookKeeper(bkClientConfiguration, zkc);
         }
 
+        public DefaultBkFactory(ClientConfiguration bkClientConfiguration) throws InterruptedException, BKException, IOException {
+            bkClient = new BookKeeper(bkClientConfiguration);
+        }
+
         @Override
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
     }
-    
+
     private synchronized void refreshStats() {
         long now = System.nanoTime();
         long period = now - lastStatTimestamp;
@@ -446,8 +459,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
         }
 
-        scheduledExecutor.shutdown();
-        orderedExecutor.shutdown();
+        scheduledExecutor.shutdownNow();
+        orderedExecutor.shutdownNow();
         cacheEvictionExecutor.shutdownNow();
 
         entryCacheManager.clear();
@@ -622,21 +635,21 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         default BookKeeper get() {
             return get(null);
         }
-        
+
         /**
          * Returns Bk-Client for a given ensemblePlacementPolicyMetadata. It returns default bK-client if
          * ensemblePlacementPolicyMetadata is null.
-         * 
+         *
          * @param ensemblePlacementPolicyMetadata
          * @return
          */
         BookKeeper get(EnsemblePlacementPolicyConfig ensemblePlacementPolicyMetadata);
     }
-    
+
     public static class EnsemblePlacementPolicyConfig {
         private final Class<? extends EnsemblePlacementPolicy> policyClass;
         private final Map<String, Object> properties;
-        
+
         public EnsemblePlacementPolicyConfig(Class<? extends EnsemblePlacementPolicy> policyClass,
                 Map<String, Object> properties) {
             super();
@@ -651,7 +664,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public Map<String, Object> getProperties() {
             return properties;
         }
-        
+
         @Override
         public int hashCode() {
             return Objects.hashCode(policyClass != null ? policyClass.getName() : "", properties);
@@ -668,6 +681,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             return false;
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);
 }

@@ -17,6 +17,47 @@
 # under the License.
 #
 
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+    name: prometheus-cluster-role
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+    name: prometheus-service-account
+    namespace: default
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+    name: prometheus-cluster-role-binding
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: prometheus-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-service-account
+    namespace: default
+
+---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -74,6 +115,7 @@ spec:
                 app: pulsar
                 component: prometheus
         spec:
+            serviceAccount: prometheus-service-account
             containers:
               - name: prometheus
                 image: prom/prometheus:v1.6.3

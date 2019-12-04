@@ -44,6 +44,7 @@ import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -74,10 +75,10 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected URI lookupUrl;
 
-    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    protected final int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
-    protected final int BROKER_PORT = PortManager.nextFreePort();
-    protected final int BROKER_PORT_TLS = PortManager.nextFreePort();
+    protected int BROKER_WEBSERVICE_PORT;
+    protected int BROKER_WEBSERVICE_PORT_TLS;
+    protected int BROKER_PORT;
+    protected int BROKER_PORT_TLS;
 
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
@@ -94,9 +95,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
         this.conf.setAdvertisedAddress("localhost");
-        this.conf.setBrokerServicePort(Optional.ofNullable(BROKER_PORT));
         this.conf.setAdvertisedAddress("localhost");
-        this.conf.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
@@ -130,6 +129,17 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void init() throws Exception {
+        BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
+        BROKER_PORT = PortManager.nextFreePort();
+        BROKER_PORT_TLS = PortManager.nextFreePort();
+
+        this.conf.setBrokerServicePort(Optional.of(BROKER_PORT));
+        this.conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setWebServicePort(Optional.of(BROKER_WEBSERVICE_PORT));
+        this.conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
@@ -153,9 +163,11 @@ public abstract class MockedPulsarServiceBaseTest {
             // an NPE in shutdown, obscuring the real error
             if (admin != null) {
                 admin.close();
+                admin = null;
             }
             if (pulsarClient != null) {
                 pulsarClient.close();
+                pulsarClient = null;
             }
             if (pulsar != null) {
                 pulsar.close();
@@ -174,7 +186,6 @@ public abstract class MockedPulsarServiceBaseTest {
             }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
-            throw e;
         }
     }
 
@@ -199,6 +210,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
         PulsarService pulsar = spy(new PulsarService(conf));
+        pulsar.setShutdownService(new NoOpShutdownService());
 
         setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
@@ -289,14 +301,15 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
         for (int i = 0; i < retryCount; i++) {
             if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
+                return true;
             }
             Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
+        return false;
     }
 
     public static void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
@@ -304,6 +317,6 @@ public abstract class MockedPulsarServiceBaseTest {
         field.setAccessible(true);
         field.set(classObj, fieldValue);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

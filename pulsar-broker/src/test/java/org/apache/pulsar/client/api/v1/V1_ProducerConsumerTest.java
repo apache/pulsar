@@ -251,6 +251,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .topic("persistent://my-property/use/my-ns/my-topic4")
                 .subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Exclusive)
+                .startMessageIdInclusive()
                 .subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic4")
@@ -501,8 +502,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic7")
                 .subscriptionName(subName)
-                .receiverQueueSize(recvQueueSize)
-                .subscribe();
+                .startMessageIdInclusive()
+                .receiverQueueSize(recvQueueSize).subscribe();
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -634,7 +635,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         final long batchMessageDelayMs = 100;
         final int receiverSize = 10;
-        final String topicName = "cache-topic";
+        final String topicName = "cache-topic-" + UUID.randomUUID().toString();
         final String sub1 = "faster-sub1";
         final String sub2 = "slower-sub2";
 
@@ -770,6 +771,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -813,6 +815,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 

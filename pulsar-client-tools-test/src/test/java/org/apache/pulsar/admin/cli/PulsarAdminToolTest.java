@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -440,6 +441,12 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getDispatchRate("myprop/clust/ns1");
+        
+        namespaces.run(split("set-publish-rate myprop/clust/ns1 -m 10 -b 20"));
+        verify(mockNamespaces).setPublishRate("myprop/clust/ns1", new PublishRate(10, 20));
+
+        namespaces.run(split("get-publish-rate myprop/clust/ns1"));
+        verify(mockNamespaces).getPublishRate("myprop/clust/ns1");
 
         namespaces.run(split("set-subscribe-rate myprop/clust/ns1 -sr 2 -st 60"));
         verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", new SubscribeRate(2, 60));
