@@ -18,14 +18,23 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import org.apache.pulsar.common.api.proto.PulsarApi;
+
 /**
  * The callback of transaction log replay the transaction operate.
  */
-public interface ReplayCallback {
+public interface TransactionLogReplayCallback {
 
     /**
      * Transaction log replay complete callback for transaction metadata store.
      */
     void replayComplete();
+
+    /**
+     * Handle metadata entry.
+     *
+     * @param transactionMetadataEntry
+     */
+    void handleMetadataEntry(PulsarApi.TransactionMetadataEntry transactionMetadataEntry);
 
 }

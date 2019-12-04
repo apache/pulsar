@@ -21,10 +21,8 @@ package org.apache.pulsar.transaction.coordinator.impl;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -37,17 +35,12 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.apache.pulsar.transaction.coordinator.ReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionLog;
+import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
-import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
@@ -81,10 +74,8 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
     }
 
     @Override
-    public void replayAsync(ConcurrentMap<TxnID, TxnMeta> txnMetaMap,
-                       AtomicLong sequenceId, ReplayCallback replayCallback) {
-        new Thread(new TransactionLogReplayer(txnMetaMap, sequenceId, replayCallback),
-                "ReplayTransactionLogThread-" + tcId).start();
+    public void replayAsync(TransactionLogReplayCallback transactionLogReplayCallback) {
+        new TransactionLogReplayer(transactionLogReplayCallback).start();
     }
 
     @Override
@@ -145,27 +136,46 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
         return completableFuture;
     }
 
-    class TransactionLogReplayer implements Runnable {
+    class TransactionLogReplayer {
 
-        private final AtomicLong sequenceId;
         private FillEntryQueueCallback fillEntryQueueCallback;
         private long currentLoadEntryId;
-        private ConcurrentMap<TxnID, TxnMeta> txnMetaMap;
-        private ReplayCallback replayCallback;
+        private TransactionLogReplayCallback transactionLogReplayCallback;
 
-        TransactionLogReplayer(ConcurrentMap<TxnID, TxnMeta> txnMetaMap,
-                               AtomicLong sequenceId, ReplayCallback replayCallback) {
-            this.txnMetaMap = txnMetaMap;
-            this.sequenceId = sequenceId;
+        TransactionLogReplayer(TransactionLogReplayCallback transactionLogReplayCallback) {
             this.fillEntryQueueCallback = new FillEntryQueueCallback();
-            this.replayCallback = replayCallback;
+            this.transactionLogReplayCallback = transactionLogReplayCallback;
         }
 
-        @Override
-        public void run() {
+        public void start() {
             while (currentLoadEntryId < lastConfirmedEntry.getEntryId()) {
                 fillEntryQueueCallback.fillQueue();
-                handleEntry(entryQueue.poll());
+                Entry entry = entryQueue.poll();
+                if (entry != null) {
+                    ByteBuf buffer = entry.getDataBuffer();
+                    currentLoadEntryId = entry.getEntryId();
+                    ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
+                    TransactionMetadataEntry.Builder transactionMetadataEntryBuilder =
+                            TransactionMetadataEntry.newBuilder();
+                    TransactionMetadataEntry transactionMetadataEntry;
+                    try {
+                        transactionMetadataEntry =
+                                transactionMetadataEntryBuilder.mergeFrom(stream, null).build();
+                    } catch (IOException e) {
+                        log.error(e.getMessage(), e);
+                        throw new RuntimeException("TransactionLog convert entry error : ", e);
+                    }
+                    transactionLogReplayCallback.handleMetadataEntry(transactionMetadataEntry);
+                    entry.release();
+                    transactionMetadataEntryBuilder.recycle();
+                    stream.recycle();
+                } else {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        //no-op
+                    }
+                }
             }
             readOnlyCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
                 @Override
@@ -178,69 +188,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
                     log.error("Transaction log with tcId : " + tcId + " close ReadOnlyCursor fail", exception);
                 }
             }, null);
-            replayCallback.replayComplete();
-        }
-
-        private void handleEntry(Entry entry) {
-            if (entry != null) {
-                try {
-                    ByteBuf buffer = entry.getDataBuffer();
-                    currentLoadEntryId = entry.getEntryId();
-                    ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
-                    TransactionMetadataEntry.Builder transactionMetadataEntryBuilder =
-                            TransactionMetadataEntry.newBuilder();
-                    TransactionMetadataEntry transactionMetadataEntry =
-                            transactionMetadataEntryBuilder.mergeFrom(stream, null).build();
-                    TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
-                            transactionMetadataEntry.getTxnidLeastBits());
-                    switch (transactionMetadataEntry.getMetadataOp()) {
-                        case NEW:
-                            if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
-                                sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
-                            }
-                            txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
-                            transactionMetadataEntryBuilder.recycle();
-                            stream.recycle();
-                            break;
-                        case ADD_PARTITION:
-                            txnMetaMap.get(txnID)
-                                    .addProducedPartitions(transactionMetadataEntry.getPartitionsList());
-                            transactionMetadataEntryBuilder.recycle();
-                            stream.recycle();
-                            break;
-                        case ADD_SUBSCRIPTION:
-                            txnMetaMap.get(txnID)
-                                    .addAckedPartitions(
-                                            subscriptionToTxnSubscription
-                                                    (transactionMetadataEntry.getSubscriptionsList()));
-                            transactionMetadataEntryBuilder.recycle();
-                            stream.recycle();
-                            break;
-                        case UPDATE:
-                            txnMetaMap.get(txnID)
-                                    .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
-                                            transactionMetadataEntry.getExpectedStatus());
-                            transactionMetadataEntryBuilder.recycle();
-                            stream.recycle();
-                            break;
-                        default:
-                            throw new InvalidTxnStatusException("Transaction `"
-                                    + txnID + "` load replay metadata operation from transaction log ");
-                    }
-                    entry.release();
-                } catch (InvalidTxnStatusException e) {
-                    log.error(e.getMessage(), e);
-                } catch (IOException e) {
-                    log.error(e.getMessage(), e);
-                    throw new RuntimeException("TransactionLog convert entry error : ", e);
-                }
-            } else {
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    //no-op
-                }
-            }
+            transactionLogReplayCallback.replayComplete();
         }
     }
 
@@ -279,15 +227,5 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
             log.error("Transaction log init fail error", exception);
             outstandingReadsRequests.decrementAndGet();
         }
-    }
-
-    private static List<TxnSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
-        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
-        for (PulsarApi.Subscription subscription : subscriptions) {
-            txnSubscriptions
-                    .add(new TxnSubscription(subscription.getTopic(), subscription.getSubscription()));
-            subscription.recycle();
-        }
-        return txnSubscriptions;
     }
 }

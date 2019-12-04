@@ -34,6 +34,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -71,7 +72,49 @@ public class ManagedLedgerTransactionMetadataStore
             log.error("Managed ledger transaction metadata store change state error when init it");
             return;
         }
-        this.transactionLog.replayAsync(txnMetaMap, sequenceId, this::changeToReadyState);
+        new Thread(() -> transactionLog.replayAsync(new TransactionLogReplayCallback() {
+
+            @Override
+            public void replayComplete() {
+                changeToReadyState();
+            }
+
+            @Override
+            public void handleMetadataEntry(TransactionMetadataEntry transactionMetadataEntry) {
+                try {
+                    TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
+                            transactionMetadataEntry.getTxnidLeastBits());
+                    switch (transactionMetadataEntry.getMetadataOp()) {
+                        case NEW:
+                            if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
+                                sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
+                            }
+                            txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                            break;
+                        case ADD_PARTITION:
+                            txnMetaMap.get(txnID)
+                                    .addProducedPartitions(transactionMetadataEntry.getPartitionsList());
+                            break;
+                        case ADD_SUBSCRIPTION:
+                            txnMetaMap.get(txnID)
+                                    .addAckedPartitions(
+                                            subscriptionToTxnSubscription
+                                                    (transactionMetadataEntry.getSubscriptionsList()));
+                            break;
+                        case UPDATE:
+                            txnMetaMap.get(txnID)
+                                    .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
+                                            transactionMetadataEntry.getExpectedStatus());
+                            break;
+                        default:
+                            throw new InvalidTxnStatusException("Transaction `"
+                                    + txnID + "` load replay metadata operation from transaction log ");
+                    }
+                } catch (InvalidTxnStatusException e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
+        })).start();
     }
 
     @Override
@@ -256,6 +299,16 @@ public class ManagedLedgerTransactionMetadataStore
             subscriptions.add(subscription);
         }
         return subscriptions;
+    }
+
+    private static List<TxnSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
+        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
+        for (PulsarApi.Subscription subscription : subscriptions) {
+            txnSubscriptions
+                    .add(new TxnSubscription(subscription.getTopic(), subscription.getSubscription()));
+            subscription.recycle();
+        }
+        return txnSubscriptions;
     }
 }
 
