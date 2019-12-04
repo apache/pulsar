@@ -1,6 +1,109 @@
 
 ## Apache
 
+### 2.4.2 &mdash; 2019-12-04 <a id="2.4.2"></a>
+
+#### Fixes
+
+* Fixed don't set interrupt flag again after catching interrupt exception in Pulsar Client #5643
+* Fixed data is not deleted after expiration due to connected readers #5621
+* Fixed typo in BrokersBase file #5596
+* Fixed the go client docs missing in website #5595
+* Fixed schema def build error with protobuf schema #5569
+* Fixed docs about reset cursor #5551
+* Fixed repeated initialization of connectorsManager #5545
+* Fixed Functions unnecessarily restart during FunctionRuntimeManager init phase #5527
+* Fixed list non-persistent topics shows the persistent topics #5502
+* Return after triggering callback with empty result #5500
+* Fixed dispatcher skipping delivery of a batch during concurrent replays #5499
+* Fixed reader_listener option for Python API #5487
+* Fixed wrongly report "3600 messages have timed-out" #5477
+* Fixed broken custom auth-provider that uses authenticationData #5462
+* Fixed negative ack tracker constructor sequence #5453
+* Fixed StringSchema static initialization  #5445
+* Fixed message corruption on OOM for batch messages #5443
+* Fixed couple functions related integration tests #5434
+* Fixed bug that namespace policies does not take effect due to NPE #5408
+* Fixed race condition : Failed to read-more entries on dispatcher #5391
+* Fixed potential deadlock that can occur in addConsumer #5371
+* Fixed proxy to be able to re-send request body #5361
+* Fixed pulsar can't load the customized SerDe #5357
+* Fixed instability in Pulsar Function window integration test #5337
+* Fixed bk write failure part 2 #5322
+* Allow to specify delivery delay in C++ client #5317
+* Fixed bad_weak_ptr error when closing producer #5315
+* Fixed typo in prometheus metrics #5299
+* Fixed invalidate cache on zk-cache timeout #5298
+* Don't attempt to append on read-only cursor ledger #5297
+* Fixed memory leak caused by not being executed ClientConnection destructor #5286
+* Fixed producer blocked after send an over size message while batch enabled #5282
+* Fixed race condition while triggering message redelivery after an ack-timeout event #5276
+* Fixed behavior when getting a key from functions state that doesn't exist #5272
+* Fixed Cmake to build _pulsar for osx #5263
+* Fixed client backoff #5261
+* Fixed memory leak caused by deadline_timer holding object reference #5246
+* Fixed in Message Deduplication that may cause incorrect client/broker interaction #5243
+* Fixed bug that fails to search namespace bundle due to NPE #5191
+* Fixed bug that message delivery stops after resetting cursor for failover subscription #5185
+* Fixed exception type check order bug #5174
+* Fixed spark receiver to account for all the consumer config options #5152
+* Fixed broker fails to start with function worker enabled and broker client using TLS #5151
+* Fixed deadlock when resetting cursor #5139
+* Fixed windowed functions were broken when we changed java function instance to use classloaders #5117
+* Fixed storage size always 0 without subscription #5108
+
+#### Enhancements
+
+* Add subscribe position param for consumer of sink #5532
+* Efficiency improvements for delay delivery tracker #5498
+* Add is_read_compacted to create_reader() in python API #5483
+* Make some common use method of ManagedLedger public #5472
+* Print unknown exception stacktrace #5444
+* Avoid leak on publish failure on batch message #5442
+* Record message failure and avoid exiting from process on publish failure #5441
+* Add support for partitioned topic consumer seek by time #5435
+* Add default loader for latest pyyaml #5432
+* Trim messages which less than mark delete position for message redelivery #5378
+* Make skip all messages async #5375
+* Set default ensemble size to 2 in service conf, to match broker.conf #5359
+* Only seek when reading unexpected entry #5356
+* Don't require both region and endpoint to be specified #5355
+* If cursor is not durable, close dispatcher when all consumers are removed from subscription #5340
+* Disable stickyRead by default #5321
+* Add debug log + fix thread-factory name  #5302
+* Close previous dispatcher when subscription type changes #5288
+* Improve error handling logic for effectively once #5271
+* Upgrade dependencies for security fixes #5232
+* Allow for topic deletions with regex consumers #5230
+* Ensure consumer background tasks are cancelled after subscribe failures #5204
+* Added missing enum value KeyShared on the python wrapper #5196
+* Make some member variables of Dispatcher volatile #5193
+* Ensure getting list of topics for namespace is handled asynchronously #5188
+* Close RateLimiter instance #5155
+* Throw an error if the key was not specified for querying state #5145
+* Allow configuring region aware placement related settings #5100
+* DeleteBookieRack should remove the rack info from zookeeper #5084
+* Use "info" as the default root logger level #5079
+* Modify BatcherBuilder interface and it's subs to implement java.io.Serializable, otherwise java.io.NotSerializableException occurs when we use plusar-flink-connector #5068
+* Don't return DEFAULT_RACK if ZkBookieRackAffinityMapping can't resolve network location #5067
+* Reload zk cache asynchronously #5049
+* Add different cache flags to ConcurrentOpenLongPairRangeSet for size() and toString() #5040
+* Introduce number of threads in perf producer program #5036
+* Completing connector configuration #4999
+* Add checkstyle validation and fix style violations in the common module #4989
+* Trim deleted entries after recover cursor #4987
+* Expose getLastMessageId method in ConsumerImpl #4911
+* Add a documentation page for metrics reference #4910
+* Merge Request for #4809: provide a convenient method for C++ client producer batch container #4885
+* Add schema admin api get schema info with schema version #4877
+* Return Message ID for send for cpp and cgo client #4811
+* Add the schema admin api #4800
+* Test cleanup and simplification #4799
+* Clarify how retention interacts with readers #4780
+* Get schema info with topic partition #4751
+* Remove failed stale producer from the connection #4741
+* Update logic for picking active consumer for failover subscription on non-partitioned topic #4604
+
 ### 2.4.1 &mdash; 2019-08-30 <a id="2.4.1"></a>
 
 #### Fixes
