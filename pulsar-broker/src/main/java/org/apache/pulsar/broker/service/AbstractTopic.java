@@ -193,7 +193,9 @@ public abstract class AbstractTopic implements Topic {
                         .thenCompose(schemaVersion -> {
                     if (schemaVersion == null) {
                         return FutureUtil
-                                .failedFuture(new IncompatibleSchemaException("Don't allow auto update schema."));
+                                .failedFuture(
+                                        new IncompatibleSchemaException(
+                                                "Schema not found and schema auto updating is disabled."));
                     } else {
                         return CompletableFuture.completedFuture(schemaVersion);
                     }

@@ -246,7 +246,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         try {
             producerThreeBuilder.create();
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Don't allow auto update schema."));
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
@@ -272,10 +272,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumerTwo.close();
 
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+
         producer = producerThreeBuilder.create();
         consumerTwo = comsumerBuilder.subscribe();
-
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
 
         producer.send(new Schemas.PersonTwo(2, "Lucy"));
         message = consumerTwo.receive();
