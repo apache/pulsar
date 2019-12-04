@@ -356,7 +356,7 @@ In order to better describe their differences, assuming you have a topic named "
 ```java
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
-        .enableBatch(false)
+        .enableBatching(false)
         .create();
 // 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"
 producer.newMessage().key("key-1").value("message-1-1").send();
@@ -479,7 +479,7 @@ consumer 2 will receive:
 
 `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
-#### Key_shared
+#### Key_Shared
 
 This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 
@@ -551,7 +551,7 @@ The code sample above shows pointing the `Reader` object to a specific message (
 
 ## Schemas
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()

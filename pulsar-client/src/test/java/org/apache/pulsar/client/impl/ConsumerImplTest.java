@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.util.Timer;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -57,11 +58,12 @@ public class ConsumerImplTest {
         clientConf.setOperationTimeoutMs(100);
         clientConf.setStatsIntervalSeconds(0);
         when(client.getConfiguration()).thenReturn(clientConf);
+        when(client.timer()).thenReturn(mock(Timer.class));
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorService, -1, false, subscribeFuture, SubscriptionMode.Durable, null, null, null
-        );
+                executorService, -1, false, subscribeFuture, SubscriptionMode.Durable, null, null, null,
+                true);
     }
 
     @Test(invocationTimeOut = 1000)

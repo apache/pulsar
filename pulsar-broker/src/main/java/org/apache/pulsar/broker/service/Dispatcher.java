@@ -53,12 +53,18 @@ public interface Dispatcher {
      */
     CompletableFuture<Void> close();
 
+    boolean isClosed();
+
     /**
      * disconnect all consumers
      *
      * @return
      */
-    CompletableFuture<Void> disconnectAllConsumers();
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
+
+    default CompletableFuture<Void> disconnectAllConsumers() {
+        return disconnectAllConsumers(false);
+    }
 
     void resetCloseFuture();
 

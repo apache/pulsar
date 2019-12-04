@@ -180,6 +180,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Topic does not exist and cannot be created.
+     */
+    public static class TopicDoesNotExistException extends PulsarClientException {
+        /**
+         * Constructs an {@code TopicDoesNotExistException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public TopicDoesNotExistException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Lookup exception thrown by Pulsar client.
      */
     public static class LookupException extends PulsarClientException {
@@ -567,7 +583,6 @@ public class PulsarClientException extends IOException {
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
         }  else if (t instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
             return new PulsarClientException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception

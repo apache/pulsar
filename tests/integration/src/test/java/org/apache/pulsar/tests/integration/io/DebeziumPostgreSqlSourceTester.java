@@ -78,32 +78,14 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     }
 
     @Override
-    public void prepareSource() throws Exception {
+    public void prepareSource() {
         log.info("debezium postgresql server already contains preconfigured data.");
     }
 
     @Override
-    public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
+    public Map<String, String> produceSourceMessages(int numMessages) {
         log.info("debezium postgresql server already contains preconfigured data.");
         return null;
-    }
-
-    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {
-        int recordsNumber = 0;
-        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
-            final String key = new String(msg.getValue().getKey());
-            final String value = new String(msg.getValue().getValue());
-            log.info("Received message: key = {}, value = {}.", key, value);
-            Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
-            Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
-            consumer.acknowledge(msg);
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-        }
-
-        Assert.assertEquals(recordsNumber, number);
-        log.info("Stop debezium postgresql server container. topic: {} has {} records.", consumer.getTopic(), recordsNumber);
     }
 
     @Override

@@ -1418,6 +1418,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 0);
 
         // Next write should fail as well
+        bkc.failNow(BKException.Code.NoBookieAvailableException);
         try {
             ledger.addEntry("entry".getBytes());
             fail("Should have received exception");

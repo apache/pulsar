@@ -46,6 +46,7 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -264,6 +265,9 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
 
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        protected SubscriptionInitialPosition subsPosition;
+
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String DEPRECATED_customSerdeInputString;
         @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
@@ -310,6 +314,8 @@ public class CmdSinks extends CmdBase {
         protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        protected String customRuntimeOptions;
 
         protected SinkConfig sinkConfig;
 
@@ -378,6 +384,10 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setSourceSubscriptionName(subsName);
             }
 
+            if (null != subsPosition) {
+                sinkConfig.setSourceSubscriptionPosition(subsPosition);
+            }
+
             if (null != topicsPattern) {
                 sinkConfig.setTopicsPattern(topicsPattern);
             }
@@ -436,6 +446,10 @@ public class CmdSinks extends CmdBase {
             
             if (null != sinkConfigString) {
                 sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            }
+
+            if (customRuntimeOptions != null) {
+                sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
             }
 
             // check if configs are valid

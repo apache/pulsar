@@ -15,7 +15,7 @@ Messages are the basic "unit" of Pulsar. They're what producers publish to topic
 
 Component | Purpose
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](concepts-schema-registry.md)
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](schema-get-started.md)
 Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction.md)
 Properties | An optional key/value map of user-defined properties
 Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
@@ -174,7 +174,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram below, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
@@ -203,7 +203,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
-### Key_shared
+### Key_Shared
 
 In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 

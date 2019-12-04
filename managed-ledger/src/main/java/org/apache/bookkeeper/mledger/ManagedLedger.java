@@ -444,4 +444,9 @@ public interface ManagedLedger {
      * @return the last confirmed entry id
      */
     Position getLastConfirmedEntry();
+
+    /**
+     * Signaling managed ledger that we can resume after BK write failure
+     */
+    void readyToCreateNewLedger();
 }

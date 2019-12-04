@@ -135,7 +135,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topicName, consumer);
+            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
         }
 
@@ -209,17 +209,21 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return disconnectAllConsumers();
     }
 
+    public boolean isClosed() {
+        return isClosed == TRUE;
+    }
+
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
      *
      * @return
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(Consumer::disconnect);
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately

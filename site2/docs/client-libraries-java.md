@@ -155,10 +155,10 @@ stringProducer.send("My message");
 > Close operations can also be asynchronous:
 > ```java
 > producer.closeAsync()
->    .thenRun(() -> System.out.println("Producer closed"));
+>    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
 >        System.err.println("Failed to close producer: " + ex);
->        return ex;
+>        return null;
 >    });
 > ```
 
@@ -320,6 +320,46 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
+### Batch receive
+
+Use `batchReceive` can receive multiple messages for each calls. 
+
+Here's an example:
+
+```java
+Messages messages = consumer.batchReceive();
+for (message in messages) {
+  // do something
+}
+consumer.acknowledge(messages)
+```
+
+> Note:
+>
+> Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
+>
+> The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
+>
+> ```java
+> Consumer consumer = client.newConsumer()
+>         .topic("my-topic")
+>         .subscriptionName("my-subscription")
+>         .batchReceivePolicy(BatchReceivePolicy.builder()
+>              .maxNumMessages(100)
+>              .maxNumBytes(1024 * 1024)
+>              .timeout(200, TimeUnit.MILLISECONDS)
+>              .build())
+>         .subscribe();
+> ```
+> And the default batch receive policy is:
+> ```java
+> BatchReceivePolicy.builder()
+>     .maxNumMessage(-1)
+>     .maxNumBytes(10 * 1024 * 1024)
+>     .timeout(100, TimeUnit.MILLISECONDS)
+>     .build();
+> ```
+
 ### Multi-topic subscriptions
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](concepts-messaging.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
@@ -403,7 +443,7 @@ In order to better describe their differences, assuming you have a topic named "
 ```java
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
-        .enableBatch(false)
+        .enableBatching(false)
         .create();
 // 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"
 producer.newMessage().key("key-1").value("message-1-1").send();
@@ -526,7 +566,7 @@ consumer 2 will receive:
 
 `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
-#### Key_shared
+#### Key_Shared
 
 This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 
@@ -566,6 +606,19 @@ consumer 2 will receive:
 ("key-4", "message-4-1")
 ("key-4", "message-4-2")
 ```
+
+By default, a consumer in the `Key_Shared` subscription is assigned a fixed hash range of key automatically. If you want to specify the key hash ranges of a consumer, you can use the key shared policy:
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Key_Shared)
+  			.keySharedPolicy(KeySharedPolicy.sticky().ranges(Range.of(0, 10)))
+        .subscribe()
+```
+
+The consumer with specific key hash ranges can be called a **sticky consumer**. The available key hash range is [0, 65535]. Consumers of a subscription must cover the whole key hash range and can not overlap .
 
 > Note:
 >
@@ -612,7 +665,7 @@ boolean|`resetIncludeHead`|If set to true, the first message to be returned is t
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()

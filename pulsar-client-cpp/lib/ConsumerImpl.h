@@ -95,6 +95,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
 
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+    virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
@@ -110,6 +111,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleSeek(Result result, ResultCallback callback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
@@ -120,7 +122,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
     void internalListener();
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
     virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const;
@@ -134,7 +136,8 @@ class ConsumerImpl : public ConsumerImplBase,
                                  proto::CommandAck::ValidationError validationError);
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
     void drainIncomingMessageQueue(size_t count);
-    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage);
+    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
+                                                int redeliveryCount);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,

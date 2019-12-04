@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
+import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
@@ -60,7 +60,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -70,6 +69,7 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -187,9 +187,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
 
-    // Time period in which new write requests will not be accepted, after we fail in creating a new ledger.
-    final static long WaitTimeAfterLedgerCreationFailureMs = 10000;
-
     volatile PositionImpl lastConfirmedEntry;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
@@ -209,10 +206,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // the new instance will take over
         Terminated, // Managed ledger was terminated and no more entries
                     // are allowed to be added. Reads are allowed
+        WriteFailed // The state that is transitioned to when a BK write failure happens
+                    // After handling the BK write failure, managed ledger will get signalled to create a new ledger
     }
 
     // define boundaries for position based seeks and searches
-    enum PositionBound {
+    public enum PositionBound {
         startIncluded, startExcluded
     }
 
@@ -309,7 +308,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 initializeBookKeeper(callback);
-                            } else if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                            } else if (isNoSuchLedgerExistsException(rc)) {
                                 log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
                                 ledgers.remove(ledgers.lastKey());
                                 initializeBookKeeper(callback);
@@ -571,6 +570,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (state == State.Closed) {
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
+        } else if (state == State.WriteFailed) {
+            pendingAddEntries.remove(addOperation);
+            addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
+            return;
         }
 
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
@@ -580,14 +583,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Queue addEntry request", name);
             }
         } else if (state == State.ClosedLedger) {
-            long now = clock.millis();
-            if (now < lastLedgerCreationFailureTimestamp + WaitTimeAfterLedgerCreationFailureMs) {
-                // Deny the write request, since we haven't waited enough time since last attempt to create a new ledger
-                pendingAddEntries.remove(addOperation);
-                addOperation.failed(new ManagedLedgerException("Waiting for new ledger creation to complete"));
-                return;
-            }
-
             // No ledger and no pending operations. Create a new ledger
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Creating a new ledger", name);
@@ -622,6 +617,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             addOperation.initiate();
         }
+    }
+
+    @Override
+    public void readyToCreateNewLedger() {
+       // only set transition state to ClosedLedger if current state is WriteFailed
+       if (STATE_UPDATER.compareAndSet(this, State.WriteFailed, State.ClosedLedger)){
+           log.info("[{}] Managed ledger is now ready to accept writes again", name);
+       }
     }
 
     @Override
@@ -828,11 +831,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException {
-        checkManagedLedgerIsOpen();
-        checkFenced();
-
-        return new NonDurableCursorImpl(bookKeeper, config, this, null,
-                (PositionImpl) startCursorPosition);
+        return newNonDurableCursor(
+            startCursorPosition,
+            "non-durable-cursor-" + UUID.randomUUID());
     }
 
     @Override
@@ -862,12 +863,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public Iterable<ManagedCursor> getCursors() {
+    public ManagedCursorContainer getCursors() {
         return cursors;
     }
 
     @Override
-    public Iterable<ManagedCursor> getActiveCursors() {
+    public ManagedCursorContainer getActiveCursors() {
         return activeCursors;
     }
 
@@ -1197,10 +1198,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
             ManagedLedgerException status = createManagedLedgerException(rc);
 
+            // no pending entries means that creating this new ledger is NOT caused by write failure
+            if (pendingAddEntries.isEmpty()) {
+                STATE_UPDATER.set(this, State.ClosedLedger);
+            } else {
+                STATE_UPDATER.set(this, State.WriteFailed);
+            }
+
             // Empty the list of pending requests and make all of them fail
             clearPendingAddEntries(status);
             lastLedgerCreationFailureTimestamp = clock.millis();
-            STATE_UPDATER.set(this, State.ClosedLedger);
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             ledgers.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
@@ -1228,10 +1235,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (e instanceof BadVersionException) {
                         synchronized (ManagedLedgerImpl.this) {
                             log.error(
-                                    "[{}] Failed to udpate ledger list. z-node version mismatch. Closing managed ledger",
+                                    "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
                                     name);
                             STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
-                            clearPendingAddEntries(e);
+                            // Return ManagedLedgerFencedException to addFailed callback
+                            // to indicate that the ledger is now fenced and topic needs to be closed
+                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
+                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
                             return;
                         }
                     }
@@ -1717,7 +1727,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return mbean;
     }
 
-    boolean hasMoreEntries(PositionImpl position) {
+    public boolean hasMoreEntries(PositionImpl position) {
         PositionImpl lastPos = lastConfirmedEntry;
         boolean result = position.compareTo(lastPos) <= 0;
         if (log.isDebugEnabled()) {
@@ -2151,7 +2161,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
-            if (rc == BKException.Code.NoSuchLedgerExistsException) {
+            if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {}", name, ledgerId, BKException.getMessage(rc));
@@ -2182,7 +2192,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
                 switch (rc) {
-                case BKException.Code.NoSuchLedgerExistsException:
+                case Code.NoSuchLedgerExistsException:
+                case Code.NoSuchLedgerExistsOnMetadataServerException:
                     log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
                     // Continue anyway
 
@@ -2615,7 +2626,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *            specifies whether or not to include the start position in calculating the distance
      * @return the new position that is n entries ahead
      */
-    PositionImpl getPositionAfterN(final PositionImpl startPosition, long n, PositionBound startRange) {
+    public PositionImpl getPositionAfterN(final PositionImpl startPosition, long n, PositionBound startRange) {
         long entriesToSkip = n;
         long currentLedgerId;
         long currentEntryId;
@@ -2683,7 +2694,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *            the current position
      * @return the previous position
      */
-    PositionImpl getPreviousPosition(PositionImpl position) {
+    public PositionImpl getPreviousPosition(PositionImpl position) {
         if (position.getEntryId() > 0) {
             return PositionImpl.get(position.getLedgerId(), position.getEntryId() - 1);
         }
@@ -2745,15 +2756,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    boolean ledgerExists(long ledgerId) {
+    public boolean ledgerExists(long ledgerId) {
         return ledgers.get(ledgerId) != null;
     }
 
-    Long getNextValidLedger(long ledgerId) {
+    public Long getNextValidLedger(long ledgerId) {
         return ledgers.ceilingKey(ledgerId + 1);
     }
 
-    PositionImpl getNextValidPosition(final PositionImpl position) {
+    public PositionImpl getNextValidPosition(final PositionImpl position) {
         PositionImpl nextPosition = position.getNext();
         while (!isValidPosition(nextPosition)) {
             Long nextLedgerId = ledgers.ceilingKey(nextPosition.getLedgerId() + 1);
@@ -2765,7 +2776,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return nextPosition;
     }
 
-    PositionImpl getFirstPosition() {
+    public PositionImpl getFirstPosition() {
         Long ledgerId = ledgers.firstKey();
         if (ledgerId == null) {
             return null;
@@ -3002,8 +3013,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     private static boolean isBkErrorNotRecoverable(int rc) {
         switch (rc) {
-        case BKException.Code.NoSuchLedgerExistsException:
-        case BKException.Code.NoSuchEntryException:
+        case Code.NoSuchLedgerExistsException:
+        case Code.NoSuchLedgerExistsOnMetadataServerException:
+        case Code.NoSuchEntryException:
             return true;
 
         default:

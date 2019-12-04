@@ -393,6 +393,16 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+    commandSeek->set_message_publish_time(timestamp);
+    return writeMessageWithSize(cmd);
+}
+
 SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::GET_LAST_MESSAGE_ID);
@@ -530,6 +540,10 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::ACK_RESPONSE:
             return "ACK_RESPONSE";
             break;
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
+            return "GET_OR_CREATE_SCHEMA";
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
+            return "GET_OR_CREATE_SCHEMA_RESPONSE";
         case BaseCommand::NEW_TXN:
             return "NEW_TXN";
             break;

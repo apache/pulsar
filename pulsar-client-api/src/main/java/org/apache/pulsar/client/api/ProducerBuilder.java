@@ -344,6 +344,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @param timeUnit
      *            the time unit of the {@code batchDelay}
      * @return the producer builder instance
+     * @see #batchingMaxMessages(int)
+     * @see #batchingMaxBytes(int)
      */
     ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
 
@@ -354,12 +356,28 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>All messages in batch will be published as a single batch message. The consumer will be delivered individual
      * messages in the batch in the same order they were enqueued.
      *
-     * @see #batchingMaxPublishDelay(long, TimeUnit)
      * @param batchMessagesMaxMessagesPerBatch
      *            maximum number of messages in a batch
      * @return the producer builder instance
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxBytes(int)
      */
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+
+    /**
+     * Set the maximum number of bytes permitted in a batch. <i>default: 128KB</i>
+     * If set to a value greater than 0, messages will be queued until this threshold is reached
+     * or other batching conditions are met.
+     *
+     * <p>All messages in a batch will be published as a single batched message. The consumer will be delivered
+     * individual messages in the batch in the same order they were enqueued.
+     *
+     * @param batchingMaxBytes maximum number of bytes in a batch
+     * @return the producer builder instance
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxMessages(int)
+     */
+    ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes);
 
     /**
      * Set the batcher builder {@link BatcherBuilder} of the producer. Producer will use the batcher builder to
@@ -418,7 +436,19 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            the list of interceptors to intercept the producer created by this builder.
      * @return the producer builder instance
      */
+    @Deprecated
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+
+    /**
+     * Add a set of {@link org.apache.pulsar.client.api.interceptor.ProducerInterceptor} to the producer.
+     *
+     * <p>Interceptors can be used to trace the publish and acknowledgments operation happening in a producer.
+     *
+     * @param interceptors
+     *            the list of interceptors to intercept the producer created by this builder.
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> intercept(org.apache.pulsar.client.api.interceptor.ProducerInterceptor... interceptors);
 
     /**
      * If enabled, partitioned producer will automatically discover new partitions at runtime. This is only applied on
@@ -431,4 +461,19 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Control whether enable the multiple schema mode for producer.
+     * If enabled, producer can send a message with different schema from that specified just when it is created,
+     * otherwise a invalid message exception would be threw
+     * if the producer want to send a message with different schema.
+     *
+     * <p>Enabled by default.
+     *
+     * @param multiSchema
+     *            indicates to enable or disable multiple schema mode
+     * @return the producer builder instance
+     * @since 2.5.0
+     */
+    ProducerBuilder<T> enableMultiSchema(boolean multiSchema);
 }

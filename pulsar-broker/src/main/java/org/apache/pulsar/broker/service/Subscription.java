@@ -37,7 +37,11 @@ public interface Subscription {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
-    void removeConsumer(Consumer consumer) throws BrokerServiceException;
+    default void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        removeConsumer(consumer, false);
+    }
+
+    void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException;
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 

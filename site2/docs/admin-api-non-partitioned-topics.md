@@ -41,6 +41,12 @@ $ bin/pulsar-admin topics create \
   persistent://my-tenant/my-namespace/my-topic
 ```
 
+> #### Note
+>
+> It's only allowed to create non partitioned topic of name contains suffix '-partition-' followed by numeric value like
+> 'xyz-topic-partition-10', if there's already a partitioned topic with same name, in this case 'xyz-topic', and has
+> number of partition larger then that numeric value in this case 11(partition index is start from 0). Else creation of such topic will fail.
+
 #### REST API
 
 {@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}

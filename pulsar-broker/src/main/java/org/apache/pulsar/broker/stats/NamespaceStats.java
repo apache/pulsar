@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import java.util.Arrays;
 import java.util.Map;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
@@ -107,16 +108,13 @@ public class NamespaceStats {
 
     public static void copy(long[] src, long[] dest) {
         if (src != null && dest != null && src.length == dest.length) {
-            for (int i = 0; i < src.length; i++) {
-                dest[i] = src[i];
-            }
+            System.arraycopy(src, 0, dest, 0, src.length);
         }
     }
 
     public static void clear(long[] list) {
         if (list != null) {
-            for (int i = 0; i < list.length; i++)
-                list[i] = 0;
+            Arrays.fill(list, 0);
         }
     }
 

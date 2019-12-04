@@ -67,7 +67,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -141,6 +141,13 @@
       <groupId>com.facebook.presto</groupId>
       <artifactId>presto-jdbc</artifactId>
       <version>${presto.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>net.jodah</groupId>
+      <artifactId>failsafe</artifactId>
+      <version>${failsafe.version}</version>
       <scope>test</scope>
     </dependency>
 

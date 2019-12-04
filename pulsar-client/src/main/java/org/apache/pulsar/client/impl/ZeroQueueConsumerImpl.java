@@ -49,24 +49,18 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors) {
-    	this(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode, startMessageId,
-    		 schema, interceptors, Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
-
-    public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors, long backoffIntervalNanos, long maxBackoffIntervalNanos) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode, startMessageId,
-              schema, interceptors);
+            ConsumerInterceptors<T> interceptors,
+            boolean createTopicIfDoesNotExist) {
+        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+                subscriptionMode, startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+                createTopicIfDoesNotExist);
     }
 
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
-            return fetchSingleMessageFromBroker();
+            return beforeConsume(fetchSingleMessageFromBroker());
         } finally {
             zeroQueueLock.unlock();
         }
@@ -161,7 +155,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                     log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
                             message.getMessageId());
                 }
-                listener.received(ZeroQueueConsumerImpl.this, message);
+                listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);

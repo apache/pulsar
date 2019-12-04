@@ -33,7 +33,9 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
@@ -45,7 +47,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
-    @BeforeClass
+    @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
 
@@ -64,7 +66,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterMethod
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();

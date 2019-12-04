@@ -23,7 +23,6 @@ import static org.testng.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
@@ -32,8 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.annotations.Test;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 
 public class KinesisSourceConfigTests {
 

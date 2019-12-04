@@ -35,6 +35,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -123,7 +124,7 @@ public class ReplicatorTestBase {
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
         config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
+        config1.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         config1.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
@@ -134,6 +135,7 @@ public class ReplicatorTestBase {
         config1.setDefaultNumberOfNamespaceBundles(1);
         config1.setAllowAutoTopicCreationType("non-partitioned");
         pulsar1 = new PulsarService(config1);
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
@@ -157,7 +159,7 @@ public class ReplicatorTestBase {
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
         config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
+        config2.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         config2.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
@@ -168,6 +170,7 @@ public class ReplicatorTestBase {
         config2.setDefaultNumberOfNamespaceBundles(1);
         config2.setAllowAutoTopicCreationType("non-partitioned");
         pulsar2 = new PulsarService(config2);
+        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
@@ -191,7 +194,7 @@ public class ReplicatorTestBase {
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
         config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
+        config3.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config3.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         config3.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
@@ -202,6 +205,7 @@ public class ReplicatorTestBase {
         config3.setDefaultNumberOfNamespaceBundles(1);
         config3.setAllowAutoTopicCreationType("non-partitioned");
         pulsar3 = new PulsarService(config3);
+        pulsar3.setShutdownService(new NoOpShutdownService());
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
 

@@ -21,7 +21,7 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-Currently, the only supported Python version is 2.7.
+Currently, the supported Python versions are 2.7, 3.4, 3.5, 3.6 and 3.7.
 
 ## Install from PyPI
 
@@ -601,6 +601,8 @@ class Client:
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
+        * `is_read_compacted`:
+          Selects whether to read the compacted version of the topic
         * `properties`:
           Sets the properties for the consumer. The properties associated with a consumer
           can be used for identify a consumer at broker side.
@@ -670,7 +672,8 @@ class Client:
                       reader_listener=None,
                       receiver_queue_size=1000,
                       reader_name=None,
-                      subscription_role_prefix=None
+                      subscription_role_prefix=None,
+                      is_read_compacted=False
                       ):
         """
         Create a reader on a particular topic
@@ -718,6 +721,8 @@ class Client:
           Sets the reader name.
         * `subscription_role_prefix`:
           Sets the subscription role prefix.
+        * `is_read_compacted`:
+          Selects whether to read the compacted version of the topic
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
@@ -725,6 +730,7 @@ class Client:
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -735,6 +741,7 @@ class Client:
         if subscription_role_prefix:
             conf.subscription_role_prefix(subscription_role_prefix)
         conf.schema(schema.schema_info())
+        conf.read_compacted(is_read_compacted)
 
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
@@ -1069,7 +1076,7 @@ class Consumer:
 
     def seek(self, messageid):
         """
-        Reset the subscription associated with this consumer to a specific message id.
+        Reset the subscription associated with this consumer to a specific message id or publish timestamp.
         The message id can either be a specific message or represent the first or last messages in the topic.
         Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
         seek() on the individual partitions.
@@ -1077,7 +1084,7 @@ class Consumer:
         **Args**
 
         * `message`:
-          The message id for seek.
+          The message id for seek, OR an integer event time to seek to
         """
         self._consumer.seek(messageid)
 
@@ -1129,6 +1136,20 @@ class Reader:
         Check if there is any message available to read from the current position.
         """
         return self._reader.has_message_available();
+
+    def seek(self, messageid):
+        """
+        Reset this reader to a specific message id or publish timestamp.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek, OR an integer event time to seek to
+        """
+        self._reader.seek(messageid)
 
     def close(self):
         """

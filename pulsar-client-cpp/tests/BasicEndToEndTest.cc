@@ -27,6 +27,7 @@
 #include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
+#include "lib/TimeUtils.h"
 #include "HttpHelper.h"
 #include <set>
 #include <vector>
@@ -61,13 +62,10 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message &
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message &msg, std::string prefix, int *count) {
+static void sendCallBack(Result r, const MessageId &msgId, std::string prefix, int *count) {
     static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + std::to_string(*count);
-    ASSERT_EQ(messageContent, msg.getDataAsString());
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
     *count += 1;
     sendMutex_.unlock();
 }
@@ -90,12 +88,12 @@ static void receiveCallBack(Result r, const Message &msg, std::string &messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
+static void sendCallBackWithDelay(Result r, const MessageId &msgId, std::string prefix, double percentage,
                                   uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
         std::this_thread::sleep_for(std::chrono::microseconds(delayInMicros));
     }
-    sendCallBack(r, msg, prefix, count);
+    sendCallBack(r, msgId, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -209,7 +207,7 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     ASSERT_EQ(i, numOfMessages);
 }
 
-void resendMessage(Result r, const Message msg, Producer producer) {
+void resendMessage(Result r, const MessageId msgId, Producer producer) {
     Lock lock(mutex_);
     if (r != ResultOk) {
         LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
@@ -260,6 +258,53 @@ TEST(BasicEndToEndTest, testProduceConsume) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testRedeliveryCount) {
+    ClientConfiguration config;
+    Client client(lookupUrl, config);
+    std::string topicName = "persistent://public/default/test-redelivery-count";
+    std::string subName = "my-sub-name";
+
+    Producer producer;
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setNegativeAckRedeliveryDelayMs(500);
+    consumerConf.setConsumerType(ConsumerShared);
+    client.subscribeAsync(topicName, subName, consumerConf, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content = "msg-content";
+    Message msg = MessageBuilder().setContent(content).build();
+    producer.send(msg);
+
+    int redeliveryCount = 0;
+    Message msgReceived;
+    for (int i = 0; i < 4; i++) {
+        consumer.receive(msgReceived);
+        LOG_INFO("Received message " << msgReceived.getDataAsString());
+        consumer.negativeAcknowledge(msgReceived);
+        redeliveryCount = msgReceived.getRedeliveryCount();
+    }
+
+    ASSERT_EQ(3, redeliveryCount);
+    consumer.acknowledge(msgReceived);
+    consumer.close();
+    producer.close();
 }
 
 TEST(BasicEndToEndTest, testLookupThrottling) {
@@ -2098,7 +2143,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
     std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/notMatchPatternTopicsAutoConsumerPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
@@ -2108,7 +2153,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string url3 =
         adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/notMatchPatternTopicsAutoConsumerPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -2290,8 +2335,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 }
 
 // for partitioned reason, it may hard to verify message id.
-static void simpleCallback(Result code, const Message &msg) {
-    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+static void simpleCallback(Result code, const MessageId &msgId) {
+    LOG_INFO("Received code: " << code << " -- MsgID: " << msgId);
 }
 
 TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
@@ -2870,7 +2915,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     Consumer consumer;
     ConsumerConfiguration conf;
     conf.setNegativeAckRedeliveryDelayMs(100);
-    Result result = client.subscribe(topic, "test", consumer);
+    Result result = client.subscribe(topic, "test", conf, consumer);
     ASSERT_EQ(ResultOk, result);
 
     Producer producer;
@@ -2890,6 +2935,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
         Message msg;
         consumer.receive(msg);
 
+        LOG_INFO("Received message " << msg.getDataAsString());
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
         consumer.negativeAcknowledge(msg);
     }
@@ -2897,6 +2943,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     for (int i = 0; i < 10; i++) {
         Message msg;
         consumer.receive(msg);
+        LOG_INFO("-- Redelivery -- Received message " << msg.getDataAsString());
 
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
 
@@ -3045,5 +3092,90 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
 
     res = consumer2.receive(msg, 100);
     ASSERT_EQ(ResultTimeout, res);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testDelayedMessages) {
+    std::string topicName = "testDelayedMessages-" + std::to_string(TimeUtils::currentTimeMillis());
+    Client client(lookupUrl);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    result = client.subscribe(topicName, "my-sub-name", consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg1 =
+        MessageBuilder().setContent("msg-1").setDeliverAfter(std::chrono::milliseconds(5000)).build();
+    ASSERT_EQ(ResultOk, producer.send(msg1));
+
+    // 2nd message without delay
+    Message msg2 = MessageBuilder().setContent("msg-2").build();
+    ASSERT_EQ(ResultOk, producer.send(msg2));
+
+    Message msgReceived;
+    result = consumer.receive(msgReceived);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ("msg-2", msgReceived.getDataAsString());
+
+    ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testCumulativeAcknowledgeNotAllowed";
+    std::string subsName = topicName + "-sub-";
+
+    Consumer consumer1;
+    ConsumerConfiguration consumerConfiguration1;
+    consumerConfiguration1.setConsumerType(ConsumerShared);
+
+    Result result = client.subscribe(topicName, subsName + "1", consumerConfiguration1, consumer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer2;
+    ConsumerConfiguration consumerConfiguration2;
+    consumerConfiguration2.setConsumerType(ConsumerKeyShared);
+
+    result = client.subscribe(topicName, subsName + "2", consumerConfiguration2, consumer2);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer;
+    result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    // publish messages
+    int numMessages = 10;
+    for (int i = 0; i < numMessages; i++) {
+        Message msg = MessageBuilder().setContent("test-producer-" + topicName + std::to_string(i)).build();
+        producer.send(msg);
+    }
+
+    // test cannot use acknowledgeCumulative on Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer1.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer1.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
+
+    // test cannot use acknowledgeCumulative on Key_Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer2.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer2.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
     client.shutdown();
 }

@@ -13,15 +13,16 @@ sidebar_label: Pulsar configuration
 
 Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
-* [BookKeeper](#bookkeeper)
-* [Broker](#broker)
-* [Client](#client)
-* [Service discovery](#service-discovery)
-* [Log4j](#log4j)
-* [Log4j shell](#log4j-shell)
-* [Standalone](#standalone)
-* [WebSocket](#websocket)
-* [ZooKeeper](#zookeeper)
+- [BookKeeper](#bookkeeper)
+- [Broker](#broker)
+- [Client](#client)
+- [Service discovery](#service-discovery)
+- [Log4j](#log4j)
+- [Log4j shell](#log4j-shell)
+- [Standalone](#standalone)
+- [WebSocket](#websocket)
+- [Pulsar proxy](#pulsar-proxy)
+- [ZooKeeper](#zookeeper)
 
 ## BookKeeper
 
@@ -126,9 +127,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
-|allowAutoTopicCreation| Enable topic auto creation if new producer or consumer connected |true|
-|allowAutoTopicCreationType| The type of topic that is allowed to be automatically created.(partitioned/non-partitioned) |non-partitioned| 
-|defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if allowAutoTopicCreationType is partitioned |1|
+|allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
+|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned| 
+|defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
@@ -220,7 +221,6 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |defaultRetentionTimeInMinutes| Default message retention time  ||
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|  How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected) |60|
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
@@ -394,7 +394,6 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|    |60|
 
 
 

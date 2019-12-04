@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class ShortSchema extends AbstractSchema<Short> {
 
+    private static final ShortSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT16")
+            .setType(SchemaType.INT16)
+            .setSchema(new byte[0]);
+        INSTANCE = new ShortSchema();
+    }
+
     public static ShortSchema of() {
         return INSTANCE;
     }
-
-    private static final ShortSchema INSTANCE = new ShortSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT16")
-        .setType(SchemaType.INT16)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
