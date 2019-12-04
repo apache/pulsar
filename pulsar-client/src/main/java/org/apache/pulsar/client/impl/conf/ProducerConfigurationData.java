@@ -154,7 +154,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         this.batchingPartitionSwitchFrequencyByPublishDelay = frequencyByPublishDelay;
     }
 
-    public long getBatchingPartitionSwitchFrequencyIntervalMicros() {
+    public long batchingPartitionSwitchFrequencyIntervalMicros() {
         return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
     }
 
