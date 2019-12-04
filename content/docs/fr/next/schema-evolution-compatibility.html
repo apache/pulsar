@@ -384,8 +384,8 @@
 <th>
 <p>Note</p>
 </th>
-</tr>
-<tr>
+  </tr>
+  <tr>
 <td> 
 <p><code>FULL</code></p>
 </td> 
@@ -422,10 +422,98 @@
 <td> 
 <p>None</p>
 </td>
+  </tr>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p>In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.</p>
+<h2><a class="anchor" aria-hidden="true" id="schema-verification"></a><a href="#schema-verification" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema verification</h2>
+<p>When a producer or a consumer tries to connect to a topic, a broker performs some checks to verify a schema.</p>
+<h3><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h3>
+<p>When a producer tries to connect to a topic (suppose ignore the schema auto creation), a broker does the following checks:</p>
+<ul>
+<li><p>Check if the schema carried by the producer exists in the schema registry or not.</p>
+<ul>
+<li><p>If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.</p></li>
+<li><p>If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.</p></li>
+</ul></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h3>
+<p>When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.</p>
+<table style="table">
+  <tr>
+    <th>
+      Compatibility check strategy
+    </th>
+<pre><code class="hljs">&lt;th&gt;
+  Check logic
+&lt;/th&gt;
+</code></pre>
+  </tr>
+  <tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td> 
+<td> 
+<p>All pass</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td> 
+<td> 
+<p>No pass</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD</code></p>
+</td> 
+<td> 
+<p>Can read the last schema</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>BACKWARD_TRANSITIVE</code></p>
+</td> 
+<td> 
+<p>Can read all schemas</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD</code></p>
+</td> 
+<td> 
+<p>Can read the last schema</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FORWARD_TRANSITIVE</code></p>
+</td> 
+<td> 
+<p>Can read the last schema</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL</code></p>
+</td> 
+<td> 
+<p>Can read the last schema</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>FULL_TRANSITIVE</code></p>
+</td> 
+<td> 
+<p>Can read all schemas</p>
+</td> 
 </tr>
 </table>
-<p><h4>Example</h4></p>
-<p>In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.</p>
 <p><h2>Order of upgrading clients</h2></p>
 <p>The order of upgrading client applications is determined by the compatibility check strategy.</p>
 <p>For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar.</p>
@@ -440,8 +528,8 @@
 <th>
 <p>Description</p>
 </th>
-  </tr>
-  <tr>
+</tr>
+<tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
@@ -508,7 +596,7 @@
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
 </td>  </tr>
-</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/next/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/fr/next/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-evolution">Schema evolution</a><ul class="toc-headings"><li><a href="#what-is-schema-evolution">What is schema evolution?</a></li><li><a href="#how-pulsar-schema-should-evolve">How Pulsar schema should evolve?</a></li><li><a href="#how-does-pulsar-support-schema-evolution">How does Pulsar support schema evolution?</a></li></ul></li><li><a href="#schema-compatibility-check-strategy">Schema compatibility check strategy</a><ul class="toc-headings"><li><a href="#backward-and-backward_transitive">BACKWARD and BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/next/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/fr/next/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-evolution">Schema evolution</a><ul class="toc-headings"><li><a href="#what-is-schema-evolution">What is schema evolution?</a></li><li><a href="#how-pulsar-schema-should-evolve">How Pulsar schema should evolve?</a></li><li><a href="#how-does-pulsar-support-schema-evolution">How does Pulsar support schema evolution?</a></li></ul></li><li><a href="#schema-compatibility-check-strategy">Schema compatibility check strategy</a><ul class="toc-headings"><li><a href="#backward-and-backward_transitive">BACKWARD and BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-verification">Schema verification</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

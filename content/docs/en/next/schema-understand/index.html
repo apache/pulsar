@@ -443,11 +443,23 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
 <li><p>The producer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
 <li><p>The broker looks up the schema in the schema storage to check if it is already a registered schema.</p></li>
 <li><p>If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.</p></li>
-<li><p>If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
+<li><p>If no, the broker verifies whether a schema can be automatically created in this namespace:</p></li>
+</ol>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, then a schema can not be created, and the producer is rejected to connect to the broker.</p></li>
+</ul>
+<p><strong>Tip</strong>:</p>
+<p><code>isAllowAutoUpdateSchema</code> can be set via <strong>Pulsar admin API</strong> or <strong>REST API.</strong></p>
+<p>For how to set <code>isAllowAutoUpdateSchema</code> via Pulsar admin API, see <a href="/docs/en/next/schema-manage/#manage-autoupdate-strategy">Manage AutoUpdate Strategy</a>.</p>
+<ol start="6">
+<li>If the schema is allowed to be updated, then the compatible strategy check is performed.</li>
+</ol>
+<ul>
 <li><p>If the schema is compatible, the broker stores it and returns the schema version to the producer.</p>
 <p>All the messages produced by this producer are tagged with the schema version.</p></li>
 <li><p>If the schema is incompatible, the broker rejects it.</p></li>
-</ol>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="consumer-side"></a><a href="#consumer-side" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer side</h3>
 <p>This diagram illustrates how does Schema work on the consumer side.</p>
 <p><img src="/docs/assets/schema-consumer.png" alt="Schema works at the consumer side"></p>
@@ -455,13 +467,19 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
 <li><p>The application uses a schema instance to construct a consumer instance.</p>
 <p>The schema instance defines the schema that the consumer uses for decoding messages received from a broker.</p></li>
 <li><p>The consumer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
-<li><p>The broker looks up the schema in the schema storage to check if it is already a registered schema.</p></li>
-<li><p>If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.</p></li>
-<li><p>If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
-<li><p>If the schema is compatible, the broker stores it and returns the schema version to the consumer.</p></li>
-<li><p>If the schema is incompatible, the consumer will be disconnected.</p></li>
-<li><p>The consumer receives the messages from the broker.</p>
-<p>If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  <code>SchemaInfo</code> of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.</p></li>
+<li><p>The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).</p></li>
+<li><p>If a topic does not have all of them (a schema/data/a local consumer and a local producer):</p>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>, then the consumer registers a schema and it is connected to a broker.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, then the consumer is rejected to connect to a broker.</p></li>
+</ul></li>
+<li><p>If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.</p>
+<ul>
+<li><p>If the schema passes the compatibility check, then the consumer is connected to the broker.</p></li>
+<li><p>If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.</p></li>
+</ul></li>
+<li><p>The consumer receives messages from the broker.</p>
+<p>If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the <code>SchemaInfo</code> of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.</p></li>
 </ol>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/schema-get-started"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/en/next/schema-evolution-compatibility"><span>Schema evolution and compatibility</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schemainfo">SchemaInfo</a></li><li><a href="#schema-type">Schema type</a><ul class="toc-headings"><li><a href="#primitive-type">Primitive type</a></li><li><a href="#complex-type">Complex type</a></li><li><a href="#auto-schema">Auto Schema</a></li></ul></li><li><a href="#schema-version">Schema version</a></li><li><a href="#how-does-schema-work">How does schema work</a><ul class="toc-headings"><li><a href="#producer-side">Producer side</a></li><li><a href="#consumer-side">Consumer side</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

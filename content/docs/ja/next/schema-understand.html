@@ -482,10 +482,43 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+      If no, the broker verifies whether a schema can be automatically created in this namespace:
     &lt;/p&gt;
   &lt;/li&gt;
-  
+&lt;/ol&gt;
+
+&lt;ul spaces=&quot;2&quot; level=&quot;0&quot; marker=&quot;*&quot;&gt;
+  &lt;li level=&quot;0&quot;&gt;
+    &lt;p&gt;
+      If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;true&lt;/strong&gt;, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+    &lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li level=&quot;0&quot;&gt;
+    &lt;p&gt;
+      If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;false&lt;/strong&gt;, then a schema can not be created, and the producer is rejected to connect to the broker.
+    &lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;
+  &lt;strong&gt;Tip&lt;/strong&gt;:
+&lt;/p&gt;
+
+&lt;p&gt;
+  &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; can be set via &lt;strong&gt;Pulsar admin API&lt;/strong&gt; or &lt;strong&gt;REST API.&lt;/strong&gt;
+&lt;/p&gt;
+
+&lt;p&gt;
+  For how to set &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; via Pulsar admin API, see &lt;a href=&quot;schema-manage.md/#manage-autoupdate-strategy&quot;&gt;Manage AutoUpdate Strategy&lt;/a&gt;.
+&lt;/p&gt;
+
+&lt;ol start=&quot;6&quot; spaces=&quot;0&quot; level=&quot;0&quot;&gt;
+  &lt;li level=&quot;0&quot;&gt;
+    If the schema is allowed to be updated, then the compatible strategy check is performed.
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;ul spaces=&quot;2&quot; level=&quot;0&quot; marker=&quot;*&quot;&gt;
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
       If the schema is compatible, the broker stores it and returns the schema version to the producer.
@@ -494,13 +527,12 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
       All the messages produced by this producer are tagged with the schema version.
     &lt;/p&gt;
   &lt;/li&gt;
-  
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
       If the schema is incompatible, the broker rejects it.
     &lt;/p&gt;
   &lt;/li&gt;
-&lt;/ol&gt;
+&lt;/ul&gt;
 
 &lt;h3&gt;
   Consumer side
@@ -514,7 +546,7 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
   &lt;img src=&quot;assets/schema-consumer.png&quot; alt=&quot;Schema works at the consumer side&quot; /&gt;
 &lt;/p&gt;
 
-&lt;ol start=&quot;1&quot; spaces=&quot;0&quot; level=&quot;0&quot;&gt;
+&lt;ol start=&quot;1&quot; spaces=&quot;6&quot; level=&quot;0&quot;&gt;
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
       The application uses a schema instance to construct a consumer instance.
@@ -532,40 +564,52 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      The broker looks up the schema in the schema storage to check if it is already a registered schema.
+      The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).
     &lt;/p&gt;
   &lt;/li&gt;
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.
+      If a topic does not have all of them (a schema/data/a local consumer and a local producer):
     &lt;/p&gt;
+    &lt;ul spaces=&quot;0&quot; level=&quot;1&quot; marker=&quot;*&quot;&gt;
+      &lt;li level=&quot;1&quot;&gt;
+        &lt;p&gt;
+          If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;true&lt;/strong&gt;, then the consumer registers a schema and it is connected to a broker.
+        &lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li level=&quot;1&quot;&gt;
+        &lt;p&gt;
+          If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;false&lt;/strong&gt;, then the consumer is rejected to connect to a broker.
+        &lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
   &lt;/li&gt;
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.
+      If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
     &lt;/p&gt;
+    &lt;ul spaces=&quot;0&quot; level=&quot;1&quot; marker=&quot;*&quot;&gt;
+      &lt;li level=&quot;1&quot;&gt;
+        &lt;p&gt;
+          If the schema passes the compatibility check, then the consumer is connected to the broker.
+        &lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li level=&quot;1&quot;&gt;
+        &lt;p&gt;
+          If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.
+        &lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
   &lt;/li&gt;
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If the schema is compatible, the broker stores it and returns the schema version to the consumer.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If the schema is incompatible, the consumer will be disconnected.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The consumer receives the messages from the broker.
+      The consumer receives messages from the broker.
     &lt;/p&gt;
     &lt;p&gt;
-      If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the &lt;code&gt;SchemaInfo&lt;/code&gt; of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
+      If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the &lt;code&gt;SchemaInfo&lt;/code&gt; of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.
     &lt;/p&gt;
   &lt;/li&gt;
 &lt;/ol&gt;</code></pre>
