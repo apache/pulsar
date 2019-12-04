@@ -46,10 +46,10 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
-    public AvroSchemaHandler(TopicName topicName,
-                             PulsarConnectorConfig pulsarConnectorConfig,
-                             SchemaInfo schemaInfo,
-                             List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
+    AvroSchemaHandler(TopicName topicName,
+                      PulsarConnectorConfig pulsarConnectorConfig,
+                      SchemaInfo schemaInfo,
+                      List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
         this.schemaInfo = schemaInfo;
         this.genericAvroSchema = new GenericAvroSchema(schemaInfo);
         this.genericAvroSchema

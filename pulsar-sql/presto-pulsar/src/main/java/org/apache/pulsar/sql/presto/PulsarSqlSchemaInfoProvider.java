@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,15 +50,15 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
 
     private final PulsarAdmin pulsarAdmin;
 
-    private final LoadingCache<byte[], SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaInfo>() {
+    private final LoadingCache<BytesSchemaVersion, SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaInfo>() {
                 @Override
-                public SchemaInfo load(byte[] schemaVersion) throws Exception {
+                public SchemaInfo load(BytesSchemaVersion schemaVersion) throws Exception {
                     return loadSchema(schemaVersion);
                 }
             });
 
-    public PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
+    PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
         this.topicName = topicName;
         this.pulsarAdmin = pulsarAdmin;
     }
@@ -68,7 +69,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
             if (null == schemaVersion) {
                 return completedFuture(null);
             }
-            return completedFuture(cache.get(schemaVersion));
+            return completedFuture(cache.get(BytesSchemaVersion.of(schemaVersion)));
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
@@ -93,12 +94,12 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         return topicName.getLocalName();
     }
 
-    private SchemaInfo loadSchema(byte[] schemaVersion) throws PulsarAdminException {
+    private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
         return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), bytes2Long(schemaVersion));
+                .getSchemaInfo(topicName.toString(), bytes2Long(bytesSchemaVersion.get()));
     }
 
-    public static long bytes2Long(byte[] byteNum) {
+    private static long bytes2Long(byte[] byteNum) {
         long num = 0;
         for (int ix = 0; ix < 8; ++ix) {
             num <<= 8;
