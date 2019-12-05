@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -63,12 +62,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
-    }
-
-    @Override
-    public CompletableFuture<TxnID> newTransactionAsync() {
+    public CompletableFuture<TxnID> newTransactionAsync(long timeout) {
         TxnID txnID = new TxnID(
             tcID.getId(),
             localID.getAndIncrement()
