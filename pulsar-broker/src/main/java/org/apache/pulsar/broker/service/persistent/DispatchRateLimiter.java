@@ -138,7 +138,8 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInByte = -1;
         }
 
-        return new DispatchRate(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte, 1);
+        return new DispatchRate(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte, 1,
+                config.isDispatchThrottlingRateRelativeToPublishRate());
     }
 
     /**
