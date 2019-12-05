@@ -220,7 +220,7 @@ It shows current statistics of a given non-partitioned topic.
 
           -   **msgBacklog**: Number of messages in the subscription backlog
 
-          -   **type**: This subscription's type
+          -   **type**: This subscription type
 
           -   **msgRateExpired**: The rate at which messages were discarded instead of dispatched from this subscription due to TTL
 
