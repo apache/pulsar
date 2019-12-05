@@ -355,7 +355,7 @@ It shows detailed statistics of a topic.
 
   -   **cursors**: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.
 
-      -   **markDeletePosition**: The ack position: the last message the subscriber acknowledged receiving
+      -   **markDeletePosition**: The ack position where the subscriber acknowledges receiving the last message
 
       -   **readPosition**: The latest position of subscriber for reading message
 
