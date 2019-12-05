@@ -236,7 +236,7 @@ It shows current statistics of a given non-partitioned topic.
 
                 -   **unackedMessages**: Number of unacknowledged messages for the consumer
 
-                -   **blockedConsumerOnUnackedMsgs**: Flag to verify if consumer is blocked due to reaching threshold of unacked messages
+                -   **blockedConsumerOnUnackedMsgs**: Flag to verify if the consumer is blocked due to reaching threshold of unacked messages
 
   -   **replication**: This section gives the stats for cross-colo replication of this topic
 
