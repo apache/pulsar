@@ -262,7 +262,7 @@ It shows current statistics of a given non-partitioned topic.
 
       -   **outboundConnection**: Address of outbound replication connection
 
-      -   **outboundConnectedSince**: Timestamp of outbound connection establishment time
+      -   **outboundConnectedSince**: Timestamp of establishing outbound connection
 
 ```json
 {
