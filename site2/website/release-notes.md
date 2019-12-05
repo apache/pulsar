@@ -7,7 +7,6 @@
 
 * Fixed don't set interrupt flag again after catching interrupt exception in Pulsar Client [#5643](https://github.com/apache/pulsar/pull/5643)
 * Fixed data is not deleted after expiration due to connected readers [#5621](https://github.com/apache/pulsar/pull/5621)
-* Fixed typo in BrokersBase file [#5596](https://github.com/apache/pulsar/pull/5596)
 * Fixed the go client docs missing in website [#5595](https://github.com/apache/pulsar/pull/5595)
 * Fixed schema def build error with protobuf schema [#5569](https://github.com/apache/pulsar/pull/5569)
 * Fixed docs about reset cursor [#5551](https://github.com/apache/pulsar/pull/5551)
@@ -29,17 +28,16 @@
 * Fixed proxy to be able to re-send request body [#5361](https://github.com/apache/pulsar/pull/5361)
 * Fixed pulsar can't load the customized SerDe [#5357](https://github.com/apache/pulsar/pull/5357)
 * Fixed instability in Pulsar Function window integration test [#5337](https://github.com/apache/pulsar/pull/5337)
-* Fixed bk write failure part 2 [#5322](https://github.com/apache/pulsar/pull/5322)
+* Fixed bk write failure, use signals to resume writing [#5322](https://github.com/apache/pulsar/pull/5322)
 * Fixed bad_weak_ptr error when closing producer [#5315](https://github.com/apache/pulsar/pull/5315)
-* Fixed typo in prometheus metrics [#5299](https://github.com/apache/pulsar/pull/5299)
+* Fixed typo(massage->message) causing prometheus metrics display error [#5299](https://github.com/apache/pulsar/pull/5299)
 * Fixed invalidate cache on zk-cache timeout [#5298](https://github.com/apache/pulsar/pull/5298)
-* Don't attempt to append on read-only cursor ledger [#5297](https://github.com/apache/pulsar/pull/5297)
 * Fixed memory leak caused by not being executed ClientConnection destructor [#5286](https://github.com/apache/pulsar/pull/5286)
 * Fixed producer blocked after send an over size message while batch enabled [#5282](https://github.com/apache/pulsar/pull/5282)
 * Fixed race condition while triggering message redelivery after an ack-timeout event [#5276](https://github.com/apache/pulsar/pull/5276)
 * Fixed behavior when getting a key from functions state that doesn't exist [#5272](https://github.com/apache/pulsar/pull/5272)
-* Fixed Cmake to build _pulsar for osx #5263
-* Fixed client backoff #5261
+* Fixed Cmake to build _pulsar for osx [#5263](https://github.com/apache/pulsar/pull/5263)
+* Fixed client backoff setting does not take effect [#5261](https://github.com/apache/pulsar/pull/5261)
 * Fixed memory leak caused by deadline_timer holding object reference [#5246](https://github.com/apache/pulsar/pull/5246)
 * Fixed in Message Deduplication that may cause incorrect client/broker interaction [#5243](https://github.com/apache/pulsar/pull/5243)
 * Fixed bug that fails to search namespace bundle due to NPE [#5191](https://github.com/apache/pulsar/pull/5191)
@@ -49,7 +47,7 @@
 * Fixed broker fails to start with function worker enabled and broker client using TLS [#5151](https://github.com/apache/pulsar/pull/5151)
 * Fixed deadlock when resetting cursor [#5136](https://github.com/apache/pulsar/pull/5136)
 * Fixed windowed functions were broken when we changed java function instance to use classloaders [#5117](https://github.com/apache/pulsar/pull/5117)
-* Fixed storage size always 0 without subscription #5108
+* Fixed storage size always 0 without subscription [#5108](https://github.com/apache/pulsar/pull/5108)
 
 #### Enhancements
 
@@ -70,6 +68,7 @@
 * Disable stickyRead by default [#5321](https://github.com/apache/pulsar/pull/5321)
 * Allow to specify delivery delay in C++ client [#5317](https://github.com/apache/pulsar/pull/5317)
 * Add debug log + fix thread-factory name  [#5302](https://github.com/apache/pulsar/pull/5302)
+* Don't attempt to append on read-only cursor ledger [#5297](https://github.com/apache/pulsar/pull/5297)
 * Close previous dispatcher when subscription type changes [#5288](https://github.com/apache/pulsar/pull/5288)
 * Improve error handling logic for effectively once [#5271](https://github.com/apache/pulsar/pull/5271)
 * Upgrade dependencies for security fixes [#5232](https://github.com/apache/pulsar/pull/5232)
@@ -93,7 +92,7 @@
 * Trim deleted entries after recover cursor [#4987](https://github.com/apache/pulsar/pull/4987)
 * Expose getLastMessageId method in ConsumerImpl [#4911](https://github.com/apache/pulsar/pull/4911)
 * Add a documentation page for metrics reference [#4910](https://github.com/apache/pulsar/pull/4910)
-* Merge Request for #4809: provide a convenient method for C++ client producer batch container [#4885](https://github.com/apache/pulsar/pull/4885)
+* Provide a convenient method for C++ client producer batch container [#4885](https://github.com/apache/pulsar/pull/4885)
 * Add schema admin api get schema info with schema version [#4877](https://github.com/apache/pulsar/pull/4877)
 * Return Message ID for send for cpp and cgo client [#4811](https://github.com/apache/pulsar/pull/4811)
 * Add the schema admin api [#4800](https://github.com/apache/pulsar/pull/4800)
