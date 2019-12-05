@@ -347,7 +347,7 @@ It shows detailed statistics of a topic.
 
       -   **ledgerId**: Id of this ledger
 
-      -   **entries**: Total number of entries which this ledger has
+      -   **entries**: Total number of entries belong to this ledger
 
       -   **size**: Size in bytes of messages written to this ledger
 
