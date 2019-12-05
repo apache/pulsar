@@ -128,6 +128,11 @@ public class ManagedLedgerTransactionMetadataStore
     }
 
     @Override
+    public CompletableFuture<TxnID> newTransactionAsync() {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
+    }
+
+    @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
