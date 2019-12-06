@@ -209,7 +209,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> batchingPartitionSwitchFrequency(int frequency) {
+    public ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency) {
         conf.setBatchingPartitionSwitchFrequencyByPublishDelay(frequency);
         return this;
     }

@@ -361,7 +361,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @see #messageRoutingMode(MessageRoutingMode)
      * @see #batchingMaxPublishDelay(long, TimeUnit)
      */
-    ProducerBuilder<T> batchingPartitionSwitchFrequency(int frequency);
+    ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency);
 
     /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
