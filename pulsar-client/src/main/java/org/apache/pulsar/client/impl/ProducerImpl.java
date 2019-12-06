@@ -947,7 +947,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             return true;
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName,
+                    (op.cmd == null ? null : op.cmd.getClass().getName()));
             return false;
         }
     }
@@ -1253,7 +1254,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.resetReaderIndex();
             }
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName,
+                    (op.cmd == null ? null : op.cmd.getClass().getName()));
         }
     }
 
