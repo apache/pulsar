@@ -40,8 +40,7 @@ or `hyperkit` or `VirtualBox` on macOS.
 #### Create a K8S cluster on Minikube
 
 ```
-minikube start --memory=8192 --cpus=4 \
-    --kubernetes-version=v1.10.5
+minikube start --memory=8192 --cpus=4
 ```
 
 #### Set kubectl to use Minikube.
