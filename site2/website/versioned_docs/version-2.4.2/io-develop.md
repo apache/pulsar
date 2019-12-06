@@ -43,7 +43,7 @@ save the `SourceContext` for futher usage.
     void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
 ```
 
-The main task for a Source implementor is to implement {@inject: github:`read`:/master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41}
+The main task for a Source implementor is to implement {@inject: github:`read`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41}
 method.
 
 ```java
@@ -57,7 +57,7 @@ method.
 ```
 
 The implementation should be blocking on this method if nothing to return. It should never return
-`null`. The returned {@inject: github:`Record`:/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should encapsulates the information that is needed by
+`null`. The returned {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should encapsulates the information that is needed by
 Pulsar IO runtime.
 
 These information includes:
@@ -77,14 +77,14 @@ Additionally, the implemention of the record should provide two methods: `ack` a
 two methods will be used by Pulsar IO connector to acknowledge the records that it has done
 processing and fail the records that it has failed to process.
 
-{@inject: github:`KafkaSource`:/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java} is a good example to follow.
+{@inject: github:`KafkaSource`:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java} is a good example to follow.
 
 #### Develop a sink connector
 
 Developing a sink connector is as easy as developing a source connector. You just need to
-implement {@inject: github:`Sink`:/master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} interface.
+implement {@inject: github:`Sink`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} interface.
 
-Similarly, you first need to implement the {@inject: github:`open`:/master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36} method to initialize all the necessary resources
+Similarly, you first need to implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36} method to initialize all the necessary resources
 before implementing the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44} method.
 
 ```java

@@ -18,22 +18,31 @@
       "version-2.4.2-concepts-tiered-storage",
       "version-2.4.2-concepts-schema-registry"
     ],
+    "Pulsar Schema": [
+      "version-2.4.2-schema-get-started",
+      "version-2.4.2-schema-understand",
+      "version-2.4.2-schema-evolution-compatibility",
+      "version-2.4.2-schema-manage"
+    ],
     "Pulsar Functions": [
       "version-2.4.2-functions-overview",
-      "version-2.4.2-functions-quickstart",
-      "version-2.4.2-functions-api",
-      "version-2.4.2-functions-deploying",
-      "version-2.4.2-functions-guarantees",
-      "version-2.4.2-functions-state",
-      "version-2.4.2-functions-metrics",
       "version-2.4.2-functions-worker",
       "version-2.4.2-functions-runtime",
-      "version-2.4.2-functions-debugging"
+      "version-2.4.2-functions-develop",
+      "version-2.4.2-functions-debug",
+      "version-2.4.2-functions-deploy",
+      "version-2.4.2-functions-configure",
+      "version-2.4.2-functions-monitor",
+      "version-2.4.2-functions-secure",
+      "version-2.4.2-functions-troubleshoot",
+      "version-2.4.2-functions-cli"
     ],
     "Pulsar IO": [
       "version-2.4.2-io-overview",
       "version-2.4.2-io-quickstart",
+      "version-2.4.2-io-use",
       "version-2.4.2-io-managing",
+      "version-2.4.2-io-debug",
       "version-2.4.2-io-connectors",
       "version-2.4.2-io-develop",
       "version-2.4.2-io-cdc"
@@ -57,7 +66,8 @@
       "version-2.4.2-administration-dashboard",
       "version-2.4.2-administration-stats",
       "version-2.4.2-administration-load-balance",
-      "version-2.4.2-administration-proxy"
+      "version-2.4.2-administration-proxy",
+      "version-2.4.2-administration-upgrade"
     ],
     "Security": [
       "version-2.4.2-security-overview",
@@ -88,7 +98,8 @@
       "version-2.4.2-admin-api-persistent-topics",
       "version-2.4.2-admin-api-non-persistent-topics",
       "version-2.4.2-admin-api-partitioned-topics",
-      "version-2.4.2-admin-api-schemas"
+      "version-2.4.2-admin-api-schemas",
+      "version-2.4.2-admin-api-functions"
     ],
     "Adaptors": [
       "version-2.4.2-adaptors-kafka",
@@ -117,6 +128,7 @@
       "version-2.4.2-reference-terminology",
       "version-2.4.2-reference-cli-tools",
       "version-2.4.2-pulsar-admin",
+      "version-2.4.2-reference-connector-admin",
       "version-2.4.2-reference-configuration",
       "version-2.4.2-reference-metrics"
     ]
