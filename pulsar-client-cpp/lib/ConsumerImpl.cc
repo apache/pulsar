@@ -283,6 +283,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
+    m.impl_->setRedeliveryCount(msg.redelivery_count());
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
@@ -291,7 +292,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     unsigned int numOfMessageReceived = 1;
     if (metadata.has_num_messages_in_batch()) {
         Lock lock(mutex_);
-        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
+        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m, msg.redelivery_count());
     } else {
         Lock lock(pendingReceiveMutex_);
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
@@ -358,7 +359,7 @@ void ConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
 
 // Zero Queue size is not supported with Batch Messages
 uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx,
-                                                          Message& batchedMessage) {
+                                                          Message& batchedMessage, int redeliveryCount) {
     unsigned int batchSize = batchedMessage.impl_->metadata.num_messages_in_batch();
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
@@ -369,6 +370,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     for (int i = 0; i < batchSize; i++) {
         // This is a cheap copy since message contains only one shared pointer (impl_)
         Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
+        msg.impl_->setRedeliveryCount(redeliveryCount);
 
         if (startMessageId_.is_present()) {
             const MessageId& msgId = msg.getMessageId();

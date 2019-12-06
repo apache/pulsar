@@ -164,7 +164,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);

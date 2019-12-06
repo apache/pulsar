@@ -165,7 +165,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }

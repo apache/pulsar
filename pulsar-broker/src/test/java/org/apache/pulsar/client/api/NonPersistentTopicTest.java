@@ -890,7 +890,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
             config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-            config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
+            config1.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config1.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
             config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
@@ -918,7 +918,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
             config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-            config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
+            config2.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config2.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
             config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
@@ -946,7 +946,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
             config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-            config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
+            config3.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config3.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
             config3.setAllowAutoTopicCreationType("non-partitioned");
