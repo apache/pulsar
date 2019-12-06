@@ -1790,8 +1790,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    PositionImpl startReadOperationOnLedger(PositionImpl position) {
-        long ledgerId = ledgers.ceilingKey(position.getLedgerId());
+    PositionImpl startReadOperationOnLedger(PositionImpl position, ReadEntriesCallback callback) {
+        Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
+        if (null == ledgerId) {
+            callback.readEntriesFailed(new ManagedLedgerNotFoundException("read ledger failed, the ledgerID is null"), null);
+        }
+
         if (ledgerId != position.getLedgerId()) {
             // The ledger pointed by this position does not exist anymore. It was deleted because it was empty. We need
             // to skip on the next available ledger
