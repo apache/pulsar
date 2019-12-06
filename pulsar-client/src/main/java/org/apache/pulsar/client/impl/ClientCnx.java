@@ -308,7 +308,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
         checkArgument(authChallenge.hasChallenge());
-        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
+        checkArgument(authChallenge.getChallenge().hasAuthData());
 
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         try {
