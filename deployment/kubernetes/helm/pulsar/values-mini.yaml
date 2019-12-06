@@ -143,11 +143,11 @@ bookkeeper:
   ##
   configData:
     PULSAR_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
-    dbStorage_writeCacheMaxSizeMb: "32"
-    dbStorage_readAheadCacheMaxSizeMb: "32"
-    journalMaxSizeMB: "2048"
-    statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
-    useHostNameAsBookieID: "true"
+    PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "32"
+    PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "32"
+    PULSAR_PREFIX_journalMaxSizeMB: "2048"
+    PULSAR_PREFIX_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+    PULSAR_PREFIX_useHostNameAsBookieID: "true"
   ## Bookkeeper configmap
   ## templates/bookkeeper-service.yaml
   ##
@@ -187,11 +187,11 @@ broker:
   configData:
     PULSAR_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem\""
     PULSAR_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
-    managedLedgerDefaultEnsembleSize: "2"
-    managedLedgerDefaultWriteQuorum: "2"
-    managedLedgerDefaultAckQuorum: "2"
-    deduplicationEnabled: "false"
-    exposeTopicLevelMetricsInPrometheus: "true"
+    PULSAR_PREFIX_managedLedgerDefaultEnsembleSize: "2"
+    PULSAR_PREFIX_managedLedgerDefaultWriteQuorum: "2"
+    PULSAR_PREFIX_managedLedgerDefaultAckQuorum: "2"
+    PULSAR_PREFIX_deduplicationEnabled: "false"
+    PULSAR_PREFIX_exposeTopicLevelMetricsInPrometheus: "true"
   ## Broker service
   ## templates/broker-service.yaml
   ##
