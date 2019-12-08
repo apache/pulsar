@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -57,19 +58,22 @@ public class RateLimiter implements AutoCloseable{
     private long permits;
     private long acquiredPermits;
     private boolean isClosed;
+    // permitUpdate helps to update permit-rate at runtime
+    private Supplier<Long> permitUpdater;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
-        this(null, permits, rateTime, timeUnit);
+        this(null, permits, rateTime, timeUnit, null);
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit) {
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
         this.rateTime = rateTime;
         this.timeUnit = timeUnit;
         this.permits = permits;
+        this.permitUpdater = permitUpdater;
 
         if (service != null) {
             this.executorService = service;
@@ -198,14 +202,16 @@ public class RateLimiter implements AutoCloseable{
      * @param permits
      * @param rateTime
      * @param timeUnit
+     * @param permitUpdaterByte
      */
-    public synchronized void setRate(long permits, long rateTime, TimeUnit timeUnit) {
+    public synchronized void setRate(long permits, long rateTime, TimeUnit timeUnit, Supplier<Long> permitUpdaterByte) {
         if (renewTask != null) {
             renewTask.cancel(false);
         }
         this.permits = permits;
         this.rateTime = rateTime;
         this.timeUnit = timeUnit;
+        this.permitUpdater = permitUpdaterByte;
         this.renewTask = createTask();
     }
 
@@ -232,6 +238,12 @@ public class RateLimiter implements AutoCloseable{
 
     synchronized void renew() {
         acquiredPermits = 0;
+        if (permitUpdater != null) {
+            long newPermitRate = permitUpdater.get();
+            if (newPermitRate > 0) {
+                setRate(newPermitRate);
+            }
+        }
         notifyAll();
     }
 
