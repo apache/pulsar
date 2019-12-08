@@ -1,7 +1,7 @@
 ---
 id: functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Setup: Pulsar Functions Worker
+sidebar_label: "Setup: Pulsar Functions Worker"
 ---
 Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
