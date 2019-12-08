@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -39,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -82,9 +84,11 @@ public class MultiTopicsConsumerImplTest {
 
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf);
 
-        Consumer consumer = clientImpl.newConsumer().topic("persistent://public/test-multi/MultiTopics2")
+        clientImpl.newConsumer()
+                .topics(topics)
                 .subscriptionName("multiTopicSubscription")
-                .subscribe();
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribeAsync().thenAccept(this::receiveMessageFromConsumer);
 
        Producer<String> producer = clientImpl.newProducer(Schema.STRING)
                 .topic("persistent://public/default/MultiTopics1")
@@ -94,18 +98,20 @@ public class MultiTopicsConsumerImplTest {
                 .topic("persistent://public/test-multi/MultiTopics2")
                 .producerName("producer1")
                 .create();
-        Message msg = consumer.receive();
-        producer.send("default-MultiTopics1-Message2");
-        //receive message from persistent://public/default/MultiTopics1
-        assertEquals("default/MultiTopics1-Message1",new String(msg.getData()));
-
+        //Message msg = consumer.receive();
+        producer.send("default/MultiTopics1-Message1");
 
         producer1.send("test-multi/MultiTopics2-Message1");
-        //receive message from persistent://public/test-multi/MultiTopics2
-        Message msg1 = consumer.receive();
-        assertEquals("test-multi/MultiTopics2-Message1",new String(msg.getData()));
+
         producer.closeAsync();
         producer1.closeAsync();
-        consumer.closeAsync();
+    }
+    private void receiveMessageFromConsumer(Consumer consumer) {
+        consumer.receiveAsync().thenAccept(message -> {
+            Message ms = (Message) message;
+            String msg = new String(ms.getData());
+            assertTrue(msg.contains("-Message1"));
+            receiveMessageFromConsumer(consumer);
+        });
     }
 }
