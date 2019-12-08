@@ -40,7 +40,11 @@ extra:
   # Bookkeeper auto-recovery
   autoRecovery: yes
   # Pulsar dashboard
-  dashboard: yes
+  # Deprecated
+  # Replace pulsar-dashboard with pulsar-manager
+  dashboard: no
+  # pulsar manager
+  pulsar_manager: yes
   # Bastion pod for administrative commands
   bastion: yes
   # Monitoring stack (prometheus and grafana)
@@ -298,6 +302,7 @@ autoRecovery:
 
 ## Pulsar Extra: Dashboard
 ## templates/dashboard-deployment.yaml
+## Deprecated
 ##
 dashboard:
   component: dashboard
@@ -419,3 +424,37 @@ grafana:
     ports:
     - name: server
       port: 3000
+
+## Components Stack: pulsar_manager
+## templates/pulsar-manager.yaml
+##
+
+pulsar_manager:
+  component: pulsar-manager
+  replicaCount: 1
+  # nodeSelector:
+  # cloud.google.com/gke-nodepool: default-pool
+  annotations: {}
+  tolarations: []
+  gracePeriod: 0
+  image:
+    repository: apachepulsar/pulsar-manager
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: 250Mi
+      cpu: 0.1
+  ## Pulsar manager service
+  ## templates/pulsar-manager-service.yaml
+  ##
+  service:
+    type: LoadBalancer
+    annotations: {}
+    ports:
+      - name: server
+        port: 9527
+  admin:
+    user: pulsar
+    password: pulsar
+
