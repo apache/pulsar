@@ -20,12 +20,15 @@ package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
 
+import static org.testng.Assert.assertNotNull;
+
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -904,4 +907,75 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         });
     }
 
+    /**
+     * It verifies that relative throttling at least dispatch messages as publish-rate.
+     * 
+     * @param subscription
+     * @throws Exception
+     */
+    @Test(dataProvider = "subscriptions")
+    public void testRelativeMessageRateLimitingThrottling(SubscriptionType subscription) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String namespace = "my-property/relative_throttling_ns";
+        final String topicName = "persistent://" + namespace + "/relative-throttle";
+
+        final int messageRate = 1;
+        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1, true);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        // create producer and topic
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        boolean isMessageRateUpdate = false;
+        int retry = 10;
+        for (int i = 0; i < retry; i++) {
+            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0) {
+                isMessageRateUpdate = true;
+                break;
+            } else {
+                if (i != retry - 1) {
+                    Thread.sleep(100);
+                }
+            }
+        }
+        Assert.assertTrue(isMessageRateUpdate);
+        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+        Thread.sleep(2000);
+
+        final int numProducedMessages = 1000;
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).subscribe();
+        // deactive cursors
+        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+        // send a message, which will make dispatcher-ratelimiter initialize and schedule renew task
+        producer.send("test".getBytes());
+        assertNotNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+
+        Field lastUpdatedMsgRateIn = PersistentTopic.class.getDeclaredField("lastUpdatedAvgPublishRateInMsg");
+        lastUpdatedMsgRateIn.setAccessible(true);
+        lastUpdatedMsgRateIn.set(topic, numProducedMessages);
+
+        for (int i = 0; i < numProducedMessages; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        int totalReceived = 0;
+        // Relative throttling will let it drain immediately because it allows to dispatch = (publish-rate +
+        // dispatch-rate)
+        for (int i = 0; i < numProducedMessages; i++) {
+            Message<byte[]> msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+            totalReceived++;
+            assertNotNull(msg);
+        }
+
+        Assert.assertEquals(totalReceived, numProducedMessages);
+
+        consumer.close();
+        producer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

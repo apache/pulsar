@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -44,17 +45,23 @@ public class DispatchRateLimiter {
         REPLICATOR
     }
 
+    private final PersistentTopic topic;
     private final String topicName;
     private final Type type;
 
     private final BrokerService brokerService;
     private RateLimiter dispatchRateLimiterOnMessage;
     private RateLimiter dispatchRateLimiterOnByte;
+    private long subscriptionRelativeRatelimiterOnMessage;
+    private long subscriptionRelativeRatelimiterOnByte;
 
     public DispatchRateLimiter(PersistentTopic topic, Type type) {
+        this.topic = topic;
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         this.type = type;
+        this.subscriptionRelativeRatelimiterOnMessage = -1;
+        this.subscriptionRelativeRatelimiterOnByte = -1;
         updateDispatchRate();
     }
 
@@ -272,14 +279,17 @@ public class DispatchRateLimiter {
         long byteRate = dispatchRate.dispatchThrottlingRateInByte;
         long ratePeriod = dispatchRate.ratePeriodInSecond;
 
+        Supplier<Long> permitUpdaterMsg = dispatchRate.relativeToPublishRate
+                ? () -> getRelativeDispatchRateInMsg(dispatchRate)
+                : null;
         // update msg-rateLimiter
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
                 this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg);
             } else {
                 this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.ratePeriodInSecond,
-                        TimeUnit.SECONDS);
+                        TimeUnit.SECONDS, permitUpdaterMsg);
             }
         } else {
             // message-rate should be disable and close
@@ -289,14 +299,17 @@ public class DispatchRateLimiter {
             }
         }
 
+        Supplier<Long> permitUpdaterByte = dispatchRate.relativeToPublishRate
+                ? () -> getRelativeDispatchRateInByte(dispatchRate)
+                : null;
         // update byte-rateLimiter
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
                 this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS);
+                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte);
             } else {
                 this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.ratePeriodInSecond,
-                        TimeUnit.SECONDS);
+                        TimeUnit.SECONDS, permitUpdaterByte);
             }
         } else {
             // message-rate should be disable and close
@@ -305,6 +318,18 @@ public class DispatchRateLimiter {
                 this.dispatchRateLimiterOnByte = null;
             }
         }
+    }
+
+    private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
+        return (topic != null && dispatchRate != null)
+                ? (long) topic.getLastUpdatedAvgPublishRateInMsg() + dispatchRate.dispatchThrottlingRateInMsg
+                : 0;
+    }
+
+    private long getRelativeDispatchRateInByte(DispatchRate dispatchRate) {
+        return (topic != null && dispatchRate != null)
+                ? (long) topic.getLastUpdatedAvgPublishRateInByte() + dispatchRate.dispatchThrottlingRateInByte
+                : 0;
     }
 
     /**
