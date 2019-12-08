@@ -23,12 +23,12 @@ VERSION=`${ROOT_DIR}/src/get-project-version.py`
 
 set -x -e
 
-# ${ROOT_DIR}/site2/tools/generate-api-docs.sh
+${ROOT_DIR}/site2/tools/generate-api-docs.sh
 cd ${ROOT_DIR}/site2/website
 yarn
-# yarn write-translations
-# yarn run crowdin-upload
-# yarn run crowdin-download
+yarn write-translations
+yarn run crowdin-upload
+yarn run crowdin-download
 
 # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
 # https://github.com/apache/pulsar/issues/5816
