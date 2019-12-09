@@ -571,17 +571,17 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If a topic does not have all of them (a schema/data/a local consumer and a local producer):
+      如果一个主题没有全部内容(图案/数据/当地消费者和当地生产者)：
     &lt;/p&gt;
     &lt;ul spaces=&quot;0&quot; level=&quot;1&quot; marker=&quot;*&quot;&gt;
       &lt;li level=&quot;1&quot;&gt;
         &lt;p&gt;
-          If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;true&lt;/strong&gt;, then the consumer registers a schema and it is connected to a broker.
+          如果&lt;code&gt; isAllowAutoUpdateSchema &lt;/code&gt;设置为&lt;strong&gt; false &lt;/strong&gt;，则消费者将被拒绝连接到代理。
         &lt;/p&gt;
       &lt;/li&gt;
       &lt;li level=&quot;1&quot;&gt;
         &lt;p&gt;
-          If &lt;code&gt;isAllowAutoUpdateSchema&lt;/code&gt; sets to &lt;strong&gt;false&lt;/strong&gt;, then the consumer is rejected to connect to a broker.
+          如果&lt;code&gt; isAllowAutoUpdateSchema &lt;/code&gt;设置为&lt;strong&gt; false &lt;/strong&gt;，则消费者将被拒绝连接到代理。
         &lt;/p&gt;
       &lt;/li&gt;
     &lt;/ul&gt;
@@ -589,17 +589,17 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
   
   &lt;li level=&quot;0&quot;&gt;
     &lt;p&gt;
-      If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
+      如果某个话题中有一个主题（架构/数据/本地使用者和本地生产者），则将执行 Schema 兼容性检查。
     &lt;/p&gt;
     &lt;ul spaces=&quot;0&quot; level=&quot;1&quot; marker=&quot;*&quot;&gt;
       &lt;li level=&quot;1&quot;&gt;
         &lt;p&gt;
-          If the schema passes the compatibility check, then the consumer is connected to the broker.
+          如果 Schema 通过兼容性检查，那么消费者就将与代理连接。
         &lt;/p&gt;
       &lt;/li&gt;
       &lt;li level=&quot;1&quot;&gt;
         &lt;p&gt;
-          If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.
+          如果该架构未通过兼容性检查，那么将拒绝使用方连接到代理。
         &lt;/p&gt;
       &lt;/li&gt;
     &lt;/ul&gt;

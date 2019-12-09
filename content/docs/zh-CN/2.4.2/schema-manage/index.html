@@ -107,7 +107,7 @@
 </ul></li>
 </ul></li>
 </ul>
-<p><img src="/docs/assets/schema-autoupdate-producer.png" alt="AutoUpdate Producer"></p>
+<p><img src="/docs/assets/schema-autoupdate-producer.png" alt="生产者自动更新"></p>
 <h3><a class="anchor" aria-hidden="true" id="消费端的自动更新"></a><a href="#消费端的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费端的自动更新</h3>
 <p>对于消费者，在以下情况下会发生<code>AutoUpdate</code>：</p>
 <ul>
@@ -122,7 +122,7 @@
 </ul></li>
 </ul></li>
 </ul>
-<p><img src="/docs/assets/schema-autoupdate-consumer.png" alt="AutoUpdate Producer"></p>
+<p><img src="/docs/assets/schema-autoupdate-consumer.png" alt="生产者自动更新"></p>
 <h3><a class="anchor" aria-hidden="true" id="管理自动更新策略"></a><a href="#管理自动更新策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理自动更新策略</h3>
 <p>您可以使用<code>pulsar-admin</code>命令来管理<code>AutoUpdate</code>策略，如下所示：</p>
 <ul>
@@ -165,8 +165,8 @@
 <p><strong>Admin CLI</strong>
 </td>
 <td>
-You can use the <code>pulsar-admin</code> tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.</p>
-<p>For more information about how to use the <code>pulsar-admin</code> tool, see <a href="/docs/zh-CN/2.4.2/pulsar-admin">here</a>.
+你可以使用<code>pulsar-admin</code>工具来管理 Pulsar 模式，代理，集群，源，接收器，主题，租户等。</p>
+<p>关于如何使用 <code>pulsar-admin</code> 工具的更多信息，<a href="/docs/zh-CN/2.4.2/pulsar-admin">可点击此处查看</a>。
 </td></p>
   </tr>
   <tr>
@@ -174,18 +174,18 @@ You can use the <code>pulsar-admin</code> tool to manage Pulsar schemas, brokers
 <p><strong>REST API</strong>
 </td>
 <td></p>
-<p>Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.</p>
-<p>For more information about how to use the Pulsar REST API, see <a href="http://pulsar.apache.org/admin-rest-api/">here</a>.
+<p>Pulsar 在 Pulsar 的管理 RESTful API 中公开了与架构相关的管理 API。 你可以直接访问管理员RESTfull 端点来管理方案。</p>
+<p>有关如何使用 Pulsar REST API 的更多信息，请参见<a href="http://pulsar.apache.org/admin-rest-api/">这里</a>。
 </td></p>
  </tr>
  <tr>
     <td>
 <p><strong>Java Admin API</strong>
 </td>
-<td>Pulsar provides Java admin library.</td></p>
+<td>Pulsar 提供 Java 管理库。</td></p>
  </tr>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="upload-a-schema"></a><a href="#upload-a-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upload a schema</h3>
+<h3><a class="anchor" aria-hidden="true" id="更新-schema"></a><a href="#更新-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新 Schema</h3>
 <p>To upload (register) a new schema for a topic, you can use one of the following methods.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-1342-tab-1343" class="nav-link active" data-group="group_1342" data-tab="tab-group-1342-content-1343">Admin CLI</div><div id="tab-group-1342-tab-1344" class="nav-link" data-group="group_1342" data-tab="tab-group-1342-content-1344">REST API</div></div><div class="tab-content"><div id="tab-group-1342-content-1343" class="tab-pane active" data-group="group_1342" tabindex="-1"><div><span><p>Use the <code>upload</code> subcommand.</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin schemas upload --filename &lt;schema-definition-file&gt; &lt;topic-name&gt;<br /></code></pre>
@@ -202,24 +202,24 @@ You can use the <code>pulsar-admin</code> tool to manage Pulsar schemas, brokers
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>schema</code>
 </td>
 <td></p>
-<p>The schema definition data, which is encoded in UTF 8 charset.</p>
+<p>Schema 定义数据，以 UTF 8 字符集编码。</p>
 <ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this field should be blank.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition.</p>
+<li><p>如果 Schema 是一个 <strong>privitive</strong> 方案，此字段应为空。</p></li>
+<li><p>如果架构为 <strong>结构</strong> 架构，此字段应为 Avro schema 定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
 <p><code>properties</code>
 </td>
-<td>The additional properties associated with the schema.</td></p>
+<td>与架构相关联的附加属性。</td></p>
   </tr>  
 </table>
 </li>
@@ -244,24 +244,24 @@ The schema type.</td></p>
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>schema</code>
 </td>
 <td>
-The schema definition data, which is encoded in UTF 8 charset.</p>
+Schema 定义数据，以 UTF 8 字符集编码。</p>
 <ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this field should be blank.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition.</p>
+<li><p>如果 Schema 是一个 <strong>privitive</strong> 方案，此字段应为空。</p></li>
+<li><p>如果架构为 <strong>结构</strong> 架构，此字段应为 Avro schema 定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
 <p><code>properties</code>
 </td>
-<td>The additional properties associated with the schema.</td></p>
+<td>与架构相关联的附加属性。</td></p>
   </tr>  
 </table>
 </li>
@@ -278,24 +278,24 @@ The schema definition data, which is encoded in UTF 8 charset.</p>
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>schema</code>
 </td>
 <td>
-The schema definition data, which is encoded in UTF 8 charset.</p>
+Schema 定义数据，以 UTF 8 字符集编码。</p>
 <ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this field should be blank.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition.</p>
+<li><p>如果 Schema 是一个 <strong>privitive</strong> 方案，此字段应为空。</p></li>
+<li><p>如果架构为 <strong>结构</strong> 架构，此字段应为 Avro schema 定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
 <p><code>properties</code>
 </td>
-<td>The additional properties associated with the schema.</td></p>
+<td>与架构相关联的附加属性。</td></p>
   </tr>  
 </table>
 </li>
@@ -313,38 +313,38 @@ The schema definition data, which is encoded in UTF 8 charset.</p>
 <p><code>version</code>
 </td>
 <td>
-The schema version, which is a long number.</td></p>
+Schema 版本，是一个很长的数字。</td></p>
   </tr>
   <tr>
     <td>
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>timestamp</code>
 </td>
 <td>
-The timestamp of creating this version of schema.</td></p>
+创建此版本架构的时间戳。</td></p>
   </tr>
   <tr>
     <td>
 <p><code>data</code>
 </td>
 <td>
-The schema definition data, which is encoded in UTF 8 charset.</p>
+Schema 定义数据，以 UTF 8 字符集编码。</p>
 <ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this field should be blank.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition.</p>
+<li><p>如果 Schema 是一个 <strong>privitive</strong> 方案，此字段应为空。</p></li>
+<li><p>如果架构为 <strong>结构</strong> 架构，此字段应为 Avro schema 定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
 <p><code>properties</code>
 </td>
-<td>The additional properties associated with the schema.</td></p>
+<td>与架构相关联的附加属性。</td></p>
   </tr>  
 </table>
 </li>
@@ -361,35 +361,30 @@ The schema definition data, which is encoded in UTF 8 charset.</p>
 <p><code>name</code>
 </td>
 <td>
-The schema name.</td></p>
+Schema 名称.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>schema</code>
 </td>
 <td>
-A byte array of the schema definition data, which is encoded in UTF 8 charset.</p>
-<ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this byte array should be empty.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition converted to a byte array.</p>
+模式定义数据的字节数组，以 UTF 8 字符集编码。</p>
+<p>*如果该模式是“原始”模式，则此字节数组应为空。</p>
+<p><em>如果架构是</em>* struct **架构，则此字段应该是转换为字节数组的 Avro 架构定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
-<p><code>properties</code>
-</td>
-<td>The additional properties associated with the schema.</td></p>
+<pre><code class="hljs">`properties`<br />&lt;/td&gt;<br />&lt;td&gt;与架构相关联的附加属性。&lt;/td&gt; <br /></code></pre>
   </tr>  
 </table>
-</li>
-</ul>
 <p>Here is an example of <code>SchemaInfo</code>:</p>
 <pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />SchemaInfo si = admin.getSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>); <br /><br /><br />```bash<br />$ pulsar-admin schemas get &lt;topic-name&gt; --version=&lt;version&gt; <br />```&lt;!--REST API--&gt;Send a `GET` request to a schema endpoint: {<span class="hljs-meta">@inject</span>: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchema}<br /><br />Here is an example of a response, which is returned in JSON format.<br /><br />```json<br />{<br />    <span class="hljs-string">"version"</span>: <span class="hljs-string">"&lt;the-version-number-of-the-schema&gt;"</span>,<br />    <span class="hljs-string">"type"</span>: <span class="hljs-string">"&lt;the-schema-type&gt;"</span>,<br />    <span class="hljs-string">"timestamp"</span>: <span class="hljs-string">"&lt;the-creation-timestamp-of-the-version-of-the-schema&gt;"</span>,<br />    <span class="hljs-string">"data"</span>: <span class="hljs-string">"&lt;an-utf8-encoded-string-of-schema-definition-data&gt;"</span>,<br />    <span class="hljs-string">"properties"</span>: {} <span class="hljs-comment">// the properties associated with the schema</span><br />}<br /></code></pre>
 <p>The response includes the following fields:</p>
@@ -403,38 +398,38 @@ A byte array of the schema definition data, which is encoded in UTF 8 charset.</
 <p><code>version</code>
 </td>
 <td>
-The schema version, which is a long number.</td></p>
+Schema 版本，是一个很长的数字。</td></p>
   </tr>
   <tr>
     <td>
 <p><code>type</code>
 </td>
 <td>
-The schema type.</td></p>
+Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>timestamp</code>
 </td>
 <td>
-The timestamp of creating this version of schema.</td></p>
+创建此版本架构的时间戳。</td></p>
   </tr>
   <tr>
     <td>
 <p><code>data</code>
 </td>
 <td>
-The schema definition data, which is encoded in UTF 8 charset.</p>
+Schema 定义数据，以 UTF 8 字符集编码。</p>
 <ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this field should be blank.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition.</p>
+<li><p>如果 Schema 是一个 <strong>privitive</strong> 方案，此字段应为空。</p></li>
+<li><p>如果架构为 <strong>结构</strong> 架构，此字段应为 Avro schema 定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
 <p><code>properties</code>
 </td>
-<td>The additional properties associated with the schema.</td></p>
+<td>与架构相关联的附加属性。</td></p>
   </tr>  
 </table>
 </li>
@@ -450,38 +445,33 @@ The schema definition data, which is encoded in UTF 8 charset.</p>
     <td>
 <p><code>name</code>
 </td>
-<td>The schema name.</td></p>
+<td>Schema 名称.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>type</code>
 </td>
-<td>The schema type.</td></p>
+<td>Schema 类型.</td></p>
   </tr>
   <tr>
     <td>
 <p><code>schema</code>
 </td>
 <td>
-A byte array of the schema definition data, which is encoded in UTF 8.</p>
-<ul>
-<li><p>If the schema is a <strong>primitive</strong> schema, this byte array should be empty.</p></li>
-<li><p>If the schema is a <strong>struct</strong> schema, this field should be a JSON string of the Avro schema definition converted to a byte array.</p>
+模式定义数据的字节数组，以 UTF 8 字符集编码。</p>
+<p>*如果该模式是“原始”模式，则此字节数组应为空。</p>
+<p><em>如果架构是</em>* struct **架构，则此字段应该是转换为字节数组的 Avro 架构定义的 JSON 字符串。</p>
   </td> 
   </tr>
   <tr>
     <td>
-<p><code>properties</code>
-</td>
-<td>The additional properties associated with the schema.</td></p>
+<pre><code class="hljs">`properties`<br />&lt;/td&gt;<br />&lt;td&gt;与架构相关联的附加属性。&lt;/td&gt; <br /></code></pre>
   </tr>  
 </table>
-</li>
-</ul>
 <p>Here is an example of <code>SchemaInfo</code>:</p>
 <pre><code class="hljs css language-java">PulsarAdmin admin = …;<br /><br />SchemaInfo si = admin.getSchema(<span class="hljs-string">"my-tenant/my-ns/my-topic"</span>, <span class="hljs-number">1L</span>);<br /><br /><br />```bash<br />$ pulsar-admin schemas extract --classname &lt;<span class="hljs-class"><span class="hljs-keyword">class</span>-<span class="hljs-title">name</span>&gt; --<span class="hljs-title">jar</span> &lt;<span class="hljs-title">jar</span>-<span class="hljs-title">path</span>&gt; --<span class="hljs-title">type</span> &lt;<span class="hljs-title">type</span>-<span class="hljs-title">name</span>&gt;<br /></span></code></pre>
 </span></div></div></div></div>
-<h3><a class="anchor" aria-hidden="true" id="delete-a-schema"></a><a href="#delete-a-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a schema</h3>
+<h3><a class="anchor" aria-hidden="true" id="删除-schema"></a><a href="#删除-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 Schema</h3>
 <p>To delete a schema for a topic, you can use one of the following methods.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
@@ -506,7 +496,7 @@ Here is an example of a response, <span class="hljs-built_in">which</span> is re
 <tr><th>字段</th><th>说明：</th></tr>
 </thead>
 <tbody>
-<tr><td><code>version</code></td><td>The schema version, which is a long number.</td></tr>
+<tr><td><code>version</code></td><td>Schema 版本，是一个很长的数字。</td></tr>
 </tbody>
 </table>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSchema</span><span class="hljs-params">(String topic)</span>
@@ -521,7 +511,7 @@ By default, Pulsar stores various data types of schemas in [Apache BookKeeper](h
 
 However, you can use another storage system if needed.
 
-### Implement
+### 实施
 
 To use a non-default (non-BookKeeper) storage system for Pulsar schemas, you need to implement the following Java interfaces:
 
@@ -569,15 +559,15 @@ public interface SchemaStorage {
 <p>Tip</p>
 <p>For a complete example of <strong>schema storage factory</strong> implementation, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java">BookKeeperSchemaStorageFactory</a> class.</p>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="deploy"></a><a href="#deploy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy</h3>
+<h3><a class="anchor" aria-hidden="true" id="部署"></a><a href="#部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署</h3>
 <p>To use your custom schema storage implementation, perform the following steps.</p>
 <ol>
 <li><p>将实现打包到 <a href="https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html">JAR</a> 文件中。</p></li>
-<li><p>Add the JAR file to the <code>lib</code> folder in your Pulsar binary or source distribution.</p></li>
-<li><p>Change the <code>schemaRegistryStorageClassName</code> configuration in <code>broker.conf</code> to your custom factory class.</p></li>
-<li><p>Start Pulsar.</p></li>
+<li><p>将 JAR 文件添加到 Pulsar 二进制或源分发中的<code>lib</code>文件夹中。</p></li>
+<li><p>将<code>broker.conf</code>中的<code>schemaRegistryStorageClassName</code>配置更改为自定义工厂类。</p></li>
+<li><p>启动 Pulsar。</p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema evolution and compatibility</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#生产者端的自动更新">生产者端的自动更新</a></li><li><a href="#消费端的自动更新">消费端的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#upload-a-schema">Upload a schema</a></li><li><a href="#delete-a-schema">Delete a schema</a></li><li><a href="#deploy">Deploy</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema evolution and compatibility</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#生产者端的自动更新">生产者端的自动更新</a></li><li><a href="#消费端的自动更新">消费端的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#更新-schema">更新 Schema</a></li><li><a href="#删除-schema">删除 Schema</a></li><li><a href="#部署">部署</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
