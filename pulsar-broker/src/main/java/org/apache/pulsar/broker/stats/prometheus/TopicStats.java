@@ -34,6 +34,8 @@ class TopicStats {
     double rateOut;
     double throughputIn;
     double throughputOut;
+    long msgInCounter;
+    long bytesInCounter;
 
     long storageSize;
     public long msgBacklog;
@@ -63,6 +65,8 @@ class TopicStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
 
         storageSize = 0;
         msgBacklog = 0;
@@ -162,6 +166,9 @@ class TopicStats {
                         replStats.replicationBacklog);
             });
         }
+
+        metric(stream, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
+        metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {
