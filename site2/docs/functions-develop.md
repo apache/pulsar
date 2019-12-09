@@ -714,6 +714,68 @@ Currently, the feature is not available in Go.
 ### Access metrics
 To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
+## Security
+
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
+
+Pulsar Functions can support the following providers:
+
+- ClearTextSecretsProvider
+- EnvironmentBasedSecretsProvider
+
+> Pulsar Function supports ClearTextSecretsProvider by default.
+
+At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** and **SecretsProviderConfigurator**, allowing users to customize secret provider.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+You can get secret provider using the [`Context`](#context) object. The following is an example:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+public class GetSecretProviderFunction implements Function<String, Void> {
+
+    @Override
+    public Void process(String input, Context context) throws Exception {
+        Logger LOG = context.getLogger();
+        String secretProvider = context.getSecret(input);
+
+        if (!secretProvider.isEmpty()) {
+            LOG.info("The secret provider is {}", secretProvider);
+        } else {
+            LOG.warn("No secret provider");
+        }
+
+        return null;
+    }
+}
+```
+
+<!--Python-->
+You can get secret provider using the [`Context`](#context) object. The following is an example:
+
+```python
+from pulsar import Function
+
+class GetSecretProviderFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        secret_provider = context.get_secret(input)
+        if secret_provider is None:
+            logger.warn('No secret provider')
+        else:
+            logger.info("The secret provider is {0}".format(secret_provider))
+```
+
+
+<!--Go-->
+Currently, the feature is not available in Go.
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.
 
