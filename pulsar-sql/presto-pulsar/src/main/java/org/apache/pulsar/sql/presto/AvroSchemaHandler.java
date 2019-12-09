@@ -28,7 +28,6 @@ import java.util.List;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -67,14 +66,16 @@ public class AvroSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(RawMessage rawMessage) {
-        ByteBuf payload = rawMessage.getData();
-        if (rawMessage.getSchemaVersion() != null) {
-            return genericAvroSchema.decode(payload, rawMessage.getSchemaVersion());
-        } else {
-            return genericAvroSchema.decode(payload);
-        }
+    public Object deserialize(ByteBuf payload) {
+        return genericAvroSchema.decode(payload);
     }
+
+    @Override
+    public Object deserialize(ByteBuf payload, byte[] schemaVersion) {
+        return genericAvroSchema.decode(payload, schemaVersion);
+    }
+
+
 
     @Override
     public Object extractField(int index, Object currentRecord) {

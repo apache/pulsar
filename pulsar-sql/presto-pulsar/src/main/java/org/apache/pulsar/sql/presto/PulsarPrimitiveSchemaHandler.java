@@ -22,9 +22,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -41,8 +41,8 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(RawMessage rawMessage) {
-        Object currentRecord = schema.decode(rawMessage.getData());
+    public Object deserialize(ByteBuf payload) {
+        Object currentRecord = schema.decode(payload);
         switch (schemaInfo.getType()) {
             case DATE:
                 return ((Date) currentRecord).getTime();

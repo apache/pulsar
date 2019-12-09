@@ -103,7 +103,8 @@ public class TestAvroSchemaHandler {
                 .thenReturn(completedFuture(StructSchema.parseSchemaInfo(SchemaDefinition.builder()
                         .withPojo(Foo1.class).build(), SchemaType.AVRO)));
 
-        Object object  = ((GenericAvroRecord)avroSchemaHandler.deserialize(message)).getField("field1");
+        Object object  = ((GenericAvroRecord)avroSchemaHandler.deserialize(message.getData(),
+                message.getSchemaVersion())).getField("field1");
         Assert.assertEquals(foo1.field1, (String)object);
         String[] fields = new String[2];
         fields[0] = "bar";
@@ -118,7 +119,8 @@ public class TestAvroSchemaHandler {
         columnHandles.add(pulsarColumnHandle);
         when(message.getData()).thenReturn(ByteBufAllocator.DEFAULT
                 .buffer(bytes.length, bytes.length).writeBytes(byteArrayOutputStream.toByteArray()));
-        object = avroSchemaHandler.extractField(0, avroSchemaHandler.deserialize(message));
+        object = avroSchemaHandler.extractField(0, avroSchemaHandler.deserialize(message.getData(),
+                message.getSchemaVersion()));
         Assert.assertEquals(foo1.bar.field1, (String)object);
     }
 } 

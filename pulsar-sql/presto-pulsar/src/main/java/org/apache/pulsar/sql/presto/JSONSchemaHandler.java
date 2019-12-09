@@ -28,8 +28,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.pulsar.common.api.raw.RawMessage;
-
 /**
  * Schema handler for payload in the JSON format.
  */
@@ -53,10 +51,9 @@ public class JSONSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(RawMessage rawMessage) {
+    public Object deserialize(ByteBuf payload) {
         // Since JSON deserializer only works on a byte[] we need to convert a direct mem buffer into
         // a byte[].
-        ByteBuf payload = rawMessage.getData();
         int size = payload.readableBytes();
         byte[] buffer = tmpBuffer.get();
         if (buffer.length < size) {

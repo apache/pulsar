@@ -61,76 +61,76 @@ public class TestPulsarPrimitiveSchemaHandler {
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoInt8);
         byte int8Value = 1;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(ByteSchema.of().encode(int8Value)));
-        Assert.assertEquals(int8Value, (byte)pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(int8Value, (byte)pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoInt16 = SchemaInfo.builder().type(SchemaType.INT16).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoInt16);
         short int16Value = 2;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(ShortSchema.of().encode(int16Value)));
-        Assert.assertEquals(int16Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(int16Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoInt32 = SchemaInfo.builder().type(SchemaType.INT32).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoInt32);
         int int32Value = 2;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(IntSchema.of().encode(int32Value)));
-        Assert.assertEquals(int32Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(int32Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoInt64 = SchemaInfo.builder().type(SchemaType.INT64).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoInt64);
         long int64Value = 2;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(LongSchema.of().encode(int64Value)));
-        Assert.assertEquals(int64Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(int64Value, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoString = SchemaInfo.builder().type(SchemaType.STRING).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoString);
         String stringValue = "test";
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(StringSchema.utf8().encode(stringValue)));
-        Assert.assertEquals(stringValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(stringValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoFloat = SchemaInfo.builder().type(SchemaType.FLOAT).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoFloat);
         float floatValue = 0.2f;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(FloatSchema.of().encode(floatValue)));
-        Assert.assertEquals(floatValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(floatValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoDouble = SchemaInfo.builder().type(SchemaType.DOUBLE).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoDouble);
         double doubleValue = 0.22d;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(DoubleSchema.of().encode(doubleValue)));
-        Assert.assertEquals(doubleValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(doubleValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoBoolean = SchemaInfo.builder().type(SchemaType.BOOLEAN).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoBoolean);
         boolean booleanValue = true;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(BooleanSchema.of().encode(booleanValue)));
-        Assert.assertEquals(booleanValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(booleanValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoBytes = SchemaInfo.builder().type(SchemaType.BYTES).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoBytes);
         byte[] bytesValue = new byte[1];
         bytesValue[0] = 1;
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(BytesSchema.of().encode(bytesValue)));
-        Assert.assertEquals(bytesValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage));
+        Assert.assertEquals(bytesValue, pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData()));
 
         SchemaInfo schemaInfoDate = SchemaInfo.builder().type(SchemaType.DATE).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoDate);
         Date dateValue = new Date(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(DateSchema.of().encode(dateValue)));
-        Object dateDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage);
+        Object dateDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
         Assert.assertEquals(dateValue.getTime(), dateDeserializeValue);
 
         SchemaInfo schemaInfoTime = SchemaInfo.builder().type(SchemaType.TIME).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoTime);
         Time timeValue = new Time(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(TimeSchema.of().encode(timeValue)));
-        Object timeDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage);
+        Object timeDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
         Assert.assertEquals(timeValue.getTime(), timeDeserializeValue);
 
         SchemaInfo schemaInfoTimestamp = SchemaInfo.builder().type(SchemaType.TIMESTAMP).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoTimestamp);
         Timestamp timestampValue = new Timestamp(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(TimestampSchema.of().encode(timestampValue)));
-        Object timestampDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage);
+        Object timestampDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
         Assert.assertEquals(timestampValue.getTime(), timestampDeserializeValue);
     }
 
@@ -146,7 +146,7 @@ public class TestPulsarPrimitiveSchemaHandler {
         String stringValue = "test";
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(StringSchema.utf8().encode(stringValue)));
 
-        Object deserializeValue = schemaHandler.deserialize(rawMessage);
+        Object deserializeValue = schemaHandler.deserialize(rawMessage.getData());
         Assert.assertEquals(stringValue, (String)deserializeValue);
         Assert.assertEquals(stringValue, (String)deserializeValue);
 

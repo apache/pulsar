@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.schema;
 
 import com.google.common.base.MoreObjects;
 import java.nio.ByteBuffer;
@@ -65,5 +65,14 @@ public class LongSchemaVersion implements SchemaVersion {
         return MoreObjects.toStringHelper(this)
             .add("version", version)
             .toString();
+    }
+
+    public static long bytes2Long(byte[] byteNum) {
+        long num = 0;
+        for (int ix = 0; ix < 8; ++ix) {
+            num <<= 8;
+            num |= (byteNum[ix] & 0xff);
+        }
+        return num;
     }
 }

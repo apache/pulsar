@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import java.nio.ByteBuffer;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.testng.annotations.Test;
 

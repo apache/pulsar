@@ -406,7 +406,12 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage);
+        if (currentMessage.getSchemaVersion() != null) {
+            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData(),
+                    this.currentMessage.getSchemaVersion());
+        } else {
+            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        }
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing
