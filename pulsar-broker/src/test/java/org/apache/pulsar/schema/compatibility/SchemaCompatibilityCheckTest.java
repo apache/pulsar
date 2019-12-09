@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -249,23 +250,41 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         try {
             producerThreeBuilder.create();
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Don't allow auto update schema."));
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
-
-        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
-        Consumer<Schemas.PersonTwo> consumerTwo = pulsarClient.newConsumer(Schema.AVRO(
+        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(Schemas.PersonTwo.class).build()))
                 .subscriptionName("test")
-                .topic(fqtn)
-                .subscribe();
+                .topic(fqtn);
+
+        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
+        Consumer<Schemas.PersonTwo> consumerTwo = comsumerBuilder.subscribe();
+
         producer.send(new Schemas.PersonTwo(2, "Lucy"));
         Message<Schemas.PersonTwo> message = consumerTwo.receive();
 
         Schemas.PersonTwo personTwo = message.getValue();
+        consumerTwo.acknowledge(message);
+
+        assertEquals(personTwo.id, 2);
+        assertEquals(personTwo.name, "Lucy");
+
+        producer.close();
+        consumerTwo.close();
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+
+        producer = producerThreeBuilder.create();
+        consumerTwo = comsumerBuilder.subscribe();
+
+        producer.send(new Schemas.PersonTwo(2, "Lucy"));
+        message = consumerTwo.receive();
+
+        personTwo = message.getValue();
         consumerTwo.acknowledge(message);
 
         assertEquals(personTwo.id, 2);

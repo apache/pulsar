@@ -113,16 +113,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
-            final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
-            SchemaVersion schemaVersion;
-            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
-                        hashFunction.hashBytes(schema.getData()).asBytes())) {
-                    schemaVersion = schemaAndMetadata.version;
-                    completableFuture.complete(schemaVersion);
-                    return completableFuture;
-                }
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
+                getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
+            if (schemaVersion != null) {
+                return CompletableFuture.completedFuture(schemaVersion);
             }
             CompletableFuture<Void> checkCompatibilityFurture = new CompletableFuture<>();
             if (schemaAndMetadataList.size() != 0) {
@@ -149,7 +143,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
             });
 
-        });
+        }));
     }
 
     @Override
@@ -255,6 +249,24 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(
+            List<SchemaAndMetadata> schemaAndMetadataList,
+            SchemaData schemaData) {
+        final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
+        SchemaVersion schemaVersion;
+        for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+            if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                    hashFunction.hashBytes(schemaData.getData()).asBytes())) {
+                schemaVersion = schemaAndMetadata.version;
+                completableFuture.complete(schemaVersion);
+                return completableFuture;
+            }
+        }
+        completableFuture.complete(null);
+        return completableFuture;
     }
 
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,

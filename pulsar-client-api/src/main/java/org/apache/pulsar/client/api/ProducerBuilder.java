@@ -350,6 +350,20 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
 
     /**
+     * Set the partition switch frequency while batching of messages is enabled and
+     * using round-robin routing mode for non-keyed message <i>default: 10</i>.
+     *
+     * <p>The time period of partition switch is frequency * batchingMaxPublishDelay. During this period,
+     * all messages arrives will be route to the same partition.
+     *
+     * @param frequency the frequency of partition switch
+     * @return the producer builder instance
+     * @see #messageRoutingMode(MessageRoutingMode)
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     */
+    ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency);
+
+    /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
      * messages will be queued until this threshold is reached or batch interval has elapsed.
      *

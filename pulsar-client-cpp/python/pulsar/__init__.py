@@ -213,6 +213,12 @@ class Message:
         """
         return self._message.topic_name()
 
+    def redelivery_count(self):
+        """
+        Get the redelivery count for this message
+        """
+        return self._message.redelivery_count()
+
     @staticmethod
     def _wrap(_message):
         self = Message()
