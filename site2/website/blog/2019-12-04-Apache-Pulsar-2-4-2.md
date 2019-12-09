@@ -14,8 +14,6 @@ Regarding improvements and bug fixes introduced, I just want to highlight here a
 
 <!--truncate-->
 
-### 
-
 - In Pulsar 2.4.1, we instead of using a shaded JAR to start a java function instance, use different classLoaders to 
 load the internal pulsar code, user code, and the interfaces that the two interacts with each other. This is a good 
 change, but this change will cause the following two problems:
@@ -81,6 +79,22 @@ from consumerImpl.
 
 - In Java client, the `MessageId send(byte[] message)` return `MessageId` for users. To make sure the API of C++/Go/Python 
 consistent with Java. In Pulsar 2.4.2, we add new `send()` interface, return the `MessageID` to the user.
+
+- Some of the background consumer tasks are being started in the ConsumerImpl constructor though these are not being cancelled 
+if the consumer creation fails, leaving active refs to these objects. In Pulsar 2.4.2, ensure consumer background tasks 
+are cancelled after subscribe failures.
+
+- Currently it's not possible to delete topics when there is a regex consumer attached to them. The reason is that the 
+regex consumer will immediately reconnect and cause the topic to be re-created. In pulsar 2.4.2, we allow for topic deletions 
+with regex consumers, details as follows:
+    - Added a flag in CommandSubscribe so that a regex consumer will never trigger the creation of a topic.
+    - Subscribing to a non-existing topic, will give a specific error, that the consumer will interpret as a permanent 
+    failure and thus will stop retrying.
+
+- There's a bug in how user metadata is attached to a block that if the user doesn't specify both the region and the endpoint, 
+offloading will throw an exception, as you can't add a null value to an immutable map. In Pulsar 2.4.2, change elides null 
+to the empty string in these cases, so that offloading can continue.
+  
 
 ## Conclusion
 
