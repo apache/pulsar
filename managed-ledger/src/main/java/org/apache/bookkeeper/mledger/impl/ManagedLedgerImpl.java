@@ -1793,7 +1793,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     PositionImpl startReadOperationOnLedger(PositionImpl position, ReadEntriesCallback callback) {
         Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
         if (null == ledgerId) {
-            callback.readEntriesFailed(new ManagedLedgerNotFoundException("read ledger failed, the ledgerID is null"), null);
+            callback.readEntriesFailed(new ManagedLedgerException("The ceilingKey(K key) method is used to return the " +
+                    "least key greater than or equal to the given key, or null if there is no such key"), null);
         }
 
         if (ledgerId != position.getLedgerId()) {
