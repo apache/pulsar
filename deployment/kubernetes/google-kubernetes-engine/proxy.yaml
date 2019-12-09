@@ -23,9 +23,9 @@ metadata:
   name: pulsar-proxy-config
 data:
   PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
-  zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  clusterName: pulsar-gke
+  PULSAR_PREFIX_zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+  PULSAR_PREFIX_configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+  PULSAR_PREFIX_clusterName: pulsar-gke
 
 ---
 apiVersion: apps/v1beta1

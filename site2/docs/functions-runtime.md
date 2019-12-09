@@ -1,7 +1,7 @@
 ---
 id: functions-runtime
 title: Configure Functions runtime
-sidebar_label: Setup: Configure Functions runtime
+sidebar_label: "Setup: Configure Functions runtime"
 ---
 
 Pulsar Functions support the following methods to run functions.

@@ -2044,7 +2044,13 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).schema_compatibility_strategy;
+        Policies policies = getNamespacePolicies(namespaceName);
+        SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED){
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+        }
+        return schemaCompatibilityStrategy;
     }
 
     @Deprecated

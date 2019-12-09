@@ -1,7 +1,7 @@
 ---
 id: version-2.4.0-functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Admin: Pulsar Functions Worker
+sidebar_label: "Admin: Pulsar Functions Worker"
 original_id: functions-worker
 ---
 This guide is used for administrator. 
