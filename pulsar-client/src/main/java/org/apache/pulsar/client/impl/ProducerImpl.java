@@ -70,6 +70,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -166,7 +167,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } catch (CryptoException e) {
                     if (!producerCreatedFuture.isDone()) {
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
-                        producerCreatedFuture.completeExceptionally(e);
+                        producerCreatedFuture.completeExceptionally(
+                            PulsarClientException.wrap(e, String.format("The producer %s of the topic %s " +
+                                "adds the public key cipher was failed", producerName, topic)));
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
@@ -346,8 +349,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                            ? "Compressed"
                                            : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                           ClientCnx.getMaxMessageSize()));
+                    format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds %d bytes",
+                        producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
                 callback.sendComplete(invalidMessageException);
                 return;
             }
@@ -355,7 +358,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         if (!msg.isReplicated() && msgMetadataBuilder.hasProducerName()) {
             PulsarClientException.InvalidMessageException invalidMessageException =
-                    new PulsarClientException.InvalidMessageException("Cannot re-use the same message");
+                new PulsarClientException.InvalidMessageException(
+                    format("The producer %s of the topic %s can not reuse the same message", producerName, topic));
             callback.sendComplete(invalidMessageException);
             compressedPayload.release();
             return;
@@ -460,7 +464,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         if (!isMultiSchemaEnabled(true)) {
             callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                    "Multiple schema disabled"));
+                format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)));
             return false;
         }
         SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
@@ -518,9 +522,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private CompletableFuture<byte[]> getOrCreateSchemaAsync(ClientCnx cnx, SchemaInfo schemaInfo) {
         if (!Commands.peerSupportsGetOrCreateSchema(cnx.getRemoteEndpointProtocolVersion())) {
             return FutureUtil.failedFuture(
-                    new PulsarClientException.NotSupportedException(
-                            "GetOrCreateSchema Not supported for ProtocolVersion: " +
-                            cnx.getRemoteEndpointProtocolVersion()));
+                new PulsarClientException.NotSupportedException(
+                    format("The command `GetOrCreateSchema` is not supported for the protocol version %d. " +
+                        "The producer is %s, topic is %s", cnx.getRemoteEndpointProtocolVersion(), producerName, topic)));
         }
         long requestId = client.newRequestId();
         ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
@@ -725,7 +729,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 setState(State.Closed);
                 client.cleanupProducer(this);
                 PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
-                        "Producer was already closed");
+                    format("The producer %s of the topic %s was already closed when closing the producers",
+                        producerName, topic));
                 pendingMessages.forEach(msg -> {
                     msg.callback.sendComplete(ex);
                     msg.cmd.release();
@@ -785,7 +790,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             setClientCnx(null);
 
             failPendingMessages(cnx,
-                    new PulsarClientException.TopicTerminatedException("The topic has been terminated"));
+                new PulsarClientException.TopicTerminatedException(
+                    format("The topic %s that the producer %s produces to has been terminated", topic, producerName)));
         }
     }
 
@@ -887,7 +893,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     releaseSemaphoreForSendOp(op);
                     try {
                         op.callback.sendComplete(
-                                new PulsarClientException.ChecksumException("Checksum failed on corrupt message"));
+                            new PulsarClientException.ChecksumException(
+                                format("The checksum of the message which is produced by producer %s to the topic " +
+                                    "%s is corrupted", producerName, topic)));
                     } catch (Throwable t) {
                         log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                                 producerName, sequenceId, t);
@@ -1143,7 +1151,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             }
 
                             PulsarClientException bqe = new PulsarClientException.ProducerBlockedQuotaExceededException(
-                                    "Could not send pending messages as backlog exceeded");
+                                format("The backlog quota of the topic %s that the producer %s produces to is exceeded",
+                                    topic, producerName));
                             failPendingMessages(cnx(), bqe);
                         }
                     } else if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
@@ -1300,7 +1309,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             pendingMessages.size());
 
                     PulsarClientException te = new PulsarClientException.TimeoutException(
-                            "Could not send message to broker within given timeout");
+                        format("The producer %s can not send message to the topic %s within given timeout",
+                            producerName, topic));
                     failPendingMessages(cnx(), te);
                     stats.incrementSendFailed(pendingMessages.size());
                     // Since the pending queue is cleared now, set timer to expire after configured value.

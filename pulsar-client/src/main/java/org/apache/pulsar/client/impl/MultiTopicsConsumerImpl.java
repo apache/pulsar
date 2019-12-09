@@ -774,7 +774,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .exceptionally(e -> {
                 log.warn("Failed subscription for createPartitionedConsumer: {} {}, e:{}",
                     topicName, numPartitions,  e);
-                subscribeFuture.completeExceptionally(((Throwable)e).getCause());
+                subscribeFuture.completeExceptionally(
+                    PulsarClientException.wrap(((Throwable) e).getCause(), String.format("Failed to subscribe %s with %d partitions", topicName, numPartitions)));
                 return null;
             });;
         return consumer;
