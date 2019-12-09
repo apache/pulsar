@@ -96,7 +96,7 @@ public class NettyServer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioDatagramChannel.class);
-        bootstrap.handler(new NettyChannelInitializer(new NettyServerHandler(this.nettySource)))
+        bootstrap.handler(new NettyChannelInitializer(new NettyUDPServerHandler(this.nettySource)))
                 .option(ChannelOption.SO_BACKLOG, 1024);
 
         ChannelFuture channelFuture = bootstrap.bind(this.host, this.port).sync();

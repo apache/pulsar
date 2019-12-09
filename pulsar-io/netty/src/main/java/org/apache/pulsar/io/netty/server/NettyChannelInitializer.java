@@ -20,13 +20,13 @@ package org.apache.pulsar.io.netty.server;
 
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.Channel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**
  * Netty Channel Initializer to register decoder and handler.
  */
-public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
+public class NettyChannelInitializer extends ChannelInitializer<Channel> {
 
     private ChannelInboundHandlerAdapter handler;
 
@@ -35,9 +35,9 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
     }
 
     @Override
-    protected void initChannel(SocketChannel socketChannel) throws Exception {
-        socketChannel.pipeline().addLast(new ByteArrayDecoder());
-        socketChannel.pipeline().addLast(this.handler);
+    protected void initChannel(Channel channel) throws Exception {
+        channel.pipeline().addLast(new ByteArrayDecoder());
+        channel.pipeline().addLast(this.handler);
     }
 
 }
