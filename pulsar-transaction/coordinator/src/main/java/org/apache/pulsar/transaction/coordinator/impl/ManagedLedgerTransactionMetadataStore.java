@@ -152,7 +152,7 @@ public class ManagedLedgerTransactionMetadataStore
                 .setLastModificationTime(currentTimeMillis)
                 .build();
         CompletableFuture<TxnID> completableFuture = new CompletableFuture<>();
-        transactionLog.write(transactionMetadataEntry)
+        transactionLog.append(transactionMetadataEntry)
                 .whenComplete((v, e) -> {
                     if (e == null) {
                         txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
@@ -185,7 +185,7 @@ public class ManagedLedgerTransactionMetadataStore
                         .setLastModificationTime(System.currentTimeMillis())
                         .build();
 
-                return transactionLog.write(transactionMetadataEntry)
+                return transactionLog.append(transactionMetadataEntry)
                         .thenCompose(v -> {
                             try {
                                 txn.addProducedPartitions(partitions);
@@ -223,7 +223,7 @@ public class ManagedLedgerTransactionMetadataStore
                         .setLastModificationTime(System.currentTimeMillis())
                         .build();
 
-                return transactionLog.write(transactionMetadataEntry)
+                return transactionLog.append(transactionMetadataEntry)
                         .thenCompose(txnMeta -> {
                             try {
                                 txn.addAckedPartitions(txnSubscriptions);
@@ -261,7 +261,7 @@ public class ManagedLedgerTransactionMetadataStore
                         .setLastModificationTime(System.currentTimeMillis())
                         .setNewStatus(newStatus)
                         .build();
-                return transactionLog.write(transactionMetadataEntry).thenCompose(txnMeta -> {
+                return transactionLog.append(transactionMetadataEntry).thenCompose(txnMeta -> {
                     try {
                         txn.updateTxnStatus(newStatus, expectedStatus);
                         return CompletableFuture.completedFuture(null);

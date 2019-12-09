@@ -70,7 +70,6 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
                 PositionImpl.earliest, new ManagedLedgerConfig());
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
-
     }
 
     @Override
@@ -78,9 +77,9 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
         new TransactionLogReplayer(transactionLogReplayCallback).start();
     }
 
-    @Override
-    public void readAsync(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        readOnlyCursor.asyncReadEntries(numberOfEntriesToRead, callback, System.nanoTime());
+    private void readAsync(int numberOfEntriesToRead,
+                           AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+        readOnlyCursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime());
     }
 
     @Override
@@ -102,7 +101,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
     }
 
     @Override
-    public CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry) {
+    public CompletableFuture<Void> append(TransactionMetadataEntry transactionMetadataEntry) {
         int transactionMetadataEntrySize = transactionMetadataEntry.getSerializedSize();
 
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(transactionMetadataEntrySize, transactionMetadataEntrySize);
@@ -203,7 +202,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (readOnlyCursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    readAsync(100, this, System.nanoTime());
+                    readAsync(100, this);
                 }
             }
         }
@@ -219,6 +218,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
                     return entry;
                 }
             }, entries.size());
+
             outstandingReadsRequests.decrementAndGet();
         }
 

@@ -33,7 +33,7 @@ public interface TransactionLogReplayCallback {
     /**
      * Handle metadata entry.
      *
-     * @param transactionMetadataEntry
+     * @param transactionMetadataEntry the metadata entry of transaction
      */
     void handleMetadataEntry(PulsarApi.TransactionMetadataEntry transactionMetadataEntry);
 
