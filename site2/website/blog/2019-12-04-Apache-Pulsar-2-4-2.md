@@ -14,20 +14,23 @@ Regarding improvements and bug fixes introduced, I just want to highlight here a
 
 <!--truncate-->
 
-- In Pulsar 2.4.1, we instead of using a shaded JAR to start a java function instance, use different classLoaders to 
-load the internal pulsar code, user code, and the interfaces that the two interacts with each other. This is a good 
-change, but this change will cause the following two problems:
+- Before Pulsar 2.4.2, we instead of using a shaded JAR to start a java function instance, use different classLoaders to 
+load the internal pulsar code, user code, and the interfaces that the two interacts with each other. 
+
+  This is a good change, but this change will cause the following two problems:
     - The windowed functions were broken when we changed java function instance to use classLoaders. 
     - When using the `--output-serde-classname` option, functionClassLoader is not set correctly.  
 
   In Pulsar 2.4.2, we fixed this issue to make sure them works. 
 
-- In Pulsar 2.4.1, Broker fails to start with function worker enabled and broker client using TLS. Looking at the 
-startup code when running the function worker with the broker, it is checking for TLS enabled in the `function_worker.yml`
+- Before Pulsar 2.4.2, Broker fails to start with function worker enabled and broker client using TLS. 
+
+  Looking at the startup code when running the function worker with the broker, it is checking for TLS enabled in the `function_worker.yml`
 file to determine whether or not to use the TLS port, but when setting TLS enabled on the function worker, 
 it is checking the `broker.conf`. Since the function worker is running with the broker, it makes sense to look to 
-the `broker.conf` as the single source of truth about whether or not to use TLS. In Pulsar 2.4.2 changed the code to 
-check the broker client is configured to use TLS. If it is, then use TLS for the function worker, otherwise use plain text.
+the `broker.conf` as the single source of truth about whether or not to use TLS. 
+  
+  In Pulsar 2.4.2 changed the code to check the broker client is configured to use TLS. If it is, then use TLS for the function worker, otherwise use plain text.
 
 - In Pulsar Functions, we support the use of Bookkeeper to store the state of functions. But when user attempts to 
 fetch from function state a key that doesn't exist, an NPE will happen. In Pulsar 2.4.2, we add the correct error 
@@ -39,7 +42,9 @@ to BK, a retry attempt will just be “deduplicated” with no message ever gett
     - Sync back the lastPushed map with the lastStored map after the failures
 
 - In Pulsar Sinks, the data in topics is consumed from the latest location by default. But in some scenarios, users want to 
-consume earliest data in sink topic. In Pulsar 2.4.2, we add `--subs-position` for Pulsar Sinks, allow users to consume 
+consume earliest data in sink topic. 
+
+  In Pulsar 2.4.2, we add `--subs-position` for Pulsar Sinks, allow users to consume 
 data from specified locations.
 
 - When the cursor is recovered from a ledger, the ledgerHandle is kept open so that we can delete that ledger after 
@@ -50,16 +55,20 @@ the ledger during the close operation, we need to explicitly close the ledger to
 - If the subscription type on a topic changes, a new dispatcher is created and the old one is discarded. However, this 
 old dispatcher is not closed. This will cause a memory leak. If cursor is not durable, the subscription is closed and removed 
 from the topic when all consumers are removed. The dispatcher also needs to be closed at this time. Otherwise, 
-RateLimiter instances will not be garbage collected, causing a memory leak. In pulsar 2.4.2, When the type of a subscription changes 
+RateLimiter instances will not be garbage collected, causing a memory leak. 
+
+  In pulsar 2.4.2, When the type of a subscription changes 
 and a new dispatcher is created, close the previous one, avoiding memory leaks.
 
 - Instead of sorting the consumers based on priority level and consumer name then pick a active consumer, which could 
 cause subscription getting into a flaky state, where the "active" consumer joins and leaves, no consumer is actually 
-elected as "active" and consuming the messages. In Pulsar 2.4.2, fixed logic to always pick the first consumer in 
+elected as "active" and consuming the messages. 
+
+  In Pulsar 2.4.2, fixed logic to always pick the first consumer in 
 the consumer list without sorting consumers. So consumers will be picked as acive consumer based on the order of 
 their subscription.
 
-- In Pulsar 2.4.1, broker tries to clean up stale failed-producer from the connection however, while cleaning up 
+- Before Pulsar 2.4.2, broker tries to clean up stale failed-producer from the connection however, while cleaning up 
 producer-future, it tries to remove newly created producer-future rather old-failed producer because of that broker 
 still gives below error:
     ```text
@@ -85,15 +94,17 @@ if the consumer creation fails, leaving active refs to these objects. In Pulsar 
 are cancelled after subscribe failures.
 
 - Currently it's not possible to delete topics when there is a regex consumer attached to them. The reason is that the 
-regex consumer will immediately reconnect and cause the topic to be re-created. In pulsar 2.4.2, we allow for topic deletions 
-with regex consumers, details as follows:
+regex consumer will immediately reconnect and cause the topic to be re-created. 
+
+  In pulsar 2.4.2, we allow for topic deletions with regex consumers, details as follows:
     - Added a flag in CommandSubscribe so that a regex consumer will never trigger the creation of a topic.
     - Subscribing to a non-existing topic, will give a specific error, that the consumer will interpret as a permanent 
     failure and thus will stop retrying.
 
 - There's a bug in how user metadata is attached to a block that if the user doesn't specify both the region and the endpoint, 
-offloading will throw an exception, as you can't add a null value to an immutable map. In Pulsar 2.4.2, change elides null 
-to the empty string in these cases, so that offloading can continue.
+offloading will throw an exception, as you can't add a null value to an immutable map. 
+
+  In Pulsar 2.4.2, change elides null to the empty string in these cases, so that offloading can continue.
   
 
 ## Conclusion
