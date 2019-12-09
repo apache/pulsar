@@ -41,7 +41,7 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.coordinator.exceptions.TransactionMetadataStoreStateException;
+import org.apache.pulsar.transaction.coordinator.exceptions.TransactionStateException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 import org.slf4j.Logger;
@@ -136,7 +136,7 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
+                    new TransactionStateException(tcID, State.Ready, getState(), "new Transaction"));
         }
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.incrementAndGet();
@@ -169,7 +169,7 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> addProducedPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionMetadataStoreStateException(txnID,
+                    new TransactionStateException(txnID,
                             State.Ready, getState(), "add produced partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
@@ -207,7 +207,7 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionMetadataStoreStateException(txnID,
+                    new TransactionStateException(txnID,
                             State.Ready, getState(), "add acked partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
@@ -245,7 +245,7 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> updateTxnStatusAsync(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionMetadataStoreStateException(txnID,
+                    new TransactionStateException(txnID,
                             State.Ready, getState(), "update transaction status"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {

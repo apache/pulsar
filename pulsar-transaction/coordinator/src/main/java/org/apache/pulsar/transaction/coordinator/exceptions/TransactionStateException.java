@@ -25,27 +25,27 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 /**
  * Exception is thrown when a operation of transaction is executed in a error transaction metadata store state.
  */
-public class TransactionMetadataStoreStateException extends CoordinatorException {
+public class TransactionStateException extends CoordinatorException {
     private static final long serialVersionUID = 0L;
 
-    public TransactionMetadataStoreStateException(String message) {
+    public TransactionStateException(String message) {
         super(message);
     }
 
-    public TransactionMetadataStoreStateException(TxnID txnID,
-                                                  State expectedState,
-                                                  State currentState,
-                                                  String operation) {
+    public TransactionStateException(TxnID txnID,
+                                     State expectedState,
+                                     State currentState,
+                                     String operation) {
         super(
                 "Expect Txn `" + txnID + "` to be in " + expectedState
                         + " status but it is in " + currentState + " state for " + operation);
 
     }
 
-    public TransactionMetadataStoreStateException(TransactionCoordinatorID tcID,
-                                                  State expectedState,
-                                                  State currentState,
-                                                  String operation) {
+    public TransactionStateException(TransactionCoordinatorID tcID,
+                                     State expectedState,
+                                     State currentState,
+                                     String operation) {
         super(
                 "Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState
                         + " status but it is in " + currentState + " state for " + operation);
