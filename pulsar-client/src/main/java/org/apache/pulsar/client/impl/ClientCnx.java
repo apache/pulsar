@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -113,6 +114,7 @@ public class ClientCnx extends PulsarHandler {
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<TransactionMetaStoreHandler> transactionMetaStoreHandlers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -239,6 +241,7 @@ public class ClientCnx extends PulsarHandler {
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
+        transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
 
         pendingRequests.clear();
         pendingLookupRequests.clear();
@@ -734,7 +737,7 @@ public class ClientCnx extends PulsarHandler {
         return ctx.newPromise();
     }
 
-    ChannelHandlerContext ctx() {
+    public ChannelHandlerContext ctx() {
         return ctx;
     }
 
@@ -842,6 +845,39 @@ public class ClientCnx extends PulsarHandler {
         });
     }
 
+    @Override
+    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleNewTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleAddPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleAddPublishPartitionToTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleEndTxnResponse(command);
+        }
+    }
+
+    private TransactionMetaStoreHandler checkAndGetTransactionMetaStoreHandler(long tcId) {
+        TransactionMetaStoreHandler handler = transactionMetaStoreHandlers.get(tcId);
+        if (handler == null) {
+            channel().close();
+            log.warn("Close the channel since can't get the transaction meta store handler, will reconnect later.");
+        }
+        return handler;
+    }
+
     /**
      * check serverError and take appropriate action
      * <ul>
@@ -910,6 +946,10 @@ public class ClientCnx extends PulsarHandler {
 
     void registerProducer(final long producerId, final ProducerImpl<?> producer) {
         producers.put(producerId, producer);
+    }
+
+    void registerTransactionMetaStoreHandler(final long transactionMetaStoreId, final TransactionMetaStoreHandler handler) {
+        transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
     void removeProducer(final long producerId) {
