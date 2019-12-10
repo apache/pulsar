@@ -65,6 +65,7 @@
       "administration-zk-bk",
       "administration-geo",
       "administration-dashboard",
+      "administration-pulsar-manager",
       "administration-stats",
       "administration-load-balance",
       "administration-proxy",

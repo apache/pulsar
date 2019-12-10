@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -31,13 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class InterceptorsTest extends ProducerConsumerBase {
 
@@ -54,6 +56,11 @@ public class InterceptorsTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "receiverQueueSize")
+    public Object[][] getReceiverQueueSize() {
+        return new Object[][] { { 0 }, { 1000 } };
     }
 
     @Test
@@ -256,8 +263,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer2.close();
     }
 
-    @Test
-    public void testConsumerInterceptorWithSingleTopicSubscribe() throws PulsarClientException {
+    @Test(dataProvider = "receiverQueueSize")
+    public void testConsumerInterceptorWithSingleTopicSubscribe(Integer receiverQueueSize) throws Exception {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
             public void close() {
@@ -297,14 +304,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
+                .receiverQueueSize(receiverQueueSize)
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
+                .enableBatching(false)
                 .create();
 
+        // Receive a message synchronously
         producer.newMessage().value("Hello Pulsar!").send();
-
         Message<String> received = consumer.receive();
         MessageImpl<String> msg = (MessageImpl<String>) received;
         boolean haveKey = false;
@@ -315,6 +324,50 @@ public class InterceptorsTest extends ProducerConsumerBase {
         }
         Assert.assertTrue(haveKey);
         consumer.acknowledge(received);
+
+        // Receive a message asynchronously
+        producer.newMessage().value("Hello Pulsar!").send();
+        received = consumer.receiveAsync().get();
+        msg = (MessageImpl<String>) received;
+        haveKey = false;
+        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+            if ("beforeConsumer".equals(keyValue.getKey())) {
+                haveKey = true;
+            }
+        }
+        Assert.assertTrue(haveKey);
+        consumer.acknowledge(received);
+        consumer.close();
+
+        final CompletableFuture<Message<String>> future = new CompletableFuture<>();
+        consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .subscriptionType(SubscriptionType.Shared)
+                .intercept(interceptor)
+                .subscriptionName("my-subscription")
+                .receiverQueueSize(receiverQueueSize)
+                .messageListener((c, m) -> {
+                    try {
+                        c.acknowledge(m);
+                    } catch (Exception e) {
+                        Assert.fail("Failed to acknowledge", e);
+                    }
+                    future.complete(m);
+                })
+                .subscribe();
+
+        // Receive a message using the message listener
+        producer.newMessage().value("Hello Pulsar!").send();
+        received = future.get();
+        msg = (MessageImpl<String>) received;
+        haveKey = false;
+        for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
+            if ("beforeConsumer".equals(keyValue.getKey())) {
+                haveKey = true;
+            }
+        }
+        Assert.assertTrue(haveKey);
+
         producer.close();
         consumer.close();
     }

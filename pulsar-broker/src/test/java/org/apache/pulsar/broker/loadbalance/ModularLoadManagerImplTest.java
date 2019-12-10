@@ -630,4 +630,13 @@ public class ModularLoadManagerImplTest {
 
         pulsar.close();
     }
+
+    @Test
+    public void testZnodeMissed() throws Exception {
+        String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get();
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
+        pulsar1.getLoadManager().get().writeLoadReportOnZookeeper();
+        // Delete it again to check the znode is create before write load balance data
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
+    }
 }

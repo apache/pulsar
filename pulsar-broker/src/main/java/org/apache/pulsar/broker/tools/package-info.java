@@ -16,29 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator.exceptions;
-
-import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
-
 /**
- * Exception is thrown when transaction is not in the right status.
+ * Tools for broker related operations.
  */
-public class InvalidTxnStatusException extends CoordinatorException {
-
-    private static final long serialVersionUID = 0L;
-
-    public InvalidTxnStatusException(String message) {
-        super(message);
-    }
-
-    public InvalidTxnStatusException(TxnID txnID,
-                                     TxnStatus expectedStatus,
-                                     TxnStatus actualStatus) {
-        super(
-            "Expect Txn `" + txnID + "` to be in " + expectedStatus
-                + " status but it is in " + actualStatus + " status");
-
-    }
-
-}
+package org.apache.pulsar.broker.tools;
