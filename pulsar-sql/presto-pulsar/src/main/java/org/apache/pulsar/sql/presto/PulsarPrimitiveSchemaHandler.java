@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import io.netty.buffer.ByteBuf;
+
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
