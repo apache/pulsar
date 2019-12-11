@@ -16,30 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
+package org.apache.pulsar.io.netty.tcp;
 
-import io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.pulsar.io.netty.NettySource;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.Channel;
+import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**
- * Tests for Netty Channel Initializer
+ * Netty Channel Initializer to register decoder and handler.
  */
-public class NettyChannelInitializerTest {
+public class NettyTCPChannelInitializer extends ChannelInitializer<Channel> {
 
-    @Test
-    public void testChannelInitializer() throws Exception {
-        NioSocketChannel channel = new NioSocketChannel();
+    private ChannelInboundHandlerAdapter handler;
 
-        NettyChannelInitializer nettyChannelInitializer = new NettyChannelInitializer(
-                new NettyServerHandler(new NettySource()));
-        nettyChannelInitializer.initChannel(channel);
+    public NettyTCPChannelInitializer(ChannelInboundHandlerAdapter handler) {
+        this.handler = handler;
+    }
 
-        assertNotNull(channel.pipeline().toMap());
-        assertEquals(2, channel.pipeline().toMap().size());
+    @Override
+    protected void initChannel(Channel channel) throws Exception {
+        channel.pipeline().addLast(new ByteArrayDecoder());
+        channel.pipeline().addLast(this.handler);
     }
 
 }

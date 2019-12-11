@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
+package org.apache.pulsar.io.netty.tcp;
 
 import java.io.Serializable;
 import java.util.Optional;
@@ -26,32 +26,28 @@ import org.apache.pulsar.io.netty.NettySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.socket.DatagramPacket;
 import lombok.Data;
 
 /**
  * Handles a server-side channel.
  */
 @ChannelHandler.Sharable
-public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket> {
+public class NettyTCPServerHandler extends SimpleChannelInboundHandler<byte[]> {
 
-    private static final Logger logger = LoggerFactory.getLogger(NettyUDPServerHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(NettyTCPServerHandler.class);
+
     private NettySource nettySource;
 
-    public NettyUDPServerHandler(NettySource nettySource) {
+    public NettyTCPServerHandler(NettySource nettySource) {
         this.nettySource = nettySource;
     }
-    
+
     @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket packet) throws Exception {
-        ByteBuf buf = packet.content();
-        byte[] bytes = new byte[buf.readableBytes()];
-        buf.readBytes(bytes);
-        nettySource.consume(new NettyRecord(Optional.ofNullable(""), bytes));
+    protected void channelRead0(ChannelHandlerContext channelHandlerContext, byte[] bytes) throws Exception {
+        nettySource.consume(new NettyTCPRecord(Optional.ofNullable(""), bytes));
     }
 
     @Override
@@ -61,7 +57,7 @@ public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramP
     }
 
     @Data
-    static private class NettyRecord implements Record<byte[]>, Serializable {
+    static private class NettyTCPRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }
