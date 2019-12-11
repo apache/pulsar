@@ -111,6 +111,7 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID1, subscriptions).get();
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID2, subscriptions).get();
                 List<TxnSubscription> subscriptions1 = new ArrayList<>();
+                subscriptions1.add(new TxnSubscription("topic1", "sub1"));
                 subscriptions1.add(new TxnSubscription("topic3", "sub3"));
                 subscriptions1.add(new TxnSubscription("topic3", "sub3"));
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID1, subscriptions1).get();
@@ -127,14 +128,15 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
 
                 while (true) {
                     if (transactionMetadataStoreTest.checkIfReady()) {
+                        subscriptions.add(new TxnSubscription("topic3", "sub3"));
                         TxnMeta txnMeta1 = transactionMetadataStoreTest.getTxnMetaAsync(txnID1).get();
                         TxnMeta txnMeta2 = transactionMetadataStoreTest.getTxnMetaAsync(txnID2).get();
                         Assert.assertEquals(txnMeta1.producedPartitions(), partitions);
                         Assert.assertEquals(txnMeta2.producedPartitions(), partitions);
-                        Assert.assertEquals(txnMeta1.ackedPartitions().size(), transactionMetadataStore.getTxnMetaAsync(txnID1).get().ackedPartitions().size());
-                        Assert.assertEquals(txnMeta2.ackedPartitions().size(), transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().size());
-                        Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID1).get().ackedPartitions().containsAll(txnMeta1.ackedPartitions()));
-                        Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID2).get().ackedPartitions().containsAll(txnMeta2.ackedPartitions()));
+                        Assert.assertEquals(txnMeta1.ackedPartitions().size(), subscriptions.size());
+                        Assert.assertEquals(txnMeta2.ackedPartitions().size(), subscriptions.size());
+                        Assert.assertTrue(subscriptions.containsAll(txnMeta1.ackedPartitions()));
+                        Assert.assertTrue(subscriptions.containsAll(txnMeta2.ackedPartitions()));
                         Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
                         Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTED);
                         TxnID txnID = transactionMetadataStoreTest.newTransactionAsync(1000).get();
