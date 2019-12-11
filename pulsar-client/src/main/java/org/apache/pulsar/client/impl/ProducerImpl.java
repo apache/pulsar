@@ -1385,8 +1385,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (timeout.isCancelled()) {
                 return;
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Batching the messages from the batch container from timer thread", topic,
+            if (log.isTraceEnabled()) {
+                log.trace("[{}] [{}] Batching the messages from the batch container from timer thread", topic,
                         producerName);
             }
             // semaphore acquired when message was enqueued to container
@@ -1427,8 +1427,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
                     batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
