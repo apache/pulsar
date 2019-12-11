@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -55,7 +54,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         TxnMetaImpl txn = transactions.get(txnid);
         if (null == txn) {
             getFuture.completeExceptionally(
-                new TransactionNotFoundException("Transaction not found :" + txnid));
+                new TransactionNotFoundException(txnid));
         } else {
             getFuture.complete(txn);
         }
@@ -64,14 +63,9 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
-    }
-
-    @Override
-    public CompletableFuture<TxnID> newTransactionAsync() {
         TxnID txnID = new TxnID(
-            tcID.getId(),
-            localID.getAndIncrement()
+                tcID.getId(),
+                localID.getAndIncrement()
         );
         TxnMetaImpl txn = new TxnMetaImpl(txnID);
         transactions.put(txnID, txn);

@@ -39,9 +39,9 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
-import org.apache.pulsar.transaction.coordinator.exceptions.TransactionStateException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 import org.slf4j.Logger;
@@ -57,10 +57,10 @@ public class ManagedLedgerTransactionMetadataStore
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
-    private AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
+    private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
     private final ManagedLedgerTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
-    private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
 
     public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
                                                  ManagedLedgerFactory managedLedgerFactory) throws Exception {
@@ -76,14 +76,19 @@ public class ManagedLedgerTransactionMetadataStore
 
             @Override
             public void replayComplete() {
-                changeToReadyState();
+                if (!changeToReadyState()) {
+                    log.error("Managed ledger transaction metadata store change state error when replay complete");
+                }
             }
 
             @Override
             public void handleMetadataEntry(TransactionMetadataEntry transactionMetadataEntry) {
+
                 try {
+
                     TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
                             transactionMetadataEntry.getTxnidLeastBits());
+
                     switch (transactionMetadataEntry.getMetadataOp()) {
                         case NEW:
                             if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
@@ -108,7 +113,8 @@ public class ManagedLedgerTransactionMetadataStore
                             break;
                         default:
                             throw new InvalidTxnStatusException("Transaction `"
-                                    + txnID + "` load replay metadata operation from transaction log ");
+                                    + txnID + "` load replay metadata operation "
+                                    + "from transaction log with unknown operation");
                     }
                 } catch (InvalidTxnStatusException e) {
                     log.error(e.getMessage(), e);
@@ -128,15 +134,11 @@ public class ManagedLedgerTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransactionAsync() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
-    }
-
-    @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeOut) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionStateException(tcID, State.Ready, getState(), "new Transaction"));
+                    new CoordinatorException
+                            .TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
         }
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.incrementAndGet();
@@ -169,12 +171,12 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> addProducedPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionStateException(txnID,
+                    new CoordinatorException.TransactionMetadataStoreStateException(tcID,
                             State.Ready, getState(), "add produced partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
-                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+                return FutureUtil.failedFuture(new TransactionNotFoundException(txnID));
             } else {
                 TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                         .newBuilder()
@@ -207,12 +209,12 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionStateException(txnID,
+                    new CoordinatorException.TransactionMetadataStoreStateException(tcID,
                             State.Ready, getState(), "add acked partition"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
-                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+                return FutureUtil.failedFuture(new TransactionNotFoundException(txnID));
             } else {
                 TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                         .newBuilder()
@@ -245,12 +247,12 @@ public class ManagedLedgerTransactionMetadataStore
     public CompletableFuture<Void> updateTxnStatusAsync(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
-                    new TransactionStateException(txnID,
+                    new CoordinatorException.TransactionMetadataStoreStateException(tcID,
                             State.Ready, getState(), "update transaction status"));
         }
         return getTxnMetaAsync(txnID).thenCompose(txn -> {
             if (txn == null) {
-                return FutureUtil.failedFuture(new TransactionNotFoundException("Transaction not found :" + txnID));
+                return FutureUtil.failedFuture(new TransactionNotFoundException(txnID));
             } else {
                 TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                         .newBuilder()

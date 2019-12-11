@@ -56,7 +56,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
 
     private final ReadOnlyCursor readOnlyCursor;
 
-    private SpscArrayQueue<Entry> entryQueue;
+    private final SpscArrayQueue<Entry> entryQueue;
 
     private final PositionImpl lastConfirmedEntry;
 
@@ -85,31 +85,32 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
-            }
 
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
+        closeReadOnlyCursorAsync().thenRun(() -> {
+            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
+                    completableFuture.complete(null);
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
+                    completableFuture.completeExceptionally(exception);
+                }
+            }, null);
+        });
+
         return completableFuture;
     }
 
     @Override
     public CompletableFuture<Void> append(TransactionMetadataEntry transactionMetadataEntry) {
         int transactionMetadataEntrySize = transactionMetadataEntry.getSerializedSize();
-
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(transactionMetadataEntrySize, transactionMetadataEntrySize);
-
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
-
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-
         try {
             transactionMetadataEntry.writeTo(outStream);
             managedLedger.asyncAddEntry(buf, new AsyncCallbacks.AddEntryCallback() {
@@ -166,6 +167,7 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
                     }
                     transactionLogReplayCallback.handleMetadataEntry(transactionMetadataEntry);
                     entry.release();
+                    transactionMetadataEntry.recycle();
                     transactionMetadataEntryBuilder.recycle();
                     stream.recycle();
                 } else {
@@ -176,27 +178,32 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
                     }
                 }
             }
-            readOnlyCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    log.info("Transaction log with tcId : {} close ReadOnlyCursor successful!", tcId);
-                }
 
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Transaction log with tcId : " + tcId + " close ReadOnlyCursor fail", exception);
-                }
-            }, null);
-            transactionLogReplayCallback.replayComplete();
+            closeReadOnlyCursorAsync().thenRun(() -> transactionLogReplayCallback.replayComplete());
         }
+    }
+
+    private CompletableFuture<Void> closeReadOnlyCursorAsync() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        readOnlyCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                log.info("Transaction log with tcId : {} close ReadOnlyCursor successful!", tcId);
+                completableFuture.complete(null);
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Transaction log with tcId : " + tcId + " close ReadOnlyCursor fail", exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return completableFuture;
     }
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private AtomicLong outstandingReadsRequests = new AtomicLong(0);
-
-        FillEntryQueueCallback() {
-        }
 
         void fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
@@ -224,8 +231,9 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            log.error("Transaction log init fail error", exception);
+            log.error("Transaction log init fail error!", exception);
             outstandingReadsRequests.decrementAndGet();
         }
+
     }
 }

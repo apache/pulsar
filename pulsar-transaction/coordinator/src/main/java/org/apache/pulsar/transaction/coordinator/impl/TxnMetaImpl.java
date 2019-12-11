@@ -40,7 +40,7 @@ class TxnMetaImpl implements TxnMeta {
     private final TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<TxnSubscription> ackedPartitions = new HashSet<>();
-    private TxnStatus txnStatus;
+    private volatile TxnStatus txnStatus;
 
     TxnMetaImpl(TxnID txnID) {
         this.txnID = txnID;
@@ -52,11 +52,6 @@ class TxnMetaImpl implements TxnMeta {
         return txnID;
     }
 
-    /**
-     * Return the current status of the transaction.
-     *
-     * @return current status of the transaction.
-     */
     @Override
     public synchronized TxnStatus status() {
         return txnStatus;
@@ -82,11 +77,6 @@ class TxnMetaImpl implements TxnMeta {
         return returnedSubscriptions;
     }
 
-    /**
-     * Check if the transaction is in an expected status.
-     *
-     * @param expectedStatus the transaction current status
-     */
     @Override
     public synchronized void checkTxnStatus(TxnStatus expectedStatus) throws InvalidTxnStatusException {
         if (this.txnStatus != expectedStatus) {
@@ -96,13 +86,6 @@ class TxnMetaImpl implements TxnMeta {
         }
     }
 
-    /**
-     * Add the list partitions that the transaction produces to.
-     *
-     * @param partitions the list of partitions that the txn produces to
-     * @return the transaction itself.
-     * @throws InvalidTxnStatusException
-     */
     @Override
     public synchronized TxnMetaImpl addProducedPartitions(List<String> partitions) throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
@@ -111,13 +94,6 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
-    /**
-     * Add the list partitions that the transaction acknowledges to.
-     *
-     * @param partitions the list of partitions that the txn acknowledges to
-     * @return the transaction itself.
-     * @throws InvalidTxnStatusException
-     */
     @Override
     public synchronized TxnMeta addAckedPartitions(List<TxnSubscription> partitions) throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
@@ -126,26 +102,15 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
-    /**
-     * Update the transaction stats from the <tt>newStatus</tt> only when
-     * the current status is the expected <tt>expectedStatus</tt>.
-     *
-     * @param newStatus the new transaction status
-     * @param expectedStatus the expected transaction status
-     * @return the transaction itself.
-     * @throws InvalidTxnStatusException
-     */
     @Override
     public synchronized TxnMetaImpl updateTxnStatus(TxnStatus newStatus,
                                                     TxnStatus expectedStatus)
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
         if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
-            throw new InvalidTxnStatusException(
-                "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
+            throw new InvalidTxnStatusException(txnID, expectedStatus, newStatus);
         }
         this.txnStatus = newStatus;
         return this;
     }
-
 }

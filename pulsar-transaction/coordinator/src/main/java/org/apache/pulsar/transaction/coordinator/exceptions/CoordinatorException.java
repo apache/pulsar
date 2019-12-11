@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator.exceptions;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
@@ -45,6 +46,8 @@ public abstract class CoordinatorException extends Exception {
      */
     public static class CoordinatorNotFoundException extends CoordinatorException {
 
+        private static final long serialVersionUID = 0L;
+
         public CoordinatorNotFoundException(String msg) {
             super(msg);
         }
@@ -66,8 +69,8 @@ public abstract class CoordinatorException extends Exception {
         }
 
         public InvalidTxnStatusException(TxnID txnID,
-                                         PulsarApi.TxnStatus expectedStatus,
-                                         PulsarApi.TxnStatus actualStatus) {
+                                         TxnStatus expectedStatus,
+                                         TxnStatus actualStatus) {
             super("Expect Txn `" + txnID + "` to be in " + expectedStatus
                             + " status but it is in " + actualStatus + " status");
 
@@ -81,8 +84,8 @@ public abstract class CoordinatorException extends Exception {
 
         private static final long serialVersionUID = 0L;
 
-        public TransactionNotFoundException(String message) {
-            super(message);
+        public TransactionNotFoundException(TxnID txnID) {
+            super("The transaction with this txdID `" + txnID + "`not found ");
         }
 
         public TransactionNotFoundException(String message, Throwable cause) {
@@ -91,6 +94,27 @@ public abstract class CoordinatorException extends Exception {
 
         public TransactionNotFoundException(Throwable cause) {
             super(cause);
+        }
+    }
+
+    /**
+     * Exception is thrown when a operation of transaction is executed in a error transaction metadata store state.
+     */
+    public static class TransactionMetadataStoreStateException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionMetadataStoreStateException(String message) {
+            super(message);
+        }
+
+        public TransactionMetadataStoreStateException(TransactionCoordinatorID tcID,
+                                                      TransactionMetadataStoreState.State expectedState,
+                                                      TransactionMetadataStoreState.State currentState,
+                                                      String operation) {
+            super("Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState
+                            + " status but it is in " + currentState + " state for " + operation);
+
         }
     }
 }

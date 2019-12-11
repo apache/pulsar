@@ -132,7 +132,7 @@ public class TransactionMetadataStoreService {
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransactionAsync();
+        return store.newTransactionAsync(0L);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {

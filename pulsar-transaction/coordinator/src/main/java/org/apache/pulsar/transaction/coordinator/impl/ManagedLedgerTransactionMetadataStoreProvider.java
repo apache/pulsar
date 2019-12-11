@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 public class ManagedLedgerTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStoreProvider.class);
+
     @Override
     public CompletableFuture<TransactionMetadataStore>
     openStore(TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory) {
