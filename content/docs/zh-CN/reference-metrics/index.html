@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Metrics · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Metrics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-metrics">English</a></li><li><a href="/docs/ja/reference-metrics">日本語</a></li><li><a href="/docs/fr/reference-metrics">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.4.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-metrics">English</a></li><li><a href="/docs/ja/reference-metrics">日本語</a></li><li><a href="/docs/fr/reference-metrics">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -115,15 +115,9 @@
 </thead>
 <tbody>
 <tr><td>zookeeper_server_requests</td><td>Counter</td><td>The total number of requests received by a particular server.</td></tr>
-<tr><td>zookeeper_server_requests_latency_ms</td><td>总结</td><td>The requests latency calculated in milliseconds.</td></tr>
-<tr><td>Available labels: <em>type</em> (write, read).</td></tr>
+<tr><td>zookeeper_server_requests_latency_ms</td><td>总结</td><td>The requests latency calculated in milliseconds. <br> Available labels: <em>type</em> (write, read). <br> <ul><li><em>write</em>: the requests that write data to ZooKeeper.</li><li><em>read</em>: the requests that read data from ZooKeeper.</li></ul></td></tr>
 </tbody>
 </table>
-<ul>
-<li><em>write</em>: the requests that write data to ZooKeeper.</li>
-<li><em>read</em>: the requests that read data from ZooKeeper.</li>
-</ul>
-<p>|</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
 <p>The BookKeeper metrics are exposed under &quot;/metrics&quot; at port 8000. You can change the port by updating <code>prometheusStatsHttpPort</code> in <code>bookkeeper.conf</code> configuration file.</p>
 <h3><a class="anchor" aria-hidden="true" id="server-metrics-1"></a><a href="#server-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Server metrics</h3>
@@ -132,14 +126,15 @@
 <tr><th>Name</th><th>类型</th><th>说明：</th></tr>
 </thead>
 <tbody>
-<tr><td>bookie_SERVER_STATUS</td><td>Gauge</td><td>The server status for bookie server.</td></tr>
+<tr><td>bookie_SERVER_STATUS</td><td>Gauge</td><td>The server status for bookie server. <br><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul></td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_count</td><td>Counter</td><td>The total number of ADD_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_count</td><td>Counter</td><td>The total number of READ_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookie_WRITE_BYTES</td><td>Counter</td><td>The total number of bytes written to the bookie.</td></tr>
+<tr><td>bookie_READ_BYTES</td><td>Counter</td><td>The total number of bytes read from the bookie.</td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_REQUEST</td><td>Histogram</td><td>The histogram of request latency of ADD_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_REQUEST</td><td>Histogram</td><td>The histogram of request latency of READ_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
 </tbody>
 </table>
-<ul>
-<li>1: the bookie is running in writable mode.</li>
-<li>0: the bookie is running in readonly mode.</li>
-</ul>
-<p>| | bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures. | | bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures. | | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. | | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. | | bookkeeper_server_ADD_ENTRY_REQUEST | Histogram | The histogram of request latency of ADD_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures. | | bookkeeper_server_READ_ENTRY_REQUEST | Histogram | The histogram of request latency of READ_ENTRY requests at the bookie. The <code>success</code> label is used to distinguish successes and failures. |</p>
 <h3><a class="anchor" aria-hidden="true" id="journal-metrics"></a><a href="#journal-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Journal metrics</h3>
 <table>
 <thead>
@@ -212,36 +207,10 @@
 <tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this namespace (message batches / second).</td></tr>
 <tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this namespace (message batches / second).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.</td></tr>
-<tr><td>Available thresholds:</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 </tbody>
 </table>
-<ul>
-<li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms</li>
-<li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li>
-<li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li>
-<li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li>
-<li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li>
-<li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li>
-<li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li>
-<li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li>
-<li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li>
-<li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li>
-</ul>
-<p>| | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br>
-Available thresholds:</p>
-<ul>
-<li>pulsar_entry_size_le_128: &lt;= 128 bytes</li>
-<li>pulsar_entry_size_le_512: &lt;= 512 bytes</li>
-<li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li>
-<li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li>
-<li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li>
-<li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li>
-<li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li>
-<li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li>
-<li>pulsar_entry_size_le_overflow: &gt; 1 MB</li>
-</ul>
-<p>|</p>
 <h4><a class="anchor" aria-hidden="true" id="replication-metrics"></a><a href="#replication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
 <p>If a namespace is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
 <p>All the replication metrics will also be labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
@@ -285,36 +254,10 @@ Available thresholds:</p>
 <tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this topic (message batches / second).</td></tr>
 <tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this topic (message batches / second).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.</td></tr>
-<tr><td>Available thresholds:</td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 </tbody>
 </table>
-<ul>
-<li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms</li>
-<li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li>
-<li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li>
-<li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li>
-<li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li>
-<li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li>
-<li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li>
-<li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li>
-<li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li>
-<li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li>
-</ul>
-<p>| | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br>
-Available thresholds:</p>
-<ul>
-<li>pulsar_entry_size_le_128: &lt;= 128 bytes</li>
-<li>pulsar_entry_size_le_512: &lt;= 512 bytes</li>
-<li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li>
-<li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li>
-<li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li>
-<li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li>
-<li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li>
-<li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li>
-<li>pulsar_entry_size_le_overflow: &gt; 1 MB</li>
-</ul>
-<p>|</p>
 <h4><a class="anchor" aria-hidden="true" id="replication-metrics-1"></a><a href="#replication-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
 <p>If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
 <p>All the replication metrics will also be labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
@@ -350,14 +293,11 @@ Available thresholds:</p>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total number of messages are delayed to be dispatched for a subscription (messages).</td></tr>
 <tr><td>pulsar_subscription_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
 <tr><td>pulsar_subscription_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
-<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not.</td></tr>
+<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_subscription_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a subscription (messages/second).</td></tr>
+<tr><td>pulsar_subscription_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a subscription (bytes/second).</td></tr>
 </tbody>
 </table>
-<ul>
-<li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li>
-<li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li>
-</ul>
-<p>| | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (messages/second). | | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (bytes/second). |</p>
 <h3><a class="anchor" aria-hidden="true" id="consumer-metrics"></a><a href="#consumer-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer metrics</h3>
 <blockquote>
 <p>Consumer metrics are only exposed when both <code>exposeTopicLevelMetricsInPrometheus</code> and <code>exposeConsumerLevelMetricsInPrometheus</code> are set to true.</p>
@@ -378,14 +318,12 @@ Available thresholds:</p>
 <tbody>
 <tr><td>pulsar_consumer_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
 <tr><td>pulsar_consumer_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
-<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not.</td></tr>
+<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_consumer_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a consumer (messages/second).</td></tr>
+<tr><td>pulsar_consumer_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a consumer (bytes/second).</td></tr>
+<tr><td>pulsar_consumer_available_permits</td><td>Gauge</td><td>The available permits for for a consumer.</td></tr>
 </tbody>
 </table>
-<ul>
-<li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li>
-<li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li>
-</ul>
-<p>| | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). | | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). | | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |</p>
 <h2><a class="anchor" aria-hidden="true" id="monitor"></a><a href="#monitor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor</h2>
 <p>You can <a href="https://prometheus.io/">set up a Prometheus instance</a> to collect all the metrics exposed at Pulsar components and set up <a href="https://grafana.com/">Grafana</a> dashboards to display the metrics and monitor your Pulsar cluster.</p>
 <p>The following are some Grafana dashboards examples:</p>
@@ -445,6 +383,6 @@ Available thresholds:</p>
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.4.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.4.2"]}
               });
             </script></body></html>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs."/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs."/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-evolution-compatibility">English</a></li><li><a href="/docs/fr/schema-evolution-compatibility">Français</a></li><li><a href="/docs/zh-CN/schema-evolution-compatibility">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.4.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-evolution-compatibility">English</a></li><li><a href="/docs/fr/schema-evolution-compatibility">Français</a></li><li><a href="/docs/zh-CN/schema-evolution-compatibility">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -81,7 +81,7 @@
 <p>Each <code>SchemaInfo</code> stored with a topic has a version. The version is used to manage the schema changes happening within a topic.</p>
 <p>The message produced with <code>SchemaInfo</code> is tagged with a schema version. When a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding <code>SchemaInfo</code> and use the correct schema information to deserialize data.</p>
 <h3><a class="anchor" aria-hidden="true" id="what-is-schema-evolution"></a><a href="#what-is-schema-evolution" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What is schema evolution?</h3>
-<p>Schemas store the details of attributes and types. To satisfy new business requirements, you need to update schemas inevitably over time, which is called <strong>schema evolution</strong>.</p>
+<p>Schemas store the details of attributes and types. To satisfy new business requirements,  you need to update schemas inevitably over time, which is called <strong>schema evolution</strong>.</p>
 <p>Any schema changes affect downstream consumers. Schema evolution ensures that the downstream consumers can seamlessly handle data encoded with both old schemas and new schemas.</p>
 <h3><a class="anchor" aria-hidden="true" id="how-pulsar-schema-should-evolve"></a><a href="#how-pulsar-schema-should-evolve" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How Pulsar schema should evolve?</h3>
 <p>The answer is Pulsar schema compatibility check strategy. It determines how schema compares old schemas with new schemas in topics.</p>
@@ -100,7 +100,7 @@
 <p>Pulsar has 8 schema compatibility check strategies, which are summarized in the following table.</p>
 <p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
 <table style="table">
-  <tr>
+<tr>
 <th>
 <p>Compatibility check strategy</p>
 </th>
@@ -270,7 +270,7 @@
 </td> 
 </tr>
 </table>
-<p><h3>ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE</h3></p>
+<h3><a class="anchor" aria-hidden="true" id="always_compatible-and-always_incompatible"></a><a href="#always_compatible-and-always_incompatible" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE</h3>
 <table style="table">
 <tr>
 <th>
@@ -282,8 +282,8 @@
 <th>
 <p>Note</p>
 </th>
-  </tr>
-  <tr>
+</tr>
+<tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
@@ -306,22 +306,20 @@
 <li><p>For all schema types except Avro and JSON, the default schema compatibility check strategy is <code>ALWAYS_INCOMPATIBLE</code>.</p></li>
 <li><p>For Avro and JSON, the default schema compatibility check strategy is <code>FULL</code>.</p></li>
 </ul>
-</td>  </tr>
+</td> 
+</tr>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
-<li><p>Example 1</p>
+<li><p>Example  1</p>
 <p>In some situations, an application needs to store events of several different types in the same Pulsar topic.</p>
 <p>In particular, when developing a data model in an <code>Event Sourcing</code> style, you might have several kinds of events that affect the state of an entity.</p>
 <p>For example, for a user entity, there are <code>userCreated</code>, <code>userAddressChanged</code> and <code>userEnquiryReceived</code> events. The application requires that those events are always read in the same order.</p>
 <p>Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use <code>ALWAYS_COMPATIBLE</code> to allow different kinds of events co-exist in the same topic.</p></li>
 <li><p>Example 2</p>
-<pre><code class="hljs">  Sometimes we also make incompatible changes. 
-  
-  For example, you are modifying a field type from `string` to `int`.
-  
-  In this case, you need to:
-</code></pre>
+<p>Sometimes we also make incompatible changes.</p>
+<p>For example, you are modifying a field type from <code>string</code> to <code>int</code>.</p>
+<p>In this case, you need to:</p>
 <ul>
 <li><p>Upgrade all producers and consumers to the new schema versions at the same time.</p></li>
 <li><p>Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.</p></li>
@@ -371,7 +369,7 @@
 <h3><a class="anchor" aria-hidden="true" id="full-and-full_transitive"></a><a href="#full-and-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL and FULL_TRANSITIVE</h3>
 <p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
 <table style="table">
-  <tr>
+<tr>
 <th>
 <p>Compatibility check strategy</p>
 </th>
@@ -424,9 +422,9 @@
 </td>
 </tr>
 </table>
-<p><h4>Example</h4></p>
+<h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <p>In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.</p>
-<p><h2>Order of upgrading clients</h2></p>
+<h2><a class="anchor" aria-hidden="true" id="order-of-upgrading-clients"></a><a href="#order-of-upgrading-clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Order of upgrading clients</h2>
 <p>The order of upgrading client applications is determined by the compatibility check strategy.</p>
 <p>For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar.</p>
 <table style="table">
@@ -440,8 +438,8 @@
 <th>
 <p>Description</p>
 </th>
-  </tr>
-  <tr>
+</tr>
+<tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
@@ -507,8 +505,10 @@
 <td> 
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
-</td>  </tr>
-</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/ja/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-evolution">Schema evolution</a><ul class="toc-headings"><li><a href="#what-is-schema-evolution">What is schema evolution?</a></li><li><a href="#how-pulsar-schema-should-evolve">How Pulsar schema should evolve?</a></li><li><a href="#how-does-pulsar-support-schema-evolution">How does Pulsar support schema evolution?</a></li></ul></li><li><a href="#schema-compatibility-check-strategy">Schema compatibility check strategy</a><ul class="toc-headings"><li><a href="#backward-and-backward_transitive">BACKWARD and BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</td> 
+</tr>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/ja/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-evolution">Schema evolution</a><ul class="toc-headings"><li><a href="#what-is-schema-evolution">What is schema evolution?</a></li><li><a href="#how-pulsar-schema-should-evolve">How Pulsar schema should evolve?</a></li><li><a href="#how-does-pulsar-support-schema-evolution">How does Pulsar support schema evolution?</a></li></ul></li><li><a href="#schema-compatibility-check-strategy">Schema compatibility check strategy</a><ul class="toc-headings"><li><a href="#always_compatible-and-always_incompatible">ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE</a></li><li><a href="#backward-and-backward_transitive">BACKWARD and BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li><li><a href="#order-of-upgrading-clients">Order of upgrading clients</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -560,6 +560,6 @@
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:ja","version:2.4.1"]}
+                algoliaOptions: {"facetFilters":["language:ja","version:2.4.2"]}
               });
             </script></body></html>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy and manage functions worker · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/fr/functions-runtime)."/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Deploy and manage functions worker · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/fr/functions-runtime)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Deploy and manage functions worker · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/fr/functions-runtime)."/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Deploy and manage functions worker · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](/docs/fr/functions-runtime)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/functions-worker">English</a></li><li><a href="/docs/ja/functions-worker">日本語</a></li><li><a href="/docs/zh-CN/functions-worker">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.4.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/functions-worker">English</a></li><li><a href="/docs/ja/functions-worker">日本語</a></li><li><a href="/docs/zh-CN/functions-worker">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -81,8 +81,7 @@
 <li><a href="#run-functions-worker-separately">run it separately</a> in a different broker</li>
 </ul>
 <blockquote>
-<p>Note<br>
-The <code>--- Service Urls---</code> lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.</p>
+<p>Note The <code>--- Service Urls---</code> lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="run-functions-worker-with-brokers"></a><a href="#run-functions-worker-with-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run Functions-worker with brokers</h2>
 <p>The following diagram illustrates the deployment of functions-workers running along with brokers.</p>
@@ -117,8 +116,7 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <p>This section illustrates how to run <code>functions-worker</code> as a separate process in separate machines.</p>
 <p><img src="/docs/assets/functions-worker-separated.png" alt="assets/functions-worker-separated.png"></p>
 <blockquote>
-<p>Note<br>
-In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>false</code>, so you won't start <code>functions-worker</code> with brokers by mistake.</p>
+<p>Note In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>false</code>, so you won't start <code>functions-worker</code> with brokers by mistake.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="configure-functions-worker-to-run-separately"></a><a href="#configure-functions-worker-to-run-separately" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Functions-worker to run separately</h3>
 <p>To run function-worker separately, you have to configure the following parameters.</p>
@@ -153,31 +151,30 @@ In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>fals
 </ul>
 <h5><a class="anchor" aria-hidden="true" id="enable-tls-transport-encryption"></a><a href="#enable-tls-transport-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable TLS transport encryption</h5>
 <p>To enable TLS transport encryption, configure the following settings.</p>
-<pre><code class="hljs">tlsEnabled: true
-tlsCertificateFilePath: /path/to/functions-worker.cert.pem
-tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
-tlsTrustCertsFilePath:  /path/to/ca.cert.pem
+<pre><code class="hljs">tlsEnabled: <span class="hljs-keyword">true</span>
+tlsCertificateFilePath: /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.cert.pem
+tlsKeyFilePath:         /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.key-pk8.pem
+tlsTrustCertsFilePath:  /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/ca.cert.pem
 </code></pre>
 <p>For details on TLS encryption, refer to <a href="/docs/fr/security-tls-transport">Transport Encryption using TLS</a>.</p>
 <h5><a class="anchor" aria-hidden="true" id="enable-authentication-provider"></a><a href="#enable-authentication-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authentication Provider</h5>
 <p>To enable authentication on Functions Worker, configure the following settings.</p>
 <blockquote>
-<p>Note<br>
-Substitute the <em>providers list</em> with the providers you want to enable.</p>
+<p>Note Substitute the <em>providers list</em> with the providers you want to enable.</p>
 </blockquote>
-<pre><code class="hljs">authenticationEnabled: true
-authenticationProviders: [ provider1, provider2 ]
+<pre><code class="hljs"><span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authenticationProviders:</span> <span class="hljs-string">[</span> <span class="hljs-string">provider1,</span> <span class="hljs-string">provider2</span> <span class="hljs-string">]</span>
 </code></pre>
 <p>For <em>SASL Authentication</em> provider, add <code>saslJaasClientAllowedIds</code> and <code>saslJaasBrokerSectionName</code> under <code>properties</code> if needed.</p>
-<pre><code class="hljs">properties:
-  saslJaasClientAllowedIds: .*pulsar.*
-  saslJaasBrokerSectionName: Broker
+<pre><code class="hljs"><span class="hljs-symbol">properties:</span>
+<span class="hljs-symbol">  saslJaasClientAllowedIds:</span> .*pulsar.*
+<span class="hljs-symbol">  saslJaasBrokerSectionName:</span> Broker
 </code></pre>
 <p>For <em>Token Authentication</em> prodivder, add necessary settings under <code>properties</code> if needed. See <a href="/docs/fr/security-token-admin">Token Authentication</a> for more details.</p>
-<pre><code class="hljs">properties:
-  tokenSecretKey:       file://my/secret.key 
+<pre><code class="hljs"><span class="hljs-attribute">properties</span>:
+  <span class="hljs-attribute">tokenSecretKey</span>:       <span class="hljs-attribute">file</span>:<span class="hljs-comment">//my/secret.key </span>
   # If using public/private
-  # tokenPublicKey:     file:///path/to/public.key 
+  # <span class="hljs-attribute">tokenPublicKey</span>:     <span class="hljs-attribute">file</span>:<span class="hljs-comment">///path/to/public.key </span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="enable-authorization-provider"></a><a href="#enable-authorization-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authorization Provider</h5>
 <p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
@@ -225,7 +222,7 @@ authenticationProviders: [ provider1, provider2 ]
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="troubleshooting"></a><a href="#troubleshooting" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Troubleshooting</h2>
 <p><strong>Error message: Namespace missing local cluster name in clusters list</strong></p>
-<pre><code class="hljs">Failed to get partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException$BrokerMetadataException: Namespace missing local cluster name in clusters list: local_cluster=xyz ns=public/functions clusters=[standalone]
+<pre><code class="hljs">Failed <span class="hljs-keyword">to</span> <span class="hljs-builtin-name">get</span> partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException<span class="hljs-variable">$BrokerMetadataException</span>: Namespace missing local cluster name <span class="hljs-keyword">in</span> clusters list: <span class="hljs-attribute">local_cluster</span>=xyz <span class="hljs-attribute">ns</span>=public/functions clusters=[standalone]
 </code></pre>
 <p>The error message prompts when either of the cases occurs:</p>
 <ul>
@@ -299,6 +296,6 @@ authenticationProviders: [ provider1, provider2 ]
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:fr","version:2.4.1"]}
+                algoliaOptions: {"facetFilters":["language:fr","version:2.4.2"]}
               });
             </script></body></html>

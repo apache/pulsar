@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Understand schema · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Understand schema · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Understand schema · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Understand schema · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-understand">English</a></li><li><a href="/docs/ja/schema-understand">日本語</a></li><li><a href="/docs/fr/schema-understand">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.4.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/schema-understand">English</a></li><li><a href="/docs/ja/schema-understand">日本語</a></li><li><a href="/docs/fr/schema-understand">Français</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -80,51 +80,52 @@
 <p>The <code>SchemaInfo</code> is stored and enforced on a per-topic basis and cannot be stored at the namespace or tenant level.</p>
 <p>A <code>SchemaInfo</code> consists of the following fields:</p>
 <table style="table">
-  <tr>
-    <th>
-      字段
-    </th>
-<pre><code class="hljs">&lt;th&gt;
-  说明：
-&lt;/th&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      `name`
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  Schema name (a string).
-&lt;/td&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      `type`
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  Schema type, which determines how to interpret the schema data. * Predefined schema: see [here](/docs/zh-CN/schema-understand#schema-type). * Customized schema: it is left as an empty string.
-&lt;/td&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      `schema`（`payload`)
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.
-&lt;/td&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      `properties`
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  It is a user defined properties as a string/string map. 应用可以使用这个包裹传递程序指定的逻辑。 Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.
-&lt;/td&gt;
-</code></pre>
-  </tr>
+<tr>
+<th>
+<p>字段</p>
+</th>
+<th>
+<p>说明：</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>name</code></p>
+</td> 
+<td> 
+<p>Schema name (a string).</p>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>type</code></p>
+</td> 
+<td> 
+<p>Schema type, which determines how to interpret the schema data.</p>
+<ul>
+<li><p>Predefined schema: see <a href="/docs/zh-CN/schema-understand#schema-type">here</a>.</p></li>
+<li><p>Customized schema: it is left as an empty string.</p></li>
+</ul>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>schema</code>（<code>payload</code>)</p>
+</td> 
+<td> 
+<p>Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.</p>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>properties</code></p>
+</td> 
+<td> 
+<p>It is a user defined properties as a string/string map.</p>
+<p>应用可以使用这个包裹传递程序指定的逻辑。</p>
+<p>Possible properties might be the Git hash associated with the schema, an environment string like <code>dev</code> or <code>prod</code>.</p>
+</td>
+</tr>
 </table>
 <p><strong>Example</strong></p>
 <p>This is the <code>SchemaInfo</code> of a string.</p>
@@ -157,8 +158,7 @@
 <tr><td><code>DOUBLE</code></td><td>A double-precision (64-bit) IEEE 754 floating-point number</td></tr>
 <tr><td><code>BYTES</code></td><td>A sequence of 8-bit unsigned bytes</td></tr>
 <tr><td><code>STRING</code></td><td>A Unicode character sequence</td></tr>
-<tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>A logic type represents a specific instant in time with millisecond precision.</td></tr>
-<tr><td>It stores the number of milliseconds since <code>January 1, 1970, 00:00:00 GMT</code> as an <code>INT64</code> value</td></tr>
+<tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since <code>January 1, 1970, 00:00:00 GMT</code> as an <code>INT64</code> value</td></tr>
 </tbody>
 </table>
 <p>For primitive types, Pulsar does not store any schema data in <code>SchemaInfo</code>. The <code>type</code> in <code>SchemaInfo</code> is used to determine how to serialize and deserialize the data.</p>
@@ -389,187 +389,81 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
 </code></pre>
 <p>The table below lists the possible scenarios when this connection attempt occurs and what happens in each scenario:</p>
 <table class="table">
-  <tr>
-    <th>
-      场景
-    </th>
-<pre><code class="hljs">&lt;th&gt;
-  发生了什么
-&lt;/th&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      * No schema exists for the topic.
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.
-&lt;/td&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      * A schema already exists. * The producer connects using the same schema that is already stored.
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](/docs/zh-CN/concepts-architecture-overview#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.
-&lt;/td&gt;
-
-&lt;tr&gt;
-  &lt;td&gt;
-    * A schema already exists. * The producer connects using a new schema that is compatible.
-  &lt;/td&gt;
-  
-  &lt;td&gt;
-    (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).
-  &lt;/td&gt;
-&lt;/tr&gt;&lt;/table&gt; 
-
-&lt;h2&gt;
-  How does schema work
-&lt;/h2&gt;
-
-&lt;p&gt;
-  Pulsar schemas are applied and enforced at the &lt;strong&gt;topic&lt;/strong&gt; level (schemas cannot be applied at the namespace or tenant level).
-&lt;/p&gt;
-
-&lt;p&gt;
-  Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.
-&lt;/p&gt;
-
-&lt;h3&gt;
-  Producer side
-&lt;/h3&gt;
-
-&lt;p&gt;
-  This diagram illustrates how does schema work on the Producer side.
-&lt;/p&gt;
-
-&lt;p&gt;
-  &lt;img src=&quot;assets/schema-producer.png&quot; alt=&quot;Schema works at the producer side&quot; /&gt;
-&lt;/p&gt;
-
-&lt;ol start=&quot;1&quot; spaces=&quot;0&quot; level=&quot;0&quot;&gt;
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The application uses a schema instance to construct a producer instance.
-    &lt;/p&gt;
-    &lt;p&gt;
-      The schema instance defines the schema for the data being produced using the producer instance.
-    &lt;/p&gt;
-    &lt;p&gt;
-      Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the &lt;code&gt;SchemaInfo&lt;/code&gt; that the producer needs to pass to a broker when it connects.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The producer connects to the broker with the &lt;code&gt;SchemaInfo&lt;/code&gt; extracted from the passed-in schema instance.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The broker looks up the schema in the schema storage to check if it is already a registered schema.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If the schema is compatible, the broker stores it and returns the schema version to the producer.
-    &lt;/p&gt;
-    &lt;p&gt;
-      All the messages produced by this producer are tagged with the schema version.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If the schema is incompatible, the broker rejects it.
-    &lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3&gt;
-  Consumer side
-&lt;/h3&gt;
-
-&lt;p&gt;
-  This diagram illustrates how does Schema work on the consumer side.
-&lt;/p&gt;
-
-&lt;p&gt;
-  &lt;img src=&quot;assets/schema-consumer.png&quot; alt=&quot;Schema works at the consumer side&quot; /&gt;
-&lt;/p&gt;
-
-&lt;ol start=&quot;1&quot; spaces=&quot;0&quot; level=&quot;0&quot;&gt;
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The application uses a schema instance to construct a consumer instance.
-    &lt;/p&gt;
-    &lt;p&gt;
-      The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The consumer connects to the broker with the &lt;code&gt;SchemaInfo&lt;/code&gt; extracted from the passed-in schema instance.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The broker looks up the schema in the schema storage to check if it is already a registered schema.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If the schema is compatible, the broker stores it and returns the schema version to the consumer.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      If the schema is incompatible, the consumer will be disconnected.
-    &lt;/p&gt;
-  &lt;/li&gt;
-  
-  &lt;li level=&quot;0&quot;&gt;
-    &lt;p&gt;
-      The consumer receives the messages from the broker.
-    &lt;/p&gt;
-    &lt;p&gt;
-      If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the &lt;code&gt;SchemaInfo&lt;/code&gt; of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
-    &lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-get-started"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/zh-CN/schema-evolution-compatibility"><span>Schema evolution and compatibility</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schemainfo">SchemaInfo</a></li><li><a href="#schema-type">Schema type</a><ul class="toc-headings"><li><a href="#primitive-type">Primitive type</a></li><li><a href="#complex-type">Complex type</a></li><li><a href="#auto-schema">Auto Schema</a></li></ul></li><li><a href="#schema-version">Schema version</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<tr>
+<th>场景</th>
+<th>发生了什么</th>
+</tr>
+<tr>
+<td> 
+<ul>
+<li>No schema exists for the topic.</li>
+</ul>
+</td>
+<td> 
+<p>(1) The producer is created using the given schema.</p>
+<p>(2) Since no existing schema is compatible with the <code>SensorReading</code> schema, the schema is transmitted to the broker and stored.</p>
+<p>(3) Any consumer created using the same schema or topic can consume messages from the <code>sensor-data</code> topic.</p>
+</td>
+</tr>
+<tr>
+<td> 
+<ul>
+<li><p>A schema already exists.</p></li>
+<li><p>The producer connects using the same schema that is already stored.</p></li>
+</ul>
+</td>
+<td> 
+<p>(1) The schema is transmitted to the broker.</p>
+<p>(2) The broker determines that the schema is compatible.</p>
+<p>(3) The broker attempts to store the schema in <a href="/docs/zh-CN/concepts-architecture-overview#persistent-storage">BookKeeper</a> but then determines that it's already stored, so it is used to tag produced messages.</p>
+</td>
+<tr>
+<td> 
+<ul>
+<li><p>A schema already exists.</p></li>
+<li><p>The producer connects using a new schema that is compatible.</p></li>
+</ul>
+</td>
+<td> 
+<p>(1) The schema is transmitted to the broker.</p>
+<p>(2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</p>
+</td>
+</tr>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="how-does-schema-work"></a><a href="#how-does-schema-work" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How does schema work</h2>
+<p>Pulsar schemas are applied and enforced at the <strong>topic</strong> level (schemas cannot be applied at the namespace or tenant level).</p>
+<p>Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.</p>
+<h3><a class="anchor" aria-hidden="true" id="producer-side"></a><a href="#producer-side" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer side</h3>
+<p>This diagram illustrates how does schema work on the Producer side.</p>
+<p><img src="/docs/assets/schema-producer.png" alt="Schema works at the producer side"></p>
+<ol>
+<li><p>The application uses a schema instance to construct a producer instance.</p>
+<p>The schema instance defines the schema for the data being produced using the producer instance.</p>
+<p>Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the <code>SchemaInfo</code> that the producer needs to pass to a broker when it connects.</p></li>
+<li><p>The producer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
+<li><p>The broker looks up the schema in the schema storage to check if it is already a registered schema.</p></li>
+<li><p>If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.</p></li>
+<li><p>If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
+<li><p>If the schema is compatible, the broker stores it and returns the schema version to the producer.</p>
+<p>All the messages produced by this producer are tagged with the schema version.</p></li>
+<li><p>If the schema is incompatible, the broker rejects it.</p></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="consumer-side"></a><a href="#consumer-side" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer side</h3>
+<p>This diagram illustrates how does Schema work on the consumer side.</p>
+<p><img src="/docs/assets/schema-consumer.png" alt="Schema works at the consumer side"></p>
+<ol>
+<li><p>The application uses a schema instance to construct a consumer instance.</p>
+<p>The schema instance defines the schema that the consumer uses for decoding messages received from a broker.</p></li>
+<li><p>The consumer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
+<li><p>The broker looks up the schema in the schema storage to check if it is already a registered schema.</p></li>
+<li><p>If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.</p></li>
+<li><p>If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
+<li><p>If the schema is compatible, the broker stores it and returns the schema version to the consumer.</p></li>
+<li><p>If the schema is incompatible, the consumer will be disconnected.</p></li>
+<li><p>The consumer receives the messages from the broker.</p>
+<p>If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  <code>SchemaInfo</code> of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.</p></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-get-started"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/zh-CN/schema-evolution-compatibility"><span>Schema evolution and compatibility</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schemainfo">SchemaInfo</a></li><li><a href="#schema-type">Schema type</a><ul class="toc-headings"><li><a href="#primitive-type">Primitive type</a></li><li><a href="#complex-type">Complex type</a></li><li><a href="#auto-schema">Auto Schema</a></li></ul></li><li><a href="#schema-version">Schema version</a></li><li><a href="#how-does-schema-work">How does schema work</a><ul class="toc-headings"><li><a href="#producer-side">Producer side</a></li><li><a href="#consumer-side">Consumer side</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -621,6 +515,6 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.4.1"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.4.2"]}
               });
             </script></body></html>

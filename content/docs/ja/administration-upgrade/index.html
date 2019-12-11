@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Upgrade Guide · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Upgrade guidelines"/><meta name="docsearch:version" content="2.4.1"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Upgrade Guide · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## Upgrade guidelines"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Upgrade Guide · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Upgrade guidelines"/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Upgrade Guide · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## Upgrade guidelines"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.4.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/administration-upgrade">English</a></li><li><a href="/docs/fr/administration-upgrade">Français</a></li><li><a href="/docs/zh-CN/administration-upgrade">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ja"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ja/versions"><h3>2.4.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ja/standalone" target="_self">Docs</a></li><li class=""><a href="/ja/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ja/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>日本語</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/administration-upgrade">English</a></li><li><a href="/docs/fr/administration-upgrade">Français</a></li><li><a href="/docs/zh-CN/administration-upgrade">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -102,16 +102,27 @@
 <li>Upgrade bookies</li>
 </ol>
 <ul>
-<li><p>Canary test: test an upgraded version in one or a small set of bookies. - Rolling upgrade:</p></li>
-<li><p>a. Disable <code>autorecovery</code> with the following command.</p>
-<p>shell
-bin/bookkeeper shell autorecovery -disable</p></li>
-</ul>
+<li>Canary test: test an upgraded version in one or a small set of bookies. - Rolling upgrade: - a. Disable <code>autorecovery</code> with the following command.
+<code>shell bin/bookkeeper shell autorecovery -disable</code>
 <ul>
-<li><p>b. Rollout the upgraded version to all bookies in the cluster after you have determined a version is safe after canary.</p></li>
-<li><p>c. After all bookies are upgraded, re-enable <code>autorecovery</code> with the following command.</p>
-<p>shell
-bin/bookkeeper shell autorecovery -enable 3. Upgrade brokers - Canary test: test an upgraded version in one or a small set of brokers. - Rolling upgrade: rollout the upgraded version to all brokers in the cluster after you have determined a version is safe after canary. 4. Upgrade proxies - Canary test: test an upgraded version in one or a small set of proxies. - Rolling upgrade: rollout the upgraded version to all proxies in the cluster after you have determined a version is safe after canary.</p></li>
+<li>b. Rollout the upgraded version to all bookies in the cluster after you have determined a version is safe after canary.</li>
+<li>c. After all bookies are upgraded, re-enable <code>autorecovery</code> with the following command.
+<pre><code class="hljs css language-shell">bin/bookkeeper shell autorecovery -enable
+</code></pre></li>
+</ul></li>
+</ul>
+<ol start="3">
+<li>Upgrade brokers</li>
+</ol>
+<ul>
+<li>Canary test: test an upgraded version in one or a small set of brokers.</li>
+<li>Rolling upgrade: rollout the upgraded version to all brokers in the cluster after you have determined a version is safe after canary.</li>
+</ul>
+<ol start="4">
+<li>Upgrade proxies</li>
+</ol>
+<ul>
+<li>Canary test: test an upgraded version in one or a small set of proxies. - Rolling upgrade: rollout the upgraded version to all proxies in the cluster after you have determined a version is safe after canary.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="upgrade-zookeeper-optional"></a><a href="#upgrade-zookeeper-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade ZooKeeper (optional)</h2>
 <p>While upgrading ZooKeeper servers, you can do canary test first, and then upgrade all ZooKeeper servers in the cluster.</p>
@@ -136,15 +147,15 @@ bin/bookkeeper shell autorecovery -enable 3. Upgrade brokers - Canary test: test
 <p>You can test an upgraded version in one or a small set of bookies before upgrading all bookies in your cluster.</p>
 <p>To upgrade bookie to a new version, complete the following steps:</p>
 <ol>
-<li><p>Stop a bookie.</p></li>
-<li><p>Upgrade the binary and configuration files.</p></li>
-<li><p>Start the bookie in <code>ReadOnly</code> mode. It is to verify if the bookie of this new version runs well for read workload.</p>
+<li>Stop a bookie.</li>
+<li>Upgrade the binary and configuration files.</li>
+<li>Start the bookie in <code>ReadOnly</code> mode. It is to verify if the bookie of this new version runs well for read workload.
 <pre><code class="hljs css language-shell">bin/pulsar bookie --readOnly
 </code></pre></li>
-<li><p>When the bookie runs successfully in <code>ReadOnly</code> mode, stop the bookie and restart it in <code>Write/Read</code> mode.</p>
+<li>When the bookie runs successfully in <code>ReadOnly</code> mode, stop the bookie and restart it in <code>Write/Read</code> mode.
 <pre><code class="hljs css language-shell">bin/pulsar bookie
 </code></pre></li>
-<li><p>Observe and make sure the cluster serves both write and read traffic.</p></li>
+<li>Observe and make sure the cluster serves both write and read traffic.</li>
 </ol>
 <h4><a class="anchor" aria-hidden="true" id="canary-rollback-1"></a><a href="#canary-rollback-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary rollback</h4>
 <p>If issues occur during canary test, you can shut down the problematic bookie node. Other bookies in the cluster will replace this problematic bookie node with autorecovery.</p>
@@ -159,8 +170,7 @@ bin/bookkeeper shell autorecovery -enable 3. Upgrade brokers - Canary test: test
 <li>Start the bookie.</li>
 </ol>
 <blockquote>
-<p><strong>Advanced operations</strong>  <br>
-When upgrading a large BookKeeper cluster in rolling upgrade scenario, it is slow to upgrade one bookie at a time. If you have configured rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region. It speeds up the whole upgrade process.</p>
+<p><strong>Advanced operations</strong> When upgrading a large BookKeeper cluster in rolling upgrade scenario, it is slow to upgrade one bookie at a time. If you have configured rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region. It speeds up the whole upgrade process.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="upgrade-brokers-and-proxies"></a><a href="#upgrade-brokers-and-proxies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Upgrade brokers and proxies</h2>
 <p>The upgrade procedure for brokers and proxies is the same. Brokers and proxies are <code>stateless</code>, so it is easy to upgrade the two services.</p>
@@ -237,6 +247,6 @@ When upgrading a large BookKeeper cluster in rolling upgrade scenario, it is slo
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:ja","version:2.4.1"]}
+                algoliaOptions: {"facetFilters":["language:ja","version:2.4.2"]}
               });
             </script></body></html>
