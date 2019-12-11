@@ -45,7 +45,8 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
+                                                              SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 
@@ -60,7 +61,14 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                         SchemaData schemaData) {
         return completedFuture(null);
     }
 
@@ -70,12 +78,14 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
         return completedFuture(false);
     }
 
     @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
+                                                   SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 

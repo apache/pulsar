@@ -132,6 +132,9 @@ message MessageMetadata {
     // transaction related message info
     optional uint64 txnid_least_bits = 22 [default = 0];
     optional uint64 txnid_most_bits = 23 [default = 0];
+
+    /// Add highest sequence id to support batch message with external sequence id
+    optional uint64 highest_sequence_id = 24 [default = 0];
 }
 
 message SingleMessageMetadata {
@@ -175,6 +178,9 @@ enum ServerError {
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
     ConsumerAssignError = 19; // Dispatcher assign consumer error
+
+    TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
+    InvalidTxnStatus = 21; // Invalid txn status error
 }
 
 enum AuthMethod {
@@ -403,6 +409,13 @@ message CommandProducer {
     repeated KeyValue metadata    = 6;
 
     optional Schema schema = 7;
+
+    // If producer reconnect to broker, the epoch of this producer will +1
+    optional uint64 epoch = 8 [default = 0];
+
+    // Indicate the name of the producer is generated or user provided
+    // Use default true here is in order to be forward compatible with the client
+    optional bool user_provided_producer_name = 9 [default = true];
 }
 
 message CommandSend {
@@ -411,12 +424,16 @@ message CommandSend {
     optional int32 num_messages = 3 [default = 1];
     optional uint64 txnid_least_bits = 4 [default = 0];
     optional uint64 txnid_most_bits = 5 [default = 0];
+
+    /// Add highest sequence id to support batch message with external sequence id
+    optional uint64 highest_sequence_id = 6 [default = 0];
 }
 
 message CommandSendReceipt {
     required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     optional MessageIdData message_id = 3;
+    optional uint64 highest_sequence_id = 4 [default = 0];
 }
 
 message CommandSendError {
@@ -665,6 +682,7 @@ enum TxnAction {
 message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
+    optional uint64 tc_id = 3 [default = 0];
 }
 
 message CommandNewTxnResponse {

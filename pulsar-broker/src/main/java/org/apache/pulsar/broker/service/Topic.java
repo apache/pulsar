@@ -38,7 +38,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -53,7 +52,7 @@ public interface Topic {
         }
 
         default long getSequenceId() {
-            return -1;
+            return -1L;
         }
 
         default void setOriginalProducerName(String originalProducerName) {
@@ -73,10 +72,22 @@ public interface Topic {
         }
 
         default long getOriginalSequenceId() {
-            return -1;
+            return -1L;
         }
 
         void completed(Exception e, long ledgerId, long entryId);
+
+        default long getHighestSequenceId() {
+            return  -1L;
+        }
+
+        default void setOriginalHighestSequenceId(long originalHighestSequenceId) {
+
+        }
+
+        default long getOriginalHighestSequenceId() {
+            return  -1L;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
@@ -104,7 +115,7 @@ public interface Topic {
 
     CompletableFuture<Void> delete();
 
-    ConcurrentOpenHashSet<Producer> getProducers();
+    Map<String, Producer> getProducers();
 
     String getName();
 
@@ -120,12 +131,14 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
-    void checkPublishThrottlingRate();
-    
+    void checkTopicPublishThrottlingRate();
+
     void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-    
-    void resetPublishCountAndEnableReadIfRequired();
-    
+
+    void resetTopicPublishCountAndEnableReadIfRequired();
+
+    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
+
     boolean isPublishRateExceeded();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);

@@ -87,8 +87,8 @@ public class PerformanceProducer {
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     static class Arguments {
 
@@ -161,9 +161,15 @@ public class PerformanceProducer {
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
         
-        @Parameter(names = { "-bn",
-                "--batch-max-msgs" }, description = "Number of max messages in batch.")
-        public int batchMaxMsgs = DEFAULT_BATCHING_MAX_MESSAGES;
+        @Parameter(names = {
+            "-bm", "--batch-max-messages"
+        }, description = "Maximum number of messages per batch")
+        public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+
+        @Parameter(names = {
+            "-bb", "--batch-max-bytes"
+        }, description = "Maximum number of bytes per batch")
+        public int batchMaxBytes = 4 * 1024 * 1024;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -415,14 +421,17 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMsgs == 0) {
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
                 producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
             }
-            if (arguments.batchMaxMsgs > 0) {
-                producerBuilder.batchingMaxMessages(arguments.batchMaxMsgs);
+            if (arguments.batchMaxMessages > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
+            }
+            if (arguments.batchMaxBytes > 0) {
+                producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
             }
 
             // Block if queue is full else we will start seeing errors in sendAsync
@@ -512,6 +521,11 @@ public class PerformanceProducer {
                             cumulativeRecorder.recordValue(latencyMicros);
                         }
                     }).exceptionally(ex -> {
+                        // Ignore the exception of recorder since a very large latencyMicros will lead
+                        // ArrayIndexOutOfBoundsException in AbstractHistogram
+                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                            return null;
+                        }
                         log.warn("Write error on message", ex);
                         messagesFailed.increment();
                         if (arguments.exitOnFailure) {

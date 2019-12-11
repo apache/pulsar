@@ -209,8 +209,20 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency) {
+        conf.setBatchingPartitionSwitchFrequencyByPublishDelay(frequency);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes) {
+        conf.setBatchingMaxBytes(batchingMaxBytes);
         return this;
     }
 

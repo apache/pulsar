@@ -23,9 +23,9 @@ metadata:
   name: pulsar-proxy-config
 data:
   PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
-  brokerServiceURL: pulsar://broker:6650
-  brokerWebServiceURL: http://broker:8080
-  clusterName: pulsar-eks
+  PULSAR_PREFIX_brokerServiceURL: pulsar://broker:6650
+  PULSAR_PREFIX_brokerWebServiceURL: http://broker:8080
+  PULSAR_PREFIX_clusterName: pulsar-eks
 
 ---
 apiVersion: apps/v1beta1

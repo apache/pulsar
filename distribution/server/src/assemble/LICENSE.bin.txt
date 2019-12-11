@@ -314,14 +314,14 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.9.9.jar
-     - com.fasterxml.jackson.core-jackson-core-2.9.9.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.9.9.3.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.9.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.9.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.9.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.9.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.10.1.jar
+     - com.fasterxml.jackson.core-jackson-core-2.10.1.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.10.1.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.10.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.10.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.10.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.10.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.10.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
@@ -381,32 +381,32 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-web-2.10.0.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.9.2.jar
-    - org.apache.bookkeeper-circe-checksum-4.9.2.jar
-    - org.apache.bookkeeper-cpu-affinity-4.9.2.jar
-    - org.apache.bookkeeper-statelib-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-api-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-common-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-server-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.9.2.jar
-    - org.apache.bookkeeper.http-http-server-4.9.2.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.9.2.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.9.2.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.9.2.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-common-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-core-4.9.2-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.9.2.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.9.2.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.10.0.jar
+    - org.apache.bookkeeper-circe-checksum-4.10.0.jar
+    - org.apache.bookkeeper-cpu-affinity-4.10.0.jar
+    - org.apache.bookkeeper-statelib-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-api-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-common-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-server-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.10.0.jar
+    - org.apache.bookkeeper.http-http-server-4.10.0.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.10.0.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.10.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.10.0.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-common-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-core-4.10.0-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.10.0.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.10.0.jar
  * LZ4 -- org.lz4-lz4-java-1.5.0.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.7.0.jar
@@ -429,7 +429,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-common-9.4.20.v20190813.jar
     - org.eclipse.jetty.websocket-websocket-server-9.4.20.v20190813.jar
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.20.v20190813.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.23.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.24.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
@@ -449,7 +449,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-protobuf-lite-1.18.0.jar
     - io.grpc-grpc-protobuf-nano-1.18.0.jar
     - io.grpc-grpc-stub-1.18.0.jar
-    - io.grpc-grpc-testing-1.12.0.jar
+    - io.grpc-grpc-testing-1.18.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar
@@ -558,6 +558,10 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.jersey.inject-jersey-hk2-2.27.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
 
+Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
+ * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
+
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
     - org.aspectj-aspectjrt-1.9.2.jar
@@ -575,6 +579,10 @@ Bouncy Castle License
     - org.bouncycastle-bcpkix-jdk15on-1.60.jar
     - org.bouncycastle-bcprov-jdk15on-1.60.jar
     - org.bouncycastle-bcprov-ext-jdk15on-1.60.jar
+
+Creative Commons Attribution License
+ * Jcip -- licenses/LICENSE-jcip.txt
+    - net.jcip-jcip-annotations-1.0.jar
 
 ------------------------
 

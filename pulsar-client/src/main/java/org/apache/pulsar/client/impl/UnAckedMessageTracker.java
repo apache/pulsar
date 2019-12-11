@@ -164,8 +164,13 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock.lock();
         try {
             ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
-            messageIdPartitionMap.put(messageId, partition);
-            return partition.add(messageId);
+            ConcurrentOpenHashSet<MessageId> previousPartition = messageIdPartitionMap.putIfAbsent(messageId,
+                    partition);
+            if (previousPartition == null) {
+                return partition.add(messageId);
+            } else {
+                return false;
+            }
         } finally {
             writeLock.unlock();
         }

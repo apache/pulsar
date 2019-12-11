@@ -16,29 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator.exceptions;
+package org.apache.pulsar.tests.integration.backwardscompatibility;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
+import org.testng.ITest;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 
-/**
- * Exception is thrown when transaction is not in the right status.
- */
-public class InvalidTxnStatusException extends CoordinatorException {
+public class PulsarStandaloneTestSuite2_4 extends PulsarStandaloneTestBase implements ITest {
 
-    private static final long serialVersionUID = 0L;
-
-    public InvalidTxnStatusException(String message) {
-        super(message);
+    @BeforeSuite
+    public void setUpCluster() throws Exception {
+        super.startCluster(PulsarContainer.PULSAR_2_4_IMAGE_NAME);
     }
 
-    public InvalidTxnStatusException(TxnID txnID,
-                                     TxnStatus expectedStatus,
-                                     TxnStatus actualStatus) {
-        super(
-            "Expect Txn `" + txnID + "` to be in " + expectedStatus
-                + " status but it is in " + actualStatus + " status");
-
+    @AfterSuite
+    public void tearDownCluster() throws Exception {
+        super.stopCluster();
     }
-
+    @Override
+    public String getTestName() {
+        return "pulsar-standalone-suite";
+    }
 }

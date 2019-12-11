@@ -219,11 +219,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      *
      * @return
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(Consumer::disconnect);
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately

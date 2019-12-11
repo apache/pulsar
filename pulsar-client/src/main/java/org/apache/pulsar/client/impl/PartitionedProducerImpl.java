@@ -103,7 +103,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                         conf.getHashingScheme(),
                         ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
                         conf.isBatchingEnabled(),
-                        TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
+                        TimeUnit.MICROSECONDS.toMillis(conf.batchingPartitionSwitchFrequencyIntervalMicros()));
         }
 
         return messageRouter;

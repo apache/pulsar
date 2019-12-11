@@ -16,24 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator.exceptions;
+package org.apache.pulsar.functions.runtime;
 
-/**
- * Exception is thrown when a transaction is not found in coordinator.
- */
-public class TransactionNotFoundException extends CoordinatorException {
+import org.apache.pulsar.functions.utils.Reflections;
 
-    private static final long serialVersionUID = 0L;
+import java.util.Map;
 
-    public TransactionNotFoundException(String message) {
-        super(message);
-    }
+public interface RuntimeCustomizer {
+    void initialize(final Map<String, Object> runtimeCustomizerConfig);
 
-    public TransactionNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public TransactionNotFoundException(Throwable cause) {
-        super(cause);
+    static RuntimeCustomizer getRuntimeCustomizer(String className) {
+        return Reflections.createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
     }
 }

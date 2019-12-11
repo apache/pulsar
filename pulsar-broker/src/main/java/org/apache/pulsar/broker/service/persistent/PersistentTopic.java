@@ -69,7 +69,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -143,8 +142,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private final ConcurrentOpenHashMap<String, Replicator> replicators;
 
-    private volatile boolean isFenced;
-
     protected static final AtomicLongFieldUpdater<PersistentTopic> USAGE_COUNT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(PersistentTopic.class, "usageCount");
     @SuppressWarnings("unused")
@@ -177,6 +174,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     };
 
     private final AtomicLong pendingWriteOps = new AtomicLong(0);
+    private volatile double lastUpdatedAvgPublishRateInMsg = 0;
+    private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -368,7 +367,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             isFenced = true;
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            producers.forEach(producer -> futures.add(producer.disconnect()));
+            producers.values().forEach(producer -> futures.add(producer.disconnect()));
             FutureUtil.waitForAll(futures).handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
                 decrementPendingWriteOpsAndCheck();
                 return null;
@@ -406,35 +405,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             brokerService.checkTopicNsOwnership(getName());
 
-            if (isFenced) {
-                log.warn("[{}] Attempting to add producer to a fenced topic", topic);
-                throw new TopicFencedException("Topic is temporarily unavailable");
-            }
+            checkTopicFenced();
 
             if (ledger.isTerminated()) {
                 log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
-            if (isProducersExceeded()) {
-                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-                throw new ProducerBusyException("Topic reached max producers limit");
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
-            }
-
-            if (!producers.add(producer)) {
-                throw new NamingException(
-                        "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
-            }
+            internalAddProducer(producer);
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
-
             messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
@@ -446,7 +429,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private boolean hasRemoteProducers() {
         AtomicBoolean foundRemote = new AtomicBoolean(false);
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             if (producer.isRemote()) {
                 foundRemote.set(true);
             }
@@ -492,17 +475,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
-        if (producers.remove(producer)) {
-            // decrement usage only if this was a valid producer close
-            USAGE_COUNT_UPDATER.decrementAndGet(this);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
-                        USAGE_COUNT_UPDATER.get(this));
-            }
-            lastActive = System.nanoTime();
 
-            messageDeduplication.producerRemoved(producer.getProducerName());
+        if (producers.remove(producer.getProducerName(), producer)) {
+            handleProducerRemoved(producer);
         }
+    }
+
+    @Override
+    protected void handleProducerRemoved(Producer producer) {
+        // decrement usage only if this was a valid producer close
+        USAGE_COUNT_UPDATER.decrementAndGet(this);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
+                    USAGE_COUNT_UPDATER.get(this));
+        }
+        lastActive = System.nanoTime();
+
+        messageDeduplication.producerRemoved(producer.getProducerName());
     }
 
     @Override
@@ -682,7 +671,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             long ledgerId = msgId.getLedgerId();
             long entryId = msgId.getEntryId();
-            if (msgId instanceof BatchMessageIdImpl) {
+            if (ledgerId >= 0
+                && msgId instanceof BatchMessageIdImpl) {
                 // When the start message is relative to a batch, we need to take one step back on the previous message,
                 // because the "batch" might not have been consumed in its entirety.
                 // The client will then be able to discard the first messages if needed.
@@ -826,7 +816,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                producers.forEach(producer -> futures.add(producer.disconnect()));
+                producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
@@ -936,7 +926,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.forEach(producer -> futures.add(producer.disconnect()));
+        producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
@@ -1278,7 +1268,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // start publisher stats
         topicStatsStream.startList("publishers");
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
 
@@ -1295,7 +1285,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
         topicStatsStream.endList();
-
+        // if publish-rate increases (eg: 0 to 1K) then pick max publish-rate and if publish-rate decreases then keep
+        // average rate.
+        lastUpdatedAvgPublishRateInMsg = topicStatsHelper.aggMsgRateIn > lastUpdatedAvgPublishRateInMsg
+                ? topicStatsHelper.aggMsgRateIn
+                : (topicStatsHelper.aggMsgRateIn + lastUpdatedAvgPublishRateInMsg) / 2;
+        lastUpdatedAvgPublishRateInByte = topicStatsHelper.aggMsgThroughputIn > lastUpdatedAvgPublishRateInByte
+                ? topicStatsHelper.aggMsgThroughputIn
+                : (topicStatsHelper.aggMsgThroughputIn + lastUpdatedAvgPublishRateInByte) / 2;
         // Start replicator stats
         topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
@@ -1459,13 +1456,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.addEntryLatencyStatsUsec.reset();
     }
 
+    public double getLastUpdatedAvgPublishRateInMsg() {
+        return lastUpdatedAvgPublishRateInMsg;
+    }
+
+    public double getLastUpdatedAvgPublishRateInByte() {
+        return lastUpdatedAvgPublishRateInByte;
+    }
+
     public TopicStats getStats() {
 
         TopicStats stats = new TopicStats();
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             PublisherStats publisherStats = producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
@@ -1697,7 +1702,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         
         this.updateMaxPublishRate(data);
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });
@@ -1773,7 +1778,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         ledger.asyncTerminate(new TerminateCallback() {
             @Override
             public void terminateComplete(Position lastCommittedPosition, Object ctx) {
-                producers.forEach(Producer::disconnect);
+                producers.values().forEach(Producer::disconnect);
                 subscriptions.forEach((name, sub) -> sub.topicTerminated());
 
                 PositionImpl lastPosition = (PositionImpl) lastCommittedPosition;

@@ -54,7 +54,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     private Map<String, KeyedBatch> batches = new HashMap<>();
 
     @Override
-    public void add(MessageImpl<?> msg, SendCallback callback) {
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
                     numMessagesInBatch);
@@ -75,6 +75,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         } else {
             part.addMsg(msg, callback);
         }
+        return isBatchFull();
     }
 
     @Override
@@ -108,6 +109,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+            return null;
+        }
+
         final int numMessagesInBatch = keyedBatch.messages.size();
         long currentBatchSizeBytes = 0;
         for (MessageImpl<?> message : keyedBatch.messages) {
@@ -119,15 +126,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-            cmd.release();
-            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
-            if (op != null) {
-                op.recycle();
-            }
-            return null;
-        }
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
@@ -220,7 +218,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                     messageMetadata.setOrderingKey(ByteString.copyFrom(msg.getOrderingKey()));
                 }
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
+                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 firstCallback = callback;
             }
             if (previousCallback != null) {
@@ -240,7 +238,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                 log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
                         sequenceId, t);
             }
-            ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
             clear();
         }
 
