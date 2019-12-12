@@ -257,7 +257,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
-        final int totalMessages = 10;
+        final int totalMessages = 17;
         final int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic

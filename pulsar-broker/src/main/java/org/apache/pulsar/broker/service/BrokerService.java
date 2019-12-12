@@ -1198,7 +1198,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         addDynamicConfigValidator("loadManagerClassName", (className) -> {
             try {
                 Class.forName(className);
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError  e) {
                 log.warn("Configured load-manager class {} not found {}", className, e.getMessage());
                 return false;
             }

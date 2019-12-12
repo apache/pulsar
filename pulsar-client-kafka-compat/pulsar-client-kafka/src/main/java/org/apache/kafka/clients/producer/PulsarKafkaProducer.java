@@ -340,7 +340,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
     private ProducerInterceptor createKafkaProducerInterceptor(String clazz) {
         try {
             return (ProducerInterceptor) Class.forName(clazz).newInstance();
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError  e) {
             String errorMessage = "Can't find Interceptor class: " + e.getMessage();
             logger.error(errorMessage);
             throw new RuntimeException(errorMessage);
