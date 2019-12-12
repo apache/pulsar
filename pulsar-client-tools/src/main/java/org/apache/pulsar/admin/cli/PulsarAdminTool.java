@@ -25,13 +25,10 @@ import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
 import java.util.function.Function;
 
-import com.beust.jcommander.ParameterDescription;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -178,6 +175,7 @@ public class PulsarAdminTool {
             jcommander.usage();
             return false;
         }
+
         int cmdPos;
         for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (commandMap.containsKey(args[cmdPos])) {
@@ -219,6 +217,7 @@ public class PulsarAdminTool {
 
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
+            
             return cmdObj.run(Arrays.copyOfRange(args, cmdPos + 1, args.length));
         }
     }
