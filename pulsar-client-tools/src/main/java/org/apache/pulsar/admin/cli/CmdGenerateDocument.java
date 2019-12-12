@@ -25,22 +25,16 @@ import com.beust.jcommander.Parameters;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Function;
 
 @Getter
 @Parameters(commandDescription = "Generate documents automatically.")
 @Slf4j
 public class CmdGenerateDocument extends CmdBase {
-
-    protected final PulsarAdminBuilder adminBuilder;
-
-    Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
 
     private final JCommander baseJcommander;
 
@@ -48,7 +42,6 @@ public class CmdGenerateDocument extends CmdBase {
 
     public CmdGenerateDocument(PulsarAdmin admin) {
         super("documents", admin);
-        adminBuilder = PulsarAdmin.builder();
         baseJcommander = new JCommander();
         try {
             tool = new PulsarAdminTool(new Properties());

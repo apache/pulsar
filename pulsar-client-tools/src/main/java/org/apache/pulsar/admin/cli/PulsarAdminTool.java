@@ -217,7 +217,7 @@ public class PulsarAdminTool {
 
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
-            
+
             return cmdObj.run(Arrays.copyOfRange(args, cmdPos + 1, args.length));
         }
     }
