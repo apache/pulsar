@@ -343,7 +343,7 @@ public class CLITest extends PulsarTestSuite {
         for (int i = 0; i < moduleNames.length; i++) {
             ContainerExecResult result = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
-                    "--generate-doc", moduleNames[i]);
+                    "documents", "generate", moduleNames[i]);
             Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
         }
     }
