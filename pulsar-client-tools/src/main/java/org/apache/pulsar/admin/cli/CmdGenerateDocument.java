@@ -65,7 +65,6 @@ public class CmdGenerateDocument extends CmdBase {
             }
         }
         jcommander.addCommand("generate", new GenerateDocument());
-        System.out.println(baseJcommander.getCommands());
     }
 
     @Parameters(commandDescription = "Generate document for modules")
