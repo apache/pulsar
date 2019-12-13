@@ -21,7 +21,7 @@ module.exports = [
         name: 'data-generator',
         longName: 'Test Data Generator source',
         type: 'Source',
-        link: ''
+        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/data-generator'
     },
     {
         name: 'debezium-mysql',
@@ -45,7 +45,7 @@ module.exports = [
         name: 'file',
         longName: 'File sink',
         type: 'Sink',
-        link: null
+        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/file'
     },
     {
         name: 'flume',
@@ -87,7 +87,7 @@ module.exports = [
         name: 'jdbc',
         longName: 'JDBC sink',
         type: 'Sink',
-        link: null
+        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/jdbc'
     },
     {
         name: 'kafka-connect-adaptor',
