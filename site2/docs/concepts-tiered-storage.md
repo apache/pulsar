@@ -4,14 +4,230 @@ title: Tiered Storage
 sidebar_label: Tiered Storage
 ---
 
-Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
+Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This section walks you through using tiered storage in your Pulsar cluster.
 
-One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from BookKeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
+Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to support
+[Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/) (GCS for short)
+for [long term store](https://pulsar.apache.org/docs/en/cookbooks-tiered-storage/). Offloading to long term storage triggered via a Rest API or command line interface. The user passes in the amount of topic data on BookKeeper, and the broker will copy the backlog data to long term storage. The original data will then be deleted from BookKeeper after a configured delay (4 hours by default). With Jclouds, it is easy to add support for more
+[cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-![Tiered Storage](assets/pulsar-tiered-storage.png)
+## When to use Tiered Storage?
 
-> Data written to BookKeeper is replicated to 3 physical machines by default. However, once a segment is sealed in BookKeeper it becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
+Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. For example, if you have a topic containing user actions to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm you can rerun it against your full user history.
 
-Pulsar currently supports S3 and Google Cloud Storage (GCS) for [long term store](https://pulsar.apache.org/docs/en/cookbooks-tiered-storage/). Offloading to long term storage triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on BookKeeper, and the broker will copy the backlog data to long term storage. The original data will then be deleted from BookKeeper after a configured delay (4 hours by default).
+## The offloading mechanism
 
-> For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage.md).
+A topic in Pulsar is backed up by a log, i.e. a managed ledger, which is composed of an ordered list of segments. Pulsar only writes to the final segment of the log. In this way, all previous segments are sealed, and the data within the segment is immutable. This is known as a segment oriented architecture.
+
+![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
+
+The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
+
+On the broker, the administrator must configure the bucket and credentials for the cloud storage service.
+The configured bucket must exist before attempting to offload. If it does not exist, the offload operation would fail.
+
+Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data.
+We recommend you add a life cycle rule in your bucket to expire incomplete multi-part upload after a day or two to avoid
+getting charged for incomplete uploads.
+
+## Configuring the offload driver
+
+Offloading is configured in ```broker.conf```.
+
+At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.
+There are also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
+
+Currently we support driver of types like this:
+
+- `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
+- `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+
+> Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
+> though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
+> using a S3 compatible data store, other than AWS.
+
+```conf
+managedLedgerOffloadDriver=aws-s3
+```
+
+### "aws-s3" Driver configuration
+
+#### Bucket and Region
+
+Buckets are the basic containers that hold your data.
+Everything that you store in Cloud Storage must be contained in a bucket.
+You can use buckets to organize your data and control access to your data,
+but unlike directories and folders, you cannot nest buckets.
+
+```conf
+s3ManagedLedgerOffloadBucket=pulsar-topic-offload
+```
+
+Bucket Region is the region where bucket is located. Bucket Region is not a required
+but a recommended configuration. If it is not configured, it will use the default region.
+
+With AWS S3, the default region is `US East (N. Virginia)`. Page
+[AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
+
+```conf
+s3ManagedLedgerOffloadRegion=eu-west-3
+```
+
+#### Authentication with AWS
+
+To be able to access AWS S3, you need to authenticate with AWS S3.
+Pulsar does not provide any direct means of configuring authentication for AWS S3,
+but relies on the mechanisms supported by the
+[DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
+
+Once you have created a set of credentials in the AWS IAM console, they can be configured in a number of ways.
+
+1. Using ec2 instance metadata credentials
+
+If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials
+if no other mechanism is provided.
+
+2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
+
+```bash
+export AWS_ACCESS_KEY_ID=ABC123456789
+export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
+```
+
+> \"export\" is important so that the variables are made available in the environment of spawned processes.
+
+
+3. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
+
+```bash
+PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
+```
+
+4. Set the access credentials in ```~/.aws/credentials```.
+
+```conf
+[default]
+aws_access_key_id=ABC123456789
+aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
+```
+
+5. Assuming an IAM role
+
+If you want to assume an IAM role, this can be done via specifying the following:
+
+```conf
+s3ManagedLedgerOffloadRole=<aws role arn>
+s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
+```
+
+This will use the `DefaultAWSCredentialsProviderChain` for assuming this role.
+
+> The broker must be rebooted for credentials specified in pulsar_env to take effect.
+
+#### Configuring the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to AWS S3.
+
+- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes```  configures the maximum size of
+  a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for
+  each individual read when reading back data from AWS S3. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
+### "google-cloud-storage" Driver configuration
+
+Buckets are the basic containers that hold your data. Everything that you store in
+Cloud Storage must be contained in a bucket. You can use buckets to organize your data and
+control access to your data, but unlike directories and folders, you cannot nest buckets.
+
+```conf
+gcsManagedLedgerOffloadBucket=pulsar-topic-offload
+```
+
+Bucket Region is the region where bucket located. Bucket Region is not a required but
+a recommended configuration. If it is not configured, It will use the default region.
+
+Regarding GCS, buckets are default created in the `us multi-regional location`,
+page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
+
+```conf
+gcsManagedLedgerOffloadRegion=europe-west3
+```
+
+#### Authentication with GCS
+
+The administrator needs to configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in `broker.conf`
+for the broker to be able to access the GCS service. `gcsManagedLedgerOffloadServiceAccountKeyFile` is
+a JSON file, containing the GCS credentials of a service account.
+[Service Accounts section of this page](https://support.google.com/googleapi/answer/6158849) contains
+more information of how to create this key file for authentication. More information about google cloud IAM
+is available [here](https://cloud.google.com/storage/docs/access-control/iam).
+
+Usually these are the steps to create the authentication file:
+1. Open the API Console Credentials page.
+2. If it's not already selected, select the project that you're creating credentials for.
+3. To set up a new service account, click New credentials and then select Service account key.
+4. Choose the service account to use for the key.
+5. Download the service account's public/private key as a JSON file that can be loaded by a Google API client library.
+
+```conf
+gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
+```
+
+#### Configuring the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to GCS.
+
+- ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent
+  during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual
+  read when reading back data from GCS. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
+## Configuring offload to run automatically
+
+Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the Pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possibly can.
+
+```bash
+$ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
+```
+
+> Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload will not be triggered until the current segment is full.
+
+
+## Triggering offload manually
+
+Offloading can be manually triggered via a REST endpoint on the Pulsar broker. We provide a CLI to call this rest endpoint.
+
+When triggering offload, you must specify the maximum size, in bytes, of backlog which will be retained locally on the BookKeeper. The offload mechanism will not offload segments from the start of the topic backlog until this condition is met.
+
+```bash
+$ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
+```
+
+The command to trigger an offload will not wait until the offload operation has been completed. To check the status of the offload, use offload-status.
+
+```bash
+$ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
+Offload is currently running
+```
+
+To wait for offload to complete, add the -w flag.
+
+```bash
+$ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
+Offload was a success
+```
+
+If there is an error offloading, the error will be sent to the offload-status command.
+
+```bash
+$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
+Error in offload
+null
+
+Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+````
