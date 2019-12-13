@@ -21,9 +21,6 @@ Before Pulsar 2.4.2, Java Functions instances are started with a shaded JAR, and
 ## Start Broker with Functions worker  
 - In Pulsar 2.4.2, we can start Broker with Functions worker when broker client is enabled with TLS. 
 Before Pulsar 2.4.2, when we run Functions worker with the broker, it checks whether TLS is enabled in the `function_worker.yml` file. If TLS is enabled, we will use TLS port. However, when we enable TLS on Functions worker, it checks the `broker.conf`. Since Functions worker runs with the broker, it makes sense to check the `broker.conf` as the single source of truth about whether or not to use TLS. 
-  
-  In Pulsar 2.4.2, xxx will check whether TLS is enabled on the broker client, and then check whether is enabled with Functions worker. (TBD)
-   changed the code to check the broker client is configured to use TLS. If it is, then use TLS for the function worker, otherwise use plain text. (check broker client first--functions worker)
 
 - In Pulsar Functions, BookKeeper is supported to store the state of Functions. When users attempt to fetch a key that does not exist from function state, an NPE(NullPointerException) error occurs. In Pulsar 2.4.2, we add error code and error message for the case when a key does not exist.
 
@@ -54,7 +51,7 @@ In Pulsar 2.4.2, based on the subscription order, the first consumer in the cons
 
 In Pulsar 2.4.2, we remove failed stale producer from the connection.                          
 ## Add new APIs for schema
-- In Pulsar 2.4.2, we add the following APIs for schema, in order to xxx:
+- In Pulsar 2.4.2, we add the following APIs for schema:
 
     - `getAllVersions`: return the list of schema versions for a given topic.
     - `testCompatibility`: be able to test the compatibility for a schema without registering it.
