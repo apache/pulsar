@@ -313,8 +313,9 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicName topicNamePartition = topicName.getPartition(i);
                 grantPermissions(topicNamePartition.toString(), role, actions);
             }
+        } else {
+            grantPermissions(topicName.toString(), role, actions);
         }
-        grantPermissions(topicName.toString(), role, actions);
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative) {
@@ -387,8 +388,9 @@ public class PersistentTopicsBase extends AdminResource {
                 TopicName topicNamePartition = topicName.getPartition(i);
                 revokePermissions(topicNamePartition.toString(), role);
             }
+        } else {
+            revokePermissions(topicName.toString(), role);
         }
-        revokePermissions(topicName.toString(), role);
     }
 
     protected void internalCreatePartitionedTopic(int numPartitions) {
