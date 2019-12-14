@@ -225,9 +225,9 @@ Schema 类型.</td></p>
 </li>
 </ul>
 <p>Here are examples of the <code>schema-definition-file</code> for a JSON schema.</p>
-<p><strong>Example 1</strong></p>
+<p><strong>示例 1</strong></p>
 <pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"JSON"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">"{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.foo\",\"fields\":[{\"name\":\"file1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file2\",\"type\":\"string\",\"default\":null},{\"name\":\"file3\",\"type\":[\"null\",\"string\"],\"default\":\"dfdf\"}]}"</span>,<br />    <span class="hljs-attr">"properties"</span>: {}<br />}<br /></code></pre>
-<p><strong>Example 2</strong></p>
+<p><strong>示例 2</strong></p>
 <pre><code class="hljs css language-json">{<br />    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"STRING"</span>,<br />    <span class="hljs-attr">"schema"</span>: <span class="hljs-string">""</span>,<br />    <span class="hljs-attr">"properties"</span>: {<br />        <span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span><br />    }<br />}<br /></code></pre>
 </span></div></div><div id="tab-group-1233-content-1235" class="tab-pane" data-group="group_1233" tabindex="-1"><div><span><p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/uploadSchema"><b>POST</b> <i>/admin/v2/schemas/:tenant/:namespace/:topic/schema</i></a>
 </p>
@@ -567,7 +567,7 @@ public interface SchemaStorage {
 <li><p>将<code>broker.conf</code>中的<code>schemaRegistryStorageClassName</code>配置更改为自定义工厂类。</p></li>
 <li><p>启动 Pulsar。</p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema evolution and compatibility</span></a><a class="docs-next button" href="/docs/zh-CN/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#生产者端的自动更新">生产者端的自动更新</a></li><li><a href="#消费端的自动更新">消费端的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#更新-schema">更新 Schema</a></li><li><a href="#删除-schema">删除 Schema</a></li><li><a href="#部署">部署</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema 进化和兼容</span></a><a class="docs-next button" href="/docs/zh-CN/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#生产者端的自动更新">生产者端的自动更新</a></li><li><a href="#消费端的自动更新">消费端的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#更新-schema">更新 Schema</a></li><li><a href="#删除-schema">删除 Schema</a></li><li><a href="#部署">部署</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
