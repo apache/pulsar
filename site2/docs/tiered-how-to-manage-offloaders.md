@@ -6,7 +6,7 @@ sidebar_label: How to manage offloaders
 
 Offload is configured in ```broker.conf```.
 
-The administrator is required to configure the driver, the bucket and the authenticating credentials.
+The administrator must configure the driver, the bucket and the authenticating credentials.
 There are also some other knobs to configure, such as the bucket region, the max block size in backed storage, etc.
 
 Currently we support following driver types:

@@ -4,7 +4,7 @@ title: Tiered storage
 sidebar_label: Tiered storage
 ---
 
-Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
+Pulsar's segment oriented architecture allows for topic backlogs to grow very large effectively without limit. However, this can become expensive over time.
 
 One way to alleviate this cost is to use Tiered Storage with which older messages in the backlog can be moved from BookKeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing has changed.
 

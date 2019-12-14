@@ -4,7 +4,7 @@ title: Principle of offloaders
 sidebar_label: Principle of offloaders
 ---
 
-A topic in Pulsar is backed by a log, i.e. a managed ledger, which is composed of an ordered list of segments. Pulsar only writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable. This is known as a segment oriented architecture.
+A topic in Pulsar is backed by a log, i.e. a managed ledger, which is composed of an ordered list of segments. Pulsar only writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable, which is known as a segment oriented architecture.
 
 ![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
 

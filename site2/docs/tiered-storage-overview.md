@@ -16,7 +16,7 @@ for long term storage. With Jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
-With Hadoop, it is easy to add support for more filesystem in the future.
+With Hadoop, it is easy to add support for more filesystems in the future.
 
 ## Contents
 

@@ -6,7 +6,7 @@ sidebar_label: How to use offloaders
 
 ## Configure offload to auto run
 
-Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the Pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting the threshold to a negative value will disable automatic offload. Setting the threshold to 0 will cause the broker to offload data as soon as it possibly can.
+You can configure namespace policies to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the Pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting the threshold to a negative value will disable automatic offload. Setting the threshold to 0 will cause the broker to offload data as soon as it possibly can.
 
 ```bash
 $ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
