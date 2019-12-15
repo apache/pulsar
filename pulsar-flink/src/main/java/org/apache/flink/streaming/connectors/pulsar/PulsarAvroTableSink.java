@@ -37,7 +37,6 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
@@ -65,18 +64,15 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
     public PulsarAvroTableSink(
             String serviceUrl,
             String topic,
-            Authentication authentication,
             String routingKeyFieldName,
             Class<? extends SpecificRecord> recordClazz) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url not set");
         checkArgument(StringUtils.isNotBlank(topic), "Topic is null");
-        checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
 
         clientConfigurationData = new ClientConfigurationData();
         producerConfigurationData = new ProducerConfigurationData();
 
         clientConfigurationData.setServiceUrl(serviceUrl);
-        clientConfigurationData.setAuthentication(authentication);
         producerConfigurationData.setTopicName(topic);
         this.routingKeyFieldName = routingKeyFieldName;
         this.recordClazz = recordClazz;

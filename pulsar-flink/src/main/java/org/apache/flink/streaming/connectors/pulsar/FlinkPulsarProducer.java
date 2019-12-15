@@ -34,7 +34,6 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
 import org.apache.flink.util.SerializableObject;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -108,18 +107,15 @@ public class FlinkPulsarProducer<T>
 
     public FlinkPulsarProducer(String serviceUrl,
                                String defaultTopicName,
-                               Authentication authentication,
                                SerializationSchema<T> serializationSchema,
                                PulsarKeyExtractor<T> keyExtractor) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
-        checkNotNull(authentication, "auth cannot be null, set disabled for no auth");
 
         clientConf = new ClientConfigurationData();
         producerConf = new ProducerConfigurationData();
 
         this.clientConf.setServiceUrl(serviceUrl);
-        this.clientConf.setAuthentication(authentication);
         this.producerConf.setTopicName(defaultTopicName);
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);

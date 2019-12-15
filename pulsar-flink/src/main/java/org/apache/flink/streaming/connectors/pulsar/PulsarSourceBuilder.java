@@ -23,14 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+
+import com.google.common.base.Joiner;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Preconditions;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -193,19 +192,6 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * Set the authentication provider to use in the Pulsar client instance.
-     *
-     * @param authentication an instance of the {@link Authentication} provider already constructed
-     * @return this builder
-     */
-    public PulsarSourceBuilder<T> authentication(Authentication authentication) {
-        Preconditions.checkArgument(authentication != null,
-                "authentication instance can not be null, use new AuthenticationDisabled() to disable authentication");
-        this.clientConfigurationData.setAuthentication(authentication);
-        return this;
-    }
-
-    /**
      * Configure the authentication provider to use in the Pulsar client instance.
      *
      * @param authPluginClassName
@@ -213,17 +199,14 @@ public class PulsarSourceBuilder<T> {
      * @param authParamsString
      *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
      * @return this builder
-     * @throws PulsarClientException.UnsupportedAuthenticationException
-     *             failed to instantiate specified Authentication-Plugin
      */
-    public PulsarSourceBuilder<T> authentication(String authPluginClassName, String authParamsString)
-            throws PulsarClientException.UnsupportedAuthenticationException {
+    public PulsarSourceBuilder<T> authentication(String authPluginClassName, String authParamsString) {
         Preconditions.checkArgument(StringUtils.isNotBlank(authPluginClassName),
                 "Authentication-Plugin class name can not be blank");
         Preconditions.checkArgument(StringUtils.isNotBlank(authParamsString),
                 "Authentication-Plugin parameters can not be blank");
-        this.clientConfigurationData
-            .setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
+        this.clientConfigurationData.setAuthPluginClassName(authPluginClassName);
+        this.clientConfigurationData.setAuthParams(authParamsString);
         return this;
     }
 
@@ -236,16 +219,15 @@ public class PulsarSourceBuilder<T> {
      * @param authParams
      *            map which represents parameters for the Authentication-Plugin
      * @return this builder
-     * @throws PulsarClientException.UnsupportedAuthenticationException
-     *             failed to instantiate specified Authentication-Plugin
      */
-    public PulsarSourceBuilder<T> authentication(String authPluginClassName, Map<String, String> authParams)
-            throws PulsarClientException.UnsupportedAuthenticationException {
+    public PulsarSourceBuilder<T> authentication(String authPluginClassName, Map<String, String> authParams) {
         Preconditions.checkArgument(StringUtils.isNotBlank(authPluginClassName),
                 "Authentication-Plugin class name can not be blank");
         Preconditions.checkArgument((authParams != null && !authParams.isEmpty()),
                 "parameters to authentication plugin can not be null/empty");
-        this.clientConfigurationData.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+        String authParamString = Joiner.on(",").withKeyValueSeparator(":").join(authParams);
+        this.clientConfigurationData.setAuthPluginClassName(authPluginClassName);
+        this.clientConfigurationData.setAuthParams(authParamString);
         return this;
     }
 
@@ -272,7 +254,7 @@ public class PulsarSourceBuilder<T> {
     }
 
 
-    public SourceFunction<T> build() throws PulsarClientException{
+    public SourceFunction<T> build() {
         Preconditions.checkArgument(StringUtils.isNotBlank(this.clientConfigurationData.getServiceUrl()),
                 "a service url is required");
         Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null
@@ -282,25 +264,7 @@ public class PulsarSourceBuilder<T> {
         Preconditions.checkArgument(StringUtils.isNotBlank(this.consumerConfigurationData.getSubscriptionName()),
                 "a subscription name is required");
 
-        setTransientFields();
-
         return new PulsarConsumerSource<>(this);
-    }
-
-    private void setTransientFields() throws PulsarClientException {
-        setAuth();
-    }
-
-    private void setAuth() throws PulsarClientException{
-        if (StringUtils.isBlank(this.clientConfigurationData.getAuthPluginClassName())
-                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams())) {
-            return;
-        }
-
-        clientConfigurationData.setAuthentication(
-                AuthenticationFactory.create(
-                        this.clientConfigurationData.getAuthPluginClassName(),
-                        this.clientConfigurationData.getAuthParams()));
     }
 
     /**

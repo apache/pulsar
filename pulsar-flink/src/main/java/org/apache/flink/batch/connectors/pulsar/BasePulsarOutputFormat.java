@@ -26,7 +26,6 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -53,8 +52,7 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     private ProducerConfigurationData producerConf;
 
 
-    protected BasePulsarOutputFormat(final String serviceUrl, final String topicName,
-        final Authentication authentication) {
+    protected BasePulsarOutputFormat(final String serviceUrl, final String topicName) {
         Preconditions.checkArgument(StringUtils.isNotBlank(serviceUrl), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(topicName),  "topicName cannot be blank.");
 
@@ -62,7 +60,6 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         producerConf = new ProducerConfigurationData();
 
         this.clientConf.setServiceUrl(serviceUrl);
-        this.clientConf.setAuthentication(authentication);
         this.producerConf.setTopicName(topicName);
 
         LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}",

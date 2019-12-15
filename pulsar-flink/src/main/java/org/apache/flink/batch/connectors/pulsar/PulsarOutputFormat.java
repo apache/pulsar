@@ -20,7 +20,6 @@ package org.apache.flink.batch.connectors.pulsar;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
@@ -31,9 +30,9 @@ public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     private static final long serialVersionUID = 2997027580167793000L;
 
-    public PulsarOutputFormat(String serviceUrl, String topicName, Authentication authentication,
+    public PulsarOutputFormat(String serviceUrl, String topicName,
         final SerializationSchema<T> serializationSchema) {
-        super(serviceUrl, topicName, authentication);
+        super(serviceUrl, topicName);
         Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
         this.serializationSchema = serializationSchema;
     }

@@ -20,7 +20,6 @@ package org.apache.flink.batch.connectors.pulsar;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.batch.connectors.pulsar.serialization.CsvSerializationSchema;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
@@ -31,8 +30,8 @@ public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputForm
 
     private static final long serialVersionUID = -4461671510903404196L;
 
-    public PulsarCsvOutputFormat(String serviceUrl, String topicName, Authentication authentication) {
-        super(serviceUrl, topicName, authentication);
+    public PulsarCsvOutputFormat(String serviceUrl, String topicName) {
+        super(serviceUrl, topicName);
         this.serializationSchema = new CsvSerializationSchema<>();
     }
 

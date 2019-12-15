@@ -33,7 +33,6 @@ import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtract
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
@@ -53,12 +52,10 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
     public PulsarTableSink(
             String serviceUrl,
             String topic,
-            Authentication authentication,
             String routingKeyFieldName) {
         checkNotNull(serviceUrl, "Service url not set");
         checkNotNull(topic, "Topic is null");
         this.clientConfigurationData.setServiceUrl(serviceUrl);
-        this.clientConfigurationData.setAuthentication(authentication);
         this.producerConfigurationData.setTopicName(topic);
         this.routingKeyFieldName = routingKeyFieldName;
     }

@@ -19,7 +19,6 @@
 package org.apache.flink.batch.connectors.pulsar;
 
 import org.apache.flink.batch.connectors.pulsar.serialization.JsonSerializationSchema;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
@@ -30,8 +29,8 @@ public class PulsarJsonOutputFormat<T> extends BasePulsarOutputFormat<T> {
 
     private static final long serialVersionUID = 8499620770848461958L;
 
-    public PulsarJsonOutputFormat(String serviceUrl, String topicName, Authentication authentication) {
-        super(serviceUrl, topicName, authentication);
+    public PulsarJsonOutputFormat(String serviceUrl, String topicName) {
+        super(serviceUrl, topicName);
         this.serializationSchema = new JsonSerializationSchema();
     }
 
