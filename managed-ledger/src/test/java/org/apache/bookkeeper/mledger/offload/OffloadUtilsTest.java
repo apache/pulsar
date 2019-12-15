@@ -30,7 +30,7 @@ import java.util.Map;
 public class OffloadUtilsTest {
 
     @Test
-    void testOffloadMetadataStore() {
+    void testOffloadMetadataShouldClearBeforeSet() {
         MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder builder =
                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
         builder.setLedgerId(1L);
@@ -39,7 +39,8 @@ public class OffloadUtilsTest {
         map.put("key1", "value1");
         map.put("key2", "value2");
 
-
+        //only one copy of the offload metadata information is stored in zookeeper,
+        // and the original properties need to be cleared during offload
         OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
 
         OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
