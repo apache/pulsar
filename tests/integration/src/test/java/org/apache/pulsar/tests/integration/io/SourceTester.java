@@ -57,6 +57,12 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public abstract void prepareSource() throws Exception;
 
+    public abstract void prepareInsertEvent() throws Exception;
+
+    public abstract void prepareDeleteEvent() throws Exception;
+
+    public abstract void prepareUpdateEvent() throws Exception;
+
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
     public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {

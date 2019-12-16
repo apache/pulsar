@@ -21,6 +21,8 @@ package org.apache.pulsar.tests.integration.io;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import afu.org.checkerframework.checker.oigj.qual.O;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -79,6 +81,34 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
     public void prepareSource() throws Exception {
         log.info("debezium mysql server already contains preconfigured data.");
     }
+
+    @Override
+    public void prepareInsertEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "bash", "-c",
+                "mysql", "-h", "127.0.0.1", "-u", "root", "-pdebezium", "-e", "SELECT * FROM  inventory.products;");
+        this.debeziumMySqlContainer.execCmd( "bash", "-c",
+                "mysql", "-h", "127.0.0.1", "-u", "root", "-pdebezium",
+                "-e", "INSERT INTO inventory.products(name, description, weight) values('debezium', 'This is description', 2.0);");
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "bash", "-c",
+                "mysql", "-h", "127.0.0.1", "-u", "root", "-pdebezium", "-e", "SELECT * FROM  inventory.products;");
+        this.debeziumMySqlContainer.execCmd( "bash", "-c",
+                "mysql", "-h", "127.0.0.1", "-u", "root", "-pdebezium",
+                "-e", "DELETE FROM inventory.products WHERE name='debezium';");
+        this.debeziumMySqlContainer.execCmd(
+                "bash", "-c",
+                "mysql", "-h", "127.0.0.1", "-u", "root", "-pdebezium", "-e", "SELECT * FROM  inventory.products;");
+    }
+
 
     @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {

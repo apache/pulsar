@@ -66,6 +66,21 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     }
 
     @Override
+    public void prepareInsertEvent() throws Exception {
+
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+
+    }
+
+    @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
         log.info("debezium mongodb server already contains preconfigured data.");
         return null;

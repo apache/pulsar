@@ -2109,6 +2109,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9);
 
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1);
+
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
