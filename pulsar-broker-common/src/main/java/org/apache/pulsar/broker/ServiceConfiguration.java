@@ -453,7 +453,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every replicator in replication. \n\n"
             + "Using a value of 0, is disabling replication message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerReplicatorInByte = 0;
-
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Dispatch rate-limiting relative to publish rate. (Enabling flag will make broker to dynamically "
+                    + "update dispatch-rate relatively to publish-rate: "
+                    + "throttle-dispatch-rate = (publish-rate + configured dispatch-rate) ")
+    private boolean dispatchThrottlingRateRelativeToPublishRate = false;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,

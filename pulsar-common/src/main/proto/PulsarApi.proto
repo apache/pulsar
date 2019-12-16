@@ -178,6 +178,9 @@ enum ServerError {
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
     ConsumerAssignError = 19; // Dispatcher assign consumer error
+
+    TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
+    InvalidTxnStatus = 21; // Invalid txn status error
 }
 
 enum AuthMethod {
@@ -679,6 +682,7 @@ enum TxnAction {
 message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
+    optional uint64 tc_id = 3 [default = 0];
 }
 
 message CommandNewTxnResponse {

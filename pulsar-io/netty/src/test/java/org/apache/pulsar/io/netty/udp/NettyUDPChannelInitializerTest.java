@@ -16,30 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
-
-import io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.pulsar.io.netty.NettySource;
-import org.testng.annotations.Test;
+package org.apache.pulsar.io.netty.udp;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
+import org.apache.pulsar.io.netty.NettySource;
+import org.testng.annotations.Test;
+
+import io.netty.channel.socket.nio.NioDatagramChannel;
+
 /**
  * Tests for Netty Channel Initializer
  */
-public class NettyChannelInitializerTest {
+public class NettyUDPChannelInitializerTest {
 
     @Test
     public void testChannelInitializer() throws Exception {
-        NioSocketChannel channel = new NioSocketChannel();
+        NioDatagramChannel channel = new NioDatagramChannel();
 
-        NettyChannelInitializer nettyChannelInitializer = new NettyChannelInitializer(
-                new NettyServerHandler(new NettySource()));
+        NettyUDPChannelInitializer nettyChannelInitializer = new NettyUDPChannelInitializer(
+                new NettyUDPServerHandler(new NettySource()));
         nettyChannelInitializer.initChannel(channel);
 
         assertNotNull(channel.pipeline().toMap());
-        assertEquals(2, channel.pipeline().toMap().size());
+        assertEquals(1, channel.pipeline().toMap().size());
     }
-
+    
 }

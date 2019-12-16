@@ -16,24 +16,3 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator.exceptions;
-
-/**
- * Exception is thrown when a transaction is not found in coordinator.
- */
-public class TransactionNotFoundException extends CoordinatorException {
-
-    private static final long serialVersionUID = 0L;
-
-    public TransactionNotFoundException(String message) {
-        super(message);
-    }
-
-    public TransactionNotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public TransactionNotFoundException(Throwable cause) {
-        super(cause);
-    }
-}

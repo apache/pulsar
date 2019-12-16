@@ -138,6 +138,7 @@ void export_message() {
             .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
             .def("topic_name", &Topic_name_str)
+            .def("redelivery_count", &Message::getRedeliveryCount)
             ;
 
     MessageBatch& (MessageBatch::*MessageBatchParseFromString)(const std::string& payload, uint32_t batchSize) = &MessageBatch::parseFrom;

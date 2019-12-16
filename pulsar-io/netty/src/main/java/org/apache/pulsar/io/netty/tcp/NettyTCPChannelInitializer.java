@@ -16,29 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator.exceptions;
+package org.apache.pulsar.io.netty.tcp;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.Channel;
+import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**
- * Exception is thrown when transaction is not in the right status.
+ * Netty Channel Initializer to register decoder and handler.
  */
-public class InvalidTxnStatusException extends CoordinatorException {
+public class NettyTCPChannelInitializer extends ChannelInitializer<Channel> {
 
-    private static final long serialVersionUID = 0L;
+    private ChannelInboundHandlerAdapter handler;
 
-    public InvalidTxnStatusException(String message) {
-        super(message);
+    public NettyTCPChannelInitializer(ChannelInboundHandlerAdapter handler) {
+        this.handler = handler;
     }
 
-    public InvalidTxnStatusException(TxnID txnID,
-                                     TxnStatus expectedStatus,
-                                     TxnStatus actualStatus) {
-        super(
-            "Expect Txn `" + txnID + "` to be in " + expectedStatus
-                + " status but it is in " + actualStatus + " status");
-
+    @Override
+    protected void initChannel(Channel channel) throws Exception {
+        channel.pipeline().addLast(new ByteArrayDecoder());
+        channel.pipeline().addLast(this.handler);
     }
 
 }

@@ -1,0 +1,100 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if .Values.extra.pulsar_manager }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ template "pulsar.name" . }}
+    chart: {{ template "pulsar.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    component: {{ .Values.pulsar_manager.component }}
+    cluster: {{ template "pulsar.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "pulsar.name" . }}
+      release: {{ .Release.Name }}
+      component: {{ .Values.pulsar_manager.component }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "pulsar.name" . }}
+        release: {{ .Release.Name }}
+        component: {{ .Values.pulsar_manager.component }}
+        cluster: {{ template "pulsar.fullname" . }}
+      annotations:
+{{ toYaml .Values.pulsar_manager.annotations | indent 8 }}
+    spec:
+    {{- if .Values.pulsar_manager.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.pulsar_manager.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if .Values.pulsar_manager.tolerations }}
+      tolerations:
+{{ toYaml .Values.pulsar_manager.tolerations | indent 8 }}
+    {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.pulsar_manager.gracePeriod }}
+      containers:
+        - name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}"
+          image: "{{ .Values.pulsar_manager.image.repository }}:{{ .Values.pulsar_manager.image.tag }}"
+          imagePullPolicy: {{ .Values.pulsar_manager.image.pullPolicy }}
+        {{- if .Values.grafana.resources }}
+          resources:
+{{ toYaml .Values.pulsar_manager.resources | indent 10 }}
+        {{- end }}
+          ports:
+          - containerPort: 9527
+          volumeMounts:
+          - name: pulsar-manager-data
+            mountPath: /data
+          env:
+          # for supporting apachepulsar/pulsar-manager
+          - name: PULSAR_CLUSTER
+            value: {{ template "pulsar.fullname" . }}
+          - name: REDIRECT_HOST
+            value: http://127.0.0.1
+          - name: REDIRECT_PORT
+            value: "9527"
+          - name: DRIVER_CLASS_NAME
+            value: org.postgresql.Driver
+          - name: URL
+            value: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
+          - name: USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: PULSAR_MANAGER_ADMIN_USER
+                name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}-secret"
+          - name: PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: PULSAR_MANAGER_ADMIN_PASSWORD
+                name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}-secret"
+          - name: LOG_LEVEL
+            value: DEBUG
+      volumes:
+        - name: pulsar-manager-data
+          emptyDir: {}
+
+{{- end }}
