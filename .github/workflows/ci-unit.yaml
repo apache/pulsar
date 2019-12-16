@@ -22,8 +22,6 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**.md'
 
 jobs:
 
@@ -40,6 +38,11 @@ jobs:
 
       - name: checkout
         uses: actions/checkout@v1
+
+      - name: Set up Maven
+        uses: aahmed-se/setup-maven@v3
+        with:
+          maven-version: 3.6.1
 
       - name: run unit tests
         run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR install '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest' -DfailIfNoTests=false
@@ -58,3 +61,10 @@ jobs:
         with:
           name: surefire-artifacts
           path: artifacts.zip
+
+  skip-ci:
+    if: contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip build
+        run: echo "Build skipped!"

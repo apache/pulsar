@@ -22,8 +22,6 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**.md'
 
 jobs:
 
@@ -37,6 +35,11 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+
+      - name: Set up Maven
+        uses: aahmed-se/setup-maven@v3
+        with:
+          maven-version: 3.6.1
 
       - name: checkout
         uses: actions/checkout@v1
