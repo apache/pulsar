@@ -48,6 +48,7 @@ import org.apache.pulsar.functions.utils.io.Connectors;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
@@ -452,13 +453,39 @@ public class LocalRunner {
         }
     }
 
+    /**
+     * Connectors are assumed to be found in one of the
+     * following  directories:
+     * * {pulsar.connectors} java property
+     * * {pulsar.home}/connectors
+     * * {PULSAR_HOME]/connectors
+     * * {current-working-directory}/connectors
+     *
+     * return the connectors or null if non are found.
+     * @throws IOException
+     */
     private Connectors getConnectors() throws IOException {
         // Validate the connector source type from the locally available connectors
-        String pulsarHome = System.getenv("PULSAR_HOME");
-        if (pulsarHome == null) {
-            pulsarHome = Paths.get("").toAbsolutePath().toString();
+        String pulsarConnectorPath = System.getProperty("pulsar.connectors.path");
+        if (pulsarConnectorPath != null) {
+            return ConnectorUtils.searchForConnectors(pulsarConnectorPath);
         }
-        String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-        return ConnectorUtils.searchForConnectors(connectorsDir);
+
+        String pulsarHomePath = System.getProperty("pulsar.home.path");
+        if (pulsarHomePath != null)
+        {
+            Path connectorsDir = Paths.get(pulsarHomePath, "connectors");
+            return ConnectorUtils.searchForConnectors(connectorsDir.toString());
+        }
+
+        String pulsarHome = System.getenv("PULSAR_HOME");
+        if (pulsarHome != null)
+        {
+            Path connectorsDir = Paths.get(pulsarHome, "connectors");
+            return ConnectorUtils.searchForConnectors(connectorsDir.toString());
+        }
+
+        Path connectorsDir = Paths.get("", "connectors").toAbsolutePath();
+        return ConnectorUtils.searchForConnectors(connectorsDir.toString());
     }
 }
