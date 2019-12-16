@@ -166,12 +166,12 @@ for (v of versions) {
   }
   const vWithoutIncubating = v.replace('-incubating', '');
   const opts = {
-      files: [
-          `${docsDir}/${v}/*.html`,
-          `${docsDir}/${v}/**/*.html`,
-          `${docsDir}/en/${v}/*.html`,
-          `${docsDir}/en/${v}/**/*.html`
-      ],
+    files: [
+      `${docsDir}/${v}/*.html`,
+      `${docsDir}/${v}/**/*.html`,
+      `${docsDir}/en/${v}/*.html`,
+      `${docsDir}/en/${v}/**/*.html`
+    ],
     from: from,
     to: [
       `${vWithoutIncubating}`,
