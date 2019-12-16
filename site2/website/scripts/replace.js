@@ -130,6 +130,7 @@ const options = {
     `${docsDir}/*.html`,
     `${docsDir}/**/*.html`
   ],
+  // TODO add next and assets
   ignore: versions.map(v => `${docsDir}/${v}/**/*`).concat(versions.map(v => `${docsDir}/en/${v}/**/*`)),
   from: from,
   to: [
