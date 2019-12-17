@@ -42,9 +42,9 @@ In Pulsar 2.4.2, the active consumer is selected based on the subscription order
 ## Remove failed stale producer from the connection
 In Pulsar 2.4.2, failed producer is removed correctly from the connection. Before Pulsar 2.4.2, broker cannot clean up the old failed producer correctly from the connection. When broker tries to clean up `producer-future` in the failed producer, it removes the newly created `producer-future` rather than the old failed producer, and the following error occurs in broker.
 
-    ```text
-    17:22:00.700 [pulsar-io-21-26] WARN  org.apache.pulsar.broker.service.ServerCnx - [/1.1.1.1:1111][453] Producer with id persistent://prop/cluster/ns/topic is already present on the connection
-    ```  
+```text
+17:22:00.700 [pulsar-io-21-26] WARN  org.apache.pulsar.broker.service.ServerCnx - [/1.1.1.1:1111][453] Producer with id persistent://prop/cluster/ns/topic is already present on the connection  
+```  
                         
 ## Add new APIs for schema
 In Pulsar 2.4.2, we add the following APIs for schema:
@@ -54,6 +54,7 @@ In Pulsar 2.4.2, we add the following APIs for schema:
 
 ## Expose `getLastMessageId()` method in consumerImpl
 In Pulsar 2.4.2, we expose `getLastMessageId()` method in consumerImpl. It benefits users when they want to know the lag messages, or only consume messages before the current time.                                                     
+
 ## Add new `send()` interface in C++/Go
 In Pulsar 2.4.2, we add new `send()` interface in C++/Go, so the `MessageID` will be returned to users. The logic is consistent with that in Java. In Java client, the `MessageId send(byte[] message)` returns `MessageId` for users.
 
