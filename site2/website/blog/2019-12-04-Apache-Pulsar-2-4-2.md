@@ -47,10 +47,10 @@ In Pulsar 2.4.2, failed producer is removed correctly from the connection. Befor
     ```  
                         
 ## Add new APIs for schema
-- In Pulsar 2.4.2, we add the following APIs for schema:
-    - `getAllVersions`: return the list of schema versions for a given topic.
-    - `testCompatibility`: be able to test the compatibility for a schema without registering it.
-    - `getVersionBySchema`: provide a schema definition and provide the schema version for it.
+In Pulsar 2.4.2, we add the following APIs for schema:
+- `getAllVersions`: return the list of schema versions for a given topic.
+- `testCompatibility`: be able to test the compatibility for a schema without registering it.
+- `getVersionBySchema`: provide a schema definition and provide the schema version for it.
 
 ## Expose `getLastMessageId()` method in consumerImpl
 In Pulsar 2.4.2, we expose `getLastMessageId()` method in consumerImpl. It benefits users when they want to know the lag messages, or only consume messages before the current time.                                                     
