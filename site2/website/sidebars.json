@@ -120,6 +120,12 @@
       "cookbooks-message-queue",
       "cookbooks-bookkeepermetadata"
     ],
+    "Tiered Storage": [
+      "tiered-storage-overview",
+      "tiered-principle-of-offloaders",
+      "tiered-how-to-manage-offloaders",
+      "tiered-how-to-use-offloaders"
+    ],
     "Development": [
       "develop-tools",
       "develop-binary-protocol",
