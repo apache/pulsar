@@ -265,13 +265,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalGrantPermissionsOnTopic(String role, Set<AuthAction> actions) {
-        // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
-
-        String topicUri = topicName.toString();
-
+    private void grantPermissions(String topicUri, String role, Set<AuthAction> actions) {
         try {
             Stat nodeStat = new Stat();
             byte[] content = globalZk().getData(path(POLICIES, namespaceName.toString()), null, nodeStat);
@@ -301,11 +295,26 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to grant permissions on topic {}: concurrent modification", clientAppId(),
                     topicUri);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             log.error("[{}] Failed to grant permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
+    }
+
+    protected void internalGrantPermissionsOnTopic(String role, Set<AuthAction> actions) {
+        // This operation should be reading from zookeeper and it should be allowed without having admin privileges
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        PartitionedTopicMetadata meta = getPartitionedTopicMetadata(topicName, true, false);
+        int numPartitions = meta.partitions;
+        if (numPartitions > 0) {
+            for (int i = 0; i < numPartitions; i++) {
+                TopicName topicNamePartition = topicName.getPartition(i);
+                grantPermissions(topicNamePartition.toString(), role, actions);
+            }
+        }
+        grantPermissions(topicName.toString(), role, actions);
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative) {
@@ -319,12 +328,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalRevokePermissionsOnTopic(String role) {
-        // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
-
-        String topicUri = topicName.toString();
+    private void revokePermissions(String topicUri, String role) {
         Stat nodeStat = new Stat();
         Policies policies;
 
@@ -337,10 +341,9 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn("[{}] Failed to revoke permissions on topic {}: concurrent modification", clientAppId(),
-                topicUri);
+                    topicUri);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
@@ -369,6 +372,23 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
+
+    }
+
+    protected void internalRevokePermissionsOnTopic(String role) {
+        // This operation should be reading from zookeeper and it should be allowed without having admin privileges
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        PartitionedTopicMetadata meta = getPartitionedTopicMetadata(topicName, true, false);
+        int numPartitions = meta.partitions;
+        if (numPartitions > 0) {
+            for (int i = 0; i < numPartitions; i++) {
+                TopicName topicNamePartition = topicName.getPartition(i);
+                revokePermissions(topicNamePartition.toString(), role);
+            }
+        }
+        revokePermissions(topicName.toString(), role);
     }
 
     protected void internalCreatePartitionedTopic(int numPartitions) {
