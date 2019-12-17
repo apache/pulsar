@@ -331,7 +331,13 @@ dashboard:
   ingress:
     enabled: false
     annotations: {}
-    tls: {}
+    tls:
+      enabled: false
+
+      ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+      secretName: ""
+    
+    ## Required if ingress is enabled
     hostname: ""
     path: "/"
     port: 80
