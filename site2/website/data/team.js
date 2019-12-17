@@ -161,6 +161,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+        name: 'Yu Liu',
+        apacheId: 'liuyu',
+        org: 'StreamNative',
+        roles: 'Committer'
+    },
+    {
       name: 'Yuki Shiga',
       apacheId: 'yushiga',
       org: 'Yahoo Japan Corporation',

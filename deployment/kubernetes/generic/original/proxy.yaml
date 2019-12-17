@@ -24,9 +24,9 @@ metadata:
     name: proxy-config
 data:
     PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
-    zookeeperServers: zookeeper
-    configurationStoreServers: zookeeper
-    clusterName: local
+    PULSAR_PREFIX_zookeeperServers: zookeeper
+    PULSAR_PREFIX_configurationStoreServers: zookeeper
+    PULSAR_PREFIX_clusterName: local
 ---
 ##
 ## Proxy deployment definition

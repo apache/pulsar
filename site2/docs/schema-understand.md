@@ -220,7 +220,7 @@ This example shows how to construct a key/value schema and then use it to produc
 
 1. Construct a key/value schema with `INLINE` encoding type.
 
-    ```text
+    ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
@@ -230,7 +230,7 @@ This example shows how to construct a key/value schema and then use it to produc
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-    ```text
+    ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
@@ -240,7 +240,7 @@ This example shows how to construct a key/value schema and then use it to produc
 
 3. Produce messages using a key/value schema.
 
-    ```text
+    ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
@@ -262,7 +262,7 @@ This example shows how to construct a key/value schema and then use it to produc
 
 4. Consume messages using a key/value schema.
 
-    ```
+    ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,

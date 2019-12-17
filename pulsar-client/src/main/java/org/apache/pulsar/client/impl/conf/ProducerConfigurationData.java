@@ -70,6 +70,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private MessageRouter customMessageRouter = null;
 
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
+    private int batchingPartitionSwitchFrequencyByPublishDelay = 10;
     private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
     private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
     private boolean batchingEnabled = true; // enabled by default
@@ -146,6 +147,15 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         long delayInMs = timeUnit.toMillis(batchDelay);
         checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
         this.batchingMaxPublishDelayMicros = timeUnit.toMicros(batchDelay);
+    }
+
+    public void setBatchingPartitionSwitchFrequencyByPublishDelay(int frequencyByPublishDelay) {
+        checkArgument(frequencyByPublishDelay >= 1, "configured value for partition switch frequency must be >= 1");
+        this.batchingPartitionSwitchFrequencyByPublishDelay = frequencyByPublishDelay;
+    }
+
+    public long batchingPartitionSwitchFrequencyIntervalMicros() {
+        return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
     }
 
 }
