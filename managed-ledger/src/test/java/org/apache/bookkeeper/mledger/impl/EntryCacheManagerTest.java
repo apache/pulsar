@@ -18,21 +18,29 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.testng.annotations.BeforeClass;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test
@@ -41,13 +49,16 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     ManagedLedgerImpl ml1;
     ManagedLedgerImpl ml2;
 
-    @BeforeClass
-    void setup() throws Exception {
+    @BeforeMethod
+    void setup(Method method) throws Exception {
+        super.setUp(method);
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
 
         ml1 = mock(ManagedLedgerImpl.class);
         when(ml1.getScheduledExecutor()).thenReturn(executor);
         when(ml1.getName()).thenReturn("cache1");
+        when(ml1.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
+        when(ml1.getExecutor()).thenReturn(super.executor);
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
@@ -307,6 +318,34 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache.getSize(), 0);
 
         factory.shutdown();
+    }
+
+    @Test(timeOut = 5000)
+    void entryCacheDisabledAsyncReadEntry() throws Exception {
+        ReadHandle lh = EntryCacheTest.getLedgerHandle();
+
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        EntryCache entryCache = cacheManager.getEntryCache(ml1);
+
+        final CountDownLatch counter = new CountDownLatch(1);
+        entryCache.asyncReadEntry(lh, new PositionImpl(1L ,1L), new AsyncCallbacks.ReadEntryCallback() {
+            public void readEntryComplete(Entry entry, Object ctx) {
+                Assert.assertNotEquals(entry, null);
+                entry.release();
+                counter.countDown();
+            }
+
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                Assert.fail("should not have failed");
+                counter.countDown();
+            }
+        }, null);
+        counter.await();
+
+        verify(lh).readAsync(anyLong(), anyLong());
     }
 
 }
