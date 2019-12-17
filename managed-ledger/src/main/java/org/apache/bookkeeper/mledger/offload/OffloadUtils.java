@@ -78,14 +78,13 @@ public final class OffloadUtils {
         infoBuilder.getOffloadContextBuilder()
             .getDriverMetadataBuilder()
             .setName(driverName);
-        offloadDriverMetadata.forEach((k, v) -> {
-            infoBuilder.getOffloadContextBuilder()
+        infoBuilder.getOffloadContextBuilder().getDriverMetadataBuilder().clearProperties();
+        offloadDriverMetadata.forEach((k, v) -> infoBuilder
+                .getOffloadContextBuilder()
                 .getDriverMetadataBuilder()
                 .addProperties(KeyValue.newBuilder()
-                    .setKey(k)
-                    .setValue(v)
-                    .build());
-        });
+                        .setKey(k)
+                        .setValue(v)
+                        .build()));
     }
-
 }
