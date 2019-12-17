@@ -2107,19 +2107,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2176,7 +2182,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2232,7 +2256,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
