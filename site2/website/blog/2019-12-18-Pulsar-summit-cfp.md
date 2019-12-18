@@ -12,7 +12,7 @@ We are excited to announce that the first Pulsar Summit will be held in San Fran
 ## Speak at Pulsar Summit
 Presentations and lightning talks are accepted for speaking proposals. Suggested topics cover Pulsar use cases, operations, technology deep dive, and ecosystem. Submissions are open until **January 31, 2020**.
 
-If you are unsure about your proposal, or want some feedback or advice in general, please do not hesitate to reach out to [sf-2020@pulsar-summit.org](mailto:sf-2020@pulsar-summit.org). We are happy to help out! Further details are available on the [CFP website](https://pulsar-summit.netlify.com/call-for-presentations/).
+If you are unsure about your proposal, or want some feedback or advice in general, please do not hesitate to reach out to [sf-2020@pulsar-summit.org](mailto:sf-2020@pulsar-summit.org). We are happy to help out! Further details are available on the [CFP website](https://pulsar-summit.org/call-for-presentations/).
 
 ## Dates to remember
 - CFP opens: December 15, 2019
