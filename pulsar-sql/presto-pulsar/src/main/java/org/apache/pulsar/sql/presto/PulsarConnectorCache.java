@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
@@ -88,12 +89,23 @@ public class PulsarConnectorCache {
     private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
+                .setZkServers(pulsarConnectorConfig.getZookeeperUri())
                 .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri() + "/ledgers")
                 .setClientTcpNoDelay(false)
                 .setUseV2WireProtocol(true)
                 .setStickyReadsEnabled(false)
-                .setReadEntryTimeout(60);
-        return new ManagedLedgerFactoryImpl(bkClientConfiguration, pulsarConnectorConfig.getZookeeperUri());
+                .setReadEntryTimeout(60)
+                .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
+                .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
+                .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads());
+
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+        managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());
+        managedLedgerFactoryConfig.setNumManagedLedgerWorkerThreads(
+                pulsarConnectorConfig.getManagedLedgerNumWorkerThreads());
+        managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(
+                pulsarConnectorConfig.getManagedLedgerNumSchedulerThreads());
+        return new ManagedLedgerFactoryImpl(bkClientConfiguration, managedLedgerFactoryConfig);
     }
 
     public ManagedLedgerConfig getManagedLedgerConfig() {

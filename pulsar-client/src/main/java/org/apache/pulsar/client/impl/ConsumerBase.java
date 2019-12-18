@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -523,7 +522,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
         notifyPendingBatchReceivedCallBack(opBatchReceive);
     }
-
 
     protected void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
         MessagesImpl<T> messages = getNewMessagesImpl();
