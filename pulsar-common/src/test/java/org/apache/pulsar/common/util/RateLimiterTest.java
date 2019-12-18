@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.testng.annotations.Test;
 
@@ -152,8 +153,9 @@ public class RateLimiterTest {
         assertEquals(rate.getAvailablePermits(), permits);
 
         // change rate-time from 1sec to 5sec
-        rate.setRate(permits, 5 * rateTimeMSec, TimeUnit.MILLISECONDS);
-        rate.tryAcquire(permits);
+        rate.setRate(permits, 5 * rateTimeMSec, TimeUnit.MILLISECONDS, null);
+        assertEquals(rate.getAvailablePermits(), 100);
+        assertEquals(rate.tryAcquire(permits), true);
         assertEquals(rate.getAvailablePermits(), 0);
         // check after a rate-time: permits can't be renewed
         Thread.sleep(rateTimeMSec);
@@ -162,4 +164,15 @@ public class RateLimiterTest {
         rate.close();
     }
 
+    @Test
+    public void testRateLimiterWithPermitUpdater() throws Exception{
+        long permits = 10;
+        long rateTime = 1;
+        long newUpdatedRateLimit = 100L;
+        Supplier<Long> permitUpdater = () -> newUpdatedRateLimit;
+        RateLimiter limiter = new RateLimiter(null, permits , 1, TimeUnit.SECONDS, permitUpdater);
+        limiter.acquire();
+        Thread.sleep(rateTime*3*1000);
+        assertEquals(limiter.getAvailablePermits(), newUpdatedRateLimit);
+    }
 }

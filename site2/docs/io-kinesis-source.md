@@ -11,12 +11,9 @@ This connector uses the [Kinesis Consumer Library](https://github.com/awslabs/am
 > Note: currently, the Kinesis source connector only supports raw messages. If you use KMS encrypted messages, the encrypted messages are sent to downstream. This connector will support decrypting messages in the future release.
 
 
-
 ## Configuration
 
 The configuration of the Kinesis source connector has the following properties.
-
-
 
 ### Property
 
@@ -76,6 +73,4 @@ Before using the Kinesis source connector, you need to create a configuration fi
         initialPositionInStream: "TRIM_HORIZON"
         startAtTime: "2019-03-05T19:28:58.000Z"
     ```
-
-
 

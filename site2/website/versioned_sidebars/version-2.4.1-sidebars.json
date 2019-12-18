@@ -98,7 +98,8 @@
       "version-2.4.1-admin-api-persistent-topics",
       "version-2.4.1-admin-api-non-persistent-topics",
       "version-2.4.1-admin-api-partitioned-topics",
-      "version-2.4.1-admin-api-schemas"
+      "version-2.4.1-admin-api-schemas",
+      "version-2.4.1-admin-api-functions"
     ],
     "Adaptors": [
       "version-2.4.1-adaptors-kafka",

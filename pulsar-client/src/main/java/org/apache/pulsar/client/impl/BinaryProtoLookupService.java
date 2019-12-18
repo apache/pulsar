@@ -167,8 +167,9 @@ public class BinaryProtoLookupService implements LookupService {
                     partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
                 } catch (Exception e) {
                     partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
-                            format("Failed to parse partition-response redirect=%s , partitions with %s",
-                                    lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
+                        format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s",
+                            lookupDataResult.redirect, topicName.toString(), lookupDataResult.partitions,
+                            e.getMessage())));
                 }
             }).exceptionally((e) -> {
                 log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
@@ -251,8 +252,10 @@ public class BinaryProtoLookupService implements LookupService {
         }).exceptionally((e) -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                topicsFuture.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getTopicsUnderNamespace within configured timeout."));
+                topicsFuture.completeExceptionally(
+                    new PulsarClientException.TimeoutException(
+                        format("Could not get topics of namespace %s within configured timeout",
+                            namespace.toString())));
                 return null;
             }
 

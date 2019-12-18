@@ -20,6 +20,8 @@ package org.apache.pulsar.io.flume.source;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
+
+import org.apache.bookkeeper.test.PortManager;
 import org.apache.flume.*;
 import org.apache.flume.conf.Configurables;
 import org.apache.flume.event.EventBuilder;
@@ -54,7 +56,7 @@ public class StringSourceTests extends AbstractFlumeTests {
         }
         Context context = new Context();
         context.put("hostname", "127.0.0.1");
-        context.put("port", "44444");
+        context.put("port", "44445");
         context.put("batch-size", String.valueOf(2));
         context.put("connect-timeout", String.valueOf(2000L));
         context.put("request-timeout", String.valueOf(3000L));
@@ -70,8 +72,8 @@ public class StringSourceTests extends AbstractFlumeTests {
     @AfterMethod
     public void tearDown() throws Exception {
         sink.stop();
+        sink = null;
     }
-
 
     @Test
     public void TestOpenAndReadSource() throws Exception {

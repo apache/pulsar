@@ -26,15 +26,15 @@ data:
     # Tune for available memory. Increase the heap up to 24G to have
     # better GC behavior at high throughput
     PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
-    zookeeperServers: zookeeper
-    configurationStoreServers: zookeeper
-    clusterName: local
+    PULSAR_PREFIX_zookeeperServers: zookeeper
+    PULSAR_PREFIX_configurationStoreServers: zookeeper
+    PULSAR_PREFIX_clusterName: local
     # change the managed ledger settings if you have more bookies
-    managedLedgerDefaultEnsembleSize: "1"
-    managedLedgerDefaultWriteQuorum: "1"
-    managedLedgerDefaultAckQuorum: "1"
+    PULSAR_PREFIX_managedLedgerDefaultEnsembleSize: "1"
+    PULSAR_PREFIX_managedLedgerDefaultWriteQuorum: "1"
+    PULSAR_PREFIX_managedLedgerDefaultAckQuorum: "1"
     # enable pulsar functions
-    functionsWorkerEnabled: "true"
+    PULSAR_PREFIX_functionsWorkerEnabled: "true"
     PF_pulsarFunctionsCluster: local
 ---
 ##

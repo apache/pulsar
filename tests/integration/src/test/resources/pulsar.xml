@@ -24,10 +24,14 @@
 <suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
     <suite-files>
         <suite-file path="./pulsar-cli.xml" />
+        <suite-file path="./pulsar-schema.xml" />
         <suite-file path="./pulsar-process.xml" />
         <suite-file path="./pulsar-sql.xml" />
         <suite-file path="./pulsar-thread.xml" />
         <suite-file path="./tiered-jcloud-storage.xml" />
         <suite-file path="./tiered-filesystem-storage.xml"/>
+        <suite-file path="./pulsar-function-state.xml" />
+        <suite-file path="./pulsar-messaging.xml" />
+        <suite-file path="./pulsar-backwards-compatibility.xml" />
     </suite-files>
 </suite>

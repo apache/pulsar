@@ -26,8 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -110,5 +110,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
                 return error;
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        transactions.clear();
+        return CompletableFuture.completedFuture(null);
     }
 }
