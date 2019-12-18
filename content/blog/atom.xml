@@ -2,12 +2,27 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2019-07-05T06:00:00.000Z</updated>
+    <updated>2019-12-04T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.4.2]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html"/>
+        <updated>2019-12-04T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.</p>
+<p>For detailed changes related to 2.4.2 release, refer to <a href="../release-notes.md#2.4.2">release notes</a>.</p>
+<p>I will highlight some improvements and bug fixes in this blog.</p>
+]]></summary>
+        <author>
+            <name>Xiaolong Ran</name>
+            <email/>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.4.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html</id>

@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Fri, 05 Jul 2019 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Wed, 04 Dec 2019 06:00:00 GMT</lastBuildDate>
         <docs>http://blogs.law.harvard.edu/tech/rss</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,16 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Apache Pulsar 2.4.2]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</guid>
+            <pubDate>Wed, 04 Dec 2019 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.</p>
+<p>For detailed changes related to 2.4.2 release, refer to <a href="../release-notes.md#2.4.2">release notes</a>.</p>
+<p>I will highlight some improvements and bug fixes in this blog.</p>
+]]></description>
+        </item>
         <item>
             <title><![CDATA[Apache Pulsar 2.4.0]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html</link>
