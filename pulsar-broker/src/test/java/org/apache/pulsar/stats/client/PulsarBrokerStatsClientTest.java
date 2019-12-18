@@ -44,6 +44,8 @@ import org.testng.annotations.Test;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.spy;
@@ -164,31 +166,46 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test (timeOut = 4000)
-    public void testGetPartitionedTopicDataTimeout() {
+    @Test
+    public void testGetPartitionedTopicWithMultiHosts() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final String topicName = "persistent://my-property/my-ns/my-topic1";
+        final String subscriptionName = "my-subscriber-name";
 
-        String url = "http://localhost:51000,localhost:51001";
+        // Multi hosts included an unreached port and the actual port for verify retry logic
+        String urlsWithUnreached = "http://localhost:51000,localhost:" + BROKER_WEBSERVICE_PORT;
         if (isTcpLookup) {
-            url = "pulsar://localhost:51000,localhost:51001";
+            urlsWithUnreached = "pulsar://localhost:51000,localhost::" + BROKER_PORT;
+        }
+        PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+            .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Producer<byte[]> producer = client.newProducer().topic(topicName).create();
+
+        for (int i = 0; i < 5; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            log.info("Produced message: [{}]", message);
         }
 
-        PulsarClient client;
-        try {
-            client = PulsarClient.builder()
-                    .serviceUrl(url)
-                    .statsInterval(0, TimeUnit.SECONDS)
-                    .operationTimeout(3, TimeUnit.SECONDS)
-                    .build();
-
-            Producer<byte[]> producer = client.newProducer().topic(topicName).create();
-
-            fail();
-        } catch (PulsarClientException pce) {
-            log.error("create producer error: ", pce);
+        Message<byte[]> msg = null;
+        Set<String> messageSet = new HashSet();
+        for (int i = 0; i < 5; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.info("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + i;
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+
+        producer.close();
+        client.close();
 
         log.info("-- Exiting {} test --", methodName);
     }
