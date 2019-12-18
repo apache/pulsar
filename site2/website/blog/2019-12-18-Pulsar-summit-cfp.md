@@ -31,7 +31,7 @@ When your speaking proposal is approved, you will enjoy the following benefits:
 - Your session will be added to the Pulsar Summit YouTube Channel and promoted on Twitter and LinkedIn.
 
 ## Pre-registration
-If you are interested in attending Pulsar Summit San Francisco 2020, we’d like to hear from you with your [pre-registration](https://pulsar-summit.netlify.com/pre-registration/). Your ideas are very important to us, and we will prepare the content accordingly. 
+If you are interested in attending Pulsar Summit San Francisco 2020, we’d like to hear from you with your [pre-registration](https://pulsar-summit.org/pre-registration/). Your ideas are very important to us, and we will prepare the content accordingly. 
 
 After you submit the pre-registration form, you will be added to the waitlist of Pulsar Summit San Francisco 2020. Once the registration is open, you will be notified with an email.
 
