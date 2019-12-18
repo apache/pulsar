@@ -321,7 +321,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     };
 
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Opening legder {}", name, id);
+                        log.debug("[{}] Opening ledger {}", name, id);
                     }
                     mbean.startDataLedgerOpenOp();
                     bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
