@@ -53,7 +53,6 @@ public class RabbitMQSinkTest {
         configs.put("virtualHost", "default");
         configs.put("username", "guest");
         configs.put("password", "guest");
-        configs.put("queueName", "test-queue");
         configs.put("connectionName", "test-connection");
         configs.put("requestedChannelMax", "0");
         configs.put("requestedFrameMax", "0");

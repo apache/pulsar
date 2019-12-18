@@ -45,6 +45,12 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The RabbitMQ queue name from which messages should be read from or written to")
+    private String queueName;
+
+    @FieldDoc(
         required = false,
         defaultValue = "0",
         help = "Maximum number of messages that the server will deliver, 0 for unlimited")
@@ -69,6 +75,7 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
     @Override
     public void validate() {
         super.validate();
+        Preconditions.checkNotNull(queueName, "queueName property not set.");
         Preconditions.checkArgument(prefetchCount >= 0, "prefetchCount must be non-negative.");
     }
 }

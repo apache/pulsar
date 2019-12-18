@@ -44,7 +44,6 @@ public class RabbitMQSinkConfigTest {
         assertEquals("/", config.getVirtualHost());
         assertEquals("guest", config.getUsername());
         assertEquals("guest", config.getPassword());
-        assertEquals("test-queue", config.getQueueName());
         assertEquals("test-connection", config.getConnectionName());
         assertEquals(Integer.parseInt("0"), config.getRequestedChannelMax());
         assertEquals(Integer.parseInt("0"), config.getRequestedFrameMax());
@@ -63,7 +62,6 @@ public class RabbitMQSinkConfigTest {
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
@@ -80,7 +78,6 @@ public class RabbitMQSinkConfigTest {
         assertEquals("/", config.getVirtualHost());
         assertEquals("guest", config.getUsername());
         assertEquals("guest", config.getPassword());
-        assertEquals("test-queue", config.getQueueName());
         assertEquals("test-connection", config.getConnectionName());
         assertEquals(Integer.parseInt("0"), config.getRequestedChannelMax());
         assertEquals(Integer.parseInt("0"), config.getRequestedFrameMax());
@@ -99,7 +96,6 @@ public class RabbitMQSinkConfigTest {
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
@@ -122,7 +118,6 @@ public class RabbitMQSinkConfigTest {
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
-        map.put("queueName", "test-queue");
         map.put("connectionName", "test-connection");
         map.put("requestedChannelMax", "0");
         map.put("requestedFrameMax", "0");
