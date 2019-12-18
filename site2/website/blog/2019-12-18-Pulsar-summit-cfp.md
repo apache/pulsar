@@ -12,7 +12,7 @@ We are excited to announce that the first Pulsar Summit will be held in San Fran
 ## Speak at Pulsar Summit
 Presentations and lightning talks are accepted for speaking proposals. Suggested topics cover Pulsar use cases, operations, technology deep dive, and ecosystem. Submissions are open until **January 31, 2020**.
 
-If you are unsure about your proposal, or want some feedback or advice in general, please do not hesitate to reach out to [sf-2020@pulsar-summit.org](sf-2020@pulsar-summit.org). We are happy to help out! Further details are available on the [CFP website](https://pulsar-summit.netlify.com/call-for-presentations/).
+If you are unsure about your proposal, or want some feedback or advice in general, please do not hesitate to reach out to [sf-2020@pulsar-summit.org](mailto:sf-2020@pulsar-summit.org). We are happy to help out! Further details are available on the [CFP website](https://pulsar-summit.netlify.com/call-for-presentations/).
 
 ## Dates to remember
 - CFP opens: December 15, 2019
@@ -36,7 +36,7 @@ If you are interested in attending Pulsar Summit San Francisco 2020, we’d like
 After you submit the pre-registration form, you will be added to the waitlist of Pulsar Summit San Francisco 2020. Once the registration is open, you will be notified with an email.
 
 ## Sponsor Pulsar Summit
-Pulsar Summit is a community run conference and your support is needed. Sponsoring this event will provide a great opportunity for your organization to further engage with the Apache Pulsar community. [Contact us](partners@pulsar-summit.org) to learn more.
+Pulsar Summit is a community run conference and your support is needed. Sponsoring this event will provide a great opportunity for your organization to further engage with the Apache Pulsar community. [Contact us](mailto:partners@pulsar-summit.org) to learn more.
 
 Help us make #PulsarSummit 2020 a big success by spreading the word and submitting your proposal! Follow us on Twitter ([@pulsarsummit](https://twitter.com/PulsarSummit)) to receive the latest updates of the conference!
 
