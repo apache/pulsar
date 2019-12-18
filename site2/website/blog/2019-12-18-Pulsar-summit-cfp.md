@@ -1,7 +1,7 @@
 ---
 author: Jennifer Huang  
 authorURL: https://twitter.com/Jennife06125739  
-title: Pulsar Summit SF 2020 CFP is now open
+title: Pulsar Summit San Francisco 2020 CFP is now open
 
 ---
 
