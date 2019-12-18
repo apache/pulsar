@@ -115,7 +115,7 @@ public class AvroSchemaTest {
             validator.validate(
                 schema1,
                 Arrays.asList(
-                    new Schema.Parser().parse(schemaDef2)
+                    new Schema.Parser().setValidateDefaults(false).parse(schemaDef2)
                 )
             );
             fail("Should fail on validating incompatible schemas");
@@ -169,6 +169,7 @@ public class AvroSchemaTest {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
         assertEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
