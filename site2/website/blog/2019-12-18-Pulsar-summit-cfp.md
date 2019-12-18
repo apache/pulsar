@@ -7,7 +7,7 @@ title: Pulsar Summit San Francisco 2020 CFP is now open
 
 Pulsar Summit is an annual conference dedicated to Apache Pulsar community, bringing together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming community, to share experiences, exchange ideas and knowledge about Pulsar and its growing community, and receive hands-on training sessions led by Pulsar experts.
 
-We are excited to announce that the first Pulsar Summit will be held in San Francisco on April 20th, 2020. Talk submissions, pre-registration, and sponsorship opportunities are now open for the conference!
+We are excited to announce that the first Pulsar Summit will be held in San Francisco in April, 2020. Talk submissions, pre-registration, and sponsorship opportunities are now open for the conference!
 
 ## Speak at Pulsar Summit
 Presentations and lightning talks are accepted for speaking proposals. Suggested topics cover Pulsar use cases, operations, technology deep dive, and ecosystem. Submissions are open until **January 31, 2020**.
