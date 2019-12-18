@@ -61,7 +61,7 @@ public class RabbitMQSinkTest {
         configs.put("handshakeTimeout", "10000");
         configs.put("requestedHeartbeat", "60");
         configs.put("exchangeName", "test-exchange");
-        configs.put("routingKey", "test-key");
+        configs.put("exchangeType", "fanout");
 
         RabbitMQSink sink = new RabbitMQSink();
 
@@ -69,13 +69,13 @@ public class RabbitMQSinkTest {
         sink.open(configs, null);
 
         // write should success
-        Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue");
+        Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");
         sink.write(record);
 
         sink.close();
     }
 
-    private Record<byte[]> build(String topic, String key, String value) {
+    private Record<byte[]> build(String topic, String key, String value, String routingKey) {
         // prepare a SinkRecord
         SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
             @Override
@@ -95,6 +95,15 @@ public class RabbitMQSinkTest {
                 } else {
                     return Optional.empty();
                 }
+            }
+
+            @Override
+            public Map<String, String> getProperties() {
+                return new HashMap<String, String>() {
+                    {
+                        put("routingKey", routingKey);
+                    }
+                };
             }
         }, value.getBytes(StandardCharsets.UTF_8));
         return record;
