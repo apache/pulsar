@@ -52,20 +52,11 @@ function prestoPulsarReleaseUrl(version) {
 }
 
 function rpmReleaseUrl(version, type) {
-  rpmVersion = version.replace('incubating', '1_incubating');
-  if (version.includes('incubating')) {
-      return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}.x86_64.rpm`
-  } else {
-      return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/RPMS/apache-pulsar-client${type}-${rpmVersion}-1.x86_64.rpm`
-  }
+  return rpmDistUrl(version,type);
 }
 
 function debReleaseUrl(version, type) {
-    if (version.includes('incubating')) {
-        return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
-    } else {
-        return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/DEB/apache-pulsar-client${type}.deb`
-    }
+    return debDistUrl(version,type);
 }
 
 function rpmDistUrl(version, type) {
