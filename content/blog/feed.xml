@@ -19,7 +19,7 @@
             <guid>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</guid>
             <pubDate>Wed, 04 Dec 2019 06:00:00 GMT</pubDate>
             <description><![CDATA[<p>We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.</p>
-<p>For detailed changes related to 2.4.2 release, refer to <a href="/release-notes.md#2.4.2">release notes</a>.</p>
+<p>For detailed changes related to 2.4.2 release, refer to <b><a href="/release-notes/#2.4.2">release notes</a></b>.</p>
 <p>I will highlight some improvements and bug fixes in this blog.</p>
 ]]></description>
         </item>

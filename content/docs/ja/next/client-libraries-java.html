@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](/docs/ja/next/admin-api-overview). The current version of the Java client is **2.4.2**."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="The Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](/docs/ja/next/admin-api-overview). The current version of the Java client is **2.4.2**."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use Pulsar Java client to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](/docs/ja/next/admin-api-overview). The current version of the Java client is **2.4.2**."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="You can use Pulsar Java client to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](/docs/ja/next/admin-api-overview). The current version of the Java client is **2.4.2**."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,8 +74,8 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Java client</h1></header><article><div><span><p>The Pulsar Java client can be used both to create Java producers, consumers, and <a href="#reader-interface">readers</a> of messages and to perform <a href="/docs/ja/next/admin-api-overview">administrative tasks</a>. The current version of the Java client is <strong>2.4.2</strong>.</p>
-<p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java client</h1></header><article><div><span><p>You can use Pulsar Java client to create Java producers, consumers, and <a href="#reader-interface">readers</a> of messages and to perform <a href="/docs/ja/next/admin-api-overview">administrative tasks</a>. The current version of the Java client is <strong>2.4.2</strong>.</p>
+<p>Javadoc for the Pulsar client is divided into two domains by package as follows.</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Package</th><th style="text-align:left">Description</th><th style="text-align:left">Maven Artifact</th></tr>
@@ -85,11 +85,11 @@
 <tr><td style="text-align:left"><a href="/api/admin"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">The Java <a href="/docs/ja/next/admin-api-overview">admin API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.4.2%7Cjar">org.apache.pulsar:pulsar-client-admin:2.4.2</a></td></tr>
 </tbody>
 </table>
-<p>This document will focus only on the client API for producing and consuming messages on Pulsar topics. For a guide to using the Java admin client, see <a href="/docs/ja/next/admin-api-overview">The Pulsar admin interface</a>.</p>
+<p>This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see <a href="/docs/ja/next/admin-api-overview">Pulsar admin interface</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="インストール"></a><a href="#インストール" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>インストール</h2>
 <p>最新バージョンの Pulsar の Java クライアントは <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.4.2%7Cjar">Maven Central</a> にあります。 これを使用する場合は <code>pulsar-client</code> ライブラリをあなたのビルドコンフィグレーションに追加してください。</p>
 <h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
-<p>If you're using Maven, add this to your <code>pom.xml</code>:</p>
+<p>If you use Maven, add the following information to the <code>pom.xml</code> file.</p>
 <pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.4.2<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
 
@@ -101,7 +101,7 @@
 <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
-<p>If you're using Gradle, add this to your <code>build.gradle</code> file:</p>
+<p>If you use Gradle, add the following information to the <code>build.gradle</code> file.</p>
 <pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.4.2'</span>
 
 dependencies {
@@ -110,21 +110,21 @@ dependencies {
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="connection-urls"></a><a href="#connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection URLs</h2>
 <p>To connect to Pulsar using client libraries, you need to specify a <a href="/docs/ja/next/develop-binary-protocol">Pulsar protocol</a> URL.</p>
-<p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
+<p>You can assign Pulsar protocol URLs to specific clusters and use the <code>pulsar</code> scheme. The default port is <code>6650</code>. The following is an example of <code>localhost</code>.</p>
 <pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
-<p>If you have more than one broker, the URL may look like this:</p>
+<p>If you have multiple brokers, the URL is as follows.</p>
 <pre><code class="hljs css language-http">pulsar://localhost:6550,localhost:6651,localhost:6652
 </code></pre>
-<p>A URL for a production Pulsar cluster may look something like this:</p>
+<p>A URL for a production Pulsar cluster is as follows.</p>
 <pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
-<p>If you're using <a href="/docs/ja/next/security-tls-authentication">TLS</a> authentication, the URL will look like something like this:</p>
+<p>If you use <a href="/docs/ja/next/security-tls-authentication">TLS</a> authentication, the URL is as follows.</p>
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
 <p>You can instantiate a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- object using just a URL for the target Pulsar <a href="/docs/ja/next/reference-terminology#cluster">cluster</a>, like this:</p>
+ object using just a URL for the target Pulsar <a href="/docs/ja/next/reference-terminology#cluster">cluster</a> like this:</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
         .build();
@@ -135,24 +135,24 @@ dependencies {
         .build();
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="default-broker-urls-for-standalone-clusters"></a><a href="#default-broker-urls-for-standalone-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Default broker URLs for standalone clusters</h4>
-<p>If you're running a cluster in <a href="/docs/ja/next/standalone">standalone mode</a>, the broker will be available at the <code>pulsar://localhost:6650</code> URL by default.</p>
+<h3><a class="anchor" aria-hidden="true" id="default-broker-urls-for-standalone-clusters"></a><a href="#default-broker-urls-for-standalone-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Default broker URLs for standalone clusters</h3>
+<p>If you run a cluster in <a href="/docs/ja/next/standalone">standalone mode</a>, the broker is available at the <code>pulsar://localhost:6650</code> URL by default.</p>
 </blockquote>
-<p>If you create a client, you may use the <code>loadConf</code> configuration. Below are the available parameters used in <code>loadConf</code>.</p>
+<p>If you create a client, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
 <p>| Type | Name |</p>
 <div style="width:260px">
   Description
 </div>
 <p>| Default |---|---|---|--- String | <code>serviceUrl</code> |Service URL provider for Pulsar service | None String | <code>authPluginClassName</code> | Name of the authentication plugin | None String | <code>authParams</code> | String represents parameters for the authentication plugin</p>
 <p><strong>Example</strong>  <br>
-key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout |30000 long|<code>statsIntervalSeconds</code>|Interval between each stat info</p>
+key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout |30000 long|<code>statsIntervalSeconds</code>|Interval between each stats info</p>
 <p>Stats is activated with positive <code>statsInterval</code></p>
-<p><code>statsIntervalSeconds</code> should be set to 1 second at least |60 int|<code>numIoThreads</code>| Number of threads used for handling connections to brokers | 1 int|<code>numListenerThreads</code>|Number of threads used for handling message listeners | 1 boolean|<code>useTcpNoDelay</code>|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true boolean |<code>useTls</code> |Whether to use TLS encryption on the connection| false string | <code>tlsTrustCertsFilePath</code> |Path to the trusted TLS certificate file|None boolean|<code>tlsAllowInsecureConnection</code>|Whether the Pulsar client accepts untrusted TLS certificate from broker | false boolean | <code>tlsHostnameVerificationEnable</code> | Whether to enable TLS hostname verification|false int|<code>concurrentLookupRequest</code>|Number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 int|<code>maxLookupRequest</code>|Maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 int|<code>maxNumberOfRejectedRequestPerConnection</code>|Maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 int|<code>keepAliveIntervalSeconds</code>|Seconds of keeping alive interval for each client broker connection|30 int|<code>connectionTimeoutMs</code>|Duration of waiting for a connection to a broker to be established</p>
+<p>Set <code>statsIntervalSeconds</code> to 1 second at least |60 int|<code>numIoThreads</code>| The number of threads used for handling connections to brokers | 1 int|<code>numListenerThreads</code>|The number of threads used for handling message listeners | 1 boolean|<code>useTcpNoDelay</code>|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true boolean |<code>useTls</code> |Whether to use TLS encryption on the connection| false string | <code>tlsTrustCertsFilePath</code> |Path to the trusted TLS certificate file|None boolean|<code>tlsAllowInsecureConnection</code>|Whether the Pulsar client accepts untrusted TLS certificate from broker | false boolean | <code>tlsHostnameVerificationEnable</code> | Whether to enable TLS hostname verification|false int|<code>concurrentLookupRequest</code>|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 int|<code>maxLookupRequest</code>|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 int|<code>maxNumberOfRejectedRequestPerConnection</code>|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 int|<code>keepAliveIntervalSeconds</code>|Seconds of keeping alive interval for each client broker connection|30 int|<code>connectionTimeoutMs</code>|Duration of waiting for a connection to a broker to be established</p>
 <p>If the duration passes without a response from a broker, the connection attempt is dropped|10000 int|<code>requestTimeoutMs</code>|Maximum duration for completing a request |60000 int|<code>defaultBackoffIntervalNanos</code>| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); long|<code>maxBackoffIntervalNanos</code>|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)</p>
 <p>Check out the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- class for a full listing of configurable parameters.</p>
+ class for a full list of configurable parameters.</p>
 <blockquote>
-<p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a> and <a href="#configuring-consumers">consumer</a> specific configuration, as you'll see in the sections below.</p>
+<p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a> and <a href="#configuring-consumers">consumer</a> specific configuration as described in sections below.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="プロデューサー"></a><a href="#プロデューサー" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>プロデューサー</h2>
 <p>In Pulsar, producers write messages to topics. Once you've instantiated a <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
@@ -165,14 +165,14 @@ key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout 
 <span class="hljs-comment">// You can then send messages to the broker and topic you specified:</span>
 producer.send(<span class="hljs-string">"My message"</span>.getBytes());
 </code></pre>
-<p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message <a href="#schemas">schema</a>.</p>
 <pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
         .create();
 stringProducer.send(<span class="hljs-string">"My message"</span>);
 </code></pre>
 <blockquote>
-<p>You should always make sure to close your producers, consumers, and clients when they are no longer needed:</p>
+<p>Make sure that you close your producers, consumers, and clients when you do not need them.</p>
 <pre><code class="hljs css language-java"></code></pre>
 </blockquote>
 <p>producer.close();
@@ -190,28 +190,28 @@ producer.closeAsync()
    });
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configure-producer"></a><a href="#configure-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure producer</h3>
-<p>If you instantiate a <code>Producer</code> object specifying only a topic name, as in the example above, the producer uses the default configuration.</p>
-<p>If you create a producer, you may use the <code>loadConf</code> configuration. Below are the available parameters used in <code>loadConf</code>.</p>
+<p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, use the default configuration for producer.</p>
+<p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
 <p>Type | Name|</p>
 <div style="width:300px">
   Description
 </div>| Default |\---|\---|\---|\--- String| 
 <p><code>topicName</code>| Topic name| null| String|<code>producerName</code>|Producer name| null long|<code>sendTimeoutMs</code>|Message send timeout in ms.</p>
-<p>If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error is triggered.|30000 boolean|<code>blockIfQueueFull</code>|If set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block rather than failing and throwing errors.</p>
-<p>If set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and throw <code>ProducerQueueIsFullError</code> exceptions.</p>
-<p>The size of the outgoing message queue is determined by the <code>MaxPendingMessages</code> parameter.|false int|<code>maxPendingMessages</code>|Maximum size of a queue holding pending messages.</p>
+<p>If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error occurs.|30000 boolean|<code>blockIfQueueFull</code>|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.</p>
+<p>If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
+<p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false int|<code>maxPendingMessages</code>|The maximum size of a queue holding pending messages.</p>
 <p>For example, a message waiting to receive an acknowledgment from a <a href="reference-terminology.md#broker">broker</a>.</p>
-<p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> <code>BlockIfQueueFull</code> is set to <code>true</code>.|1000 int|<code>maxPendingMessagesAcrossPartitions</code>|Maximum number of pending messages across partitions.</p>
-<p>This setting is used to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="concepts-architecture-overview.md#partitioned-topics">partitioned topics</a>.</p>
-<p>This logic is applied only when no key is set on messages.</p>
-<p>Below are the available options:</p>
+<p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 int|<code>maxPendingMessagesAcrossPartitions</code>|The maximum number of pending messages across partitions.</p>
+<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 MessageRoutingMode|<code>messageRoutingMode</code>|Message routing logic for producers on <a href="concepts-architecture-overview.md#partitioned-topics">partitioned topics</a>.</p>
+<p>Apply the logic only when setting no key on messages.</p>
+<p>Available options are as follows:</p>
 <ul>
 <li><p><code>pulsar.RoundRobinDistribution</code>: round robin</p>
 <ul>
 <li><p><code>pulsar.UseSinglePartition</code>: publish all messages to a single partition</p>
 <ul>
-<li><p><code>pulsar.CustomPartition</code>: a custom partitioning scheme|<code>pulsar.RoundRobinDistribution</code> HashingScheme|<code>hashingScheme</code>|Hashing function that determines the partition on which a particular message is published (<strong>partitioned topics only</strong>).</p>
-<p>Below are the available options:</p>
+<li><p><code>pulsar.CustomPartition</code>: a custom partitioning scheme|<code>pulsar.RoundRobinDistribution</code> HashingScheme|<code>hashingScheme</code>|Hashing function determining the partition where you publish a particular message (<strong>partitioned topics only</strong>).</p>
+<p>Available options are as follows:</p>
 <ul>
 <li><p><code>pulsar.JavaStringHash</code>: the equivalent of <code>String.hashCode()</code> in Java</p>
 <ul>
@@ -220,8 +220,8 @@ producer.closeAsync()
 <li><p><code>pulsar.BoostHash</code>: applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library |<code>HashingScheme.JavaStringHash</code> ProducerCryptoFailureAction|<code>cryptoFailureAction</code>|Producer should take action when encryption fails.</p>
 <ul>
 <li><p><strong>FAIL</strong>: if encryption fails, unencrypted messages fail to send.</p></li>
-<li><p><strong>SEND</strong>: if encryption fails, unencrypted messages are sent. |<code>ProducerCryptoFailureAction.FAIL</code> long|<code>batchingMaxPublishDelayMicros</code>|Time period within which messages sent will be batched.|TimeUnit.MILLISECONDS.toMicros(1) int|<code>batchingPartitionSwitchFrequencyByPublishDelay</code>|Partition switch frequency while using round-robin routing mode. Time period of the switch is batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros.|10 int|batchingMaxMessages|Maximum number of messages permitted in a batch.|1000 boolean|<code>batchingEnabled</code>|Enable batching of messages. |true CompressionType|<code>compressionType</code>|Message data compression type used by a producer.</p>
-<p>Below are the available options:</p>
+<li><p><strong>SEND</strong>: if encryption fails, unencrypted messages are sent. |<code>ProducerCryptoFailureAction.FAIL</code> long|<code>batchingMaxPublishDelayMicros</code>|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1) int|batchingMaxMessages|The maximum number of messages permitted in a batch.|1000 boolean|<code>batchingEnabled</code>|Enable batching of messages. |true CompressionType|<code>compressionType</code>|Message data compression type used by a producer.</p>
+<p>Available options:</p>
 <ul>
 <li><a href="https://github.com/lz4/lz4"><code>LZ4</code></a>
 <ul>
@@ -229,8 +229,8 @@ producer.closeAsync()
 <ul>
 <li><p><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a>  <br>
 * <a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression</p>
-To use a non-default configuration, there's a variety of configurable parameters that you can set.</p>
-<pre><code class="hljs">  For a full listing, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
+You can configure parameters if you do not want to use the default configuration.</p>
+<pre><code class="hljs">  For a full list, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. The following is an example.
   
   ```java
   Producer&lt;byte[]&gt; producer = client.newProducer()
@@ -243,13 +243,13 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ### Message routing
   
-  When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned.md) cookbook.
+  When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned.md) cookbook.
   
   ### Async send
   
-  You can also publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the broker in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+  You can publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
   
-  Here's an example async send operation:
+  The following is an example.
   
   ```java
   producer.sendAsync(&quot;my-async-message&quot;.getBytes()).thenAccept(msgId -&gt; {
@@ -261,7 +261,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ### Configure messages
   
-  In addition to a value, it's possible to set additional items on a given message:
+  In addition to a value, you can set additional items on a given message:
   
   ```java
   producer.newMessage()
@@ -272,7 +272,7 @@ To use a non-default configuration, there's a variety of configurable parameters
       .send();
   ```
   
-  As for the previous case, it's also possible to terminate the builder chain with `sendAsync()` and get a future returned.
+  You can terminate the builder chain with `sendAsync()` and get a future return.
   
   ## コンシューマー
   
@@ -287,7 +287,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .subscribe();
   ```
   
-  The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, we use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to have the message redelivered at a later point in time.
+  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
   
   ```java
   while (true) {
@@ -309,9 +309,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ### Configure consumer
   
-  If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration.
+  If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.
   
-  If you create a consumer, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+  When you create a consumer, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
   
   Type | Name|
   
@@ -320,14 +320,14 @@ To use a non-default configuration, there's a variety of configurable parameters
   &lt;/div&gt;
   | Default |\---|\---|\---|\--- Set&lt;String&gt;| `topicNames`| Topic name| Sets.newTreeSet() Pattern| `topicsPattern`| Topic pattern |None String| `subscriptionName`| Subscription name| None SubscriptionType| `subscriptionType`| Subscription type   
     
-  There are three subscription types:
+  Three subscription types are available:
   
   * Exclusive
   * Failover
   * Shared|SubscriptionType.Exclusive int | 
   `receiverQueueSize` | Size of a consumer's receiver queue.   
     
-  For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.   
+  For example, the number of messages accumulated by a consumer before an application calls `Receive`.   
     
   A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000 long|`acknowledgementsGroupTimeMicros`|Group a consumer acknowledgment for a specified time.  
     
@@ -335,17 +335,17 @@ To use a non-default configuration, there's a variety of configurable parameters
     
   Setting a group time of 0 sends out acknowledgments immediately.   
     
-  A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) long|`negativeAckRedeliveryDelayMicros`|Delay to wait before redelivering messages that have failed to be process.  
+  A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) long|`negativeAckRedeliveryDelayMicros`|Delay to wait before redelivering messages that failed to be processed.  
     
-  When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) int |`maxTotalReceiverQueueSizeAcrossPartitions`|Max total receiver queue size across partitions.  
+  When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) int |`maxTotalReceiverQueueSizeAcrossPartitions`|The max total receiver queue size across partitions.  
     
   This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 String|`consumerName`|Consumer name|null long|`ackTimeoutMillis`|Timeout of unacked messages|0 long|`tickDurationMillis`|Granularity of the ack-timeout redelivery.  
     
-  Using an higher `tickDurationMillis` reduces the memory overhead to track messages when the ack-timeout is set to a bigger value (for example, 1 hour).|1000 int|`priorityLevel`|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode.   
+  Using an higher `tickDurationMillis` reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 int|`priorityLevel`|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode.   
     
-  Here, the broker follows descending priorities. For example, 0=max-priority, 1, 2,...  
+  The broker follows descending priorities. For example, 0=max-priority, 1, 2,...  
     
-  In the shared subscription mode, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.  
+  In shared subscription mode, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.  
     
   **Example 1**  
     
@@ -360,7 +360,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   C4, 1, 2  
   C5, 1, 1  
     
-  Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not decrypt.  
+  Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.  
     
   
   
@@ -368,26 +368,26 @@ To use a non-default configuration, there's a variety of configurable parameters
     
   
   
-  * **DISCARD**: message is silently acknowledged and not delivered to an application.
+  * **DISCARD**:silently acknowledge and not deliver message to an application.
     
   
   
   * **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.  
         
-      If message are compressed, the decompression fails.   
+      The decompression of message fails.   
         
       If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
         
       Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL SortedMap&lt;String, String&gt;|
   `properties`|A name or value property of this consumer.  
     
-  `properties` is application defined metadata that can be attached to a consumer.   
+  `properties` is application defined metadata attached to a consumer.   
     
-  When getting a topic stats, this metadata is associated to the consumer stats for easier identification.|new TreeMap&lt;&gt;() boolean|`readCompacted`|If `readCompacted` is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
+  When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap&lt;&gt;() boolean|`readCompacted`|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
     
-  This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.  
+  A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
     
-  `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
+  Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).   
     
   Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false SubscriptionInitialPosition|`subscriptionInitialPosition`|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest int|`patternAutoDiscoveryPeriod`|Topic auto discovery period when using a pattern for topic's consumer.  
     
@@ -406,9 +406,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   * **AllTopics**: subscribe to both persistent and non-persistent topics.|RegexSubscriptionMode.PersistentOnly DeadLetterPolicy|
   `deadLetterPolicy`|Dead letter policy for consumers.  
     
-  By default, some messages are redelivered many times possible, even to the extent that it can be never stop.  
+  By default, some messages are probably redelivered many times, even to the extent that it never stops.  
     
-  By using the dead letter mechanism, messages have the max redelivery count. **When message exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.  
+  By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.  
     
   You can enable the dead letter mechanism by setting `deadLetterPolicy`.  
     
@@ -421,13 +421,13 @@ To use a non-default configuration, there's a variety of configurable parameters
   To set a custom dead letter topic name:  
   `client.newConsumer()&lt;br/&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br/&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br/&gt;.subscribe();`  
     
-  When the dead letter policy is specified and no `ackTimeoutMillis` is specified, then the ack timeout is set to 30000 millisecond.|None boolean|`autoUpdatePartitions`|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
+  When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None boolean|`autoUpdatePartitions`|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
     
   **Note**: this is only for partitioned consumers.|true boolean|`replicateSubscriptionState`|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
   
-  To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. Here's an example:
+  You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
   
-  Here's an example configuration:
+  The following is an example.
   
   ```java
   Consumer consumer = client.newConsumer()
@@ -440,9 +440,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ### Async receive
   
-  The `receive` method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which will return immediately with a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object that completes once a new message is available.
+  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](concepts-messaging.md#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
   
-  Here's an example:
+  The following is an example.
   
   ```java
   CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
@@ -452,9 +452,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ### Batch receive
   
-  Use `batchReceive` can receive multiple messages for each calls.
+  Use `batchReceive` to receive multiple messages for each call.
   
-  Here's an example:
+  The following is an example.
   
   ```java
   Messages messages = consumer.batchReceive();
@@ -466,9 +466,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   &gt; Note:
   &gt; 
-  &gt; Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
+  &gt; Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
   &gt; 
-  &gt; The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
+  &gt; The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
   &gt; 
   &gt; ```java
   &gt; Consumer consumer = client.newConsumer()
@@ -482,7 +482,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   &gt;         .subscribe();
   &gt; ```
   &gt; 
-  &gt; And the default batch receive policy is:
+  &gt; The default batch receive policy is:
   &gt; 
   &gt; ```java
   &gt; BatchReceivePolicy.builder()
@@ -496,7 +496,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](concepts-messaging.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
   
-  Here are some examples:
+  The followings are some examples.
   
   ```java
   import org.apache.pulsar.client.api.Consumer;
@@ -545,7 +545,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .subscribe();
   ```
   
-  You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
+  You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
   
   ```java
   Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
@@ -566,7 +566,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
   
-  A subscription is identified with the subscription name, and a subscription name can specify only one subscription mode at a time. You can change the subscription mode, yet you have to let all existing consumers of this subscription offline first.
+  A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
   
   Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
   
@@ -629,9 +629,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ```
   
-  Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer becomes active consumer.
+  Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
   
-  If the first active consumer receives 5 messages and is disconnected, the standby consumer becomes active consumer. Consumer1 will receive:
+  If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
   
       (&quot;key-1&quot;, &quot;message-1-1&quot;)
       (&quot;key-1&quot;, &quot;message-1-2&quot;)
@@ -651,7 +651,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   &gt; Note:
   &gt; 
-  &gt; If a topic is a partitioned topic, each partition only has one active consumer, messages of one partition only distributed to one consumer, messages of multiple partitions are distributed to multiple consumers.
+  &gt; If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
   
   #### Shared
   
@@ -672,9 +672,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   //Both consumer1 and consumer 2 is active consumers.
   ```
   
-  In shared subscription mode, multiple consumers can attach to the same subscription and message are delivered in a round robin distribution across consumers.
+  In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
   
-  If a broker dispatches only one message at a time, consumer1 will receive:
+  If a broker dispatches only one message at a time, consumer1 receives the following information.
   
       (&quot;key-1&quot;, &quot;message-1-1&quot;)
       (&quot;key-1&quot;, &quot;message-1-3&quot;)
@@ -683,7 +683,7 @@ To use a non-default configuration, there's a variety of configurable parameters
       (&quot;key-4&quot;, &quot;message-4-1&quot;)
       
   
-  consumer 2 will receive:
+  consumer2 receives the follwoing information.
   
       (&quot;key-1&quot;, &quot;message-1-2&quot;)
       (&quot;key-2&quot;, &quot;message-2-1&quot;)
@@ -694,9 +694,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
   
-  #### Key_Shared
+  #### Key_shared
   
-  This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
+  This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
   
   ```java
   Consumer consumer1 = client.newConsumer()
@@ -713,9 +713,9 @@ To use a non-default configuration, there's a variety of configurable parameters
   //Both consumer1 and consumer2 are active consumers.
   ```
   
-  `Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers(by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time. ) .
+  `Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
   
-  consumer1 will receive:
+  consumer1 receives the follwoing information.
   
       (&quot;key-1&quot;, &quot;message-1-1&quot;)
       (&quot;key-1&quot;, &quot;message-1-2&quot;)
@@ -724,7 +724,7 @@ To use a non-default configuration, there's a variety of configurable parameters
       (&quot;key-3&quot;, &quot;message-3-2&quot;)
       
   
-  consumer 2 will receive:
+  consumer2 receives the follwoing information.
   
       (&quot;key-2&quot;, &quot;message-2-1&quot;)
       (&quot;key-2&quot;, &quot;message-2-2&quot;)
@@ -733,28 +733,15 @@ To use a non-default configuration, there's a variety of configurable parameters
       (&quot;key-4&quot;, &quot;message-4-2&quot;)
       
   
-  By default, a consumer in the `Key_Shared` subscription is assigned a fixed hash range of key automatically. If you want to specify the key hash ranges of a consumer, you can use the key shared policy:
-  
-  ```java
-  Consumer consumer = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Key_Shared)
-              .keySharedPolicy(KeySharedPolicy.sticky().ranges(Range.of(0, 10)))
-          .subscribe()
-  ```
-  
-  The consumer with specific key hash ranges can be called a **sticky consumer**. The available key hash range is [0, 65535]. Consumers of a subscription must cover the whole key hash range and can not overlap .
-  
   &gt; Note:
   &gt; 
-  &gt; If the message key is not specified, messages without key will be dispatched to one consumer in order by default.
+  &gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
   
   ## Reader
   
-  With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject: javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
+  With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject: javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
   
-  Here's an example:
+  The following is an example.
   
   ```java
   ReaderConfiguration conf = new ReaderConfiguration();
@@ -771,11 +758,11 @@ To use a non-default configuration, there's a variety of configurable parameters
   }
   ```
   
-  In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
+  In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader iterates over each message in the topic after the message is identified by `msgIdBytes` (how that value is obtained depends on the application).
   
   The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
   
-  If you create a reader, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+  When you create a reader, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
   
   | Type | Name |
   
@@ -786,7 +773,7 @@ To use a non-default configuration, there's a variety of configurable parameters
     
   For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
     
-  A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None String|`readerName`|Read name.|null String|`subscriptionRolePrefix`|Prefix of subscription role. |null CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not decrypt.  
+  A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None String|`readerName`|Read name.|null String|`subscriptionRolePrefix`|Prefix of subscription role. |null CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.  
     
   
   
@@ -794,20 +781,20 @@ To use a non-default configuration, there's a variety of configurable parameters
     
   
   
-  * **DISCARD**: message is silently acknowledged and not delivered to an application.
+  * **DISCARD**: silently acknowledge and not deliver message to an application.
     
   
   
   * **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.  
         
-      If message are compressed, the decompression fails.   
+      The message decompression fails.   
         
       If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
         
       Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL boolean|
-  `readCompacted`|If `readCompacted` is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
+  `readCompacted`|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
     
-  This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.  
+  A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
     
   `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
     
@@ -817,7 +804,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ## Schema
   
-  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
   
   ```java
   Producer&lt;byte[]&gt; producer = client.newProducer()
@@ -853,7 +840,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   }
   ```
   
-  You could then create a `Producer&lt;SensorReading&gt;` (or `Consumer&lt;SensorReading&gt;`) like so:
+  You could then create a `Producer&lt;SensorReading&gt;` (or `Consumer&lt;SensorReading&gt;`) like this:
   
   ```java
   Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
@@ -879,7 +866,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .create();
       ```
   
-  * `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
+  * `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
       
       ```java
       Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
@@ -887,7 +874,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .create();
       ```
   
-  * JSON schemas can be created for POJOs using `Schema.JSON`. Here's an example:
+  * Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
       
       ```java
       Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
@@ -895,7 +882,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .create();
       ```
   
-  * Protobuf schemas can be generate using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+  * Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
       
       ```java
       Producer&lt;MyProtobuf&gt; protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
@@ -903,7 +890,7 @@ To use a non-default configuration, there's a variety of configurable parameters
           .create();
       ```
   
-  * Avro schemas can be defined with the help of `Schema.AVRO`. The next code snippet demonstrates the creation and usage of the Avro schema:
+  * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
       
       ```java
       Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
@@ -913,13 +900,13 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   ## 認証
   
-  Pulsar は現在 2 つの認証スキーム、[TLS](security-tls-authentication.md) と [Athenz](security-athenz.md) に対応しています。Pulsar Java クライアントではどちらを使用することもできます。
+  Pulsar currently supports two authentication schemes: [TLS](security-tls-authentication.md) and [Athenz](security-athenz.md). You can use the Pulsar Java client with both.
   
   ### TLS 認証
   
   To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
   
-  Here's an example configuration:
+  The following is an example.
   
   ```java
   Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
@@ -946,7 +933,7 @@ To use a non-default configuration, there's a variety of configurable parameters
   * `providerDomain`
   * `privateKey`
   
-  You can also set an optional `keyId`. Here's an example configuration:
+  You can also set an optional `keyId`. The following is an example.
   
   ```java
   Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
@@ -980,7 +967,7 @@ To use a non-default configuration, there's a variety of configurable parameters
 </ul></li>
 </ul></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/security-extending"><span class="arrow-prev">← </span><span>Extending</span></a><a class="docs-next button" href="/docs/ja/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#インストール">インストール</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a></li><li><a href="#プロデューサー">プロデューサー</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/security-extending"><span class="arrow-prev">← </span><span>Extending</span></a><a class="docs-next button" href="/docs/ja/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#インストール">インストール</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li></ul></li><li><a href="#プロデューサー">プロデューサー</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
