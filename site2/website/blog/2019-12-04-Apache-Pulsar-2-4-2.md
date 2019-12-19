@@ -6,11 +6,12 @@ title: Apache Pulsar 2.4.2
 
 We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.
 
-For detailed changes related to 2.4.2 release, refer to [release notes](/release-notes.md#2.4.2).
+For detailed changes related to 2.4.2 release, refer to <b>[release notes](/release-notes/#2.4.2)</b>.
 
 I will highlight some improvements and bug fixes in this blog.
 
 <!--truncate-->
+
 ## Use classLoaders to load Java functions
 In Pulsar 2.4.2, windowed functions can work well whether Java Functions instances use shaded JAR or classLoaders, and functionClassLoader is set correctly when the `--output-serde-classname` option is enabled.
 
