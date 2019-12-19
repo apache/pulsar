@@ -1053,7 +1053,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         producer1.send("test-multi/MultiTopics2-Message1");
 
-        producer1.send("test-multi/MultiTopics3-Message1");
+        producer2.send("test-multi/MultiTopics3-Message1");
 
         int messageSet = 0;
         Message<byte[]> message = consumer.receive();
