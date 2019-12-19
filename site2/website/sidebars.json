@@ -120,10 +120,10 @@
       "cookbooks-bookkeepermetadata"
     ],
     "Tiered Storage": [
-      "tiered-storage-overview",
-      "tiered-principle-of-offloaders",
-      "tiered-how-to-manage-offloaders",
-      "tiered-how-to-use-offloaders"
+      "tiered-overview",
+      "tiered-working-principle",
+      "tiered-offloaders-management",
+      "tiered-offloaders-usage"
     ],
     "Development": [
       "develop-tools",

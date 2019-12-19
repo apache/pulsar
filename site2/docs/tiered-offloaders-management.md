@@ -1,7 +1,7 @@
 ---
-id: tiered-how-to-manage-offloaders
-title: How to manage offloaders
-sidebar_label: How to manage offloaders
+id: tiered-offloaders-management
+title: Offloaders management
+sidebar_label: Offloaders management
 ---
 
 Offload is configured in ```broker.conf```.

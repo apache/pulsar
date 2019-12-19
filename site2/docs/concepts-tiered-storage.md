@@ -12,4 +12,4 @@ Data written to BookKeeper is replicated to 3 physical machines by default. Howe
 
 Pulsar currently supports S3, Google Cloud Storage (GCS), and filesystem for long term storage. Offloading to long term storage is triggered via a Rest API or command line interface. You can pass in the amount of topic data you wish to retain on BookKeeper, and the broker will copy the backlog data to long term storage. The original data will then be deleted from BookKeeper after a configured delay (4 hours by default).
 
-> For a guide for setting up tiered storage, see [How to manage offloaders](tiered-how-to-manage-offloaders.md).
+> For a guide for setting up tiered storage, see [Offloaders management](tiered-offloaders-management.md).

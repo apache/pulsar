@@ -1,7 +1,7 @@
 ---
-id: tiered-how-to-use-offloaders
-title: How to use offloaders
-sidebar_label: How to use offloaders
+id: tiered-offloaders-usage
+title: Offloaders usage
+sidebar_label: Offloaders usage
 ---
 
 ## Configure offload to auto run

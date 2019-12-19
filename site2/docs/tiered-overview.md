@@ -1,5 +1,5 @@
 ---
-id: tiered-storage-overview
+id: tiered-overview
 title: Overview
 sidebar_label: Overview
 ---
@@ -20,7 +20,7 @@ With Hadoop, it is easy to add support for more filesystems in the future.
 
 ## Contents
 
-- [Principle of offloaders](tiered-principle-of-offloaders.md)
-- [How to manage offloaders](tiered-how-to-manage-offloaders.md)
-- [How to use offloaders](tiered-how-to-use-offloaders.md)
+- [Working principle](tiered-working-principle.md)
+- [Offloaders management](tiered-offloaders-management.md)
+- [Offloaders usage](tiered-offloaders-usage.md)
 
