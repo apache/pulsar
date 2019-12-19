@@ -31,8 +31,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.slf4j.Logger;
@@ -44,14 +42,11 @@ import org.testng.annotations.Test;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import java.net.URL;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
@@ -134,79 +129,6 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test
-    public void testGetPartitionedTopicMetaData() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name";
-
-        try {
-            String url = "http://localhost:" + BROKER_WEBSERVICE_PORT;
-            if (isTcpLookup) {
-                url = "pulsar://localhost:" + BROKER_PORT;
-            }
-            PulsarClient client = newPulsarClient(url, 0);
-
-            Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-            Producer<byte[]> producer = client.newProducer().topic(topicName).create();
-
-            consumer.close();
-            producer.close();
-            client.close();
-        } catch (PulsarClientException pce) {
-            log.error("create producer or consumer error: ", pce);
-            fail();
-        }
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test
-    public void testGetPartitionedTopicWithMultiHosts() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name";
-
-        // Multi hosts included an unreached port and the actual port for verify retry logic
-        String urlsWithUnreached = "http://localhost:51000,localhost:" + BROKER_WEBSERVICE_PORT;
-        if (isTcpLookup) {
-            urlsWithUnreached = "pulsar://localhost:51000,localhost::" + BROKER_PORT;
-        }
-        PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
-
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-            .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-        Producer<byte[]> producer = client.newProducer().topic(topicName).create();
-
-        for (int i = 0; i < 5; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
-        }
-
-        Message<byte[]> msg = null;
-        Set<String> messageSet = new HashSet();
-        for (int i = 0; i < 5; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-
-        producer.close();
-        client.close();
-
         log.info("-- Exiting {} test --", methodName);
     }
 
