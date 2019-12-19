@@ -15,6 +15,7 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
+      "concepts-tiered-storage",
       "concepts-schema-registry"
     ],
     "Pulsar Schema": [
@@ -109,7 +110,6 @@
       "adaptors-storm"
     ],
     "Cookbooks": [
-      "cookbooks-tiered-storage",
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",
