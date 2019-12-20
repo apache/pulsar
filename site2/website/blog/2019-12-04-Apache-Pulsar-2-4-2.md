@@ -4,7 +4,7 @@ authorURL: https://twitter.com/wolf4j1
 title: Apache Pulsar 2.4.2
 ---
 
-We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.
+We are proud to witness the release of Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.
 
 For detailed changes related to 2.4.2 release, refer to <b>[release notes](/release-notes/#2.4.2)</b>.
 
@@ -20,18 +20,18 @@ Before Pulsar 2.4.2, Java Functions instances are started with a shaded JAR, and
 - When using the `--output-serde-classname` option, functionClassLoader is not set correctly.  
 
 ## Start Broker with Functions worker  
-In Pulsar 2.4.2, we can start Broker with Functions worker when broker client is enabled with TLS. Before Pulsar 2.4.2, when we run Functions worker with the broker, it checks whether TLS is enabled in the `function_worker.yml` file. If TLS is enabled, it uses TLS port. However, when TLS is enabled on Functions worker, it checks the `broker.conf`. Since Functions worker runs with the broker, it makes sense to check the `broker.conf` as the single source of truth about whether or not to use TLS. 
+In Pulsar 2.4.2, Broker can be started with Functions worker when broker client is enabled with TLS. Before Pulsar 2.4.2, when Functions worker is run with the broker, it checks whether TLS is enabled in the `function_worker.yml` file. If TLS is enabled, it uses TLS port. However, when TLS is enabled on Functions worker, it checks the `broker.conf`. Since Functions worker runs with the broker, it makes sense to check the `broker.conf` as the single source of truth about whether or not to use TLS. 
 
 ## Add error code and error message when a key does not exist
-In Pulsar Functions, BookKeeper is supported to store the state of Functions. When users attempt to fetch a key that does not exist from function state, an NPE(NullPointerException) error occurs. In Pulsar 2.4.2, we add error code and error message for the case when a key does not exist.
+In Pulsar Functions, BookKeeper is supported to store the state of Functions. When users attempt to fetch a key that does not exist from function state, an NPE(NullPointerException) error occurs. In Pulsar 2.4.2, error code and error message are added for the case when a key does not exist.
 
 ## Deduplication
-Deduplication removes messages based on the the largest sequence ID that pre-persisted. If an error is persisted to BookKeeper, a retry attempt is “deduplicated” with no message ever getting persisted. In version 2.4.2, we fix the issue from the following two aspects:                                                                                              
+Deduplication removes messages based on the the largest sequence ID that pre-persisted. If an error is persisted to BookKeeper, a retry attempt is “deduplicated” with no message ever getting persisted. In version 2.4.2, the issue is fixed from the following two aspects:                                                                                              
 - Double check the pending messages and return error to the producer when the duplication status is uncertain. For example, when a message is still pending.
 - Sync back the lastPushed map with the lastStored map after failures.
 
 ## Consume data from the earliest location
-In Pulsar 2.4.2, we add `--subs-position` for Pulsar Sinks, so users can consume data from the latest and earliest locations. Before 2.4.2 release, data in topics is consumed from the latest location in Pulsar Sinks by default, and users can not consume the earliest data in sink topic. 
+In Pulsar 2.4.2, `--subs-position` is added for Pulsar Sinks, so users can consume data from the latest and earliest locations. Before 2.4.2 release, data in topics is consumed from the latest location in Pulsar Sinks by default, and users can not consume the earliest data in sink topic. 
 
 ## Close previous dispatcher when the subscription type changes
 
@@ -48,22 +48,22 @@ In Pulsar 2.4.2, failed producer is removed correctly from the connection. Befor
 ```  
                         
 ## Add new APIs for schema
-In Pulsar 2.4.2, we add the following APIs for schema:
+In Pulsar 2.4.2, the following APIs are added for schema:
 - `getAllVersions`: return the list of schema versions for a given topic.
 - `testCompatibility`: be able to test the compatibility for a schema without registering it.
 - `getVersionBySchema`: provide a schema definition and provide the schema version for it.
 
 ## Expose `getLastMessageId()` method in consumerImpl
-In Pulsar 2.4.2, we expose `getLastMessageId()` method in consumerImpl. It benefits users when they want to know the lag messages, or only consume messages before the current time.                                                     
+In Pulsar 2.4.2, the `getLastMessageId()` method is exposed in consumerImpl. It benefits users when they want to know the lag messages, or only consume messages before the current time.                                                     
 
 ## Add new `send()` interface in C++/Go
-In Pulsar 2.4.2, we add new `send()` interface in C++/Go, so the `MessageID` will be returned to users. The logic is consistent with that in Java. In Java client, the `MessageId send(byte[] message)` returns `MessageId` for users.
+In Pulsar 2.4.2, new `send()` interface is added in C++/Go, so the `MessageID` will be returned to users. The logic is consistent with that in Java. In Java client, the `MessageId send(byte[] message)` returns `MessageId` for users.
 
 ## Consumer background tasks are cancelled after subscription failures
-In Pulsar 2.4.2, we ensure that consumer background tasks are cancelled after subscription failures. Before 2.4.2, some background consumer tasks are started in the ConsumerImpl constructor though these tasks are not cancelled if the consumer creation fails, leaving active references to these objects. 
+In Pulsar 2.4.2, it is ensured that consumer background tasks are cancelled after subscription failures. Before 2.4.2, some background consumer tasks are started in the ConsumerImpl constructor though these tasks are not cancelled if the consumer creation fails, leaving active references to these objects. 
 
 ## Delete topics attached with regex consumers
-In Pulsar 2.4.2, we can delete topics attached with a regex consumer. The followings are detailed methods.
+In Pulsar 2.4.2, topics attached with a regex consumer can be deleted. The followings are detailed methods.
 - Add a flag in CommandSubscribe so that a regex consumer will never trigger the creation of a topic.
 - Subscribe to a non-existing topic. When a specific error occurs, the consumer is interpreted as a permanent failure and thus stopping retrying.
 
