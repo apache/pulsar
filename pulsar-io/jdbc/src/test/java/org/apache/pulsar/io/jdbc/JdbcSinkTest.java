@@ -27,8 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -61,8 +59,6 @@ public class JdbcSinkTest {
      * A Simple class to test jdbc class
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         private String field1;
         private String field2;
