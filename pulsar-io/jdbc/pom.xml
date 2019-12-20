@@ -23,13 +23,12 @@
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
   <modules>
-      <module>core</module>
-      <module>mysql</module>
-      <module>sqlite</module>
-    <module>postgresql</module>
+    <module>core</module>
+    <module>mysql</module>
     <module>postgresql</module>
     <module>clickhouse</module>
-      <module>mariadb</module>
+    <module>mariadb</module>
+    <module>sqlite</module>
   </modules>
   <parent>
     <groupId>org.apache.pulsar</groupId>
@@ -66,12 +65,6 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-instance</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-io-jdbc-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 

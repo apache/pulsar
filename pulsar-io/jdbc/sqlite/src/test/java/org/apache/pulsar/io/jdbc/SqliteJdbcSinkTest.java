@@ -21,11 +21,6 @@ package org.apache.pulsar.io.jdbc;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -44,6 +39,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -52,7 +51,7 @@ import static org.mockito.Mockito.when;
  * Jdbc Sink test
  */
 @Slf4j
-public class MysqlJdbcSinkTest {
+public class SqliteJdbcSinkTest {
     private final SqliteUtils sqliteUtils = new SqliteUtils(getClass().getSimpleName());
     private BaseJdbcAutoSchemaSink jdbcSink;
     private final String tableName = "TestOpenAndWriteSink";
@@ -99,7 +98,7 @@ public class MysqlJdbcSinkTest {
         // change batchSize to 1, to flush on each write.
         conf.put("batchSize", 1);
 
-        jdbcSink = new MysqlJdbcAutoSchemaSink();
+        jdbcSink = new SqliteJdbcAutoSchemaSink();
 
         // open should success
         jdbcSink.open(conf, null);
