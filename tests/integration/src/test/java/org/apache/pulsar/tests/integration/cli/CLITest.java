@@ -321,4 +321,31 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
+    @Test
+    public void testGenerateDocForModule() throws Exception {
+        String[] moduleNames = {
+                "clusters",
+                "tenants",
+                "brokers",
+                "broker-stats",
+                "namespaces",
+                "topics",
+                "schemas",
+                "bookies",
+                "functions",
+                "ns-isolation-policy",
+                "resource-quotas",
+                "functions",
+                "sources",
+                "sinks"
+        };
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+        for (int i = 0; i < moduleNames.length; i++) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "documents", "generate", moduleNames[i]);
+            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+        }
+    }
+
 }
