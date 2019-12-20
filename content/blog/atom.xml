@@ -2,12 +2,24 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2019-12-04T06:00:00.000Z</updated>
+    <updated>2019-12-18T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Pulsar Summit San Francisco 2020 CFP is now open]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html"/>
+        <updated>2019-12-18T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Pulsar Summit is an annual conference dedicated to Apache Pulsar community, bringing together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming...</p>]]></summary>
+        <author>
+            <name>Jennifer Huang</name>
+            <email/>
+            <uri>https://twitter.com/Jennife06125739</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.4.2]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</id>

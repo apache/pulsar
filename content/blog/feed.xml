@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Wed, 04 Dec 2019 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Wed, 18 Dec 2019 06:00:00 GMT</lastBuildDate>
         <docs>http://blogs.law.harvard.edu/tech/rss</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Pulsar Summit San Francisco 2020 CFP is now open]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html</guid>
+            <pubDate>Wed, 18 Dec 2019 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>Pulsar Summit is an annual conference dedicated to Apache Pulsar community, bringing together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming...</p>]]></description>
+        </item>
         <item>
             <title><![CDATA[Apache Pulsar 2.4.2]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2019/12/04/Apache-Pulsar-2-4-2.html</link>
