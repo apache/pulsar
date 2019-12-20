@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import io.netty.channel.ConnectTimeoutException;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.pulsar.client.api.PulsarClient;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -50,7 +46,7 @@ public class ConnectionTimeoutTest {
                 Assert.fail("Shouldn't be able to connect to anything");
             } catch (Exception e) {
                 Assert.assertFalse(defaultFuture.isDone());
-                Assert.assertEquals(e.getCause().getCause().getCause().getClass(), ConnectTimeoutException.class);
+                Assert.assertEquals(e.getCause().getClass(), PulsarClientException.TimeoutException.class);
             }
         }
     }
