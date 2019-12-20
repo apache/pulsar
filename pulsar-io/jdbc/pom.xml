@@ -25,10 +25,10 @@
   <modules>
     <module>core</module>
     <module>mysql</module>
-    <module>postgresql</module>
     <module>clickhouse</module>
     <module>mariadb</module>
     <module>sqlite</module>
+    <module>postgresql</module>
   </modules>
   <parent>
     <groupId>org.apache.pulsar</groupId>
@@ -46,45 +46,5 @@
     <clickhouse.version>0.2</clickhouse.version>
     <mariadb.version>2.5.1</mariadb.version>
   </properties>
-
-  <dependencies>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-      <version>${avro.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-instance</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-original</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-  </dependencies>
-  
 
 </project>
