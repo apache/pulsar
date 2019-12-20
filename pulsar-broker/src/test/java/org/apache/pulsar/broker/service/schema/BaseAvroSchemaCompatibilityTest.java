@@ -96,10 +96,10 @@ public abstract class BaseAvroSchemaCompatibilityTest {
         Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3,
                                                                  SchemaCompatibilityStrategy.BACKWARD),
                 "adding a field without default is NOT backwards compatible");
-        // Modifying a field name is not backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4,
-                                                                 SchemaCompatibilityStrategy.BACKWARD),
-                "Modifying a field name is not backwards compatible");
+        // Modifying a field name with an alias is backwards compatible
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4,
+                                                                SchemaCompatibilityStrategy.BACKWARD),
+                "Modifying a field name with an alias is backwards compatible");
         // evolving field to a union is backwards compatible
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData5,
                                                                 SchemaCompatibilityStrategy.BACKWARD),
