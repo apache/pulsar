@@ -13,15 +13,13 @@ And today, we are very proud to see that **Apache Pulsar has attracted its 200th
 
 Over the years, there’s been an upward trend that more organizations embracing real-time data and stream processing, and Pulsar is the key component of that shift. As an open-source distributed pub-sub messaging system originally created at Yahoo! and graduated as a Top-Level Project (TLP) in September 2018, Pulsar has launched 79 releases, attracted 4100+ commits from 200 contributors, and received 4.6k+ stars, 1.2k+ forks, and 1.3k+ Slack users up to now.
 
-![](site2/website/blog/p-200.png)
-
 This achievement is worth celebrating, and at the same time, we would like to **express sincere gratitude to you** for making what Pulsar is today and shape what Pulsar will be tomorrow.
 
 Pulsar aims to empower the next generation of event streaming systems by delivering a unified solution that connects, stores and processes real-time event streams. Going forward, we will be continuously dedicated to making Pulsar as a highly flexible, scalable and reliable product and creating a welcoming and sustainable community where Pulsar and you can thrive together.
 
-![](site2/website/blog/cooperation.png)
+P.S. want to be a Pulsar contributor? 
 
-P.S. want to be a Pulsar contributor? Get started today by [reading contribution guidelines](http://pulsar.apache.org/en/contributing/) and [submitting a PR](https://github.com/apache/pulsar), any contribution on codes, docs or other is highly appreciated.
+Get started today by [reading contribution guidelines](http://pulsar.apache.org/en/contributing/) and [submitting a PR](https://github.com/apache/pulsar), any contribution on codes, docs or other is highly appreciated. Thank you.
 
 
 
