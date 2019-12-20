@@ -1,0 +1,5 @@
+org.apache.pulsar.client.api
+org.apache.pulsar.client.api.schema
+org.apache.pulsar.client.internal
+org.apache.pulsar.common.api
+org.apache.pulsar.common.schema
