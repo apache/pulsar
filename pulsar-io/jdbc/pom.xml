@@ -25,6 +25,11 @@
   <modules>
       <module>core</module>
       <module>mysql</module>
+      <module>sqlite</module>
+    <module>postgresql</module>
+    <module>postgresql</module>
+    <module>clickhouse</module>
+      <module>mariadb</module>
   </modules>
   <parent>
     <groupId>org.apache.pulsar</groupId>
@@ -34,6 +39,14 @@
 
   <artifactId>pulsar-io-jdbc</artifactId>
   <name>Pulsar IO :: Jdbc</name>
+
+  <properties>
+    <sqlite.version>3.8.11.2</sqlite.version>
+    <mysql.version>8.0.11</mysql.version>
+    <postgresql.version>42.2.8</postgresql.version>
+    <clickhouse.version>0.2</clickhouse.version>
+    <mariadb.version>2.5.1</mariadb.version>
+  </properties>
 
   <dependencies>
 
@@ -56,6 +69,11 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-jdbc-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
