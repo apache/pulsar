@@ -106,6 +106,11 @@ public class OwnershipCache {
      */
     private final NamespaceBundleFactory bundleFactory;
 
+    /**
+     * The <code>NamespaceService</code> which using <code>OwnershipCache</code>
+     */
+    private NamespaceService namespaceService;
+
     private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
 
         @SuppressWarnings("deprecation")
@@ -149,7 +154,8 @@ public class OwnershipCache {
      * @param ownerUrl
      *            the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory) {
+    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory, NamespaceService namespaceService) {
+        this.namespaceService = namespaceService;
         this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
@@ -211,6 +217,9 @@ public class OwnershipCache {
         // service unit
         ownedBundlesCache.get(path).thenAccept(namespaceBundle -> {
             LOG.info("Successfully acquired ownership of {}", path);
+            if (namespaceService != null) {
+                namespaceService.onNamespaceBundleOwned(bundle);
+            }
             future.complete(selfOwnerInfo);
         }).exceptionally(exception -> {
             // Failed to acquire ownership
@@ -260,6 +269,9 @@ public class OwnershipCache {
                 LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
                 ownedBundlesCache.synchronous().invalidate(key);
                 ownershipReadOnlyCache.invalidate(key);
+                if (namespaceService != null) {
+                    namespaceService.onNamespaceBundleUnload(bundle);
+                }
                 result.complete(null);
             } else {
                 LOG.warn("[{}] Failed to delete the namespace ephemeral node. key={}", key,

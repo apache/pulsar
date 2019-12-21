@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -184,9 +185,9 @@ public class BacklogQuotaManager {
      */
     private void disconnectProducers(PersistentTopic persistentTopic) {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        ConcurrentOpenHashSet<Producer> producers = persistentTopic.getProducers();
+        Map<String, Producer> producers = persistentTopic.getProducers();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             log.info("Producer [{}] has exceeded backlog quota on topic [{}]. Disconnecting producer",
                     producer.getProducerName(), persistentTopic.getName());
             futures.add(producer.disconnect());

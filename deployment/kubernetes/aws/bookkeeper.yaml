@@ -55,13 +55,13 @@ metadata:
   name: bookie-config
 data:
   PULSAR_MEM: "\"-Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
-  dbStorage_writeCacheMaxSizeMb: "2048" # Write cache size (direct memory)
-  dbStorage_readAheadCacheMaxSizeMb: "2048" # Read cache size (direct memory)
-  dbStorage_rocksDB_blockCacheSize: "4294967296"
-  journalMaxSizeMB: "2048"
-  zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
-  useHostNameAsBookieID: "true"
+  PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "2048" # Write cache size (direct memory)
+  PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "2048" # Read cache size (direct memory)
+  PULSAR_PREFIX_dbStorage_rocksDB_blockCacheSize: "4294967296"
+  PULSAR_PREFIX_journalMaxSizeMB: "2048"
+  PULSAR_PREFIX_zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+  PULSAR_PREFIX_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+  PULSAR_PREFIX_useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet

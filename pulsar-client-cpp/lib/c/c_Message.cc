@@ -52,6 +52,14 @@ void pulsar_message_set_sequence_id(pulsar_message_t *message, int64_t sequenceI
     message->builder.setSequenceId(sequenceId);
 }
 
+void pulsar_message_set_deliver_after(pulsar_message_t *message, uint64_t delayMillis) {
+    message->builder.setDeliverAfter(std::chrono::milliseconds(delayMillis));
+}
+
+void pulsar_message_set_deliver_at(pulsar_message_t *message, uint64_t deliveryTimestampMillis) {
+    message->builder.setDeliverAt(deliveryTimestampMillis);
+}
+
 void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters, size_t size) {
     const char **c = clusters;
     std::vector<std::string> clustersList;
@@ -113,4 +121,8 @@ pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message) {
 
 const char *pulsar_message_get_topic_name(pulsar_message_t *message) {
     return message->message.getTopicName().c_str();
+}
+
+int pulsar_message_get_redelivery_count(pulsar_message_t *message) {
+    return message->message.getRedeliveryCount();
 }

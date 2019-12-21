@@ -28,9 +28,6 @@ import java.sql.Timestamp;
  * A schema for `java.sql.Timestamp`.
  */
 public class TimestampSchema extends AbstractSchema<Timestamp> {
-   public static TimestampSchema of() {
-      return INSTANCE;
-   }
 
    private static final TimestampSchema INSTANCE;
    private static final SchemaInfo SCHEMA_INFO;
@@ -41,6 +38,10 @@ public class TimestampSchema extends AbstractSchema<Timestamp> {
              .setType(SchemaType.TIMESTAMP)
              .setSchema(new byte[0]);
        INSTANCE = new TimestampSchema();
+   }
+
+   public static TimestampSchema of() {
+      return INSTANCE;
    }
 
    @Override

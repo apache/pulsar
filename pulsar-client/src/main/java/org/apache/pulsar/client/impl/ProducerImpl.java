@@ -30,6 +30,7 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 
 import io.netty.buffer.ByteBuf;
@@ -53,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -64,14 +66,15 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.SchemaHash;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -94,12 +97,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile Timeout sendTimeout = null;
     private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
-    private final int maxNumMessagesInBatch;
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
     private String producerName;
+    private boolean userProvidedProducerName = false;
 
     private String connectionId;
     private String connectedSince;
@@ -110,6 +113,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final CompressionCodec compressor;
 
     private volatile long lastSequenceIdPublished;
+    protected volatile long lastSequenceIdPushed;
+
     private MessageCrypto msgCrypto = null;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
@@ -126,10 +131,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
-                        ProducerInterceptors<T> interceptors) {
+                        ProducerInterceptors interceptors) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
+        if (StringUtils.isNotBlank(producerName)) {
+            this.userProvidedProducerName = true;
+        }
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
@@ -140,10 +148,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (conf.getInitialSequenceId() != null) {
             long initialSequenceId = conf.getInitialSequenceId();
             this.lastSequenceIdPublished = initialSequenceId;
-            this.msgIdGenerator = initialSequenceId + 1;
+            this.lastSequenceIdPushed = initialSequenceId;
+            this.msgIdGenerator = initialSequenceId + 1L;
         } else {
-            this.lastSequenceIdPublished = -1;
-            this.msgIdGenerator = 0;
+            this.lastSequenceIdPublished = -1L;
+            this.lastSequenceIdPushed = -1L;
+            this.msgIdGenerator = 0L;
         }
 
         if (conf.isEncryptionEnabled()) {
@@ -157,7 +167,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } catch (CryptoException e) {
                     if (!producerCreatedFuture.isDone()) {
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
-                        producerCreatedFuture.completeExceptionally(e);
+                        producerCreatedFuture.completeExceptionally(
+                            PulsarClientException.wrap(e, String.format("The producer %s of the topic %s " +
+                                "adds the public key cipher was failed", producerName, topic)));
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
@@ -170,7 +182,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         if (conf.isBatchingEnabled()) {
-            this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
             BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
                 containerBuilder = BatcherBuilder.DEFAULT;
@@ -178,7 +189,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.batchMessageContainer = (BatchMessageContainerBase)containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
         } else {
-            this.maxNumMessagesInBatch = 1;
             this.batchMessageContainer = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
@@ -229,11 +239,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
 
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
+        MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
         //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
         interceptorMessage.getDataBuffer().retain();
         if (interceptors != null) {
@@ -283,10 +293,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         msg.getDataBuffer().retain();
                         if (e != null) {
                             stats.incrementSendFailed();
-                            onSendAcknowledgement((Message<T>) msg, null, e);
+                            onSendAcknowledgement(msg, null, e);
                             sendCallback.getFuture().completeExceptionally(e);
                         } else {
-                            onSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
+                            onSendAcknowledgement(msg, msg.getMessageId(), null);
                             sendCallback.getFuture().complete(msg.getMessageId());
                             stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                         }
@@ -307,7 +317,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
-    public void sendAsync(Message<T> message, SendCallback callback) {
+    public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
         if (!isValidProducerState(callback)) {
@@ -318,7 +328,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        MessageImpl<T> msg = (MessageImpl<T>) message;
+        MessageImpl<?> msg = (MessageImpl) message;
         MessageMetadata.Builder msgMetadataBuilder = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
 
@@ -339,8 +349,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                            ? "Compressed"
                                            : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                           ClientCnx.getMaxMessageSize()));
+                    format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds %d bytes",
+                        producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
                 callback.sendComplete(invalidMessageException);
                 return;
             }
@@ -348,7 +358,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         if (!msg.isReplicated() && msgMetadataBuilder.hasProducerName()) {
             PulsarClientException.InvalidMessageException invalidMessageException =
-                    new PulsarClientException.InvalidMessageException("Cannot re-use the same message");
+                new PulsarClientException.InvalidMessageException(
+                    format("The producer %s of the topic %s can not reuse the same message", producerName, topic));
             callback.sendComplete(invalidMessageException);
             compressedPayload.release();
             return;
@@ -382,15 +393,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
                 if (canAddToBatch(msg)) {
-                    // handle boundary cases where message being added would exceed
-                    // batch size and/or max message size
                     if (canAddToCurrentBatch(msg)) {
-                        batchMessageContainer.add(msg, callback);
-                        lastSendFuture = callback.getFuture();
-                        payload.release();
-                        if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
-                                || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
-                            batchMessageAndSend();
+                        // should trigger complete the batch message, new message will add to a new batch and new batch
+                        // sequence id use the new message, so that broker can handle the message duplication
+                        if (sequenceId <= lastSequenceIdPushed) {
+                            if (sequenceId <= lastSequenceIdPublished) {
+                                log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
+                            } else {
+                                log.info("Message with sequence id {} might be a duplicate but cannot be determined at this time.",
+                                    sequenceId);
+                            }
+                            doBatchSendAndAdd(msg, callback, payload);
+                        } else {
+                            // handle boundary cases where message being added would exceed
+                            // batch size and/or max message size
+                            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+                            lastSendFuture = callback.getFuture();
+                            payload.release();
+                            if (isBatchFull) {
+                                batchMessageAndSend();
+                            }
                         }
                     } else {
                         doBatchSendAndAdd(msg, callback, payload);
@@ -442,7 +464,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         if (!isMultiSchemaEnabled(true)) {
             callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                    "Multiple schema disabled"));
+                format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)));
             return false;
         }
         SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
@@ -500,9 +522,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private CompletableFuture<byte[]> getOrCreateSchemaAsync(ClientCnx cnx, SchemaInfo schemaInfo) {
         if (!Commands.peerSupportsGetOrCreateSchema(cnx.getRemoteEndpointProtocolVersion())) {
             return FutureUtil.failedFuture(
-                    new PulsarClientException.NotSupportedException(
-                            "GetOrCreateSchema Not supported for ProtocolVersion: " +
-                            cnx.getRemoteEndpointProtocolVersion()));
+                new PulsarClientException.NotSupportedException(
+                    format("The command `GetOrCreateSchema` is not supported for the protocol version %d. " +
+                        "The producer is %s, topic is %s", cnx.getRemoteEndpointProtocolVersion(), producerName, topic)));
         }
         long requestId = client.newRequestId();
         ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
@@ -534,28 +556,34 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) {
-        ChecksumType checksumType;
-
-        if (connectionHandler.getClientCnx() == null
-                || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
-            checksumType = ChecksumType.Crc32c;
-        } else {
-            checksumType = ChecksumType.None;
-        }
-        return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
+        return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
     }
 
-    private boolean canAddToBatch(MessageImpl<T> msg) {
+    protected ByteBufPair sendMessage(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages, MessageMetadata msgMetadata,
+                                      ByteBuf compressedPayload) {
+        return Commands.newSend(producerId, lowestSequenceId, highestSequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    }
+
+    private ChecksumType getChecksumType() {
+        if (connectionHandler.getClientCnx() == null
+                || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+            return ChecksumType.Crc32c;
+        } else {
+            return ChecksumType.None;
+        }
+    }
+
+    private boolean canAddToBatch(MessageImpl<?> msg) {
         return msg.getSchemaState() == MessageImpl.SchemaState.Ready
                 && isBatchMessagingEnabled() && !msg.getMessageBuilder().hasDeliverAtTime();
     }
 
-    private boolean canAddToCurrentBatch(MessageImpl<T> msg) {
+    private boolean canAddToCurrentBatch(MessageImpl<?> msg) {
         return batchMessageContainer.haveEnoughSpace(msg)
                && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg));
     }
 
-    private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
+    private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
@@ -701,7 +729,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 setState(State.Closed);
                 client.cleanupProducer(this);
                 PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
-                        "Producer was already closed");
+                    format("The producer %s of the topic %s was already closed when closing the producers",
+                        producerName, topic));
                 pendingMessages.forEach(msg -> {
                     msg.callback.sendComplete(ex);
                     msg.cmd.release();
@@ -761,49 +790,57 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             setClientCnx(null);
 
             failPendingMessages(cnx,
-                    new PulsarClientException.TopicTerminatedException("The topic has been terminated"));
+                new PulsarClientException.TopicTerminatedException(
+                    format("The topic %s that the producer %s produces to has been terminated", topic, producerName)));
         }
     }
 
-    void ackReceived(ClientCnx cnx, long sequenceId, long ledgerId, long entryId) {
+    void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
         OpSendMsg op = null;
         boolean callback = false;
         synchronized (this) {
             op = pendingMessages.peek();
             if (op == null) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg {}", topic, producerName, sequenceId);
+                    log.debug("[{}] [{}] Got ack for timed out msg {} - {}", topic, producerName, sequenceId, highestSequenceId);
                 }
                 return;
             }
 
-            long expectedSequenceId = op.sequenceId;
-            if (sequenceId > expectedSequenceId) {
-                log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
-                        expectedSequenceId, sequenceId, pendingMessages.size());
+            if (sequenceId > op.sequenceId) {
+                log.warn("[{}] [{}] Got ack for msg. expecting: {} - {} - got: {} - {} - queue-size: {}", topic, producerName,
+                        op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId, pendingMessages.size());
                 // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
-            } else if (sequenceId < expectedSequenceId) {
+            } else if (sequenceId < op.sequenceId) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg {} last-seq: {}", topic, producerName, sequenceId,
-                            expectedSequenceId);
+                    log.debug("[{}] [{}] Got ack for timed out msg. expecting: {} - {} - got: {} - {}", topic, producerName,
+                            op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId);
                 }
             } else {
-                // Message was persisted correctly
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
+                // Add check `sequenceId >= highestSequenceId` for backward compatibility.
+                if (sequenceId >= highestSequenceId || highestSequenceId == op.highestSequenceId) {
+                    // Message was persisted correctly
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
+                    }
+                    pendingMessages.remove();
+                    releaseSemaphoreForSendOp(op);
+                    callback = true;
+                    pendingCallbacks.add(op);
+                } else {
+                    log.warn("[{}] [{}] Got ack for batch msg error. expecting: {} - {} - got: {} - {} - queue-size: {}", topic, producerName,
+                            op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId, pendingMessages.size());
+                    // Force connection closing so that messages can be re-transmitted in a new connection
+                    cnx.channel().close();
                 }
-                pendingMessages.remove();
-                semaphore.release(op.numMessagesInBatch);
-                callback = true;
-                pendingCallbacks.add(op);
             }
         }
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
-                lastSequenceIdPublished = op.sequenceId + op.numMessagesInBatch - 1;
+                lastSequenceIdPublished = Math.max(lastSequenceIdPublished, getHighestSequenceId(op));
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -817,6 +854,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.recycle();
             }
         }
+    }
+
+    private long getHighestSequenceId(OpSendMsg op) {
+        return Math.max(op.highestSequenceId, op.sequenceId);
+    }
+
+    private void releaseSemaphoreForSendOp(OpSendMsg op) {
+        semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
     }
 
     /**
@@ -839,16 +884,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.debug("[{}] [{}] Got send failure for timed out msg {}", topic, producerName, sequenceId);
             }
         } else {
-            long expectedSequenceId = op.sequenceId;
+            long expectedSequenceId = getHighestSequenceId(op);
             if (sequenceId == expectedSequenceId) {
                 boolean corrupted = !verifyLocalBufferIsNotCorrupted(op);
                 if (corrupted) {
                     // remove message from pendingMessages queue and fail callback
                     pendingMessages.remove();
-                    semaphore.release(op.numMessagesInBatch);
+                    releaseSemaphoreForSendOp(op);
                     try {
                         op.callback.sendComplete(
-                                new PulsarClientException.ChecksumException("Checksum failed on corrupt message"));
+                            new PulsarClientException.ChecksumException(
+                                format("The checksum of the message which is produced by producer %s to the topic " +
+                                    "%s is corrupted", producerName, topic)));
                     } catch (Throwable t) {
                         log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                                 producerName, sequenceId, t);
@@ -908,7 +955,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             return true;
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName,
+                    (op.cmd == null ? null : op.cmd.getClass().getName()));
             return false;
         }
     }
@@ -923,6 +971,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long createdAt;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
+        long highestSequenceId;
 
         static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
@@ -944,14 +993,27 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
+                                long highestSequenceId,  SendCallback callback) {
+            OpSendMsg op = RECYCLER.get();
+            op.msgs = msgs;
+            op.cmd = cmd;
+            op.callback = callback;
+            op.sequenceId = lowestSequenceId;
+            op.highestSequenceId = highestSequenceId;
+            op.createdAt = System.currentTimeMillis();
+            return op;
+        }
+
         void recycle() {
             msg = null;
             msgs = null;
             cmd = null;
             callback = null;
             rePopulate = null;
-            sequenceId = -1;
-            createdAt = -1;
+            sequenceId = -1L;
+            createdAt = -1L;
+            highestSequenceId = -1L;
             recyclerHandle.recycle(this);
         }
 
@@ -1025,7 +1087,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo),
+                       schemaInfo, connectionHandler.epoch, userProvidedProducerName),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1089,7 +1151,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             }
 
                             PulsarClientException bqe = new PulsarClientException.ProducerBlockedQuotaExceededException(
-                                    "Could not send pending messages as backlog exceeded");
+                                format("The backlog quota of the topic %s that the producer %s produces to is exceeded",
+                                    topic, producerName));
                             failPendingMessages(cnx(), bqe);
                         }
                     } else if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
@@ -1200,7 +1263,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.resetReaderIndex();
             }
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName,
+                    (op.cmd == null ? null : op.cmd.getClass().getName()));
         }
     }
 
@@ -1245,7 +1309,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             pendingMessages.size());
 
                     PulsarClientException te = new PulsarClientException.TimeoutException(
-                            "Could not send message to broker within given timeout");
+                        format("The producer %s can not send message to the topic %s within given timeout",
+                            producerName, topic));
                     failPendingMessages(cnx(), te);
                     stats.incrementSendFailed(pendingMessages.size());
                     // Since the pending queue is cleared now, set timer to expire after configured value.
@@ -1267,8 +1332,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
+            final boolean batchMessagingEnabled = isBatchMessagingEnabled();
             pendingMessages.forEach(op -> {
-                releaseCount.addAndGet(op.numMessagesInBatch);
+                releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch: 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
@@ -1280,12 +1346,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();
             });
-            semaphore.release(releaseCount.get());
+
             pendingMessages.clear();
             pendingCallbacks.clear();
-            if (isBatchMessagingEnabled()) {
+            semaphore.release(releaseCount.get());
+            if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
+
         } else {
             // If we have a connection, we schedule the callback and recycle on the event loop thread to avoid any
             // race condition since we also write the message on the socket from this thread
@@ -1305,9 +1373,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (batchMessageContainer.isEmpty()) {
             return;
         }
-        int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
-        semaphore.release(numMessagesInBatch);
+        final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         batchMessageContainer.discard(ex);
+        semaphore.release(numMessagesInBatch);
     }
 
     TimerTask batchMessageAndSendTask = new TimerTask() {
@@ -1317,8 +1385,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (timeout.isCancelled()) {
                 return;
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Batching the messages from the batch container from timer thread", topic,
+            if (log.isTraceEnabled()) {
+                log.trace("[{}] [{}] Batching the messages from the batch container from timer thread", topic,
                         producerName);
             }
             // semaphore acquired when message was enqueued to container
@@ -1359,8 +1427,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
                     batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
@@ -1380,17 +1448,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 semaphore.release(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
                 semaphore.release(batchMessageContainer.getNumMessagesInBatch());
-                log.warn("[{}] [{}] error while create opSendMsg by batch message container -- {}", topic, producerName, t);
+                log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
             }
         }
     }
 
     private void processOpSendMsg(OpSendMsg op) {
+        if (op == null) {
+            return;
+        }
         try {
             if (op.msg != null && isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
             pendingMessages.put(op);
+            if (op.msg != null) {
+                lastSequenceIdPushed = Math.max(lastSequenceIdPushed, getHighestSequenceId(op));
+            }
             ClientCnx cnx = cnx();
             if (isConnected()) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {
@@ -1410,12 +1484,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            semaphore.release(op.numMessagesInBatch);
+            releaseSemaphoreForSendOp(op);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(ie));
             }
         } catch (Throwable t) {
-            semaphore.release(op.numMessagesInBatch);
+            releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(t));
@@ -1531,6 +1605,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     void grabCnx() {
         this.connectionHandler.grabCnx();
+    }
+
+    @VisibleForTesting
+    Semaphore getSemaphore() {
+        return semaphore;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);

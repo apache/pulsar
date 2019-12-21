@@ -27,6 +27,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -170,6 +171,12 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setCleanupSubscription(true);
         }
 
+        if (sinkConfig.getSourceSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.EARLIEST);
+        } else {
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.LATEST);
+        }
+
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // set up sink spec
@@ -208,6 +215,10 @@ public class SinkConfigUtils {
         }
 
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SINK);
+
+        if (!StringUtils.isEmpty(sinkConfig.getCustomRuntimeOptions())) {
+            functionDetailsBuilder.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
+        }
 
         return functionDetailsBuilder.build();
     }
@@ -281,6 +292,10 @@ public class SinkConfigUtils {
 
         if (isNotBlank(functionDetails.getRuntimeFlags())) {
             sinkConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
+        }
+
+        if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
+            sinkConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
 
         return sinkConfig;
@@ -362,7 +377,7 @@ public class SinkConfigUtils {
             try {
                 typeArg = getSinkType(sinkClassName, narClassLoader);
                 classLoader = narClassLoader;
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
                         String.format("Sink class %s must be in class path", sinkClassName), e);
             }
@@ -373,13 +388,13 @@ public class SinkConfigUtils {
                 try {
                     typeArg = getSinkType(sinkClassName, jarClassLoader);
                     classLoader = jarClassLoader;
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // class not found in JAR try loading as a NAR and searching for the class
                     if (narClassLoader != null) {
                         try {
                             typeArg = getSinkType(sinkClassName, narClassLoader);
                             classLoader = narClassLoader;
-                        } catch (ClassNotFoundException e1) {
+                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
                                     String.format("Sink class %s must be in class path", sinkClassName), e1);
                         }
@@ -392,7 +407,7 @@ public class SinkConfigUtils {
                 try {
                     typeArg = getSinkType(sinkClassName, narClassLoader);
                     classLoader = narClassLoader;
-                } catch (ClassNotFoundException e1) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
                             String.format("Sink class %s must be in class path", sinkClassName), e1);
                 }
@@ -559,6 +574,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
             mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
+        if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
+            mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
     }

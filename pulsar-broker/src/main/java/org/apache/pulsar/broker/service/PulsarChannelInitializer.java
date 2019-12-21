@@ -39,8 +39,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final ServiceConfiguration brokerConf;
 
     /**
-     *
-     * @param brokerService
+     * @param pulsar
+     *              An instance of {@link PulsarService}
+     * @param enableTLS
+     *              Enable tls or not
      */
     public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
         super();
