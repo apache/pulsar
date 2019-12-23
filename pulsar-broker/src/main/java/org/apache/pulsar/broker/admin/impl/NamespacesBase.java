@@ -1476,6 +1476,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalModifyDelayedDelivery(boolean delayedDelivery) {
+        validateSuperUserAccess();
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 

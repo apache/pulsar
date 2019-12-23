@@ -119,8 +119,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
-        this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
-                .isDelayedDeliveryEnabled();
+        this.isDelayedDeliveryEnabled = isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 
@@ -197,6 +196,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;
         }
+        return false;
+    }
+
+    private boolean isDelayedDeliveryEnabled() {
+        Policies policies;
+        try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+
+        final boolean isDelayedDelivery = policies.delayed_delivery ? policies.delayed_delivery :
+                serviceConfig.isDelayedDeliveryEnabled();
+
+        if (isDelayedDelivery) {
+            return true;
+        }
+
         return false;
     }
 
