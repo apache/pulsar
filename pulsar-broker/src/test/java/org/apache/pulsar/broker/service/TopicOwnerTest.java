@@ -94,7 +94,7 @@ public class TopicOwnerTest {
     }
 
     @Test
-    public void testBundleSplit() throws Exception {
+    public void testConnectToInvalidateBundleCacheBroker() throws Exception {
         pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(brokerUrls[0].toString()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
@@ -106,9 +106,11 @@ public class TopicOwnerTest {
         final String topic1 = "persistent://my-tenant/my-ns/topic-1";
         final String topic2 = "persistent://my-tenant/my-ns/topic-2";
 
+        // Do topic lookup here for broker to own namespace bundles
         if (pulsarAdmins[0].lookups().lookupTopic(topic1).equals(pulsarAdmins[0].lookups().lookupTopic(topic2))) {
-            testBundleSplit();
+            testConnectToInvalidateBundleCacheBroker();
         } else {
+            // All brokers will invalidate bundles cache after namespace bundle split
             pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
                     pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
                     true);
@@ -117,6 +119,7 @@ public class TopicOwnerTest {
                     serviceUrl(pulsarServices[0].getBrokerServiceUrl())
                     .build();
 
+            // Check connect to a topic which owner broker invalidate all namespace bundles cache
             Consumer<byte[]> consumer = client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
             Assert.assertTrue(consumer.isConnected());
         }
