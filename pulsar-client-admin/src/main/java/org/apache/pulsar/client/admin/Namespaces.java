@@ -1178,7 +1178,29 @@ public interface Namespaces {
      */
     void setDelayedDeliveryMessages(String namespace, boolean delayedDeliveryMessages) throws PulsarAdminException;
 
-     /**
+    /**
+     * Set the delayed delivery messages for all topics within a namespace.
+     * <p>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param delayedDeliveryTime
+     *            The tick time for when retrying on delayed delivery messages.
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDelayedDeliveryTime(String namespace, long delayedDeliveryTime) throws PulsarAdminException;
+
+    /**
      * Set the given subscription auth mode on all topics on a namespace
      *
      * @param namespace

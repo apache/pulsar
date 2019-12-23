@@ -222,6 +222,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return false;
     }
 
+    public long isDelayedDeliveryTickTime() {
+        Policies policies;
+        try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final long delayedDeliveryTickTime = policies.delayed_delivery_time > 0 ?
+                policies.delayed_delivery_time :
+                serviceConfig.getDelayedDeliveryTickTimeMillis();
+        return delayedDeliveryTickTime;
+    }
+
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer

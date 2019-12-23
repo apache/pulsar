@@ -1511,6 +1511,45 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalSetDelayedDeliveryTime(long delayedDeliveryTime) {
+        validateSuperUserAccess();
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        if (delayedDeliveryTime <= 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "delayedDeliveryTime can't be empty");
+        }
+
+        Entry<Policies, Stat> policiesNode = null;
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().delayed_delivery_time = delayedDeliveryTime;
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully set delayedDeliveryTime {} on namespace {}", clientAppId(), delayedDeliveryTime, namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to set delayed delivery tick time status for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to set delayed delivery tick time status on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to set delayed delivery tick time status on namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -1735,7 +1774,7 @@ public abstract class NamespacesBase extends AdminResource {
      *
      * @param clusterName:
      *            given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param clusters:
+     * @param replicationClusters:
      *            replication-cluster list
      */
     private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {

@@ -1404,6 +1404,19 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test(timeOut = 30000)
+    public void testDelayedDeliveryMessages() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // Set delayed_delivery to true
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        policies.delayed_delivery = true;
+
+    }
+
+
     protected void resetChannel() throws Exception {
         int MaxMessageSize = 5 * 1024 * 1024;
         if (channel != null && channel.isActive()) {

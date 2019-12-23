@@ -714,6 +714,17 @@ public class Namespaces extends NamespacesBase {
         internalModifyDelayedDelivery(delayedDelivery);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/delayedDeliveryTickTime")
+    @ApiOperation(value = "The tick time for when retrying on delayed delivery messages")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
+    public void setDelayedDeliveryTickTime(@PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace, long delayedDeliveryTime) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDelayedDeliveryTime(delayedDeliveryTime);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/maxProducersPerTopic")
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")

@@ -905,6 +905,24 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "The tick time for when retrying on delayed delivery messages")
+    private class SetDelayedDeliveryTickTime extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on delayed delivery messages, " +
+                "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)",
+                required = true)
+        private String delayedDeliveryTimeStr = "1s";
+        long delayedDeliveryTime = RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr);
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setDelayedDeliveryTime(namespace, delayedDeliveryTime);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription auth mode on a namespace")
     private class SetSubscriptionAuthMode extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1337,6 +1355,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
+        jcommander.addCommand("set-delayed-delivery-time", new SetDelayedDeliveryTickTime());
         jcommander.addCommand("set-subscription-auth-mode", new SetSubscriptionAuthMode());
 
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
