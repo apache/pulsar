@@ -225,7 +225,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
                     messagesToRedeliver.add(ledgerId, entryId);
-                    redeliveryTracker.add(PositionImpl.get(ledgerId, entryId));
+                    redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 readMoreEntries();
@@ -639,7 +639,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         positions.forEach(position -> {
             messagesToRedeliver.add(position.getLedgerId(), position.getEntryId());
-            redeliveryTracker.add(position);
+            redeliveryTracker.addIfAbsent(position);
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);

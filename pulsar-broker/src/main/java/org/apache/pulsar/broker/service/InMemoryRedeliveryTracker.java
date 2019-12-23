@@ -70,8 +70,8 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public void add(Position position) {
+    public void addIfAbsent(Position position) {
         PositionImpl positionImpl = (PositionImpl) position;
-        trackerCache.put(positionImpl.getLedgerId(), positionImpl.getEntryId(), 0, 0L);
+        trackerCache.putIfAbsent(positionImpl.getLedgerId(), positionImpl.getEntryId(), 0, 0L);
     }
 }

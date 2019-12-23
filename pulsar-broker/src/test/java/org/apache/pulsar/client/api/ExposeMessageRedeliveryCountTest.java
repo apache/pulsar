@@ -52,7 +52,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
+                .ackTimeout(1, TimeUnit.SECONDS)
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -89,7 +89,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
+                .ackTimeout(1, TimeUnit.SECONDS)
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();

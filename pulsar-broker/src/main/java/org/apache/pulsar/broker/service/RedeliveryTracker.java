@@ -36,5 +36,5 @@ public interface RedeliveryTracker {
 
     boolean contains(Position position);
 
-    void add(Position position);
+    void addIfAbsent(Position position);
 }

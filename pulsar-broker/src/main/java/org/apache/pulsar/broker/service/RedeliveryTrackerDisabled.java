@@ -59,7 +59,7 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
     }
 
     @Override
-    public void add(Position position) {
+    public void addIfAbsent(Position position) {
         // no-op
     }
 }
