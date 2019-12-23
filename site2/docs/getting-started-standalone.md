@@ -1,6 +1,6 @@
 ---
 id: standalone
-title: Set up a standalone Pulsar locally
+title: Set up a standalone Pulsar locally (from jiajia)
 sidebar_label: Run Pulsar locally
 ---
 
