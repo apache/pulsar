@@ -914,12 +914,12 @@ public class CmdNamespaces extends CmdBase {
                 "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)",
                 required = true)
         private String delayedDeliveryTimeStr = "1s";
-        long delayedDeliveryTime = RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr);
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().setDelayedDeliveryTime(namespace, delayedDeliveryTime);
+            long delayedDeliveryTime = RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr);
+            admin.namespaces().setDelayedDeliveryTime(namespace, TimeUnit.SECONDS.toMillis(delayedDeliveryTime));
         }
     }
 

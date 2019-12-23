@@ -861,6 +861,7 @@ Subcommands
 * `unsubscribe`
 * `set-encryption-required`
 * `set-delayed-delivery`
+* `set-delayed-delivery-time`
 * `set-subscription-auth-mode`
 * `get-max-producers-per-topic`
 * `set-max-producers-per-topic`
@@ -1353,6 +1354,21 @@ Options
 |----|---|---|
 |`-d`, `--disable`|Disable delayed delivery messages|false|
 |`-e`, `--enable`|Enable delayed delivery messages|false|
+
+
+### `set-delayed-delivery-time`
+The tick time for when retrying on delayed delivery messages
+
+Usage
+```bash
+$ pulsar-admin namespaces set-delayed-delivery-time tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-t`, `--time`|The tick time for when retrying on delayed delivery messages|1s|
 
 
 ### `set-subscription-auth-mode`
