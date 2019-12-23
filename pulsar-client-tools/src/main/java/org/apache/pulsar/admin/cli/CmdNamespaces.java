@@ -883,6 +883,28 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable or disable delayed delivery for messages on a namespace")
+    private class SetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable delayed delivery messages")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable delayed delivery messages")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setDelayedDeliveryMessages(namespace, enable);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription auth mode on a namespace")
     private class SetSubscriptionAuthMode extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1314,6 +1336,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("unsubscribe", new Unsubscribe());
 
         jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
+        jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("set-subscription-auth-mode", new SetSubscriptionAuthMode());
 
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());

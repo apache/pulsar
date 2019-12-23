@@ -64,6 +64,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
     @SuppressWarnings("checkstyle:MemberName")
+    public boolean delayed_delivery = false;
+    @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")

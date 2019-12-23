@@ -702,6 +702,18 @@ public class Namespaces extends NamespacesBase {
         internalModifyEncryptionRequired(encryptionRequired);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/delayedDeliveryMessages")
+    @ApiOperation(value = "Delayed delivery messages is required or not for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"), })
+    public void modifyDelayedDeliveryMessages(@PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace, boolean delayedDelivery) {
+        validateNamespaceName(tenant, namespace);
+        internalModifyDelayedDelivery(delayedDelivery);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/maxProducersPerTopic")
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")

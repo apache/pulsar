@@ -1152,6 +1152,32 @@ public interface Namespaces {
      */
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 
+    /**
+     * Set the delayed delivery messages for all topics within a namespace.
+     * <p>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param delayedDeliveryMessages
+     *            Whether to enable the delayed delivery for messages.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDelayedDeliveryMessages(String namespace, boolean delayedDeliveryMessages) throws PulsarAdminException;
+
      /**
      * Set the given subscription auth mode on all topics on a namespace
      *

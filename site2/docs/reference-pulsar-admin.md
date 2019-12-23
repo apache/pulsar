@@ -860,6 +860,7 @@ Subcommands
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
+* `set-delayed-delivery`
 * `set-subscription-auth-mode`
 * `get-max-producers-per-topic`
 * `set-max-producers-per-topic`
@@ -1337,6 +1338,22 @@ Options
 |----|---|---|
 |`-d`, `--disable`|Disable message encryption required|false|
 |`-e`, `--enable`|Enable message encryption required|false|
+
+### `set-delayed-delivery`
+Enable or disable delayed delivery messages for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-delayed-delivery tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--disable`|Disable delayed delivery messages|false|
+|`-e`, `--enable`|Enable delayed delivery messages|false|
+
 
 ### `set-subscription-auth-mode`
 Set subscription auth mode on a namespace
