@@ -61,12 +61,6 @@ public class TopicOwnerTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
 
-        String[] args = new String[]{
-                "--cluster", "my-cluster",
-                "--configuration-store", "localhost:" + ZOOKEEPER_PORT};
-
-        PulsarTransactionCoordinatorMetadataSetup.main(args);
-
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             brokerWebServicePorts[i] = PortManager.nextFreePort();
@@ -107,21 +101,26 @@ public class TopicOwnerTest {
         final String topic2 = "persistent://my-tenant/my-ns/topic-2";
 
         // Do topic lookup here for broker to own namespace bundles
-        if (pulsarAdmins[0].lookups().lookupTopic(topic1).equals(pulsarAdmins[0].lookups().lookupTopic(topic2))) {
-            testConnectToInvalidateBundleCacheBroker();
-        } else {
-            // All brokers will invalidate bundles cache after namespace bundle split
-            pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
-                    pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
-                    true);
+        String serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
+        String serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
 
-            PulsarClient client = PulsarClient.builder().
-                    serviceUrl(pulsarServices[0].getBrokerServiceUrl())
-                    .build();
-
-            // Check connect to a topic which owner broker invalidate all namespace bundles cache
-            Consumer<byte[]> consumer = client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
-            Assert.assertTrue(consumer.isConnected());
+        while (serviceUrlForTopic1.equals(serviceUrlForTopic2)) {
+            // Retry for bundle distribution, should make sure bundles for topic1 and topic2 are maintained in different brokers.
+            pulsarAdmins[0].namespaces().unload("my-tenant/my-ns");
+            serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
+            serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
         }
+        // All brokers will invalidate bundles cache after namespace bundle split
+        pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
+                pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
+                true);
+
+        PulsarClient client = PulsarClient.builder().
+                serviceUrl(serviceUrlForTopic1)
+                .build();
+
+        // Check connect to a topic which owner broker invalidate all namespace bundles cache
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic2).subscriptionName("test").subscribe();
+        Assert.assertTrue(consumer.isConnected());
     }
 }
