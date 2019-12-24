@@ -18,13 +18,14 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
+
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -43,12 +44,13 @@ public class CachedPulsarClient {
         cacheSize = size;
     }
 
-    private static CacheLoader<ClientConfigurationData, PulsarClientImpl> cacheLoader = new CacheLoader<ClientConfigurationData, PulsarClientImpl>() {
-        @Override
-        public PulsarClientImpl load(ClientConfigurationData key) throws Exception {
-            return createPulsarClient(key);
-        }
-    };
+    private static CacheLoader<ClientConfigurationData, PulsarClientImpl> cacheLoader =
+        new CacheLoader<ClientConfigurationData, PulsarClientImpl>() {
+            @Override
+            public PulsarClientImpl load(ClientConfigurationData key) throws Exception {
+                return createPulsarClient(key);
+            }
+        };
 
     private static RemovalListener<ClientConfigurationData, PulsarClientImpl> removalListener = notification -> {
         ClientConfigurationData config = notification.getKey();
