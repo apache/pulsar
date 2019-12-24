@@ -148,8 +148,10 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
             final boolean savedValidateDefaults = validateDefaults.get();
 
             try {
+                // Disable validation of default values for compatibility
                 validateDefaults.set(false);
-                return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo) : ReflectData.get().getSchema(pojo);
+                return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo)
+                        : ReflectData.get().getSchema(pojo);
             } finally {
                 validateDefaults.set(savedValidateDefaults);
             }
