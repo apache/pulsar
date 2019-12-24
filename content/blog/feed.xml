@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Wed, 18 Dec 2019 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Fri, 20 Dec 2019 06:00:00 GMT</lastBuildDate>
         <docs>http://blogs.law.harvard.edu/tech/rss</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Pulsar milestone celebration—200 contributors!]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2019/12/20/pulsar-milestone-200-contributors.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2019/12/20/pulsar-milestone-200-contributors.html</guid>
+            <pubDate>Fri, 20 Dec 2019 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>Dear Apache Pulsar enthusiast,</p> <p>As we know, when assessing the health of an open-source community, it is tempting to focus on various quantitative metrics, for example, activity, size (contributors), demographics, diversity, and so on, among which the...</p>]]></description>
+        </item>
         <item>
             <title><![CDATA[Pulsar Summit San Francisco 2020 CFP is now open]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2019/12/18/Pulsar-summit-cfp.html</link>
