@@ -116,7 +116,6 @@ import org.slf4j.LoggerFactory;
 public class PersistentTopicsBase extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
 
-    public static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
@@ -394,9 +393,9 @@ public class PersistentTopicsBase extends AdminResource {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
-            tryCreatePartitions(numPartitions);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+            tryCreatePartitionsAsync(numPartitions);
+            // Sync data to all quorums and the observers
+            zkSync(path);
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
@@ -517,7 +516,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalCreateMissedPartitions() {
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
         if (metadata != null) {
-            tryCreatePartitions(metadata.partitions);
+            tryCreatePartitionsAsync(metadata.partitions);
         }
     }
 
@@ -608,8 +607,8 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 globalZk().delete(path, -1);
                 globalZkCache().invalidate(path);
-                // we wait for the data to be synced in all quorums and the observers
-                Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+                // Sync data to all quorums and the observers
+                zkSync(path);
                 log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                 asyncResponse.resume(Response.noContent().build());
                 return;
