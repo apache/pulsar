@@ -161,8 +161,8 @@ if (BUILD_PYTHON_WRAPPER)
 endif (BUILD_PYTHON_WRAPPER)
 
 if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl@1.1/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl@1.1/)
 endif ()
 
 find_package(OpenSSL REQUIRED)
