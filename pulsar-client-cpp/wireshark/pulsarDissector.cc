@@ -200,7 +200,7 @@ static void dissect_message_metadata(proto_tree* frame_tree, tvbuff_t *tvb, int 
     static MessageMetadata msgMetadata;
     uint8_t* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, metadataSize);
 
-    if (!msgMetadata.ParseFromArray(ptr, metadataSize)) {
+    if (!msgMetadata.ParsePartialFromArray(ptr, metadataSize)) {
         proto_tree_add_boolean_format(frame_tree, hf_pulsar_error, tvb, offset, metadataSize, true,
                                       "Error parsing protocol buffer message metadata");
         return;
@@ -315,7 +315,7 @@ static int dissect_pulsar_message(tvbuff_t *tvb, packet_info* pinfo, proto_tree*
     }
 
     uint8_t* ptr = (uint8_t*) tvb_get_ptr(tvb, offset, cmdSize);
-    if (!command.ParseFromArray(ptr, cmdSize)) {
+    if (!command.ParsePartialFromArray(ptr, cmdSize)) {
         proto_tree_add_boolean_format(tree, hf_pulsar_error, tvb, offset, cmdSize, true,
                                       "Error parsing protocol buffer command");
         return maxOffset;

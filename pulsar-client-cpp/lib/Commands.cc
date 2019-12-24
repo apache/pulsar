@@ -650,7 +650,7 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     const int& singleMetaSize = uncompressedPayload.readUnsignedInt();
     SingleMessageMetadata metadata;
-    metadata.ParseFromArray(uncompressedPayload.data(), singleMetaSize);
+    metadata.ParsePartialFromArray(uncompressedPayload.data(), singleMetaSize);
     uncompressedPayload.consume(singleMetaSize);
 
     const int& payloadSize = metadata.payload_size();
