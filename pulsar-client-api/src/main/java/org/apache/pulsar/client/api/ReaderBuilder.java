@@ -228,7 +228,7 @@ public interface ReaderBuilder<T> extends Cloneable {
      * Set key hash range of the reader, broker will only dispatch messages which hash of the message key contains by
      * the specified key hash range. Multiple key hash ranges can be specified on a reader.
      *
-     * Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+     * <p>Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
      *
      * @param ranges
      *            key hash ranges for a reader
