@@ -359,7 +359,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 CreateMode.EPHEMERAL);
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
 
-        // update to new load mananger
+        // update to new load manager
         LoadManager oldLoadManager = pulsar.getLoadManager()
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();

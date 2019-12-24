@@ -65,7 +65,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     /**
-     * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
      *
      * @throws Exception
      */

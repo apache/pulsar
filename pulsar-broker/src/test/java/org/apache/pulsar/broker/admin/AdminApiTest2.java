@@ -460,7 +460,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             }
         }
 
-        // close consumer which will clean up intenral-receive-queue
+        // close consumer which will clean up internal-receive-queue
         consumer.close();
 
         // messages should still be available due to retention
@@ -589,7 +589,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
-        // Cluster itselft can't be part of peer-list
+        // Cluster itself can't be part of peer-list
         try {
             admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west1")));
             fail("should have failed");
