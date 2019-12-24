@@ -56,7 +56,7 @@ public class TopicOwnerTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        log.info("---- Initializing SLAMonitoringTest -----");
+        log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
