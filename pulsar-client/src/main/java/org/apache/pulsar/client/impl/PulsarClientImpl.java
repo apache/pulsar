@@ -675,9 +675,10 @@ public class PulsarClientImpl implements PulsarClient {
                                              CompletableFuture<PartitionedTopicMetadata> future) {
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                future.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getPartitionedTopicMetadata within configured timeout."));
+            // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
+            boolean isLookupThrottling = e.getCause() instanceof PulsarClientException.TooManyRequestsException;
+            if (nextDelay <= 0 || isLookupThrottling) {
+                future.completeExceptionally(e);
                 return null;
             }
 
