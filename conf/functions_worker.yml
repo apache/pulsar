@@ -38,7 +38,7 @@ zooKeeperOperationTimeoutSeconds: 30
 ################################
 
 numFunctionPackageReplicas: 1
-downloadDirectory: /tmp/pulsar_functions
+downloadDirectory: download/pulsar_functions
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName: 
 
