@@ -577,7 +577,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : getNonDurableSubscription(subscriptionName, startMessageId, startMessageRollbackDurationSec);
 
         int maxUnackedMessages = isDurable
-                ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer()
+                ? unackedMessagesExceededOnConsumer()
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
@@ -620,6 +620,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return future;
+    }
+
+    private int unackedMessagesExceededOnConsumer() {
+        Policies policies;
+        try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(this.getName()).getNamespace()));
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxUnackedMessagesPerConsumer = policies.max_unacked_messages_per_consumer > 0 ?
+                policies.max_unacked_messages_per_consumer :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+
+        return maxUnackedMessagesPerConsumer;
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,

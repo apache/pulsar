@@ -117,8 +117,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
-        this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
-                .getMaxUnackedMessagesPerSubscription();
+        this.maxUnackedMessages = unackedMessagesExceededOnSubscription();
         this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
                 .isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -198,6 +197,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return true;
         }
         return false;
+    }
+
+    private int unackedMessagesExceededOnSubscription() {
+        Policies policies;
+        try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxUnackedMessagesPerSubscription = policies.max_unacked_messages_per_subscription > 0 ?
+                policies.max_unacked_messages_per_subscription :
+                serviceConfig.getMaxUnackedMessagesPerSubscription();
+        return maxUnackedMessagesPerSubscription;
     }
 
     @Override

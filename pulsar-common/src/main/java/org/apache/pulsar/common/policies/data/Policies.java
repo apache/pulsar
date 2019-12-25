@@ -72,6 +72,10 @@ public class Policies {
     public int max_consumers_per_topic = 0;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
+    @SuppressWarnings("checkstyle:MemberName")
+    public int max_unacked_messages_per_consumer = 0;
+    @SuppressWarnings("checkstyle:MemberName")
+    public int max_unacked_messages_per_subscription = 0;
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
@@ -105,6 +109,7 @@ public class Policies {
                 encryption_required, subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
+                max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
@@ -137,6 +142,8 @@ public class Policies {
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
+                    && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
+                    && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
@@ -185,6 +192,8 @@ public class Policies {
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
                 .add("max_consumers_per_subscription", max_consumers_per_topic)
+                .add("max_unacked_messages_per_consumer", max_unacked_messages_per_consumer)
+                .add("max_unacked_messages_per_subscription", max_unacked_messages_per_subscription)
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
