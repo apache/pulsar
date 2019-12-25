@@ -527,7 +527,7 @@ void ClientConnection::processIncomingBuffer() {
 
         // At this point,  we have at least one complete frame available in the buffer
         uint32_t cmdSize = incomingBuffer_.readUnsignedInt();
-        if (!incomingCmd_.ParsePartialFromArray(incomingBuffer_.data(), cmdSize)) {
+        if (!incomingCmd_.ParseFromArray(incomingBuffer_.data(), cmdSize)) {
             LOG_ERROR(cnxString_ << "Error parsing protocol buffer command");
             close();
             return;
@@ -544,7 +544,7 @@ void ClientConnection::processIncomingBuffer() {
             bool isChecksumValid = verifyChecksum(incomingBuffer_, remainingBytes, incomingCmd_);
 
             uint32_t metadataSize = incomingBuffer_.readUnsignedInt();
-            if (!msgMetadata.ParsePartialFromArray(incomingBuffer_.data(), metadataSize)) {
+            if (!msgMetadata.ParseFromArray(incomingBuffer_.data(), metadataSize)) {
                 LOG_ERROR(cnxString_ << "[consumer id " << incomingCmd_.message().consumer_id()  //
                                      << ", message ledger id "
                                      << incomingCmd_.message().message_id().ledgerid()  //
