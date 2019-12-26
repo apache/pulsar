@@ -1287,6 +1287,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
+        int pendingSize = pendingAddEntries.size();
         STATE_UPDATER.set(this, State.LedgerOpened);
         lastLedgerCreatedTimestamp = clock.millis();
 
@@ -1294,7 +1295,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
         }
         // Process all the pending addEntry requests
-        int pendingSize = pendingAddEntries.size();
         OpAddEntry op;
         do {
             op = pendingAddEntries.poll();
