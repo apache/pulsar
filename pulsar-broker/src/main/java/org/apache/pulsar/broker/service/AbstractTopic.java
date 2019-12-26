@@ -80,6 +80,8 @@ public abstract class AbstractTopic implements Topic {
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
+    protected volatile int maxUnackedMessagesOnConsumer = 0;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     private LongAdder bytesInCounter = new LongAdder();

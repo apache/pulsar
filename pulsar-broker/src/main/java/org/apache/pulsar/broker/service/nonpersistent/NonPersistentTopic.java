@@ -147,6 +147,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             setSchemaCompatibilityStrategy(policies);
 
             schemaValidationEnforced = policies.schema_validation_enforced;
+            maxUnackedMessagesOnConsumer = policies.max_unacked_messages_per_consumer;
 
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
@@ -865,6 +866,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
+        maxUnackedMessagesOnConsumer = data.max_unacked_messages_per_consumer;
 
         producers.values().forEach(producer -> {
             producer.checkPermissions();

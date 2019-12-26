@@ -95,7 +95,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
     private volatile int totalUnackedMessages = 0;
-    private final int maxUnackedMessages;
+    private int maxUnackedMessages;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
@@ -674,6 +674,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (maxUnackedMessages <= 0) {
             return;
         }
+
+        int unackedMessagesFromPolicies = topic.maxUnackedMessagesOnSubscription;
+        if (unackedMessagesFromPolicies > 0 && unackedMessagesFromPolicies > maxUnackedMessages) {
+            maxUnackedMessages = unackedMessagesFromPolicies;
+        }
+
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
         if (unAckedMessages >= maxUnackedMessages
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
