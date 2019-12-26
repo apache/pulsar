@@ -99,6 +99,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
@@ -1642,6 +1643,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return null;
                     });
 
+        }
+    }
+
+    public boolean checkActiveDelayedDelivery() {
+        TopicName name = TopicName.get(topic);
+        try {
+            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()));
+            // If no policies, the default is to delayed delivery messages and the tick time is 1s.
+            DelayedDeliveryPolicies delayedDeliveryPolicies = policies.map(p -> p.delayed_delivery_policies).orElseGet(
+                    () -> new DelayedDeliveryPolicies(
+                            brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
+                            brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled())
+            );
+
+            return delayedDeliveryPolicies.isActive();
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies", topic);
+            }
+
+            return false;
         }
     }
 

@@ -718,7 +718,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-        if (!isDelayedDeliveryEnabled) {
+        if (!isDelayedDeliveryEnabled || topic.checkActiveDelayedDelivery()) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
