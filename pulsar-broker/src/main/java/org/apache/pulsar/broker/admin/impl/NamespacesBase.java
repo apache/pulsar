@@ -68,22 +68,8 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
@@ -1475,76 +1461,47 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalModifyDelayedDelivery(boolean delayedDelivery) {
-        validateSuperUserAccess();
+    protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
 
-        Entry<Policies, Stat> policiesNode = null;
-        try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
-                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().delayed_delivery = delayedDelivery;
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
-            log.info("[{}] Successfully {} on namespace {}", clientAppId(), delayedDelivery ? "true" : "false",
-                    namespaceName);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to modify delayed delivery messages status for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to modify delayed delivery messages status on namespace {} expected policy node version={} : concurrent modification",
-                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to modify delayed delivery messages status on namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
+        Policies policies = getNamespacePolicies(namespaceName);
+        if (policies.delayed_delivery_policies == null) {
+            return new DelayedDeliveryPolicies(config().getDelayedDeliveryTickTimeMillis(),
+                    config().isDelayedDeliveryEnabled());
+        } else {
+            return policies.delayed_delivery_policies;
         }
     }
 
-    protected void internalSetDelayedDeliveryTime(long delayedDeliveryTime) {
+    protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
         validateSuperUserAccess();
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
-        if (delayedDeliveryTime <= 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "delayedDeliveryTime can't be empty");
-        }
-
-        Entry<Policies, Stat> policiesNode = null;
         try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
-                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().delayed_delivery_time = delayedDeliveryTime;
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
 
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policies.delayed_delivery_policies = delayedDeliveryPolicies;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated delayed delivery messages configuration: namespace={}, map={}", clientAppId(),
+                    namespaceName, jsonMapper().writeValueAsString(policies.retention_policies));
 
-            log.info("[{}] Successfully set delayedDeliveryTime {} on namespace {}", clientAppId(), delayedDeliveryTime, namespaceName);
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to set delayed delivery tick time status for namespace {}: does not exist", clientAppId(),
+            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: does not exist", clientAppId(),
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to set delayed delivery tick time status on namespace {} expected policy node version={} : concurrent modification",
-                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
+            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to set delayed delivery tick time status on namespace {}", clientAppId(), namespaceName,
+            log.error("[{}] Failed to update delayed delivery messages configuration for namespace {}", clientAppId(), namespaceName,
                     e);
             throw new RestException(e);
         }

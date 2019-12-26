@@ -28,19 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.*;
 
 /**
  * Admin interface for namespaces management
@@ -1153,7 +1141,7 @@ public interface Namespaces {
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 
     /**
-     * Set the delayed delivery messages for all topics within a namespace.
+     * Get the delayed delivery messages for all topics within a namespace.
      * <p>
      * If disabled, messages will be immediately delivered and there will
      * be no tracking overhead.
@@ -1161,12 +1149,17 @@ public interface Namespaces {
      * Request example:
      *
      * <pre>
-     * <code>true</code>
+     * <code>
+     * {
+     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
+     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
      * </pre>
      *
      * @param namespace
      *            Namespace name
-     * @param delayedDeliveryMessages
+     * @return delayedDeliveryPolicies
      *            Whether to enable the delayed delivery for messages.
      *
      * @throws NotAuthorizedException
@@ -1176,7 +1169,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setDelayedDeliveryMessages(String namespace, boolean delayedDeliveryMessages) throws PulsarAdminException;
+    DelayedDeliveryPolicies getDelayedDelivery(String namespace) throws PulsarAdminException;
 
     /**
      * Set the delayed delivery messages for all topics within a namespace.
@@ -1187,18 +1180,27 @@ public interface Namespaces {
      * Request example:
      *
      * <pre>
-     * <code>true</code>
+     * <code>
+     * {
+     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
+     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
      * </pre>
      *
      * @param namespace
      *            Namespace name
-     * @param delayedDeliveryTime
-     *            The tick time for when retrying on delayed delivery messages.
+     * @param delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
      *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setDelayedDeliveryTime(String namespace, long delayedDeliveryTime) throws PulsarAdminException;
+    void setDelayedDeliveryMessages(String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
 
     /**
      * Set the given subscription auth mode on all topics on a namespace

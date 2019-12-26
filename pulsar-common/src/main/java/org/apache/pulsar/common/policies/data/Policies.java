@@ -64,9 +64,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
     @SuppressWarnings("checkstyle:MemberName")
-    public boolean delayed_delivery = true;
-    @SuppressWarnings("checkstyle:MemberName")
-    public long delayed_delivery_time = 0;
+    public DelayedDeliveryPolicies delayed_delivery_policies = null;
     @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
@@ -106,7 +104,7 @@ public class Policies {
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
-                encryption_required, delayed_delivery, delayed_delivery_time,
+                encryption_required, delayed_delivery_policies,
                 subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
@@ -137,8 +135,7 @@ public class Policies {
                             other.message_ttl_in_seconds)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
-                    && Objects.equals(delayed_delivery_time, other.delayed_delivery_time)
-                    && Objects.equals(delayed_delivery, other.delayed_delivery)
+                    && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
                     && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
@@ -188,8 +185,7 @@ public class Policies {
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
-                .add("delayed_delivery", delayed_delivery)
-                .add("delayed_delivery_time", delayed_delivery_time)
+                .add("delayed_delivery_policies", delayed_delivery_policies)
                 .add("subscription_auth_mode", subscription_auth_mode)
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)

@@ -54,22 +54,8 @@ import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
-import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BookieInfo;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.ResourceQuota;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -374,6 +360,12 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
+
+        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
+        verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1", new DelayedDeliveryPolicies(1000, true));
+
+        namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
+        verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
 
         namespaces.run(split("clear-backlog myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBacklog("myprop/clust/ns1");

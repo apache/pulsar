@@ -119,7 +119,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
-        this.isDelayedDeliveryEnabled = isDelayedDeliveryEnabled();
+        this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
+                .isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 
@@ -197,47 +198,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return true;
         }
         return false;
-    }
-
-    private boolean isDelayedDeliveryEnabled() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-
-        final boolean isDelayedDelivery = policies.delayed_delivery ? policies.delayed_delivery :
-                serviceConfig.isDelayedDeliveryEnabled();
-
-        if (isDelayedDelivery) {
-            return true;
-        }
-
-        return false;
-    }
-
-    public long isDelayedDeliveryTickTime() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final long delayedDeliveryTickTime = policies.delayed_delivery_time > 0 ?
-                policies.delayed_delivery_time :
-                serviceConfig.getDelayedDeliveryTickTimeMillis();
-        return delayedDeliveryTickTime;
     }
 
     @Override
