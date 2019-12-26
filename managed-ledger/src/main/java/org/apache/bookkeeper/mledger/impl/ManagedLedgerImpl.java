@@ -553,13 +553,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.executeOrdered(name, safeRun(() -> {
-            pendingAddEntries.add(addOperation);
-
             internalAsyncAddEntry(addOperation);
         }));
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
+        pendingAddEntries.add(addOperation);
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced) {
             addOperation.failed(new ManagedLedgerFencedException());
@@ -1287,7 +1286,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
-        int pendingSize = pendingAddEntries.size();
         STATE_UPDATER.set(this, State.LedgerOpened);
         lastLedgerCreatedTimestamp = clock.millis();
 
@@ -1295,12 +1293,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
         }
         // Process all the pending addEntry requests
+        int pendingSize = pendingAddEntries.size();
         OpAddEntry op;
         do {
             op = pendingAddEntries.poll();
             if (op != null) {
-                op.close();
-                op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
+                // If op is used by another ledger handle, we need to close it and create a new one
+                if (op.ledger == null) {
+                    pendingAddEntries.add(op);
+                } else {
+                    op.close();
+                    op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
+                }
                 op.setLedger(currentLedger);
                 pendingAddEntries.add(op);
                 ++currentLedgerEntries;
