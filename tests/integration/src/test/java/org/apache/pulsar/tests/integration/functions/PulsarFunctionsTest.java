@@ -2073,6 +2073,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        try {
+            // If topic already exists, we should delete it so as not to affect the following tests.
+            admin.topics().getStats(consumeTopicName);
+            admin.topics().delete(consumeTopicName);
+            admin.schemas().deleteSchema(consumeTopicName);
+        } catch (PulsarAdminException e) {
+            // Expected results, ignoring the exception
+            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+                    consumeTopicName, e.getMessage());
+        }
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
@@ -2107,7 +2117,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2132,6 +2160,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        try {
+            // If topic already exists, we should delete it so as not to affect the following tests.
+            admin.topics().getStats(consumeTopicName);
+            admin.topics().delete(consumeTopicName);
+            admin.schemas().deleteSchema(consumeTopicName);
+        } catch (PulsarAdminException e) {
+            // Expected results, ignoring the exception
+            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+                    consumeTopicName, e.getMessage());
+        }
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
@@ -2164,7 +2207,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2189,6 +2250,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        try {
+            // If topic already exists, we should delete it so as not to affect the following tests.
+            admin.topics().getStats(consumeTopicName);
+            admin.topics().delete(consumeTopicName);
+            admin.schemas().deleteSchema(consumeTopicName);
+        } catch (PulsarAdminException e) {
+            // Expected results, ignoring the exception
+            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+                    consumeTopicName, e.getMessage());
+        }
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
@@ -2220,7 +2296,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9);
+        sourceTester.validateSourceResult(consumer, 9, null);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);

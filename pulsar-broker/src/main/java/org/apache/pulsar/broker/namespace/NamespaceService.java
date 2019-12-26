@@ -839,10 +839,10 @@ public class NamespaceService {
 
     private boolean isTopicOwned(TopicName topicName) throws Exception {
         Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
-        if (!bundle.isPresent()) {
-            return false;
-        } else {
+        if (bundle.isPresent()) {
             return ownershipCache.getOwnedBundle(bundle.get()) != null;
+        } else {
+            return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
         }
     }
 
