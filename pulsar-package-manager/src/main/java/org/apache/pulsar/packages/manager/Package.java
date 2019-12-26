@@ -70,7 +70,6 @@ public interface Package {
 
     /**
      * Delete a package.
-     *
      * It will delete all versions of a package if the version is not specified.
      * Otherwise it will delete the specified version package.
      *

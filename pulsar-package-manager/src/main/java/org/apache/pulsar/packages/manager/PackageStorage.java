@@ -40,15 +40,6 @@ public interface PackageStorage {
     CompletableFuture<Void> writeAsync(String path, InputStream inputStream);
 
     /**
-     * Write bytes data to a path.
-     *
-     * @param path file path
-     * @param data
-     * @return
-     */
-    CompletableFuture<Void> writeAsync(String path, byte[] data);
-
-    /**
      * Read a file to a output stream.
      *
      * @param path file path
@@ -56,14 +47,6 @@ public interface PackageStorage {
      * @return
      */
     CompletableFuture<Void> readAsync(String path, OutputStream outputStream);
-
-    /**
-     * Read a file to a bytes array.
-     *
-     * @param path file path
-     * @return
-     */
-    CompletableFuture<byte[]> readAsync(String path);
 
     /**
      * Delete a file.

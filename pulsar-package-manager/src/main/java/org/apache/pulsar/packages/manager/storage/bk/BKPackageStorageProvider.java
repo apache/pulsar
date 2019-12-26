@@ -19,11 +19,10 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.packages.manager.PackageStorage;
 import org.apache.pulsar.packages.manager.PackageStorageConfig;
 import org.apache.pulsar.packages.manager.PackageStorageProvider;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Provide a bookKeeper storage.

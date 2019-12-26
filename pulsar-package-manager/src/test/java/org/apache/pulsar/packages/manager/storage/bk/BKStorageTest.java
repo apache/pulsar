@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,176 +15,196 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ *
  */
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.*;
-import static org.testng.Assert.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.distributedlog.DLSN;
-import org.apache.distributedlog.LogRecord;
-import org.apache.distributedlog.LogRecordWithDLSN;
-import org.apache.distributedlog.api.AsyncLogReader;
-import org.apache.distributedlog.api.AsyncLogWriter;
-import org.apache.distributedlog.api.DistributedLogManager;
+import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.distributedlog.exceptions.EndOfStreamException;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.distributedlog.exceptions.LogNotFoundException;
+import org.apache.distributedlog.exceptions.ZKException;
+import org.apache.distributedlog.impl.metadata.BKDLConfig;
+import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.pulsar.packages.manager.PackageStorage;
+import org.apache.zookeeper.KeeperException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class BKStorageTest {
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+public class BKStorageTest extends BookKeeperClusterTestCase {
+
+    private PackageStorage packageStorage;
     private Namespace namespace;
-    private DistributedLogManager distributedLogManager;
-    private AsyncLogWriter writer;
-    private AsyncLogReader reader;
 
-    private final String testData = "test-storage";
-    private final List<String> testPath = new ArrayList<>();
-
+    public BKStorageTest() {
+        super(1);
+    }
 
     @BeforeMethod
-    public void setup() throws Exception {
-        distributedLogManager = mock(DistributedLogManager.class);
-        when(distributedLogManager.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-
-        mockNamespace();
-        mockDLInputStream();
-        mockDLOutputStream();
+    public void setup() throws IOException {
+        this.namespace = init();
+        packageStorage = new BKPackageStorage(namespace);
     }
 
-    private void mockNamespace() throws Exception {
-        namespace = mock(Namespace.class);
-        when(namespace.openLog(anyString())).thenReturn(distributedLogManager);
-        doNothing().when(namespace).deleteLog(anyString());
+    private Namespace init() throws IOException {
+        DistributedLogConfiguration conf = new DistributedLogConfiguration()
+            .setWriteLockEnabled(false)
+            .setOutputBufferSize(0)                  // 256k
+            .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
+            .setImmediateFlushEnabled(true)                  // disable immediate flush
+            .setLogSegmentRollingIntervalMinutes(0)           // disable time-based rolling
+            .setMaxLogSegmentBytes(Long.MAX_VALUE)            // disable size-based rolling
+            .setExplicitTruncationByApplication(true)         // no auto-truncation
+            .setRetentionPeriodHours(Integer.MAX_VALUE)       // long retention
+            .setEnsembleSize(1)                     // replica settings
+            .setWriteQuorumSize(1)
+            .setAckQuorumSize(1)
+            .setUseDaemonThread(true);
 
-        testPath.add("test/list/path1");
-        testPath.add("test/list/path2");
-        when(namespace.getLogs(anyString())).thenReturn(testPath.iterator());
+        BKDLConfig bkdlConfig = new BKDLConfig(zkUtil.getZooKeeperConnectString(), "/ledgers");
+        DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", zkUtil.getZooKeeperConnectString()));
+        try {
+            dlMetadata.create(dlogURI);
+        } catch (ZKException e) {
+            if (e.getKeeperExceptionCode() != KeeperException.Code.NODEEXISTS) {
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-    }
-
-    private void mockDLOutputStream() {
-        writer = mock(AsyncLogWriter.class);
-
-        when(distributedLogManager.openAsyncLogWriter()).thenReturn(CompletableFuture.completedFuture(writer));
-        when(writer.write(any(LogRecord.class))).thenReturn(CompletableFuture.completedFuture(DLSN.InitialDLSN));
-        when(writer.markEndOfStream()).thenReturn(CompletableFuture.completedFuture(-1L));
-        when(writer.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-    }
-
-    private void mockDLInputStream() {
-        reader = mock(AsyncLogReader.class);
-
-        when(distributedLogManager.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
-
-        LogRecordWithDLSN logRecordWithDLSN = new LogRecordWithDLSN(DLSN.InitialDLSN, System.currentTimeMillis(), testData.getBytes(), System.currentTimeMillis());
-
-        List<LogRecordWithDLSN> records = new ArrayList<>();
-        records.add(logRecordWithDLSN);
-
-        when(reader.readBulk(anyInt())).thenReturn(CompletableFuture.completedFuture(records))
-            .thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
-        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        Namespace n = NamespaceBuilder.newBuilder()
+            .conf(conf)
+            .clientId("test")
+            .uri(dlogURI)
+            .build();
+        return n;
     }
 
     @AfterMethod
-    public void teardown() {
-        if (namespace != null) {
-            namespace.close();
+    public void teardown() throws ExecutionException, InterruptedException {
+        if (packageStorage != null) {
+            packageStorage.closeAsync().get();
         }
     }
 
     @Test
-    public void testWrite() throws Exception{
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        String testFileString = "test-file-string";
-        ByteArrayInputStream input = new ByteArrayInputStream(testFileString.getBytes());
-        bkStorage.writeAsync("test/write-path", input).get();
+    public void testReadWriteOperations() throws ExecutionException, InterruptedException, IOException {
+        String testData = "test-data";
+        ByteArrayInputStream testDataStream = new ByteArrayInputStream(testData.getBytes(StandardCharsets.UTF_8));
+        String testPath = "test-read-write";
 
-        verify(writer, times(1)).write(any(LogRecord.class));
-        verify(writer, times(1)).markEndOfStream();
-        verify(writer, times(1)).asyncClose();
-        verify(distributedLogManager, times(1)).asyncClose();
+        // write some data to the dlog
+        packageStorage.writeAsync(testPath, testDataStream).get();
+
+        // read the data from the dlog
+        ByteArrayOutputStream readData = new ByteArrayOutputStream();
+        packageStorage.readAsync(testPath, readData).get();
+        String readResult = new String(readData.toByteArray(), StandardCharsets.UTF_8);
+
+        assertTrue(readResult.equals(testData));
     }
 
     @Test
-    public void testWriteBytes() throws Exception {
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        bkStorage.writeAsync("test/write-path", testData.getBytes()).get();
+    public void testReadNonExistentData() {
+        String testPath = "non-existent-path";
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        verify(writer, times(1)).write(any(LogRecord.class));
-        verify(writer, times(1)).markEndOfStream();
-        verify(writer, times(1)).asyncClose();
-        verify(distributedLogManager, times(1)).asyncClose();
+        try {
+            packageStorage.readAsync(testPath, outputStream).get();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof LogNotFoundException);
+        }
     }
 
     @Test
-    public void testRead() throws Exception {
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        OutputStream output = new ByteArrayOutputStream();
-        bkStorage.readAsync("test/read-path", output).get();
+    public void testListOperation() throws ExecutionException, InterruptedException {
+        // write the data to different path
+        String rootPath = "pulsar";
+        String testData = "test-data";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(testData.getBytes(StandardCharsets.UTF_8));
 
-        verify(reader, times(2)).readBulk(eq(10));
-        verify(reader, times(1)).asyncClose();
-        verify(distributedLogManager, times(1)).asyncClose();
+        List<String> writePaths = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String path = "test-" + i;
+            writePaths.add(path);
+            packageStorage.writeAsync(rootPath + "/" + path, inputStream).get();
+        }
+
+        // list all path under the root path
+        List<String> paths = packageStorage.listAsync(rootPath).get();
+
+        // verify the paths number
+        assertEquals(writePaths.size(), paths.size());
+        paths.forEach(p -> writePaths.remove(p));
+        assertEquals(0, writePaths.size());
+
+        // list non-existent path
+        try {
+            packageStorage.listAsync("non-existent").get();
+        } catch (Exception e) {
+            // should not throw any exception
+            fail(e.getMessage());
+        }
     }
 
     @Test
-    public void testReadBytes() throws Exception {
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        byte[] data =  bkStorage.readAsync("test/read-path").get();
+    public void testDeleteOperation() throws ExecutionException, InterruptedException {
+        String testPath = "test-delete-path";
+        String testData = "test-data";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(testData.getBytes(StandardCharsets.UTF_8));
 
-        verify(reader, times(2)).readBulk(eq(1));
-        verify(reader, times(1)).asyncClose();
-        verify(distributedLogManager, times(1)).asyncClose();
+        // write the data to the test path
+        packageStorage.writeAsync(testPath, inputStream).get();
 
-        assertEquals(data, testData.getBytes());
+        // list path should have one file
+        List<String> paths = packageStorage.listAsync("").get();
+        assertEquals(1, paths.size());
+        assertEquals(testPath, paths.get(0));
+
+        // delete the path
+        packageStorage.deleteAsync(testPath).get();
+
+        // list again and not file under the path
+        paths= packageStorage.listAsync("").get();
+        assertEquals(0, paths.size());
+
+
+        // delete non-existent path
+        try {
+            packageStorage.deleteAsync("non-existent").get();
+            fail("should throw exception");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof ZKException);
+        }
     }
 
     @Test
-    public void testDelete() throws Exception {
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        bkStorage.deleteAsync("test/delete-path").get();
-        verify(namespace, times(1)).deleteLog(eq("test/delete-path"));
-    }
+    public void testExistOperation() throws ExecutionException, InterruptedException {
+        Boolean exist = packageStorage.existAsync("test-path").get();
+        assertFalse(exist);
 
-    @Test
-    public void testList() throws Exception {
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        List<String> paths = bkStorage.listAsync("test/list-path").get();
+        packageStorage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes())).get();
 
-        assertEquals(paths.size(), testPath.size());
-        assertTrue(paths.containsAll(testPath));
-
-        verify(namespace, times(1)).getLogs(eq("test/list-path"));
-    }
-
-    @Test
-    public void testExist() throws Exception {
-        when(namespace.logExists(eq("test/exist/true"))).thenReturn(true);
-        when(namespace.logExists("test/exist/false")).thenReturn(false);
-
-        BKPackageStorage bkStorage = new BKPackageStorage(namespace);
-        Boolean exists = bkStorage.existAsync("test/exist/true").get();
-        assertTrue(exists);
-
-        exists = bkStorage.existAsync("test/exist/false").get();
-        assertFalse(exists);
+        exist = packageStorage.existAsync("test-path").get();
+        assertTrue(exist);
     }
 }
-

@@ -20,12 +20,15 @@
 package org.apache.pulsar.packages.manager;
 
 import java.util.Map;
+
+import lombok.Builder;
 import lombok.Data;
 
 /**
  * Package metadata.
  */
 @Data
+@Builder
 public class PackageMetadata {
     String description;
     String contact;
