@@ -19,11 +19,17 @@
 package org.apache.pulsar.packages.manager.storage.bk;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.eq;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.fail;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +41,8 @@ import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -42,21 +50,32 @@ import org.testng.annotations.Test;
  */
 public class DLInputStreamTest {
 
-    /**
-     * Test Case: reader hits eos (end of stream)
-     */
-    @Test
-    public void testReadEos() throws Exception {
-        // mock class
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AsyncLogReader reader = mock(AsyncLogReader.class);
+    private DistributedLogManager dlm;
+    private AsyncLogReader reader;
+
+    @BeforeMethod
+    public void setup() {
+        dlm = mock(DistributedLogManager.class);
+        reader = mock(AsyncLogReader.class);
 
         when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
         when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
         when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
         when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+    }
 
-        // test code
+    @AfterMethod
+    public void teardown() throws IOException {
+        if (dlm != null) {
+            dlm.close();
+        }
+    }
+
+    /**
+     * Test Case: reader hits eos (end of stream)
+     */
+    @Test
+    public void testReadEos() throws Exception {
         OutputStream outputStream = new ByteArrayOutputStream();
         try {
             DLInputStream.openReaderAsync(dlm)
@@ -82,15 +101,6 @@ public class DLInputStreamTest {
      */
     @Test
     public void testReadToOutputStream() {
-        // mock classes
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AsyncLogReader reader = mock(AsyncLogReader.class);
-
-        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
-        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-        when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
-        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-
         // prepare test data
         byte[] data = "test-read".getBytes();
         LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
@@ -122,46 +132,14 @@ public class DLInputStreamTest {
 
     }
 
-    /**
-     * Test Case: read records from the input stream. And output it to a byte array.
-     */
     @Test
-    public void testReadToByteArray() throws Exception {
-        // mock classes
-        DistributedLogManager dlm = mock(DistributedLogManager.class);
-        AsyncLogReader reader = mock(AsyncLogReader.class);
+    public void openAsyncLogReaderFailed() {
+        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(FutureUtil.failedFuture(new Exception("Open reader was failed")));
 
-        when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(CompletableFuture.completedFuture(reader));
-        when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-        when(reader.readBulk(anyInt())).thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
-        when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-
-        // prepare test data
-        byte[] data = "test-read".getBytes();
-        LogRecordWithDLSN record = mock(LogRecordWithDLSN.class);
-        List<LogRecordWithDLSN> records = new ArrayList<LogRecordWithDLSN>();
-        records.add(record);
-
-        when(record.getPayload()).thenReturn(data);
-        when(reader.readBulk(anyInt()))
-            .thenReturn(CompletableFuture.completedFuture(records))
-            .thenReturn(FutureUtil.failedFuture(new EndOfStreamException("eos")));
-
-
-        // test code
-        byte[] result = new byte[0];
         try {
-            result = DLInputStream.openReaderAsync(dlm)
-                .thenCompose(DLInputStream::readAsync)
-                .thenCompose(DLInputStream.ByteResult::getResult).get();
+            DLInputStream.openReaderAsync(dlm).get();
         } catch (Exception e) {
-            if (e.getCause() instanceof EndOfStreamException) {
-                // no-op
-            } else {
-                fail(e.getMessage());
-            }
+            assertEquals(e.getCause().getMessage(), "Open reader was failed");
         }
-
-        assertEquals("test-read", new String(result));
     }
 }

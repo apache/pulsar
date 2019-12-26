@@ -20,6 +20,7 @@
 package org.apache.pulsar.packages.manager.naming;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * A package name has four parts, type, namespace, package-name, and version.
@@ -38,6 +40,7 @@ public class PackageName {
     private final NamespaceName namespaceName;
     private final String name;
     private final String version;
+    private final String completePackageName;
     private final String completeName;
 
     private static final LoadingCache<String, PackageName> cache =
@@ -65,7 +68,7 @@ public class PackageName {
         try {
             return cache.get(packageName);
         } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
+            throw new RuntimeException(e.getCause());
         }
     }
 
@@ -78,18 +81,22 @@ public class PackageName {
         this.type = PackageType.getEnum(parts.get(0));
 
         String rest = parts.get(1);
-        parts = Splitter.on("/").splitToList(rest);
-        if (parts.size() != 3) {
+        // if the package name does not contains '@', that means user does not set the version of package.
+        // We will set the version to latest.
+        if (!rest.contains("@")) {
+            rest += "@";
+        }
+        parts = Splitter.on("@").splitToList(rest);
+        if (parts.size() != 2) {
             throw new IllegalArgumentException("Invalid package name '" + packageName + "'");
         }
-        this.namespaceName = NamespaceName.get(parts.get(0), parts.get(1));
-
-        rest = parts.get(2);
-        parts = Splitter.on("@").splitToList(rest);
-        this.name = parts.get(0);
-        this.version = parts.get(1);
-
-        this.completeName = String.format("%s://%s/%s@%s", type.toString(), namespaceName.toString(), name, version);
+        TopicName n = TopicName.get(parts.get(0));
+        this.namespaceName = n.getNamespaceObject();
+        this.name = n.getLocalName();
+        this.version = Strings.isNullOrEmpty(parts.get(1)) ? "latest" : parts.get(1);
+        this.completeName = String.format("%s/%s", namespaceName.toString(), name);
+        this.completePackageName =
+            String.format("%s://%s/%s@%s", type.toString(), namespaceName.toString(), name, version);
     }
 
     public PackageType getPkgType() {
@@ -108,7 +115,28 @@ public class PackageName {
         return this.name;
     }
 
-    public String toString() {
-        return completeName;
+    public String getCompleteName() {
+        return this.completeName;
     }
+
+    public String toString() {
+        return completePackageName;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
+        PackageName another = (PackageName) obj;
+        return another.type.equals(this.type)
+            && another.completeName.equals(this.completeName)
+            && another.version.equals(this.version);
+    }
+
 }

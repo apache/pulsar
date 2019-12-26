@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.packages.manager;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -41,8 +41,8 @@ public interface PackageStorageProvider {
         try {
             providerClass = Class.forName(providerClassName);
             Object obj = providerClass.newInstance();
-            Preconditions.checkArgument(obj instanceof PackageStorageProvider,
-                "The factory has to be an instance of " + PackageStorageProvider.class.getName());
+            checkArgument(obj instanceof PackageStorageProvider,
+                "The package storage provider has to be an instance of " + PackageStorageProvider.class.getName());
             return (PackageStorageProvider) obj;
         } catch (Exception e) {
             throw new IOException(e);
@@ -50,7 +50,7 @@ public interface PackageStorageProvider {
     }
 
     /**
-     * Get a storage by the config
+     * Get a storage by the config.
      *
      * @param config storage configuration
      * @return

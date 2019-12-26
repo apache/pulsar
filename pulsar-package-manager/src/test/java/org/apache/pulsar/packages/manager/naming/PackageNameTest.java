@@ -99,6 +99,12 @@ public class PackageNameTest {
             Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
         }
 
+        try {
+            PackageName.get("function://public/default/name#v1");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
+        }
+
         // invalid package version
         try {
             PackageName.get("function://public/default/test-error-version/v2");
@@ -106,6 +112,8 @@ public class PackageNameTest {
             Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
         }
 
+        PackageName name = PackageName.get("function://public/default/test");
+        Assert.assertEquals("function://public/default/test@latest", name.toString());
     }
 
 }

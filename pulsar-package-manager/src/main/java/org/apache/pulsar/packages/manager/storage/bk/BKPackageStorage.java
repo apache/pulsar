@@ -24,16 +24,25 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.distributedlog.exceptions.ZKException;
+import org.apache.distributedlog.impl.metadata.BKDLConfig;
+import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.distributedlog.namespace.NamespaceDriver;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.manager.PackageStorage;
 import org.apache.pulsar.packages.manager.PackageStorageConfig;
+import org.apache.pulsar.packages.manager.exception.PackageException;
+import org.apache.zookeeper.KeeperException;
 
 /**
  * Using bookKeeper to store the package and package metadata.
@@ -81,11 +90,26 @@ public class BKPackageStorage implements PackageStorage {
             this.namespace = NamespaceBuilder.newBuilder()
                 .conf(conf)
                 .clientId("package-management")
-                .uri(config.url)
+                .uri(initializeDlogNamespace())
                 .build();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private URI initializeDlogNamespace() throws IOException {
+        BKDLConfig bkdlConfig = new BKDLConfig(config.getZkServers(), config.getLedgersRootPath());
+        DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", config.getZkServers()));
+        try {
+            dlMetadata.create(dlogURI);
+        } catch (ZKException e) {
+            if (e.getKeeperExceptionCode() == KeeperException.Code.NODEEXISTS) {
+                return dlogURI;
+            }
+            throw e;
+        }
+        return dlogURI;
     }
 
     private CompletableFuture<DistributedLogManager> openLogAsync(String path) {
@@ -109,15 +133,6 @@ public class BKPackageStorage implements PackageStorage {
             .thenCompose(DLOutputStream::closeAsync);
     }
 
-
-    @Override
-    public CompletableFuture<Void> writeAsync(String path, byte[] data) {
-        return openLogAsync(path)
-            .thenCompose(DLOutputStream::openWriterAsync)
-            .thenCompose(dlOutputStream -> dlOutputStream.writeAsync(data))
-            .thenCompose(DLOutputStream::closeAsync);
-    }
-
     @Override
     public CompletableFuture<Void> readAsync(String path, OutputStream outputStream) {
         return openLogAsync(path)
@@ -127,57 +142,51 @@ public class BKPackageStorage implements PackageStorage {
     }
 
     @Override
-    public CompletableFuture<byte[]> readAsync(String path) {
-        return openLogAsync(path)
-            .thenCompose(DLInputStream::openReaderAsync)
-            .thenCompose(DLInputStream::readAsync)
-            .thenCompose(DLInputStream.ByteResult::getResult);
-    }
-
-    @Override
     public CompletableFuture<Void> deleteAsync(String path) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                namespace.deleteLog(path);
-                future.complete(null);
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
+        return namespace.getNamespaceDriver().getLogMetadataStore().getLogLocation(path)
+            .thenCompose(uri -> uri.isPresent()
+                ? namespace.getNamespaceDriver()
+                    .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER).deleteLog(uri.get(), path)
+                : FutureUtil.failedFuture(
+                    new PackageException("There is no distributedLog uri when deleting the path " + path)));
     }
 
     @Override
     public CompletableFuture<List<String>> listAsync(String path) {
-        CompletableFuture<List<String>> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                future.complete(listSync(path));
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
-    private List<String> listSync(String path) throws IOException {
-        List<String> paths = new ArrayList<>();
-        namespace.getLogs(path).forEachRemaining(paths::add);
-        return paths;
+        return namespace.getNamespaceDriver().getLogMetadataStore().getLogs(path)
+            .thenApply(logs -> {
+                ArrayList<String> packages = new ArrayList<>();
+                logs.forEachRemaining(packages::add);
+                return packages;
+            });
     }
 
     @Override
     public CompletableFuture<Boolean> existAsync(String path) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            try {
-                future.complete(namespace.logExists(path));
-            } catch (IOException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        namespace.getNamespaceDriver().getLogMetadataStore().getLogLocation(path)
+            .whenComplete((uriOptional, throwable) -> {
+                if (throwable != null) {
+                    result.complete(false);
+                    return;
+                }
+
+                if (uriOptional.isPresent()) {
+                    namespace.getNamespaceDriver()
+                        .getLogStreamMetadataStore(NamespaceDriver.Role.WRITER)
+                        .logExists(uriOptional.get(), path)
+                        .whenComplete((ignore, e) -> {
+                            if (e != null) {
+                                result.complete(false);
+                            } else {
+                                result.complete(true);
+                            }
+                        });
+                } else {
+                    result.complete(false);
+                }
+            });
+        return result;
     }
 
     public CompletableFuture<Void> closeAsync() {

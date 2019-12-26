@@ -41,7 +41,7 @@ public enum PackageType {
                 return e;
             }
         }
-        throw new IllegalArgumentException("Invalid topic domain: '" + value + "'");
+        throw new IllegalArgumentException("Invalid package domain: '" + value + "'");
     }
 
     @Override

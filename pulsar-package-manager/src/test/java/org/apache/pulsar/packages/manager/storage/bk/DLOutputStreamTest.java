@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.packages.manager.storage.bk;
 
+import io.netty.buffer.Unpooled;
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -31,7 +33,12 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.testng.AssertJUnit.assertEquals;
 
 /**
  * Unit test of {@link DLOutputStream}.
@@ -83,12 +90,37 @@ public class DLOutputStreamTest {
     public void writeBytesArrayData() throws ExecutionException, InterruptedException {
         byte[] data = "test-write".getBytes();
         DLOutputStream.openWriterAsync(dlm)
-            .thenCompose(w -> w.writeAsync(data)
+            .thenCompose(w -> w.writeAsync(Unpooled.wrappedBuffer(data))
                 .thenCompose(DLOutputStream::closeAsync)).get();
 
         verify(writer, times(1)).write(any(LogRecord.class));
         verify(writer, times(1)).markEndOfStream();
         verify(writer, times(1)).asyncClose();
         verify(dlm, times(1)).asyncClose();
+    }
+
+    @Test
+    public void openAsyncLogWriterFailed() {
+        when(dlm.openAsyncLogWriter()).thenReturn(FutureUtil.failedFuture(new Exception("Open writer was failed")));
+
+        try {
+            DLOutputStream.openWriterAsync(dlm).get();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getMessage(), "Open writer was failed");
+        }
+    }
+
+    @Test
+    public void writeRecordFailed() {
+        when(writer.write(any(LogRecord.class))).thenReturn(FutureUtil.failedFuture(new Exception("Write data was failed")));
+
+        byte[] data = "test-write".getBytes();
+        try {
+            DLOutputStream.openWriterAsync(dlm)
+                .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data)))
+                .thenCompose(DLOutputStream::closeAsync).get();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getMessage(), "Write data was failed");
+        }
     }
 }

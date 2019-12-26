@@ -19,6 +19,9 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -55,26 +58,41 @@ class DLOutputStream {
      * @return
      */
     CompletableFuture<DLOutputStream> writeAsync(InputStream inputStream) {
+        CompletableFuture<DLOutputStream> result = new CompletableFuture<>();
         List<CompletableFuture<DLOutputStream>> writeFuture = new ArrayList<>();
-        byte[] bytes = new byte[1024];
-        try {
-            while (inputStream.read(bytes) != -1) {
-                writeFuture.add(writeAsync(bytes));
+        CompletableFuture.runAsync(() -> {
+            byte[] readBuffer = new byte[1024];
+            try {
+                int read = 0;
+                while ((read = inputStream.read(readBuffer)) != -1) {
+                    ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
+                    writeFuture.add(writeAsync(writeBuf));
+                }
+            } catch (IOException e) {
+                result.completeExceptionally(e);
             }
-        } catch (IOException e) {
-            return FutureUtil.failedFuture(e);
-        }
-        return FutureUtil.waitForAll(writeFuture).thenApply(ignore -> this);
+        }).thenRun(() -> {
+            FutureUtil.waitForAll(writeFuture)
+                .whenComplete((i, e) -> {
+                    if (e != null) {
+                        result.completeExceptionally(e);
+                    } else {
+                        result.complete(this);
+                    }
+                });
+        });
+
+        return result;
     }
 
     /**
-     * Write a bytes array data to the distribute log.
+     * Write a ByteBuf data to the distribute log.
      *
      * @param data the data we need to write
      * @return
      */
-    CompletableFuture<DLOutputStream> writeAsync(byte[] data) {
-        offset += data.length;
+    private CompletableFuture<DLOutputStream> writeAsync(ByteBuf data) {
+        offset += data.readableBytes();
         LogRecord record = new LogRecord(offset, data);
         return writer.write(record).thenApply(ignore -> this);
     }
@@ -86,8 +104,7 @@ class DLOutputStream {
      * @return
      */
     CompletableFuture<Void> closeAsync() {
-        return writer
-            .markEndOfStream()
+        return writer.markEndOfStream()
             .thenCompose(ignore -> writer.asyncClose())
             .thenCompose(ignore -> distributedLogManager.asyncClose());
     }

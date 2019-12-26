@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.packages.manager.storage.bk;
 
-import java.net.URI;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,9 +30,10 @@ import org.apache.pulsar.packages.manager.PackageStorageConfig;
 @Data
 @Setter
 @Getter
-public class BKPackageStorageConfig implements PackageStorageConfig {
-    URI url;
+class BKPackageStorageConfig implements PackageStorageConfig {
     int numReplicas;
+    String zkServers;
+    String ledgersRootPath;
     String bookkeeperClientAuthenticationPlugin;
     String bookkeeperClientAuthenticationParametersName;
     String bookkeeperClientAuthenticationParameters;
