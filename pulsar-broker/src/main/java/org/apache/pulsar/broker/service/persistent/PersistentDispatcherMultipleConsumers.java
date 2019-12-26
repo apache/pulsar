@@ -676,7 +676,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         int unackedMessagesFromPolicies = topic.maxUnackedMessagesOnSubscription;
-        if (unackedMessagesFromPolicies > 0 && unackedMessagesFromPolicies > maxUnackedMessages) {
+        if (unackedMessagesFromPolicies > 0 && unackedMessagesFromPolicies != maxUnackedMessages) {
             maxUnackedMessages = unackedMessagesFromPolicies;
         }
 
