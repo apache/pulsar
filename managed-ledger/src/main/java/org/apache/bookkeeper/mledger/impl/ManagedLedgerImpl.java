@@ -1296,6 +1296,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Process all the pending addEntry requests
         for (OpAddEntry op : pendingAddEntries) {
+            op.close();
+            op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
             op.setLedger(currentLedger);
             ++currentLedgerEntries;
             currentLedgerSize += op.data.readableBytes();
