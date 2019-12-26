@@ -264,6 +264,10 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     void close() {
         STATE_UPDATER.set(OpAddEntry.this, State.CLOSED);
     }
+
+    public State getState() {
+        return state;
+    }
     
     private final Handle<OpAddEntry> recyclerHandle;
 

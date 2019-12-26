@@ -1293,32 +1293,37 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
         }
-
         // Process all the pending addEntry requests
-        for (OpAddEntry op : pendingAddEntries) {
-            op.close();
-            op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
-            op.setLedger(currentLedger);
-            ++currentLedgerEntries;
-            currentLedgerSize += op.data.readableBytes();
+        int pendingSize = pendingAddEntries.size();
+        OpAddEntry op;
+        do {
+            op = pendingAddEntries.poll();
+            if (op != null) {
+                op.close();
+                op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
+                op.setLedger(currentLedger);
+                pendingAddEntries.add(op);
+                ++currentLedgerEntries;
+                currentLedgerSize += op.data.readableBytes();
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Sending {}", name, op);
-            }
-
-            if (currentLedgerIsFull()) {
-                STATE_UPDATER.set(this, State.ClosingLedger);
-                op.setCloseWhenDone(true);
-                op.initiate();
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stop writing into ledger {} queue={}", name, currentLedger.getId(),
-                            pendingAddEntries.size());
+                    log.debug("[{}] Sending {}", name, op);
                 }
-                break;
-            } else {
-                op.initiate();
+
+                if (currentLedgerIsFull()) {
+                    STATE_UPDATER.set(this, State.ClosingLedger);
+                    op.setCloseWhenDone(true);
+                    op.initiate();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Stop writing into ledger {} queue={}", name, currentLedger.getId(),
+                                pendingAddEntries.size());
+                    }
+                    break;
+                } else {
+                    op.initiate();
+                }
             }
-        }
+        } while (op != null && --pendingSize > 0);
     }
 
     // //////////////////////////////////////////////////////////////////////
