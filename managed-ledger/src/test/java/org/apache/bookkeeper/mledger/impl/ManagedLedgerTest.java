@@ -46,6 +46,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -2501,17 +2502,28 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<OpAddEntry> oldOps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             OpAddEntry op = OpAddEntry.create(ledger, ByteBufAllocator.DEFAULT.buffer(128), null, null);
+            if (i > 4) {
+                op.setLedger(mock(LedgerHandle.class));
+            }
             oldOps.add(op);
             ledger.pendingAddEntries.add(op);
         }
 
         ledger.updateLedgersIdsComplete(mock(Stat.class));
         for (int i = 0; i < 10; i++) {
-            OpAddEntry oldOp = oldOps.get(0);
-            Assert.assertEquals(oldOp.getState(), OpAddEntry.State.CLOSED);
+            OpAddEntry oldOp = oldOps.get(i);
+            if (i > 4) {
+                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.CLOSED);
+            } else {
+                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.INITIATED);
+            }
             OpAddEntry newOp = ledger.pendingAddEntries.poll();
             Assert.assertEquals(newOp.getState(), OpAddEntry.State.INITIATED);
-            Assert.assertNotSame(oldOp, newOp);
+            if (i > 4) {
+                Assert.assertNotSame(oldOp, newOp);
+            } else {
+                Assert.assertSame(oldOp, newOp);
+            }
         }
     }
 

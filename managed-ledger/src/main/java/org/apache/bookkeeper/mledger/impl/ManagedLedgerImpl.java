@@ -1299,9 +1299,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             op = pendingAddEntries.poll();
             if (op != null) {
                 // If op is used by another ledger handle, we need to close it and create a new one
-                if (op.ledger == null) {
-                    pendingAddEntries.add(op);
-                } else {
+                if (op.ledger != null) {
                     op.close();
                     op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
                 }
