@@ -1292,40 +1292,45 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
         }
-        // Process all the pending addEntry requests
+
+        // Avoid use same OpAddEntry between different ledger handle
         int pendingSize = pendingAddEntries.size();
-        OpAddEntry op;
+        OpAddEntry existsOp;
         do {
-            op = pendingAddEntries.poll();
-            if (op != null) {
+            existsOp = pendingAddEntries.poll();
+            if (existsOp != null) {
                 // If op is used by another ledger handle, we need to close it and create a new one
-                if (op.ledger != null) {
-                    op.close();
-                    op = OpAddEntry.create(op.ml, op.data, op.callback, op.ctx);
+                if (existsOp.ledger != null) {
+                    existsOp.close();
+                    existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.callback, existsOp.ctx);
                 }
-                op.setLedger(currentLedger);
-                pendingAddEntries.add(op);
-                ++currentLedgerEntries;
-                currentLedgerSize += op.data.readableBytes();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Sending {}", name, op);
-                }
-
-                if (currentLedgerIsFull()) {
-                    STATE_UPDATER.set(this, State.ClosingLedger);
-                    op.setCloseWhenDone(true);
-                    op.initiate();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Stop writing into ledger {} queue={}", name, currentLedger.getId(),
-                                pendingAddEntries.size());
-                    }
-                    break;
-                } else {
-                    op.initiate();
-                }
+                existsOp.setLedger(currentLedger);
+                pendingAddEntries.add(existsOp);
             }
-        } while (op != null && --pendingSize > 0);
+        } while (existsOp != null && --pendingSize > 0);
+
+        // Process all the pending addEntry requests
+        for (OpAddEntry op : pendingAddEntries) {
+            ++currentLedgerEntries;
+            currentLedgerSize += op.data.readableBytes();
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Sending {}", name, op);
+            }
+
+            if (currentLedgerIsFull()) {
+                STATE_UPDATER.set(this, State.ClosingLedger);
+                op.setCloseWhenDone(true);
+                op.initiate();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Stop writing into ledger {} queue={}", name, currentLedger.getId(),
+                            pendingAddEntries.size());
+                }
+                break;
+            } else {
+                op.initiate();
+            }
+        }
     }
 
     // //////////////////////////////////////////////////////////////////////
