@@ -43,7 +43,7 @@ $ apt install ./apache-pulsar-client*.deb
 ```
 ### Build
 
-> If you want to build RPM and Debian packages from the latest master, follow the instructions below to do so. All the instructions are run at the root directory of your cloned Pulsar repository.
+> If you want to build RPM and Debian packages from the latest master, follow the instructions below. All the instructions are run at the root directory of your cloned Pulsar repository.
 
 There are recipes that build RPM and Debian packages containing a
 statically linked `libpulsar.so` / `libpulsar.a` with all the required
@@ -102,17 +102,19 @@ Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar U
 pulsar://localhost:6650
 ```
 
-In a production Pulsar cluster, the URL looks as follows: 
+In a Pulsar cluster in production, the URL looks as follows: 
 ```http
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you use TLS authentication, the URL looks as follows: 
+If you use TLS authentication, you need to add `ssl`, and the default port is `6651`. The following is an example.
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Consumer
+## Create a consumer
+
+To connect to Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example. 
 
 ```c++
 Client client("pulsar://localhost:6650");
@@ -137,7 +139,8 @@ while (true) {
 client.close();
 ```
 
-## Producer
+## Create a producer
+To connect to Pulsar as a producer, you need to create a producer on the C++ client. The following is an example. 
 
 ```c++
 Client client("pulsar://localhost:6650");
@@ -158,7 +161,8 @@ for (int i = 0; i < 10; i++){
 client.close();
 ```
 
-## Authentication
+## Enable authentication
+If you use TLS authentication, you need to add `ssl`, and the default port is `6651`. The following is an example.
 
 ```cpp
 ClientConfiguration config = ClientConfiguration();
@@ -170,3 +174,5 @@ config.setAuth(pulsar::AuthTls::create(
 
 Client client("pulsar+ssl://my-broker.com:6651", config);
 ```
+
+For complete examples, you can check [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
