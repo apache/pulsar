@@ -41,8 +41,13 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
+      - name: Set up Maven
+        uses: aahmed-se/setup-maven@v3
+        with:
+          maven-version: 3.6.1
+
       - name: run unit tests
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR install '-Dtest=PersistentTransactionBufferTest,PulsarFunctionE2ESecurityTest,ServerCnxTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,ProxyPublishConsumeTlsTest,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest' -DfailIfNoTests=false
+        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR install '-Dtest=PersistentTransactionBufferTest,PulsarFunctionE2ESecurityTest,ServerCnxTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,ProxyPublishConsumeTlsTest,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false
           
       - name: package surefire artifacts
         if: failure()
