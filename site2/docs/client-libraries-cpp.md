@@ -14,11 +14,7 @@ Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 
 ### Install RPM
 
-Download a RPM package from the following links in the table below. And then install the package using the following command:
-
-```bash
-$ rpm -ivh apache-pulsar-client*.rpm
-```
+1. Download a RPM package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
@@ -26,21 +22,25 @@ $ rpm -ivh apache-pulsar-client*.rpm
 | [client-debuginfo]({{pulsar:dist_rpm:client-debuginfo}}) | [asc]({{pulsar:dist_rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:dist_rpm:client-debuginfo}}.sha512) |
 | [client-devel]({{pulsar:dist_rpm:client-devel}}) | [asc]({{pulsar:dist_rpm:client-devel}}.asc),  [sha512]({{pulsar:dist_rpm:client-devel}}.sha512) |
 
-
-### Install Debian
-
-Download a Debian package from the following links in the table below. And then install the package using the following command:
+2. Install the package using the following command.
 
 ```bash
-$ apt install ./apache-pulsar-client*.deb
+$ rpm -ivh apache-pulsar-client*.rpm
 ```
+### Install Debian
+
+1. Download a Debian package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
 | [client]({{pulsar:deb:client}}) | [asc]({{pulsar:dist_deb:client}}.asc), [sha512]({{pulsar:dist_deb:client}}.sha512) |
 | [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:dist_deb:client-devel}}.asc),  [sha512]({{pulsar:dist_deb:client-devel}}.sha512) |
 
+2. Install the package using the following command:
 
+```bash
+$ apt install ./apache-pulsar-client*.deb
+```
 ### Build
 
 > If you want to build RPM and Debian packages from the latest master, follow the instructions below to do so. All the instructions are run at the root directory of your cloned Pulsar repository.
