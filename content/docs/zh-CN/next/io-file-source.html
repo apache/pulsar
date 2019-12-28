@@ -82,7 +82,7 @@
 <li><p>拉取一个 Pulsar 图像。</p>
 <pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
 </code></pre></li>
-<li><p>Start Pulsar standalone.</p>
+<li><p>安装 Pulsar 独立模式.</p>
 <pre><code class="hljs css language-bash">$ docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
 </code></pre></li>
 <li><p>创建配置文件 <em>文件连接器.yaml</em>。</p>
@@ -110,7 +110,7 @@ $ ./bin/pulsar-admin sources localrun \
 <li><p>将消息写入文件 <em>test.txt</em>。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">"hello world!"</span> &gt; /opt/test.txt
 </code></pre>
-<p>The following information appears on the consumer terminal window.</p>
+<p>以下信息出现在消费终端窗口。</p>
 <pre><code class="hljs css language-bash">----- got message -----
 hello world!
 </code></pre></li>

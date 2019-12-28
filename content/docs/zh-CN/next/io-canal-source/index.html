@@ -100,7 +100,7 @@ $ mysql -h 127.0.0.1 -uroot -pcanal -e <span class="hljs-string">'create databas
 <pre><code class="hljs">$ docker pull canal/canal-server:v1.1.2
 $ docker <span class="hljs-builtin-name">run</span> -d -it --link pulsar-mysql -e canal.auto.<span class="hljs-attribute">scan</span>=<span class="hljs-literal">false</span> -e canal.<span class="hljs-attribute">destinations</span>=test -e canal.instance.master.<span class="hljs-attribute">address</span>=pulsar-mysql:3306 -e canal.instance.<span class="hljs-attribute">dbUsername</span>=root -e canal.instance.<span class="hljs-attribute">dbPassword</span>=canal -e canal.instance.<span class="hljs-attribute">connectionCharset</span>=UTF-8 -e canal.instance.tsdb.<span class="hljs-attribute">enable</span>=<span class="hljs-literal">true</span> -e canal.instance.<span class="hljs-attribute">gtidon</span>=<span class="hljs-literal">false</span> <span class="hljs-attribute">--name</span>=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -m 4096m canal/canal-server:v1.1.2
 </code></pre></li>
-<li><p>Start Pulsar standalone.</p>
+<li><p>安装 Pulsar 独立模式.</p>
 <pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:2.3.0
 $ docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.3.0 bin/pulsar standalone
 </code></pre></li>
