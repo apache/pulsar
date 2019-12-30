@@ -4,14 +4,14 @@ title: Query data with Pulsar SQL
 sidebar_label: Query data
 ---
 
-Before querying data in Pulsar, you need to install Pulsar and built-in connectors. 
+Before querying data in Pulsar, you need to install Pulsar and its built-in connector. 
 
 ## Requirements
 1. Install [Pulsar](getting-started-standalone.md#install-pulsar-standalone).
-2. Install Pulsar [built-in connectors](getting-started-standalone.md#install-builtin-connectors-optional).
+2. Install Pulsar [built-in connector](getting-started-standalone.md#install-builtin-connectors-optional).
 
 ## Query data in Pulsar
-To query data in Pulsar with Pulsar SQL, complete the following steps.
+Follow the steps below to query data in Pulsar with Pulsar SQL.
 
 1. Start a Pulsar standalone cluster.
 
@@ -25,7 +25,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 ./bin/pulsar sql-worker run
 ```
 
-3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
+3. Run SQL CLI.
 
 ```bash
 ./bin/pulsar sql
@@ -71,15 +71,15 @@ Splits: 19 total, 19 done (100.00%)
 
 ```
 
-Since there is no data in Pulsar, no records is returned. 
+No entry is returned since there is no data in Pulsar. 
 
-5. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
+5. Start the built-in connector _DataGeneratorSource_ and ingest mock data.
 
 ```bash
 ./bin/pulsar-admin sources create --name generator --destinationTopicName generator_test --source-type data-generator
 ```
 
-And then you can query a topic in the namespace "public/default".
+6. Query a topic within the namespace "public/default".
 
 ```bash
 presto> show tables in pulsar."public/default";
@@ -93,7 +93,7 @@ Splits: 19 total, 19 done (100.00%)
 0:02 [1 rows, 38B] [0 rows/s, 17B/s]
 ```
 
-You can now query the data within the topic "generator_test".
+7. Query the data under the topic "generator_test".
 
 ```bash
 presto> select * from pulsar."public/default".generator_test;
@@ -111,10 +111,10 @@ presto> select * from pulsar."public/default".generator_test;
 .
 ```
 
-You can query the mock data.
+You can now query the mock data.
 
 ## Query your own data
-If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example. 
+Before querying your own data, you need to ingest data first. Write a simple producer to ingest custom defined data into Pulsar. Below is an example. 
 
 ```java
 public class Test {
