@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -302,6 +307,45 @@ public class CLITest extends PulsarTestSuite {
         producer.close();
         consumer.close();
         client.close();
+    }
+
+    @Test
+    public void testListNonPersistentTopicsCmd() throws Exception {
+        String persistentTopic = "test-list-non-persistent-topic";
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics", "create", persistentTopic);
+        assertEquals(result.getExitCode(), 0);
+        HttpGet get = new HttpGet(pulsarCluster.getHttpServiceUrl() + "/admin/v2/non-persistent/public/default");
+        try (CloseableHttpClient client = HttpClients.createDefault();
+             CloseableHttpResponse response = client.execute(get)) {
+            assertFalse(EntityUtils.toString(response.getEntity()).contains(persistentTopic));
+        }
+    }
+
+    @Test
+    public void testGenerateDocForModule() throws Exception {
+        String[] moduleNames = {
+                "clusters",
+                "tenants",
+                "brokers",
+                "broker-stats",
+                "namespaces",
+                "topics",
+                "schemas",
+                "bookies",
+                "functions",
+                "ns-isolation-policy",
+                "resource-quotas",
+                "functions",
+                "sources",
+                "sinks"
+        };
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+        for (int i = 0; i < moduleNames.length; i++) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "documents", "generate", moduleNames[i]);
+            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+        }
     }
 
 }

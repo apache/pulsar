@@ -101,6 +101,10 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
+        if (null != table) {
+            table.close();
+        }
+
         if (null != admin) {
             admin.close();
         }
@@ -154,8 +158,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
         try {
             if (CollectionUtils.isNotEmpty(puts)) {
-                table.put(puts);
-                admin.flush(tableName);
+                table.batch(puts, new Object[puts.size()]);
             }
 
             toFlushList.forEach(tRecord -> tRecord.ack());

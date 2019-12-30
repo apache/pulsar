@@ -310,11 +310,6 @@ public class ProducerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testProducerBuilderImplWhenBatchingMaxMessagesPropertyIsNegative() {
-        producerBuilderImpl.batchingMaxMessages(-1);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenSendTimeoutPropertyIsNegative() {
         producerBuilderImpl.sendTimeout(-1, TimeUnit.SECONDS);
     }

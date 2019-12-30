@@ -103,7 +103,7 @@ public class BrokersBase extends AdminResource {
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaes(@PathParam("clusterName") String cluster,
+    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
             @PathParam("broker-webserviceurl") String broker) throws Exception {
         validateSuperUserAccess();
         validateClusterOwnership(cluster);

@@ -63,11 +63,11 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {
-            throw new RuntimeException(userClassName + " not " + xface.getName());
+            throw new RuntimeException(userClassName + " does not implement " + xface.getName());
         }
         Class<T> tCls = (Class<T>) theCls.asSubclass(xface);
         T result;
@@ -104,7 +104,7 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         Object result;
@@ -138,7 +138,7 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         Object result;
@@ -184,7 +184,7 @@ public class Reflections {
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             return false;
         }
     }
@@ -219,7 +219,7 @@ public class Reflections {
                 ret = true;
             }
             loader.close();
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             throw new RuntimeException(e);
         }
         return ret;
@@ -238,7 +238,7 @@ public class Reflections {
             if (xface.isAssignableFrom(Class.forName(fqcn))){
                 ret = true;
             }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
         return ret;
@@ -287,7 +287,7 @@ public class Reflections {
         } else {
             try {
                 return classLoader.loadClass(className);
-            } catch (ClassNotFoundException var4) {
+            } catch (ClassNotFoundException | NoClassDefFoundError var4) {
                 if (className.charAt(0) != '[') {
                     throw var4;
                 } else {
