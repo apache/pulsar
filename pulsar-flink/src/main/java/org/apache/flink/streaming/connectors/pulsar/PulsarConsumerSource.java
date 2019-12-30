@@ -163,7 +163,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         }
     }
 
-    private T deserialize(Message message) throws IOException {
+    protected T deserialize(Message message) throws IOException {
         return deserializer.deserialize(message.getData());
     }
 
