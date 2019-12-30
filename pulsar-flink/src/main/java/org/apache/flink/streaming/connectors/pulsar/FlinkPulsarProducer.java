@@ -21,7 +21,10 @@ package org.apache.flink.streaming.connectors.pulsar;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -257,9 +260,15 @@ public class FlinkPulsarProducer<T>
             }
         }
         msgBuilder.value(serializedValue)
+                .properties(this.generateProperties(value))
                 .sendAsync()
                 .thenApply(successCallback)
                 .exceptionally(failureCallback);
+    }
+
+    protected Map<String, String> generateProperties(T value) {
+
+        return new HashMap<>();
     }
 
     @Override
