@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Contains all the data that is maintained locally on each broker.
@@ -105,9 +106,9 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         directMemory = new ResourceUsage();
         bandwidthIn = new ResourceUsage();
         bandwidthOut = new ResourceUsage();
-        bundles = new HashSet<>();
-        lastBundleGains = new HashSet<>();
-        lastBundleLosses = new HashSet<>();
+        bundles = ConcurrentHashMap.newKeySet();
+        lastBundleGains = ConcurrentHashMap.newKeySet();
+        lastBundleLosses = ConcurrentHashMap.newKeySet();
         protocols = new HashMap<>();
     }
 
