@@ -97,6 +97,13 @@
       <type>test-jar</type>
     </dependency>
 
+    <!-- confluent client -->
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-connect-avro-converter</artifactId>
+      <version>${confluent.version}</version>
+    </dependency>
+
   </dependencies>
 
 

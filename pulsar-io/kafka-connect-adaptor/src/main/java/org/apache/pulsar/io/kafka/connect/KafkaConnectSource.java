@@ -34,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import io.confluent.connect.avro.AvroData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -45,6 +47,8 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
@@ -188,13 +192,26 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         @Getter
         Optional<String> destinationTopic;
 
+        private final AvroData avroData;
+
+        private final org.apache.avro.Schema keyAvroSchema;
+
+        private final org.apache.avro.Schema valueAvroSchema;
+
         KafkaSourceRecord(SourceRecord srcRecord) {
             byte[] keyBytes = keyConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             byte[] valueBytes = valueConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+            this.avroData = new AvroData(1000);
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
             this.value = new KeyValue(keyBytes, valueBytes);
+
+            keyAvroSchema = (org.apache.avro.Schema) this.avroData.fromConnectData(
+                    srcRecord.keySchema(), keyBytes);
+            valueAvroSchema = (org.apache.avro.Schema) this.avroData.fromConnectData(
+                    srcRecord.valueSchema(), valueBytes);
+            this.avroData.fromConnectData(srcRecord.valueSchema(), valueBytes);
 
             this.topicName = Optional.of(srcRecord.topic());
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
@@ -204,6 +221,13 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
             this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
+        }
+
+        @Override
+        public Schema<KeyValue<byte[], byte[]>> getSchema() {
+            return new KeyValueSchema<>(
+                    keyAvroSchema, valueAvroSchema
+            );
         }
 
         @Override
