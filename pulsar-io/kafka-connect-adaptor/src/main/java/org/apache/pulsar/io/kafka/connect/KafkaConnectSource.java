@@ -53,6 +53,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.connect.schema.KafkaSchema;
 
 /**
  * A pulsar source that runs
@@ -198,10 +199,18 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         private final org.apache.avro.Schema valueAvroSchema;
 
+        private final KafkaSchema keySchema;
+
+        private final KafkaSchema valueSchema;
+
+        private byte[] keyBytes;
+
+        private byte[] valueBytes;
+
         KafkaSourceRecord(SourceRecord srcRecord) {
-            byte[] keyBytes = keyConverter.fromConnectData(
+            keyBytes = keyConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
-            byte[] valueBytes = valueConverter.fromConnectData(
+            valueBytes = valueConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
             this.avroData = new AvroData(1000);
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
@@ -211,7 +220,10 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                     srcRecord.keySchema(), keyBytes);
             valueAvroSchema = (org.apache.avro.Schema) this.avroData.fromConnectData(
                     srcRecord.valueSchema(), valueBytes);
-            this.avroData.fromConnectData(srcRecord.valueSchema(), valueBytes);
+            keySchema = new KafkaSchema();
+            keySchema.setAvroSchema(true, this.avroData, keyAvroSchema, keyConverter);
+            valueSchema = new KafkaSchema();
+            valueSchema.setAvroSchema(false, this.avroData, valueAvroSchema, valueConverter);
 
             this.topicName = Optional.of(srcRecord.topic());
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
@@ -225,9 +237,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         @Override
         public Schema<KeyValue<byte[], byte[]>> getSchema() {
-            return new KeyValueSchema<>(
-                    keyAvroSchema, valueAvroSchema
-            );
+            return KeyValueSchema.of(keySchema, valueSchema);
         }
 
         @Override
