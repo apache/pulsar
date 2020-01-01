@@ -593,7 +593,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleError(CommandError error) {
-        checkArgument(state == State.Ready);
+        checkArgument(state == State.SentConnectFrame || state == State.Ready);
 
         log.warn("{} Received error from server: {}", ctx.channel(), error.getMessage());
         long requestId = error.getRequestId();
