@@ -2430,7 +2430,7 @@
       "put" : {
         "tags" : [ "namespaces" ],
         "summary" : "Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage",
-        "description" : "A negative value disables automatic offloading",
+        "description" : "-1 will revert to using the cluster default. A negative value disables automatic offloading. ",
         "operationId" : "setOffloadThreshold",
         "consumes" : [ "application/json" ],
         "produces" : [ "application/json" ],
@@ -4934,7 +4934,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "401" : {
@@ -9048,6 +9048,9 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -9074,9 +9077,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
         },
         "overLoaded" : {
           "type" : "boolean"
