@@ -203,6 +203,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbase.version>1.4.9</hbase.version>
     <guava.version>25.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
+    <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>

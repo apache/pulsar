@@ -321,7 +321,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     };
 
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Opening legder {}", name, id);
+                        log.debug("[{}] Opening ledger {}", name, id);
                     }
                     mbean.startDataLedgerOpenOp();
                     bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
@@ -1790,8 +1790,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    PositionImpl startReadOperationOnLedger(PositionImpl position) {
-        long ledgerId = ledgers.ceilingKey(position.getLedgerId());
+    PositionImpl startReadOperationOnLedger(PositionImpl position, OpReadEntry opReadEntry) {
+        Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
+        if (null == ledgerId) {
+            opReadEntry.readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException("The ceilingKey(K key) method is used to return the " +
+                    "least key greater than or equal to the given key, or null if there is no such key"), null);
+        }
+
         if (ledgerId != position.getLedgerId()) {
             // The ledger pointed by this position does not exist anymore. It was deleted because it was empty. We need
             // to skip on the next available ledger

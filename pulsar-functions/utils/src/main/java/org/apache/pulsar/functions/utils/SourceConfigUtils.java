@@ -271,7 +271,7 @@ public class SourceConfigUtils {
             try {
                 typeArg = getSourceType(sourceClassName, narClassLoader);
                 classLoader = narClassLoader;
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
                         String.format("Source class %s must be in class path", sourceClassName), e);
             }
@@ -282,13 +282,13 @@ public class SourceConfigUtils {
                 try {
                     typeArg = getSourceType(sourceClassName, jarClassLoader);
                     classLoader = jarClassLoader;
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // class not found in JAR try loading as a NAR and searching for the class
                     if (narClassLoader != null) {
                         try {
                             typeArg = getSourceType(sourceClassName, narClassLoader);
                             classLoader = narClassLoader;
-                        } catch (ClassNotFoundException e1) {
+                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
                                     String.format("Source class %s must be in class path", sourceClassName), e1);
                         }
@@ -301,7 +301,7 @@ public class SourceConfigUtils {
                 try {
                     typeArg = getSourceType(sourceClassName, narClassLoader);
                     classLoader = narClassLoader;
-                } catch (ClassNotFoundException e1) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
                             String.format("Source class %s must be in class path", sourceClassName), e1);
                 }
