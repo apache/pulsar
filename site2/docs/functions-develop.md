@@ -19,6 +19,8 @@ The language-native function, which adds an exclamation point to all incoming st
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```Java
+import java.util.function.Function;
+
 public class JavaNativeExclamationFunction implements Function<String, String> {
     @Override
     public String apply(String input) {
@@ -52,6 +54,9 @@ The following example uses Pulsar Functions SDK.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```Java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
 public class ExclamationFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {
@@ -939,6 +944,11 @@ If `--watch` is specified, the CLI will watch the value of the provided `state-k
 demonstrating on how Application can easily store `state` in Pulsar Functions.
 
 ```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+import java.util.Arrays;
+
 public class WordCountFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) throws Exception {

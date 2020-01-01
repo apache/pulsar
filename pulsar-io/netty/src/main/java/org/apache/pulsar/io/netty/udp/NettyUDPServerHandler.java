@@ -16,38 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
-
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+package org.apache.pulsar.io.netty.udp;
 
 import java.io.Serializable;
 import java.util.Optional;
 
-import lombok.Data;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.netty.NettySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBufUtil;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.socket.DatagramPacket;
+import lombok.Data;
+
 /**
  * Handles a server-side channel.
  */
 @ChannelHandler.Sharable
-public class NettyServerHandler extends SimpleChannelInboundHandler<byte[]> {
+public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
-    private static final Logger logger = LoggerFactory.getLogger(NettyServerHandler.class);
-
+    private static final Logger logger = LoggerFactory.getLogger(NettyUDPServerHandler.class);
     private NettySource nettySource;
 
-    public NettyServerHandler(NettySource nettySource) {
+    public NettyUDPServerHandler(NettySource nettySource) {
         this.nettySource = nettySource;
     }
-
+    
     @Override
-    protected void channelRead0(ChannelHandlerContext channelHandlerContext, byte[] bytes) throws Exception {
-        nettySource.consume(new NettyRecord(Optional.ofNullable(""), bytes));
+    protected void channelRead0(ChannelHandlerContext channelHandlerContext, DatagramPacket packet) throws Exception {
+        byte[] bytes = ByteBufUtil.getBytes(packet.content());
+        nettySource.consume(new NettyUDPRecord(Optional.ofNullable(""), bytes));
     }
 
     @Override
@@ -57,7 +59,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<byte[]> {
     }
 
     @Data
-    static private class NettyRecord implements Record<byte[]>, Serializable {
+    static private class NettyUDPRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }

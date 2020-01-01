@@ -1483,6 +1483,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
+        stats.msgInCounter = getMsgInCounter();
+        stats.bytesInCounter = getBytesInCounter();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats();

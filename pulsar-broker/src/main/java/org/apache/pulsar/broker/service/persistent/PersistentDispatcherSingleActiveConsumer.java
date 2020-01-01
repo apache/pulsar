@@ -336,7 +336,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
-        positions.forEach(redeliveryTracker::incrementAndGetRedeliveryCount);
+        positions.forEach(redeliveryTracker::addIfAbsent);
         redeliverUnacknowledgedMessages(consumer);
     }
 

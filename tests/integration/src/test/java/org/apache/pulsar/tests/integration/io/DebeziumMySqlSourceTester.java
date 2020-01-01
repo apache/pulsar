@@ -20,17 +20,12 @@ package org.apache.pulsar.tests.integration.io;
 
 import java.io.Closeable;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.schema.ByteSchema;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.Assert;
 
 /**
  * A tester for testing Debezium MySQL source.
@@ -79,6 +74,42 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
     public void prepareSource() throws Exception {
         log.info("debezium mysql server already contains preconfigured data.");
     }
+
+    @Override
+    public void prepareInsertEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"INSERT INTO inventory.products(name, description, weight) " +
+                        "values('test-debezium', 'This is description', 2.0)\"");
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"UPDATE inventory.products set description='update description', weight=10 " +
+                        "WHERE name='test-debezium'\"");
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"DELETE FROM inventory.products WHERE name='test-debezium'\"");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+    }
+
 
     @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {

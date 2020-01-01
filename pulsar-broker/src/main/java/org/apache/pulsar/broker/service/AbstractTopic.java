@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -80,6 +81,9 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean schemaValidationEnforced = false;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
+
+    private LongAdder bytesInCounter = new LongAdder();
+    private LongAdder msgInCounter = new LongAdder();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -262,6 +266,9 @@ public abstract class AbstractTopic implements Topic {
         this.topicPublishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
         // increase broker publish rate limiter
         getBrokerPublishRateLimiter().incrementPublishCount(numOfMessages, msgSizeInBytes);
+        // increase counters
+        bytesInCounter.add(msgSizeInBytes);
+        msgInCounter.add(numOfMessages);
     }
 
     @Override
@@ -382,6 +389,12 @@ public abstract class AbstractTopic implements Topic {
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerRead();
         }
+    }
+
+    public long getMsgInCounter() { return this.msgInCounter.longValue(); }
+
+    public long getBytesInCounter() {
+        return this.bytesInCounter.longValue();
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);

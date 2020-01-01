@@ -377,7 +377,7 @@ public class SinkConfigUtils {
             try {
                 typeArg = getSinkType(sinkClassName, narClassLoader);
                 classLoader = narClassLoader;
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
                         String.format("Sink class %s must be in class path", sinkClassName), e);
             }
@@ -388,13 +388,13 @@ public class SinkConfigUtils {
                 try {
                     typeArg = getSinkType(sinkClassName, jarClassLoader);
                     classLoader = jarClassLoader;
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // class not found in JAR try loading as a NAR and searching for the class
                     if (narClassLoader != null) {
                         try {
                             typeArg = getSinkType(sinkClassName, narClassLoader);
                             classLoader = narClassLoader;
-                        } catch (ClassNotFoundException e1) {
+                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
                                     String.format("Sink class %s must be in class path", sinkClassName), e1);
                         }
@@ -407,7 +407,7 @@ public class SinkConfigUtils {
                 try {
                     typeArg = getSinkType(sinkClassName, narClassLoader);
                     classLoader = narClassLoader;
-                } catch (ClassNotFoundException e1) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
                             String.format("Sink class %s must be in class path", sinkClassName), e1);
                 }

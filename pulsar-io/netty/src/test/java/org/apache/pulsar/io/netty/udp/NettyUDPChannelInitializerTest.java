@@ -16,28 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.netty.server;
+package org.apache.pulsar.io.netty.udp;
 
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.bytes.ByteArrayDecoder;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+
+import org.apache.pulsar.io.netty.NettySource;
+import org.testng.annotations.Test;
+
+import io.netty.channel.socket.nio.NioDatagramChannel;
 
 /**
- * Netty Channel Initializer to register decoder and handler.
+ * Tests for Netty Channel Initializer
  */
-public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
+public class NettyUDPChannelInitializerTest {
 
-    private ChannelInboundHandlerAdapter handler;
+    @Test
+    public void testChannelInitializer() throws Exception {
+        NioDatagramChannel channel = new NioDatagramChannel();
 
-    public NettyChannelInitializer(ChannelInboundHandlerAdapter handler) {
-        this.handler = handler;
+        NettyUDPChannelInitializer nettyChannelInitializer = new NettyUDPChannelInitializer(
+                new NettyUDPServerHandler(new NettySource()));
+        nettyChannelInitializer.initChannel(channel);
+
+        assertNotNull(channel.pipeline().toMap());
+        assertEquals(1, channel.pipeline().toMap().size());
     }
-
-    @Override
-    protected void initChannel(SocketChannel socketChannel) throws Exception {
-        socketChannel.pipeline().addLast(new ByteArrayDecoder());
-        socketChannel.pipeline().addLast(this.handler);
-    }
-
+    
 }
