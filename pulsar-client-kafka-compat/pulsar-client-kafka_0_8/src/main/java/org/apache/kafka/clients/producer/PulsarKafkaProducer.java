@@ -228,7 +228,7 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
         Class<?> c = null;
         try {
             c = Class.forName(key);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException("class not found for :" + key);
         }
         if (c == null)

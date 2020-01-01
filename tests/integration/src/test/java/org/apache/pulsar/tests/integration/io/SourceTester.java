@@ -37,6 +37,12 @@ import org.testng.collections.Maps;
 @Slf4j
 public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
+    public final static String INSERT = "INSERT";
+
+    public final static String DELETE = "DELETE";
+
+    public final static String UPDATE = "UPDATE";
+
     protected final String sourceType;
     protected final Map<String, Object> sourceConfig;
 
@@ -57,9 +63,15 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public abstract void prepareSource() throws Exception;
 
+    public abstract void prepareInsertEvent() throws Exception;
+
+    public abstract void prepareDeleteEvent() throws Exception;
+
+    public abstract void prepareUpdateEvent() throws Exception;
+
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
-    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {
+    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
         int recordsNumber = 0;
         Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
@@ -69,6 +81,9 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
             log.info("Received message: key = {}, value = {}.", key, value);
             Assert.assertTrue(key.contains(this.keyContains()));
             Assert.assertTrue(value.contains(this.valueContains()));
+            if (eventType != null) {
+                Assert.assertTrue(value.contains(this.eventContains(eventType)));
+            }
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
         }
@@ -81,5 +96,15 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
     }
     public String valueContains(){
         return "dbserver1.inventory.products.Value";
+    }
+
+    public String eventContains(String eventType) {
+        if (eventType.equals(INSERT)) {
+            return "\"op\":\"c\"";
+        } else if (eventType.equals(UPDATE)) {
+            return "\"op\":\"u\"";
+        } else {
+            return "\"op\":\"d\"";
+        }
     }
 }

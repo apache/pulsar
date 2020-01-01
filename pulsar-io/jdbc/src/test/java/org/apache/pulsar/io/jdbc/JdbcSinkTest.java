@@ -80,7 +80,7 @@ public class JdbcSinkTest {
                         "PRIMARY KEY (field1));"
         );
 
-        // prepare data for udpate sql
+        // prepare data for update sql
         String updateSql = "insert into " + tableName + " values('ValueOfField4', 'ValueOfField4', 4)";
         sqliteUtils.execute(updateSql);
 

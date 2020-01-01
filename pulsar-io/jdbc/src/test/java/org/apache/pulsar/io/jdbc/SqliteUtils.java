@@ -37,7 +37,7 @@ public final class SqliteUtils {
     static {
         try {
             Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
     }

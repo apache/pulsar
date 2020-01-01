@@ -209,7 +209,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     /**
      * Usecase: Redirection due to different cluster 1. Broker1 runs on cluster: "use" and Broker2 runs on cluster:
      * "use2" 2. Broker1 receives "use2" cluster request => Broker1 reads "/clusters" from global-zookkeeper and
-     * redirects request to Broker2 whch serves "use2" 3. Broker2 receives redirect request and own namespace bundle
+     * redirects request to Broker2 which serves "use2" 3. Broker2 receives redirect request and own namespace bundle
      *
      * @throws Exception
      */
