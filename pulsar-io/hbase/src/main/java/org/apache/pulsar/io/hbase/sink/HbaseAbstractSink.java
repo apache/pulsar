@@ -21,10 +21,6 @@ package org.apache.pulsar.io.hbase.sink;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -56,10 +52,6 @@ import java.util.concurrent.TimeUnit;
 public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     @Data(staticConstructor = "of")
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
     public static class TableDefinition {
         private final String rowKeyName;
         private final String familyName;
