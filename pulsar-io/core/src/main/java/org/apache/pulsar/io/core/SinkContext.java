@@ -24,6 +24,10 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Interface for a sink connector providing information about environment where it is running.
+ * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
+ */
 public interface SinkContext {
 
     /**

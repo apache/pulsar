@@ -56,7 +56,7 @@ public class PulsarConnectorUtils {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {

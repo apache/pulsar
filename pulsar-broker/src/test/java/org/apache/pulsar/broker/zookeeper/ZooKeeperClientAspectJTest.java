@@ -294,7 +294,7 @@ public class ZooKeeperClientAspectJTest {
         return null;
     }
 
-    class ZookeeperServerTest implements Closeable {
+    static class ZookeeperServerTest implements Closeable {
         private final File zkTmpDir;
         private ZooKeeperServer zks;
         private NIOServerCnxnFactory serverFactory;
