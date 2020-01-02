@@ -474,6 +474,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
-                .authentication(authTls).enableTls(true).build();
+                .authentication(authTls).enableTls(true)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
     }
 }
