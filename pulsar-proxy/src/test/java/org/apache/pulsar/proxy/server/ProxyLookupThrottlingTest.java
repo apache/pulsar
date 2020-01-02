@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -32,9 +33,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -75,7 +74,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testLookup() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
-                .connectionsPerBroker(5).ioThreads(5).build();
+                .connectionsPerBroker(5).ioThreads(5).operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
@@ -88,7 +87,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // Ignore
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 11.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
             Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
@@ -96,7 +95,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 11.0d);
         client.close();
     }
 }
