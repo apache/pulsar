@@ -44,5 +44,11 @@ jobs:
       - name: build artifacts and docker image
         run: mvn -B install -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -Pdocker -DskipTests
 
-      - name: run integration tests
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests -DredirectTestOutputToFile=false
+      - name: run compatibility 2-2
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-backwards-compatibility-2-2.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+      - name: run compatibility 2-3
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-backwards-compatibility-2-3.xml -DintegrationTests -DredirectTestOutputToFile=false
+
+      - name: run compatibility 2-4
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-backwards-compatibility-2-4.xml -DintegrationTests -DredirectTestOutputToFile=false
