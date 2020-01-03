@@ -722,7 +722,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         };
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
@@ -783,7 +784,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         };
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -77,7 +78,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         }
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false);
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);

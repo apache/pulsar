@@ -179,7 +179,8 @@ public class PulsarFunctionE2ESecurityTest {
         ClusterData clusterData = new ClusterData(brokerWebServiceUrl.toString());
         superUserAdmin.clusters().updateCluster(config.getClusterName(), clusterData);
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl())
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
                 && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
             clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),

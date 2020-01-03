@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
 
@@ -119,10 +120,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
         @Cleanup
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
