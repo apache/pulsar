@@ -916,15 +916,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test(enabled = false)
+    @Test
     public void testClusterIsReadyBeforeCreateTopic() throws PulsarAdminException {
         final String topicName = "partitionedTopic";
         final int partitions = 4;
         final String persistentPartitionedTopicName = "persistent://prop-xyz/ns2/" + topicName;
         final String NonPersistentPartitionedTopicName = "non-persistent://prop-xyz/ns2/" + topicName;
 
-        // init tenant and namespace without cluster
         admin.namespaces().createNamespace("prop-xyz/ns2");
+        // By default the cluster will configure as configuration file. So the create topic operation
+        // will never throw exception except there is no cluster.
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns2", new HashSet<String>());
+
         try {
             admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
             Assert.fail("should have failed due to Namespace does not have any clusters configured");
