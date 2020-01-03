@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -73,12 +74,12 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     public void testInboundConnection() throws Exception {
         LOG.info("Creating producer 1");
         PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
-                .build();
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
 
         LOG.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
-                .build();
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         Producer<byte[]> producer2;
         Assert.assertEquals(ProxyService.rejectedConnections.get(), 0.0d);
         try {
@@ -88,7 +89,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // OK
         }
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 1.0d);
+        // should add retry count since retry every 100ms and operation timeout is set to 1000ms
+        Assert.assertEquals(ProxyService.rejectedConnections.get(), 11.0d);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
