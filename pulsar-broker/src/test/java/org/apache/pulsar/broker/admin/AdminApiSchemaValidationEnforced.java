@@ -148,7 +148,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         schemaInfo.setProperties(properties);
         schemaInfo.setName("test");
         schemaInfo.setSchema("".getBytes());
-        PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "{'key':'value'}", properties);
+        PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             fail("Client no schema, but topic has schema, should fail");

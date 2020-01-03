@@ -93,7 +93,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
     // Number of threads to use in HTTP server
-    private int numHttpServerThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+    private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
