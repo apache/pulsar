@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,6 +55,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 
+@Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private final PulsarClientImpl client;
@@ -338,10 +341,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-    public ConsumerConfigurationData<T> getConf() {
-        return conf;
-    }
-    
     @Override
     public String toString() {
         return conf != null ? conf.toString() : null;
