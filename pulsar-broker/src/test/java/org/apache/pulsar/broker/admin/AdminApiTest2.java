@@ -301,7 +301,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns2";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -869,7 +869,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // create
         String policyName1 = "policy-1";
         String namespaceRegex = "other/use/other.*";
-        String cluster = "use";
+        String cluster = pulsar.getConfiguration().getClusterName();
         String brokerName = pulsar.getAdvertisedAddress();
         String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
         NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
@@ -899,11 +899,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
         assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
 
-        try {
-            admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
-            Assert.fail("should have failed due to invalid broker address");
-        } catch (PulsarAdminException.NotFoundException e) {// expected
-        }
+        BrokerNamespaceIsolationData isolationData = admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+        assertFalse(isolationData.isPrimary);
     }
 
     @Test
@@ -919,7 +916,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(enabled = false)
     public void testClusterIsReadyBeforeCreateTopic() throws PulsarAdminException {
         final String topicName = "partitionedTopic";
         final int partitions = 4;
