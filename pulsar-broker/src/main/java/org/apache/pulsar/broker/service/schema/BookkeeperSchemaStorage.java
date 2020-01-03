@@ -101,8 +101,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @Override
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
-            pulsar.getConfiguration(),
-            pulsar.getZkClient(),
+            pulsar,
             Optional.empty(),
             null
         );

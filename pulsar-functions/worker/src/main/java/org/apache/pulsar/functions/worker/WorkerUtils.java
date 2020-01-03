@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -146,10 +147,13 @@ public final class WorkerUtils {
         return conf;
     }
 
-    public static URI initializeDlogNamespace(String zkServers, String ledgersRootPath) throws IOException {
-        BKDLConfig dlConfig = new BKDLConfig(zkServers, ledgersRootPath);
+    public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
+        String zookeeperServers = internalConf.getZookeeperServers();
+        String ledgersStoreServers = internalConf.getLedgersStoreServers();
+        String ledgersRootPath = internalConf.getLedgersRootPath();
+        BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
-        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
+        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
 
         try {
             dlMetadata.create(dlogUri);

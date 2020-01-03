@@ -37,6 +37,7 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -52,21 +53,28 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     private final AtomicReference<ZooKeeperCache> zkCache = new AtomicReference<>();
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
-            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass, Map<String, Object> properties) throws IOException {
+    public BookKeeper create(PulsarService pulsar,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties) throws IOException {
+        ServiceConfiguration conf = pulsar.getConfiguration();
         ClientConfiguration bkConf = createBkClientConfiguration(conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
         }
+
+        // Choose which zookeeper client to use
+        ZooKeeper pulsarZkClient = pulsar.getZkClient();
+        ZooKeeper ledgerZkClient = pulsar.isLedgerSeparated() ? pulsar.getLedgersZkClient() : pulsarZkClient;
+
         if (ensemblePlacementPolicyClass.isPresent()) {
-            setEnsemblePlacementPolicy(bkConf, conf, zkClient, ensemblePlacementPolicyClass.get());
+            setEnsemblePlacementPolicy(bkConf, conf, pulsarZkClient, ensemblePlacementPolicyClass.get());
         } else {
-            setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, zkClient);
+            setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, pulsarZkClient);
         }
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .zk(zkClient)
+                    .zk(ledgerZkClient)
                     .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
@@ -105,6 +113,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
+
+        if (StringUtils.isNotBlank(conf.getBookkeeperLedgersStore())) {
+            bkConf.setZkServers(conf.getBookkeeperLedgersStore());
+            bkConf.setZkLedgersRootPath(conf.getBookkeeperLedgersRootPath());
+        }
 
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();

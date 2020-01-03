@@ -818,6 +818,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- BookKeeper Client --- ****/
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "BookKeeper ledgers storage connection string when using a separated BookKeeper cluster."
+            + " If not set it will use local zookeeper quorum of Pulsar cluster"
+    )
+    private String bookkeeperLedgersStore;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Root Zookeeper path to store ledger metadata. This parameter is used by zookeeper-based "
+            + "ledger manager as a root znode to  store all ledgers"
+    )
+    private String bookkeeperLedgersRootPath = "/ledgers";
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
     )
     private String bookkeeperClientAuthenticationPlugin;

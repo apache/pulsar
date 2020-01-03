@@ -299,7 +299,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+        public BookKeeper create(PulsarService pulsar,
                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                 Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart

@@ -31,7 +31,7 @@ import org.apache.zookeeper.ZooKeeper;
  * Provider of a new BookKeeper client instance
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+    BookKeeper create(PulsarService pulsar,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
 

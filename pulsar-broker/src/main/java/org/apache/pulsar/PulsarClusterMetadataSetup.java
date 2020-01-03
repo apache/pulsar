@@ -170,16 +170,11 @@ public class PulsarClusterMetadataSetup {
         ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
         ZooKeeper configStoreZk = initZk(arguments.configurationStore, arguments.zkSessionTimeoutMillis);
 
-        // Format BookKeeper ledger storage metadata
+        // Format BookKeeper stream storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setZkServers(arguments.zookeeper);
         bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
-            throw new IOException("Failed to initialize BookKeeper metadata");
-        }
 
-        // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
             ServiceURI bkMetadataServiceUri = ServiceURI.create(bkConf.getMetadataServiceUri());
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);

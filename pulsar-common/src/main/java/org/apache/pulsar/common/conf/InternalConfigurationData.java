@@ -28,6 +28,7 @@ public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String configurationStoreServers;
+    private String ledgersStoreServers;
     private String ledgersRootPath;
     private String stateStorageServiceUrl;
 
@@ -36,10 +37,12 @@ public class InternalConfigurationData {
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
+                                     String ledgersStoreServers,
                                      String ledgersRootPath,
                                      String stateStorageServiceUrl) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
+        this.ledgersStoreServers = ledgersStoreServers;
         this.ledgersRootPath = ledgersRootPath;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
@@ -50,6 +53,10 @@ public class InternalConfigurationData {
 
     public String getConfigurationStoreServers() {
         return configurationStoreServers;
+    }
+
+    public String getLedgersStoreServers() {
+        return ledgersStoreServers;
     }
 
     public String getLedgersRootPath() {
@@ -68,13 +75,15 @@ public class InternalConfigurationData {
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(configurationStoreServers, other.configurationStoreServers)
+            && Objects.equals(ledgersStoreServers, other.ledgersStoreServers)
             && Objects.equals(ledgersRootPath, other.ledgersRootPath)
             && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath, stateStorageServiceUrl);
+        return Objects.hash(zookeeperServers, configurationStoreServers,
+            ledgersStoreServers, ledgersRootPath, stateStorageServiceUrl);
     }
 
     @Override
@@ -82,6 +91,7 @@ public class InternalConfigurationData {
         return MoreObjects.toStringHelper(this)
             .add("zookeeperServers", zookeeperServers)
             .add("configurationStoreServers", configurationStoreServers)
+            .add("ledgersStoreServers", ledgersStoreServers)
             .add("ledgersRootPath", ledgersRootPath)
             .add("stateStorageServiceUrl", stateStorageServiceUrl)
             .toString();
