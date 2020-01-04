@@ -590,12 +590,12 @@ public class PulsarFunctionLocalRunTest {
     }
 
 
-    @Test// (timeOut = 20000)
+    @Test
     public void testPulsarSourceLocalRunNoArchive() throws Exception {
         testPulsarSourceLocalRun(null);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSourceLocalRunWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSourceLocalRun(jarFilePathUrl);
