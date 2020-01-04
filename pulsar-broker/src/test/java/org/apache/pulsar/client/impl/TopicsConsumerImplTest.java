@@ -1026,11 +1026,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @Test(timeOut = testTimeout)
     public void multiTopicsInDifferentNameSpace() throws PulsarAdminException, PulsarClientException {
         List<String> topics = new ArrayList<>();
-        topics.add("persistent://public/default/MultiTopics1");
-        topics.add("persistent://public/test-multi/MultiTopics2");
-        topics.add("persistent://public/test-multi/MultiTopics3");
-        admin.tenants().createTenant("public",new TenantInfo());
-        admin.namespaces().createNamespace("public/test-multi");
+        topics.add("persistent://prop/use/ns-abc/topic-1");
+        topics.add("persistent://prop/use/ns-abc/topic-2");
+        topics.add("persistent://prop/use/ns-abc1/topic-3");
+        admin.tenants().createTenant("prop",new TenantInfo());
+        admin.namespaces().createNamespace("prop/use/ns-abc");
+        admin.namespaces().createNamespace("prop/use/ns-abc1");
         Consumer consumer = pulsarClient.newConsumer()
                 .topics(topics)
                 .subscriptionName("multiTopicSubscription")
@@ -1038,23 +1039,23 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
         // create Producer
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://public/default/MultiTopics1")
+                .topic("persistent://prop/use/ns-abc/topic-1")
                 .producerName("producer")
                 .create();
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://public/test-multi/MultiTopics2")
+                .topic("persistent://prop/use/ns-abc/topic-2")
                 .producerName("producer1")
                 .create();
         Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://public/test-multi/MultiTopics3")
+                .topic("persistent://prop/use/ns-abc1/topic-3")
                 .producerName("producer2")
                 .create();
         //send message
-        producer.send("default/MultiTopics1-Message1");
+        producer.send("ns-abc/topic-1-Message1");
 
-        producer1.send("test-multi/MultiTopics2-Message1");
+        producer1.send("ns-abc/topic-2-Message1");
 
-        producer2.send("test-multi/MultiTopics3-Message1");
+        producer2.send("ns-abc1/topic-3-Message1");
 
         int messageSet = 0;
         Message<byte[]> message = consumer.receive();
