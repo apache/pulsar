@@ -85,6 +85,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
+        conf.setAdvertisedAddress("localhost");
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
@@ -160,7 +161,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
 
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl());
+        PulsarClient proxyClient = createPulsarClient("pulsar+ssl://localhost:" + proxyService.getListenPortTls().get());
 
         String namespaceName = "my-property/proxy-authorization-neg/my-ns";
 
