@@ -29,7 +29,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -222,9 +221,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      * Initialize this load manager using the given PulsarService. Should be called only once, after invoking the
      * default constructor.
      *
-     * @param pulsar
-     *            The service to initialize with.
+     * @param pulsar The service to initialize with.
      */
+    @Override
     public void initialize(final PulsarService pulsar) {
         this.pulsar = pulsar;
         availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(),
@@ -491,13 +490,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
                 if (bundleData.containsKey(bundle)) {
-                    // If we recognize the bundle, add these stats as a new
-                    // sample.
+                    // If we recognize the bundle, add these stats as a new sample.
                     bundleData.get(bundle).update(stats);
                 } else {
                     // Otherwise, attempt to find the bundle data on ZooKeeper.
-                    // If it cannot be found, use the latest stats as the first
-                    // sample.
+                    // If it cannot be found, use the latest stats as the first sample.
                     BundleData currentBundleData = getBundleDataOrDefault(bundle);
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
@@ -572,8 +569,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.info("Only 1 broker available: no load shedding will be performed");
             return;
         }
-        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
-        // map.
+        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
                 - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
@@ -872,7 +868,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             updateLocalBrokerData();
             if (needBrokerDataUpdate()) {
                 localData.setLastUpdate(System.currentTimeMillis());
-                zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+
+                try {
+                    zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+                } catch (KeeperException.NoNodeException e) {
+                    ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
+                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                }
 
                 // Clear deltas.
                 localData.getLastBundleGains().clear();

@@ -30,10 +30,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
 
-    public static ByteBufferSchema of() {
-        return INSTANCE;
-    }
-
     private static final ByteBufferSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -43,6 +39,10 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
             .setType(SchemaType.BYTES)
             .setSchema(new byte[0]);
         INSTANCE = new ByteBufferSchema();
+    }
+
+    public static ByteBufferSchema of() {
+        return INSTANCE;
     }
 
     @Override

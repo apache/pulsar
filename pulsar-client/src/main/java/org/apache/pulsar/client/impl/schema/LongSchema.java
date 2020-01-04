@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class LongSchema extends AbstractSchema<Long> {
 
-    public static LongSchema of() {
-        return INSTANCE;
-    }
-
     private static final LongSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class LongSchema extends AbstractSchema<Long> {
             .setType(SchemaType.INT64)
             .setSchema(new byte[0]);
         INSTANCE = new LongSchema();
+    }
+
+    public static LongSchema of() {
+        return INSTANCE;
     }
 
     @Override

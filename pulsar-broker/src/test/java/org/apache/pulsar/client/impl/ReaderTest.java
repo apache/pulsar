@@ -21,18 +21,15 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -45,6 +42,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -105,9 +103,37 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
+        Set<String> keys = publishMessages(topic, 10, false);
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                            .startMessageIdInclusive().readerName(subscription).create();
+
+        Assert.assertTrue(reader.hasMessageAvailable());
+        Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
     public void testReadMessageWithBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching";
         testReadMessages(topic, true);
+    }
+
+    @Test
+    public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
+        Set<String> keys = publishMessages(topic, 10, true);
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                            .startMessageIdInclusive().readerName(subscription).create();
+
+        while (reader.hasMessageAvailable()) {
+            Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        }
+        Assert.assertTrue(keys.isEmpty());
+        Assert.assertFalse(reader.hasMessageAvailable());
     }
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
@@ -125,6 +151,10 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(keys.remove(message.getKey()));
         }
         Assert.assertTrue(keys.isEmpty());
+
+        Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                                .readerName(subscription + "latest").create();
+        Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
 
@@ -219,5 +249,41 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         restartBroker();
 
         assertFalse(reader.hasMessageAvailable());
+    }
+
+    /**
+     * We need to ensure that delete subscription of read also need to delete the
+     * non-durable cursor, because data deletion depends on the mark delete position of all cursors.
+     */
+    @Test
+    public void testRemoveSubscriptionForReaderNeedRemoveCursor() throws IOException, PulsarAdminException {
+
+        final String topic = "persistent://my-property/my-ns/testRemoveSubscriptionForReaderNeedRemoveCursor";
+
+        @Cleanup
+        Reader<byte[]> reader1 = pulsarClient.newReader()
+            .topic(topic)
+            .startMessageId(MessageId.earliest)
+            .create();
+
+        @Cleanup
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+            .topic(topic)
+            .startMessageId(MessageId.earliest)
+            .create();
+
+        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 2);
+        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 2);
+
+        reader1.close();
+
+        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 1);
+        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 1);
+
+        reader2.close();
+
+        Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 0);
+        Assert.assertEquals(admin.topics().getInternalStats(topic).cursors.size(), 0);
+
     }
 }

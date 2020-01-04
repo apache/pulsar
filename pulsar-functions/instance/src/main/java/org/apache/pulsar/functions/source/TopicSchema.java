@@ -151,7 +151,7 @@ public class TopicSchema {
             return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
-            return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
+            return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
 
         default:
             throw new RuntimeException("Unsupported schema type" + type);
@@ -162,7 +162,7 @@ public class TopicSchema {
         try {
             Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf
             return false;
         }

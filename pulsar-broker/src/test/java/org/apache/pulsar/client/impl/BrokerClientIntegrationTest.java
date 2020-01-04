@@ -36,7 +36,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -415,6 +414,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().setRetention(topicName.getNamespace(), policy);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName.toString())
+                .startMessageIdInclusive()
                 .subscriptionName(subsId).subscriptionType(subType).messageListener((consumer, msg) -> {
                     try {
                         synchronized (received) {
@@ -657,6 +657,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();

@@ -374,7 +374,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
                 checkArgument(cmd.hasAddSubscriptionToTxnResponse());
-                handleAddSubsciptionToTxnResponse(cmd.getAddSubscriptionToTxnResponse());
+                handleAddSubscriptionToTxnResponse(cmd.getAddSubscriptionToTxnResponse());
                 cmd.getAddSubscriptionToTxnResponse().recycle();
                 break;
 
@@ -410,7 +410,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case END_TXN_ON_SUBSCRIPTION_RESPONSE:
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
-                handleEndTxnOnsubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
+                handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 cmd.getEndTxnOnSubscriptionResponse().recycle();
                 break;
             }
@@ -600,7 +600,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleAddSubsciptionToTxnResponse(
+    protected void handleAddSubscriptionToTxnResponse(
         CommandAddSubscriptionToTxnResponse commandAddSubscriptionToTxnResponse) {
         throw new UnsupportedOperationException();
     }
@@ -625,7 +625,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleEndTxnOnsubscriptionResponse(
+    protected void handleEndTxnOnSubscriptionResponse(
         CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
         throw new UnsupportedOperationException();
     }

@@ -79,10 +79,10 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCEPTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
 
-    public static final String Serde_JAVA_CLASS =
+    public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 
-    public static final String Serde_OUTPUT_CLASS =
+    public static final String SERDE_OUTPUT_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
     public static final String EXCLAMATION_PYTHON_CLASS =
@@ -91,7 +91,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_CLASS =
         "exclamation_with_extra_deps.ExclamationFunction";
 
-    public static final String EXCLAMATION_PYTHONZIP_CLASS =
+    public static final String EXCLAMATION_PYTHON_ZIP_CLASS =
             "exclamation";
 
     public static final String PUBLISH_PYTHON_CLASS = "typed_message_builder_publish.TypedMessageBuilderPublish";
@@ -99,7 +99,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_FILE = "exclamation_with_extra_deps.py";
-    public static final String EXCLAMATION_PYTHONZIP_FILE = "exclamation.zip";
+    public static final String EXCLAMATION_PYTHON_ZIP_FILE = "exclamation.zip";
     public static final String PUBLISH_FUNCTION_PYTHON_FILE = "typed_message_builder_publish.py";
     public static final String EXCEPTION_FUNCTION_PYTHON_FILE = "exception_function.py";
 
@@ -110,7 +110,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
             return EXCLAMATION_JAVA_CLASS;
         } else if (Runtime.PYTHON == runtime) {
             if (pyZip) {
-                return EXCLAMATION_PYTHONZIP_CLASS;
+                return EXCLAMATION_PYTHON_ZIP_CLASS;
             } else if (extraDeps) {
                 return EXCLAMATION_WITH_DEPS_PYTHON_CLASS;
             } else {

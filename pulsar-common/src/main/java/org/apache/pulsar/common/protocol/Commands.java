@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -334,10 +336,12 @@ public class Commands {
 
     }
 
-    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long ledgerId, long entryId) {
+    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
+             long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
+        sendReceiptBuilder.setHighestSequenceId(highestId);
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
@@ -441,12 +445,43 @@ public class Commands {
         return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
     }
 
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+              ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+                checksumType, messageMetadata, payload);
+    }
+
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        CommandSend send = sendBuilder.build();
+
+        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
+                checksumType, messageData, payload);
+        send.recycle();
+        sendBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
+          long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+          MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setProducerId(producerId);
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }
@@ -478,6 +513,16 @@ public class Commands {
             Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
+                return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                        isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
+                        startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+               SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+               Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+               InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
+               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -491,6 +536,27 @@ public class Commands {
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         subscribeBuilder.setReplicateSubscriptionState(isReplicated);
         subscribeBuilder.setForceTopicCreation(createTopicIfDoesNotExist);
+
+        if (keySharedPolicy != null) {
+            switch (keySharedPolicy.getKeySharedMode()) {
+                case AUTO_SPLIT:
+                    subscribeBuilder.setKeySharedMeta(PulsarApi.KeySharedMeta.newBuilder()
+                            .setKeySharedMode(PulsarApi.KeySharedMode.AUTO_SPLIT));
+                    break;
+                case STICKY:
+                    PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
+                            .setKeySharedMode(PulsarApi.KeySharedMode.STICKY);
+                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
+                            .getRanges();
+                    for (Range range : ranges) {
+                        builder.addHashRanges(PulsarApi.IntRange.newBuilder()
+                                .setStart(range.getStart())
+                                .setEnd(range.getEnd()));
+                    }
+                    subscribeBuilder.setKeySharedMeta(builder);
+                    break;
+            }
+        }
 
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
@@ -618,7 +684,7 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null);
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false);
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -657,14 +723,17 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
+          boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+          long epoch, boolean userProvidedProducerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
         producerBuilder.setRequestId(requestId);
+        producerBuilder.setEpoch(epoch);
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+        producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
         producerBuilder.setEncrypted(encrypted);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
@@ -1113,9 +1182,10 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long requestId, long ttlSeconds) {
-        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setRequestId(requestId).setTxnTtlSeconds(ttlSeconds)
-                                                   .build();
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setTcId(tcId).setRequestId(requestId)
+                .setTxnTtlSeconds(ttlSeconds)
+                .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.NEW_TXN).setNewTxn(commandNewTxn));
         commandNewTxn.recycle();
         return res;
@@ -1132,9 +1202,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandNewTxnResponse.Builder builder = CommandNewTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1172,9 +1243,11 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+           String errorMsg) {
         CommandAddPartitionToTxnResponse.Builder builder = CommandAddPartitionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1201,9 +1274,23 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
+        CommandAddSubscriptionToTxnResponse command = CommandAddSubscriptionToTxnResponse
+                .newBuilder().setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE)
+                .setAddSubscriptionToTxnResponse(command));
+        command.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+          String errorMsg) {
         CommandAddSubscriptionToTxnResponse.Builder builder = CommandAddSubscriptionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1235,9 +1322,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandEndTxnResponse.Builder builder = CommandEndTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);

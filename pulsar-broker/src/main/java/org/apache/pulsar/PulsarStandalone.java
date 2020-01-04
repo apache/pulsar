@@ -39,6 +39,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,6 +316,8 @@ public class PulsarStandalone implements AutoCloseable {
         // Start Broker
         broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
         broker.start();
+
+        broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
 
         URL webServiceUrl = new URL(
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort().get()));

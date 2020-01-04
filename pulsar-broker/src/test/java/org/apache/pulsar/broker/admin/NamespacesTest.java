@@ -54,6 +54,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
@@ -1070,6 +1071,46 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
         admin.tenants().deleteTenant("my-tenants");
+    }
+
+    @Test
+    public void testSetOffloadThreshold() throws Exception {
+        TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
+        String namespace =  topicName.getNamespaceObject().toString();
+        System.out.println(namespace);
+        // set a default
+        pulsar.getConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(1);
+        // create the namespace
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+
+        // assert we get the default which indicates it will fall back to default
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+        // the ledger config should have the expected value
+        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+
+        // set an override for the namespace
+        admin.namespaces().setOffloadThreshold(namespace, 100);
+        assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 100);
+
+        // set another negative value to disable
+        admin.namespaces().setOffloadThreshold(namespace, -2);
+        assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), -2);
+
+        // set back to -1 and fall back to default
+        admin.namespaces().setOffloadThreshold(namespace, -1);
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+
+        // cleanup
+        admin.topics().delete(topicName.toString(), true);
+        admin.namespaces().deleteNamespace(namespace);
     }
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {

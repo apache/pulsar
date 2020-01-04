@@ -130,7 +130,8 @@ const options = {
     `${docsDir}/*.html`,
     `${docsDir}/**/*.html`
   ],
-  ignore: versions.map(v => `${docsDir}/${v}/**/*`), // TODO add next and assets
+  // TODO add next and assets
+  ignore: versions.map(v => `${docsDir}/${v}/**/*`).concat(versions.map(v => `${docsDir}/en/${v}/**/*`)),
   from: from,
   to: [
     `${latestVersionWithoutIncubating}`,
@@ -167,7 +168,9 @@ for (v of versions) {
   const opts = {
     files: [
       `${docsDir}/${v}/*.html`,
-      `${docsDir}/${v}/**/*.html`
+      `${docsDir}/${v}/**/*.html`,
+      `${docsDir}/en/${v}/*.html`,
+      `${docsDir}/en/${v}/**/*.html`
     ],
     from: from,
     to: [
@@ -183,7 +186,7 @@ for (v of versions) {
       debReleaseUrl(`${v}`, ""),
       debReleaseUrl(`${v}`, "-dev"),
     ],
-    dry: true
+    dry: false
   };
   doReplace(opts);
 }

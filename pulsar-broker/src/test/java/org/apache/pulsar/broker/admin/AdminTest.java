@@ -64,11 +64,13 @@ import org.apache.pulsar.broker.admin.v1.Properties;
 import org.apache.pulsar.broker.admin.v1.ResourceQuotas;
 import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -192,6 +194,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZookKeeper).when(brokerStats).localZk();
         doReturn(configurationCache.propertiesCache()).when(brokerStats).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
+
+        doReturn(false).when(persistentTopics).isRequestHttps();
+        doReturn(null).when(persistentTopics).originalPrincipal();
+        doReturn("test").when(persistentTopics).clientAppId();
+        doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
         schemasResource = spy(new SchemasResource(mockClock));
         schemasResource.setServletContext(new MockServletContext());

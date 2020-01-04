@@ -1874,6 +1874,9 @@ Usage
 $ pulsar-admin topics stats topic
 ```
 
+> Note   
+> The unit of `storageSize` and `averageMsgSize` is Byte.
+
 ### `stats-internal`
 Get the internal stats for the topic
 
@@ -1978,7 +1981,7 @@ Options
 
 
 ### `reset-cursor`
-Reset position for subscription to closest to timestamp
+Reset position for subscription to a position that is closest to timestamp or messageId.
 
 Usage
 ```bash
@@ -1986,10 +1989,12 @@ $ pulsar-admin topics reset-cursor topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|Subscription to reset position on||
-|`-t`, `--time`|The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
 
 
