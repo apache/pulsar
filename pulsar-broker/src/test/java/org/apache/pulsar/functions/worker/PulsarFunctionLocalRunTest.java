@@ -28,11 +28,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpServer;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -90,6 +85,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpServer;
+
 /**
  * Test Pulsar sink on function
  *
@@ -119,7 +119,6 @@ public class PulsarFunctionLocalRunTest {
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
-    private Thread fileServerThread;
     private HttpServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -219,72 +218,64 @@ public class PulsarFunctionLocalRunTest {
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
         admin.tenants().updateTenant(tenant, propAdmin);
-
+        
         // setting up simple web sever to test submitting function via URL
-        fileServerThread = new Thread(() -> {
+        fileServer = HttpServer.create(new InetSocketAddress(0), 0);
+        fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
             try {
-                fileServer = HttpServer.create(new InetSocketAddress(0), 0);
-                fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
-                    try {
 
-                        Headers headers = he.getResponseHeaders();
-                        headers.add("Content-Type", "application/octet-stream");
+                Headers headers = he.getResponseHeaders();
+                headers.add("Content-Type", "application/octet-stream");
 
-                        File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
-                        byte[] bytes  = new byte [(int)file.length()];
+                File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
+                byte[] bytes = new byte[(int) file.length()];
 
-                        FileInputStream fileInputStream = new FileInputStream(file);
-                        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-                        bufferedInputStream.read(bytes, 0, bytes.length);
+                FileInputStream fileInputStream = new FileInputStream(file);
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                bufferedInputStream.read(bytes, 0, bytes.length);
 
-                        he.sendResponseHeaders(200, file.length());
-                        OutputStream outputStream = he.getResponseBody();
-                        outputStream.write(bytes, 0, bytes.length);
-                        outputStream.close();
+                he.sendResponseHeaders(200, file.length());
+                OutputStream outputStream = he.getResponseBody();
+                outputStream.write(bytes, 0, bytes.length);
+                outputStream.close();
 
-                    } catch (Exception e) {
-                        log.error("Error when downloading: {}", e, e);
-                    }
-                });
-                fileServer.createContext("/pulsar-functions-api-examples.jar", he -> {
-                    try {
-
-                        Headers headers = he.getResponseHeaders();
-                        headers.add("Content-Type", "application/octet-stream");
-
-                        File file = new File(getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile());
-                        byte[] bytes  = new byte [(int)file.length()];
-
-                        FileInputStream fileInputStream = new FileInputStream(file);
-                        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-                        bufferedInputStream.read(bytes, 0, bytes.length);
-
-                        he.sendResponseHeaders(200, file.length());
-                        OutputStream outputStream = he.getResponseBody();
-                        outputStream.write(bytes, 0, bytes.length);
-                        outputStream.close();
-
-                    } catch (Exception e) {
-                        log.error("Error when downloading: {}", e, e);
-                    }
-                });
-                fileServer.setExecutor(null); // creates a default executor
-                log.info("Starting file server...");
-                fileServer.start();
             } catch (Exception e) {
-                log.error("Failed to start file server: ", e);
-                fileServer.stop(0);
+                log.error("Error when downloading: {}", e, e);
             }
-
         });
-        fileServerThread.start();
+        fileServer.createContext("/pulsar-functions-api-examples.jar", he -> {
+            try {
+
+                Headers headers = he.getResponseHeaders();
+                headers.add("Content-Type", "application/octet-stream");
+
+                File file = new File(
+                        getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile());
+                byte[] bytes = new byte[(int) file.length()];
+
+                FileInputStream fileInputStream = new FileInputStream(file);
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                bufferedInputStream.read(bytes, 0, bytes.length);
+
+                he.sendResponseHeaders(200, file.length());
+                OutputStream outputStream = he.getResponseBody();
+                outputStream.write(bytes, 0, bytes.length);
+                outputStream.close();
+
+            } catch (Exception e) {
+                log.error("Error when downloading: {}", e, e);
+            }
+        });
+        fileServer.setExecutor(null); // creates a default executor
+        log.info("Starting file server...");
+        fileServer.start();
+
     }
 
     @AfterMethod
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);
-        fileServerThread.interrupt();
         pulsarClient.close();
         admin.close();
         functionsWorkerService.stop();
