@@ -108,6 +108,8 @@ public class ZooKeeperUtil {
         serverFactory.configure(zkaddr, 100);
         serverFactory.startup(zks);
 
+        zooKeeperPort = serverFactory.getLocalPort();
+        connectString = "localhost:" + zooKeeperPort;
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
 
