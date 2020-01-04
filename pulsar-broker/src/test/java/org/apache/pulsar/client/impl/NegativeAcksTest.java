@@ -152,4 +152,78 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
+
+    @Test
+    public void testBatchNegativeAcks()
+            throws Exception {
+        
+        boolean batching = true;
+        SubscriptionType subscriptionType = SubscriptionType.Shared;
+        int negAcksDelayMillis = 0;
+        int ackTimeout = 0;
+        String topic = "testNegativeAcks-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(subscriptionType)
+                .negativeAckRedeliveryDelay(negAcksDelayMillis, TimeUnit.MILLISECONDS)
+                .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(batching)
+                .create();
+
+        Set<String> nackedMessages = new HashSet<>();
+
+        final int N = 10;
+        final int A = 10;
+        for (int i = 0; i < A; i++) {
+            String value = "positive-" + i;
+            producer.sendAsync(value);
+        }
+        for (int i = 0; i < N; i++) {
+            String value = "negative-" + i;
+            producer.sendAsync(value);
+        }
+        producer.flush();
+
+        // negatively ack negative message
+        int nacked = 0;
+        for (int i = 0; i < N + A; i++) {
+            Message<String> msg = consumer.receive();
+            String value = msg.getValue();
+            if (value.startsWith("negative")) {
+                consumer.negativeAcknowledge(msg);
+                nackedMessages.add(value);
+                nacked++;
+            } else {
+                consumer.acknowledge(msg);
+            }
+        }
+
+        assertEquals(nacked, N);
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        // Only the negatively acknowledged messages should be received again
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+
+        assertEquals(receivedMessages, nackedMessages);
+
+        // There should be no more messages
+        assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        consumer.close();
+        producer.close();
+    }
+ 
 }

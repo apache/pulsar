@@ -113,6 +113,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private final BatchAckedTracker batchAckedTracker;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
     private final NegativeAcksTracker negativeAcksTracker;
@@ -196,6 +197,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
+        this.batchAckedTracker = new BatchAckedTracker();
         this.resetIncludeHead = conf.isResetIncludeHead();
         this.createTopicIfDoesNotExist = createTopicIfDoesNotExist;
 
@@ -433,6 +435,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int outstandingAcks = 0;
         if (log.isDebugEnabled()) {
             outstandingAcks = batchMessageId.getOutstandingAcksInSameBatch();
+        }
+
+        if (batchAckedTracker.ack(batchMessageId)) {
+            // the batch all delievered including previous acked
+            outstandingAcks = 0;
+            isAllMsgsAcked = true;
         }
 
         int batchSize = batchMessageId.getBatchSize();
@@ -1042,6 +1050,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
+
+                if (!batchAckedTracker.deliver(batchMessageIdImpl)) {
+                    // individual batch message has been acked earlier
+                    singleMessagePayload.release();
+                    singleMessageMetadataBuilder.recycle();
+
+                    ++skippedMessages;
+                    continue;
+                }
+
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
