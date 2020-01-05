@@ -60,8 +60,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     }
 
     protected void internalSetUpForBroker() throws Exception {
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
@@ -102,7 +102,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
         admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/my-ns");

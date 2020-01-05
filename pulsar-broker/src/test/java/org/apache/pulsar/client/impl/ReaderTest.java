@@ -59,7 +59,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("test",
-                new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+                new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -183,9 +183,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
      * <pre>
      * 1. publish messages which are 5 hour old
      * 2. publish messages which are 1 hour old
-     * 3. Create reader with rollback time 2 hours 
+     * 3. Create reader with rollback time 2 hours
      * 4. Reader should be able to read only messages which are only 2 hours old
-     * </pre> 
+     * </pre>
      * @throws Exception
      */
     @Test
@@ -226,9 +226,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 firstMsgId = msgId;
             }
         }
-        
+
         // (3) Create reader and set position 1 hour back so, it should only read messages which are 2 hours old which
-        // published on step 2 
+        // published on step 2
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
