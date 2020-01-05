@@ -119,8 +119,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(nonPersistentTopic).clientAuthData();
 
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
-        admin.clusters().createCluster("test", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
+        admin.clusters().createCluster("test", new ClusterData("http://broker-use.com:8080"));
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));

@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Sets;
-import java.net.URL;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.test.PortManager;
+
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -34,23 +31,22 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
+import com.google.common.collect.Sets;
+
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Test base for tests requires a bk ensemble.
  */
 @Slf4j
 public abstract class BkEnsemblesTestBase {
 
-    protected static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
-
     protected PulsarService pulsar;
     protected ServiceConfiguration config;
 
-    protected URL adminUrl;
     protected PulsarAdmin admin;
 
     protected LocalBookkeeperEnsemble bkEnsemble;
-
-    protected int BROKER_WEBSERVICE_PORT;
 
     private final int numberOfBookies;
 
@@ -65,19 +61,17 @@ public abstract class BkEnsemblesTestBase {
     @BeforeMethod
     protected void setup() throws Exception {
         try {
-            int ZOOKEEPER_PORT = PortManager.nextFreePort();
-            BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
             bkEnsemble.start();
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
+            config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
-            config.setBrokerServicePort(Optional.ofNullable(BROKER_SERVICE_PORT));
+            config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setManagedLedgerMaxEntriesPerLedger(5);
@@ -89,10 +83,9 @@ public abstract class BkEnsemblesTestBase {
             pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
-            adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
+            admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
-            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().createCluster("usc", new ClusterData(pulsar.getWebServiceAddress()));
             admin.tenants().createTenant("prop",
                     new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {

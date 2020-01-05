@@ -23,6 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
+
 import java.net.URL;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -30,7 +32,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
@@ -43,8 +44,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,12 +53,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
 /**
  */
 public class BacklogQuotaManagerTest {
-    protected static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
     PulsarService pulsar;
     ServiceConfiguration config;
 
@@ -66,24 +64,24 @@ public class BacklogQuotaManagerTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
     @BeforeMethod
     void setup() throws Exception {
         try {
+
+
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
             bkEnsemble.start();
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
+            config.setWebServicePort(Optional.ofNullable(0));
             config.setClusterName("usc");
-            config.setBrokerServicePort(Optional.ofNullable(BROKER_SERVICE_PORT));
+            config.setBrokerServicePort(Optional.ofNullable(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
@@ -95,7 +93,7 @@ public class BacklogQuotaManagerTest {
             pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
-            adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+            adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));

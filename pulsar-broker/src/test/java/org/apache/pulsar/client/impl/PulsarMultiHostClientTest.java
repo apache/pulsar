@@ -30,6 +30,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -61,9 +62,9 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         final String subscriptionName = "my-subscriber-name";
 
         try {
-            String url = "http://localhost:" + BROKER_WEBSERVICE_PORT;
+            String url = pulsar.getWebServiceAddress();
             if (isTcpLookup) {
-                url = "pulsar://localhost:" + BROKER_PORT;
+                url = pulsar.getBrokerServiceUrl();
             }
             PulsarClient client = newPulsarClient(url, 0);
 
@@ -119,9 +120,9 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         final String subscriptionName = "my-subscriber-name";
 
         // Multi hosts included an unreached port and the actual port for verify retry logic
-        String urlsWithUnreached = "http://localhost:51000,localhost:" + BROKER_WEBSERVICE_PORT;
+        String urlsWithUnreached = "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
         if (isTcpLookup) {
-            urlsWithUnreached = "pulsar://localhost:51000,localhost:" + BROKER_PORT;
+            urlsWithUnreached = "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
         }
         PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
 

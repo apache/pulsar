@@ -54,7 +54,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
