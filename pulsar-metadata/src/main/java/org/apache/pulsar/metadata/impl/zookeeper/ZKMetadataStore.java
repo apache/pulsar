@@ -49,11 +49,13 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ZKMetadataStore implements MetadataStore {
 
+    private final boolean isZkManaged;
     private final ZooKeeper zkc;
     private final ExecutorService executor;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
         try {
+            isZkManaged = true;
             zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
@@ -67,6 +69,7 @@ public class ZKMetadataStore implements MetadataStore {
 
     @VisibleForTesting
     public ZKMetadataStore(ZooKeeper zkc) {
+        this.isZkManaged = false;
         this.zkc = zkc;
         this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("zk-metadata-store-callback"));
     }
@@ -245,7 +248,9 @@ public class ZKMetadataStore implements MetadataStore {
 
     @Override
     public void close() throws Exception {
-        zkc.close();
+        if (isZkManaged) {
+            zkc.close();
+        }
         executor.shutdownNow();
     }
 
