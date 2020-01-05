@@ -245,7 +245,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
-		final String proxyServiceUrl = proxyService.getServiceUrl();
+		final String proxyServiceUrl = "pulsar://localhost:" + proxyService.getListenPort().get();
 		log.info("1 proxy service started {}", proxyService);
 
 		// Step 3: Pass correct client params
