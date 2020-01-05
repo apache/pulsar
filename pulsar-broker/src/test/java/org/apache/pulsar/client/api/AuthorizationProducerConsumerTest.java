@@ -113,8 +113,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        String lookupUrl = pulsar.getBrokerServiceUrl();
 
         Authentication authentication = new ClientAuthentication(clientRole);
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
@@ -191,9 +190,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(subAdminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
         superAdmin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -204,7 +200,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -273,12 +272,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 

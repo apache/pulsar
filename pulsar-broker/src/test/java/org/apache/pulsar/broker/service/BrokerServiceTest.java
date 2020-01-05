@@ -463,8 +463,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String subName = "newSub";
 
         conf.setAuthenticationEnabled(false);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         restartBroker();
@@ -545,8 +545,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
@@ -607,8 +607,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
@@ -668,8 +668,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
@@ -725,9 +725,12 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(1).maxLookupRequests(2).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .maxConcurrentLookupRequests(1)
+                .maxLookupRequests(2)
+                .build();
 
         // 2 lookup will success.
         try {

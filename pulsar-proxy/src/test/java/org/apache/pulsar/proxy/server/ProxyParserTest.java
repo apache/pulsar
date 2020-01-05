@@ -18,12 +18,28 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
+
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.apache.bookkeeper.test.PortManager;
+
+import java.util.Optional;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -40,16 +56,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.Optional;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertEquals;
-
 public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyParserTest.class);
@@ -64,9 +70,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-
-
-        proxyConfig.setServicePort(Optional.of(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         //enable full parsing feature
@@ -91,7 +95,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                 .create();
@@ -105,7 +109,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducerConsumer() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
             .topic("persistent://sample/test/local/producer-consumer-topic")
@@ -137,7 +141,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPartitions() throws Exception {
         admin.tenants().createTenant("sample", new TenantInfo());
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
@@ -164,7 +168,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRegexSubscription() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
             .connectionsPerBroker(5).ioThreads(5).build();
 
         // create two topics by subscribing to a topic and closing it
@@ -207,12 +211,11 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     private void testProtocolVersionAdvertisement() throws Exception {
-        final String url = "pulsar://localhost:" + proxyConfig.getServicePort().get();
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";
 
         ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl(url);
+        conf.setServiceUrl(proxyService.getServiceUrl());
         PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
 
         Producer<byte[]> producer = client.newProducer().topic(topic).create();
