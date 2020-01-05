@@ -226,8 +226,8 @@ When a consumer subscribes to a Pulsar topic, by default it subscribes to one sp
 
 When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.
 
-> #### No ordering guarantees
-> When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature.
+> #### No cross-topic ordering guarantees
+> Ordering guarantees given for single topics do not hold across multiple topics. So users need to make sure that all messages that need to be delivered in order are on the same topic.
 
 Here are some multi-topic subscription examples for Java:
 
