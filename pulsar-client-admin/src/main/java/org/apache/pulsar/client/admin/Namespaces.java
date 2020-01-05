@@ -1164,8 +1164,8 @@ public interface Namespaces {
      * <pre>
      * <code>
      * {
-     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
-     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     *     "active" : true,   // Enable or disable delayed delivery for messages on a namespace
+     *     "tickTime" : 1000, // The tick time for when retrying on delayed delivery messages
      * }
      * </code>
      * </pre>
