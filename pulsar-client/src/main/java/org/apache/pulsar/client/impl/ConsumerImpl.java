@@ -437,7 +437,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             outstandingAcks = batchMessageId.getOutstandingAcksInSameBatch();
         }
 
-        if (batchAckedTracker.ack(batchMessageId)) {
+        if (batchAckedTracker.ack(batchMessageId, ackType)) {
             // the batch all delievered including previous acked
             outstandingAcks = 0;
             isAllMsgsAcked = true;

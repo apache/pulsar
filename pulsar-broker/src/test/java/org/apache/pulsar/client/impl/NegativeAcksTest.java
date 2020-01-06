@@ -226,4 +226,70 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         producer.close();
     }
  
+    @Test
+    public void testBatchNegativeCumulativeAcks()
+            throws Exception {
+        boolean batching = true;
+        SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+        int negAcksDelayMillis = 0;
+        int ackTimeout = 1000;
+        String topic = "testNegativeAcks-" + System.nanoTime();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(subscriptionType)
+                .negativeAckRedeliveryDelay(negAcksDelayMillis, TimeUnit.MILLISECONDS)
+                .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(batching)
+                .create();
+        Set<String> nackedMessages = new HashSet<>();
+        Message<String> msg = null;
+        final int N = 10;
+        final int A = 10;
+        for (int i = 0; i < A; i++) {
+            String value = "positive-" + i;
+            producer.sendAsync(value);
+        }
+        for (int i = 0; i < N; i++) {
+            String value = "negative-" + i;
+            producer.sendAsync(value);
+        }
+        producer.flush();
+        for (int i = 0; i < A; i++) {
+            msg = consumer.receive();
+        }
+        // Cumulative ack of messages
+        consumer.acknowledgeCumulative(msg);
+        // negatively ack negative message
+        int nacked = 0;
+        for (int i = 0; i < N; i++) {
+            msg = consumer.receive();
+            String value = msg.getValue();
+            consumer.negativeAcknowledge(msg);
+            nackedMessages.add(value);
+            nacked++;
+        }
+        assertEquals(nacked, N);
+        Set<String> receivedMessages = new HashSet<>();
+        // Only the negatively acknowledged messages should be received again
+        for (int i = 0; i < N; i++) {
+            msg = consumer.receive();
+            receivedMessages.add(msg.getValue());
+        }
+        // Cumulative ack of messages
+        consumer.acknowledgeCumulative(msg);
+        assertEquals(receivedMessages, nackedMessages);
+        // Wait for unacked timer to trigger if there are unacked messages
+        Thread.sleep(1500);
+        // There should be no more messages since they have all been acked
+        assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        consumer.close();
+        producer.close();
+    }
 }

@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.testng.annotations.Test;
 
 public class BatchAckedTrackerTest  {
@@ -38,8 +39,8 @@ public class BatchAckedTrackerTest  {
 
         int batchSize = 3;
         BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
-        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, -1, 2, acker);
-        assertEquals(batchMessageId.getBatchIndex(), 2);
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, -1, 0, acker);
+        assertEquals(batchMessageId.getBatchIndex(), 0);
         assertEquals(batchMessageId.getBatchSize(), batchSize);
 
         // ensure message can be delivered to clients
@@ -47,17 +48,17 @@ public class BatchAckedTrackerTest  {
         assertEquals(tracker.ackedBatches.size(), 0);
 
         // ensure the first message ack will be tracked
-        assertFalse(tracker.ack(batchMessageId));
+        assertFalse(tracker.ack(batchMessageId, AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 1);
 
         // redeliver an acked message will return false
         assertFalse(tracker.deliver(batchMessageId));
 
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 1, acker)));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 1, acker), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 1);
 
         // all message are acked in a batch of three messages
-        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 0, acker)));
+        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 2, acker), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 0);
 
     }
@@ -79,39 +80,63 @@ public class BatchAckedTrackerTest  {
 
         // partial first batch acked
         assertTrue(tracker.deliver(batch1MessageId1));
-        assertFalse(tracker.ack(batch1MessageId1));
+        assertFalse(tracker.ack(batch1MessageId1, AckType.Individual));
         assertTrue(tracker.deliver(batch1MessageId2));
-        assertFalse(tracker.ack(batch1MessageId2));
+        assertFalse(tracker.ack(batch1MessageId2, AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 1);
 
         // ensure the first message ack will be tracked
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 0, acker2)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 1, acker2)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 2, acker2)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 3, acker2)));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 0, acker2), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 1, acker2), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 2, acker2), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 3, acker2), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 2);
         assertTrue(tracker.deliver(new BatchMessageIdImpl(1, 2, -1, 4, acker2)));
 
         // redeliver an acked message will return false
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 0, acker3)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 1, acker3)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 2, acker3)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 3, acker3)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 4, acker3)));
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 5, acker3)));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 0, acker3), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 1, acker3), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 2, acker3), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 3, acker3), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 4, acker3), AckType.Individual));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 5, acker3), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 3);
         assertTrue(tracker.deliver(new BatchMessageIdImpl(1, 3, -1, 7, acker3)));
 
         // all message are acked in a batch of three messages
-        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 2, acker1)));
+        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 2, acker1), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 2);
 
-        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 4, acker2)));
+        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 2, -1, 4, acker2), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 1);
 
-        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 6, acker3)));
-        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 7, acker3)));
+        assertFalse(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 6, acker3), AckType.Individual));
+        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 3, -1, 7, acker3), AckType.Individual));
         assertEquals(tracker.ackedBatches.size(), 0);
+    }
+
+    @Test
+    public void testCumulativeAckedBatch() throws Exception {
+        BatchAckedTracker tracker = new BatchAckedTracker();
+
+        int batchSize = 10;
+        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, -1, 8, acker);
+
+        // ensure message can be delivered to clients
+        assertTrue(tracker.deliver(batchMessageId));
+        assertEquals(tracker.ackedBatches.size(), 0);
+
+        // all previous messages 
+        assertFalse(tracker.ack(batchMessageId, AckType.Cumulative));
+        assertEquals(tracker.ackedBatches.size(), 1);
+        String batchId = batchMessageId.ledgerId + "-" + batchMessageId.entryId + "-" + batchMessageId.partitionIndex;
+        assertEquals(tracker.ackedBatches.get(batchId).size(), batchMessageId.getBatchIndex() + 1);
+
+        // ack the batch with the last message
+        assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 9, acker), AckType.Cumulative));
+        assertEquals(tracker.ackedBatches.size(), 0);
+
     }
 
 }
