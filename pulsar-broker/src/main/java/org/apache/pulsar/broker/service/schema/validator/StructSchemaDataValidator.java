@@ -49,6 +49,7 @@ class StructSchemaDataValidator implements SchemaDataValidator {
 
         try {
             Schema.Parser avroSchemaParser = new Schema.Parser();
+            avroSchemaParser.setValidateDefaults(false);
             avroSchemaParser.parse(new String(data, UTF_8));
         } catch (SchemaParseException e) {
             if (schemaData.getType() == SchemaType.JSON) {
