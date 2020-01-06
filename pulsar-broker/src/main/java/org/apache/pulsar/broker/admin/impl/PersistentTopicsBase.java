@@ -1891,7 +1891,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
         try {
             Topic topic = getTopicReference(topicName);
-            topic.close().get();
+            topic.close(false).get();
             log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
         } catch (NullPointerException e) {
             log.error("[{}] topic {} not found", clientAppId(), topicName);
