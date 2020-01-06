@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import io.netty.buffer.Unpooled;
@@ -43,8 +44,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import avro.shaded.com.google.common.collect.Lists;
 
 public class MessageParserTest extends MockedPulsarServiceBaseTest {
 

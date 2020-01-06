@@ -34,6 +34,7 @@ public class PulsarConnectorUtils {
 
     public static Schema parseSchema(String schemaJson) {
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }
 

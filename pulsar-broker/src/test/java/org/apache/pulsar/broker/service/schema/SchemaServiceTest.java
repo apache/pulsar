@@ -293,18 +293,18 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     public void checkIsCompatible() throws Exception {
         String schemaJson1 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
         SchemaData schemaData1 = getSchemaData(schemaJson1);
 
         String schemaJson2 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                         "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
         SchemaData schemaData2 = getSchemaData(schemaJson2);
 
         String schemaJson3 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                         "{\"name\":\"field2\",\"type\":\"string\"}]}";
         SchemaData schemaData3 = getSchemaData(schemaJson3);
 
