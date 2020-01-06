@@ -1904,6 +1904,29 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testPersistentTopicCreation() throws Exception {
+        final String nonPartitionedtopic = "persistent://prop-xyz/ns1/non-partitioned-topic";
+        final String partitionedtopic = "persistent://prop-xyz/ns1/partitioned-topic";
+
+        admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+        admin.topics().createPartitionedTopic(partitionedtopic, 2);
+
+        try {
+            admin.topics().createPartitionedTopic(nonPartitionedtopic, 2);
+            fail("should not be able to create a partitioned topic with the same name");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
+
+        try {
+            admin.topics().createNonPartitionedTopic(partitionedtopic);
+            fail("should not be able to create a non-partitioned topic with the same name");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
+    }
+
     /**
      * This test-case verifies that broker should support both url/uri encoding for topic-name. It calls below api with
      * url-encoded and also uri-encoded topic-name in http request: a. PartitionedMetadataLookup b. TopicLookupBase c.
