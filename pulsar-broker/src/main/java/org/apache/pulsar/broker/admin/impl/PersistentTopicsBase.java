@@ -438,13 +438,20 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-    	try {
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        if (partitionMetadata.partitions > 0) {
+            log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
+            throw new RestException(Status.CONFLICT, "This topic already exists");
+        }
+
+        try {
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
-    	} catch (Exception e) {
-    		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-    		throw new RestException(e);
-    	}
+        } catch (Exception e) {
+            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
     }
 
     /**
