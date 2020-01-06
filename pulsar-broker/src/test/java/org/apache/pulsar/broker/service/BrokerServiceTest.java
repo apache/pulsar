@@ -24,6 +24,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -49,6 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -58,6 +60,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -66,6 +69,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -912,4 +916,49 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(policy.get().bundles.numBundles, totalBundle);
     }
 
+    /**
+     * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
+     * version.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testStuckTopicUnloading() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/unoadTopic";
+        final String topicMlName = namespace + "/persistent/unoadTopic";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
+        consumer.close();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5,
+                TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerClientFactory()
+                .getManagedLedgerFactory();
+        Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        ledgersField.setAccessible(true);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
+                .get(mlFactory);
+        assertNotNull(ledgers.get(topicMlName));
+
+        org.apache.pulsar.broker.service.Producer prod = spy(topic.producers.values().get(0));
+        topic.producers.clear();
+        topic.producers.add(prod);
+        CompletableFuture<Void> waitFuture = new CompletableFuture<Void>();
+        doReturn(waitFuture).when(prod).disconnect();
+        Set<NamespaceBundle> bundles = pulsar.getNamespaceService().getOwnedServiceUnits();
+        for (NamespaceBundle bundle : bundles) {
+            String ns = bundle.getNamespaceObject().toString();
+            System.out.println();
+            if (namespace.equals(ns)) {
+                pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
+            }
+        }
+        assertNull(ledgers.get(topicMlName));
+    }
 }
