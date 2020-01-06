@@ -312,8 +312,6 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.48.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.7.3.jar
  * Jackson
-     - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
-     - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
      - com.fasterxml.jackson.core-jackson-annotations-2.10.1.jar
      - com.fasterxml.jackson.core-jackson-core-2.10.1.jar
      - com.fasterxml.jackson.core-jackson-databind-2.10.1.jar
@@ -454,13 +452,11 @@ The Apache Software License, Version 2.0
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar
-  * Paranamer
-    - com.thoughtworks.paranamer-paranamer-2.7.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
-    - org.apache.avro-avro-1.8.2.jar
-    - org.apache.avro-avro-protobuf-1.8.2.jar
+    - org.apache.avro-avro-1.9.1.jar
+    - org.apache.avro-avro-protobuf-1.9.1.jar
   * Apache Curator
     - org.apache.curator-curator-client-4.0.1.jar
     - org.apache.curator-curator-framework-4.0.1.jar
@@ -567,10 +563,6 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
     - org.aspectj-aspectjrt-1.9.2.jar
     - org.aspectj-aspectjweaver-1.9.2.jar
-
-Public Domain
- * XZ for Java -- licenses/LICENSE-xz.txt
-    - org.tukaani-xz-1.5.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.2.jar

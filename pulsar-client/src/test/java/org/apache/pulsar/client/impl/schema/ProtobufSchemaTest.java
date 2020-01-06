@@ -38,7 +38,7 @@ public class ProtobufSchemaTest {
     private static final String NAME = "foo";
 
     private static final String EXPECTED_SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
-            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test$\",\"fields\":[{\"name\":\"stringField\"," +
+            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test\",\"fields\":[{\"name\":\"stringField\"," +
             "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"}," +
             "{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0},{\"name\":\"intField\",\"type\":\"int\"," +
             "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\",\"name\":\"TestEnum\"," +
