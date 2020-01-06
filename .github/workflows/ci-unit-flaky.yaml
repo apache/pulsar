@@ -46,9 +46,21 @@ jobs:
         with:
           maven-version: 3.6.1
 
+      - name: run PersistentTransactionBuffer test
+        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PersistentTransactionBufferTest -DfailIfNoTests=false
+
+      - name: run ServerCnx test
+        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=ServerCnxTest -DfailIfNoTests=false
+
+      - name: run MessagePublishThrottling test
+        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=MessagePublishThrottlingTest -DfailIfNoTests=false
+
+      - name: run PrimitiveSchema test
+        run: mvn -B -am -pl pulsar-client -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PrimitiveSchemaTest -DfailIfNoTests=false
+
       - name: run unit tests
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR install '-Dtest=PersistentTransactionBufferTest,PulsarFunctionE2ESecurityTest,ServerCnxTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,ProxyPublishConsumeTlsTest,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false
-          
+        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install '-Dtest=PulsarFunctionE2ESecurityTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false
+
       - name: package surefire artifacts
         if: failure()
         run: |
