@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -38,9 +37,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 class BatchAckedTracker {
 
     // a map of partial acked batch and its messages already acked
-    // Key is the string Id for batch, the value is a synchronized set of message Id in string
+    // Key is the string Id for batch, the value is a synchronized set of batch index in integer
     @VisibleForTesting
-    Map<String, Set<String>> ackedBatches = new ConcurrentHashMap<String, Set<String>>();
+    Map<String, Set<Integer>> ackedBatches = new ConcurrentHashMap<String, Set<Integer>>();
 
     public BatchAckedTracker() {
     }
@@ -51,8 +50,8 @@ class BatchAckedTracker {
             BatchMessageIdImpl id = (BatchMessageIdImpl) messageId;
             String batchId = getBatchId(id);
             if (ackedBatches.containsKey(batchId)){
-                Set<String> batch = ackedBatches.get(batchId);
-                if (batch.contains(getBatchMessageId(batchId, id.getBatchIndex()))) {
+                Set<Integer> batch = ackedBatches.get(batchId);
+                if (batch.contains(id.getBatchIndex())) {
                     return false;
                 }
             }
@@ -68,17 +67,17 @@ class BatchAckedTracker {
      */
     public boolean ack (BatchMessageIdImpl messageId, AckType ackType) {
         String batchId = getBatchId(messageId);
-        Set<String> batch = ackedBatches.getOrDefault(batchId,
-                                                      Collections.synchronizedSet(new HashSet<String>()));
+        Set<Integer> batch = ackedBatches.getOrDefault(batchId,
+                                                      Collections.synchronizedSet(new HashSet<Integer>()));
         if (ackType == AckType.Individual) {
-            batch.add(getBatchMessageId(batchId, messageId.getBatchIndex()));
+            batch.add(messageId.getBatchIndex());
         } else {
             for (int i=0; i<=messageId.getBatchIndex(); i++) {
-                batch.add(getBatchMessageId(batchId, i));
+                batch.add(i);
             }
         }
 
-        if (messageId.getBatchSize() == batch.size()) {
+        if (messageId.getBatchSize() <= batch.size()) {
             //we ack complete batch now so delete it from the tracker
             ackedBatches.remove(batchId);
             return true;
@@ -90,9 +89,5 @@ class BatchAckedTracker {
 
     private static String getBatchId(BatchMessageIdImpl id) {
         return id.ledgerId + "-" + id.entryId + "-" + id.partitionIndex;
-    }
-
-    private static String getBatchMessageId(String batchId, int batchIndex) {
-        return batchId + "-" + batchIndex;
     }
 }
