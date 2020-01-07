@@ -188,7 +188,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
             .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName("regex-sub")
+            .subscriptionName("regex-sub-proxy-parser-test")
             .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 

@@ -190,12 +190,12 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         // create two topics by subscribing to a topic and closing it
         try (Consumer<byte[]> ignored = client.newConsumer()
             .topic("persistent://sample/test/local/topic1")
-            .subscriptionName("ignored")
+            .subscriptionName("proxy-ignored")
             .subscribe()) {
         }
         try (Consumer<byte[]> ignored = client.newConsumer()
             .topic("persistent://sample/test/local/topic2")
-            .subscriptionName("ignored")
+            .subscriptionName("proxy-ignored")
             .subscribe()) {
         }
 
@@ -204,7 +204,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
             .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName("regex-sub")
+            .subscriptionName("regex-sub-proxy-test")
             .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 
