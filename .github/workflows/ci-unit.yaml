@@ -50,10 +50,10 @@ jobs:
         run: mvn clean install -DskipTests
 
       - name: run unit tests pulsar proxy
-        run: mvn install -DfailIfNoTests=false '-Dtest=!ProxyTest' -pl pulsar-proxy
+        run: mvn install -DfailIfNoTests=false '-Dtest=!ProxyTest,!ProxyLookupThrottlingTest' -pl pulsar-proxy
 
       - name: run unit tests pulsar proxy
-        run: mvn install -DfailIfNoTests=false '-Dtest=ProxyTest' -pl pulsar-proxy
+        run: mvn install -DfailIfNoTests=false '-Dtest=ProxyTest,ProxyLookupThrottlingTest' -pl pulsar-proxy
 
       - name: run unit tests pulsar io kafka connect adaptor
         run: mvn clean install -pl pulsar-io/kafka-connect-adaptor
