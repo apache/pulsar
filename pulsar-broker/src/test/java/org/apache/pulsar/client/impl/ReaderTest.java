@@ -126,6 +126,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
 
+        Thread.sleep(100);
+
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                             .startMessageIdInclusive().readerName(subscription).create();
 
