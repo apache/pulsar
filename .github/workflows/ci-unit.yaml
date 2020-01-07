@@ -49,29 +49,8 @@ jobs:
       - name: run unit tests install by skip tests
         run: mvn clean install -DskipTests
 
-      - name: run unit tests pulsar proxy
-        run: mvn clean test -DfailIfNoTests=false '-Dtest=!ProxyTest,!ProxyLookupThrottlingTest' -pl pulsar-proxy
-
-      - name: run unit tests pulsar proxy
-        run: mvn clean test -DfailIfNoTests=false '-Dtest=ProxyTest,ProxyLookupThrottlingTest' -pl pulsar-proxy
-
-      - name: run unit tests pulsar io kafka connect adaptor
-        run: mvn clean test -pl pulsar-io/kafka-connect-adaptor
-
-      - name: run unit tests pulsar storm tests
-        run: mvn clean test -pl tests/pulsar-storm-test
-
       - name: run unit tests
-        run: mvn clean test -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
-
-      - name: run unit tests pulsar broker reader test
-        run: mvn clean test -DfailIfNoTests=false '-Dtest=ReaderTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker rack aware test
-        run: mvn clean test -DfailIfNoTests=false '-Dtest=RackAwareTest' -pl pulsar-broker
-
-      - name: run unit test pulsar-broker
-        run: mvn clean test '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!ProxyTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest' -DfailIfNoTests=false -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
 
       - name: package surefire artifacts
         if: failure()
