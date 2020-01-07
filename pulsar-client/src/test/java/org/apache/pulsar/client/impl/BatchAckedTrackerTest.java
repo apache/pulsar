@@ -131,7 +131,8 @@ public class BatchAckedTrackerTest  {
         assertFalse(tracker.ack(batchMessageId, AckType.Cumulative));
         assertEquals(tracker.ackedBatches.size(), 1);
         String batchId = batchMessageId.ledgerId + "-" + batchMessageId.entryId + "-" + batchMessageId.partitionIndex;
-        assertEquals(tracker.ackedBatches.get(batchId).size(), batchMessageId.getBatchIndex() + 1);
+        // assertEquals(tracker.ackedBatches.get(batchId).size(), batchMessageId.getBatchIndex() + 1);
+        assertEquals(tracker.ackedBatches.get(batchId).nextSetBit(8), 9);
 
         // ack the batch with the last message
         assertTrue(tracker.ack(new BatchMessageIdImpl(1, 1, -1, 9, acker), AckType.Cumulative));

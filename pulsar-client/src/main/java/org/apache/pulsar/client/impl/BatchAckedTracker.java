@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -37,9 +39,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 class BatchAckedTracker {
 
     // a map of partial acked batch and its messages already acked
-    // Key is the string Id for batch, the value is a synchronized set of batch index in integer
+    // Key is the string Id for batch, the value is bit set for message index whether ack-ed or not 
     @VisibleForTesting
-    Map<String, Set<Integer>> ackedBatches = new ConcurrentHashMap<String, Set<Integer>>();
+    Map<String, BitSet> ackedBatches = Collections.synchronizedMap(new HashMap<String, BitSet>());
 
     public BatchAckedTracker() {
     }
@@ -49,17 +51,19 @@ class BatchAckedTracker {
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl id = (BatchMessageIdImpl) messageId;
             String batchId = getBatchId(id);
-            if (ackedBatches.containsKey(batchId)){
-                Set<Integer> batch = ackedBatches.get(batchId);
-                if (batch.contains(id.getBatchIndex())) {
-                    return false;
-                }
+            if (ackedBatches.containsKey(batchId)) {
+                return ackedBatches.get(batchId).get(id.getBatchIndex());
             }
         }
         // deliver non batch message and any other cases
         return true;
     }
 
+    private BitSet initBatchSet(int size) {
+        BitSet set = new BitSet(size);
+        set.set(0, size);
+        return set;
+    }
     /**
      * 
      * @param messageId batchMessageIdImpl
@@ -67,17 +71,15 @@ class BatchAckedTracker {
      */
     public boolean ack (BatchMessageIdImpl messageId, AckType ackType) {
         String batchId = getBatchId(messageId);
-        Set<Integer> batch = ackedBatches.getOrDefault(batchId,
-                                                      Collections.synchronizedSet(new HashSet<Integer>()));
+        int batchSize = messageId.getBatchSize();
+        BitSet batch = ackedBatches.getOrDefault(batchId, initBatchSet(batchSize));
         if (ackType == AckType.Individual) {
-            batch.add(messageId.getBatchIndex());
+            batch.clear(messageId.getBatchIndex());
         } else {
-            for (int i=0; i<=messageId.getBatchIndex(); i++) {
-                batch.add(i);
-            }
+            batch.clear(0, messageId.getBatchIndex() + 1);
         }
 
-        if (messageId.getBatchSize() <= batch.size()) {
+        if (batch.isEmpty()) {
             //we ack complete batch now so delete it from the tracker
             ackedBatches.remove(batchId);
             return true;
