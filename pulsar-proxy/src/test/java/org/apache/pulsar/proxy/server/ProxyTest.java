@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -184,6 +185,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRegexSubscription() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
             .connectionsPerBroker(5).ioThreads(5).build();
 
@@ -199,12 +201,14 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             .subscribe()) {
         }
 
+        String subName = "regex-sub-proxy-test-" + System.currentTimeMillis();
+
         // make sure regex subscription
         String regexSubscriptionPattern = "persistent://sample/test/local/topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
             .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName("regex-sub-proxy-test")
+            .subscriptionName(subName)
             .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 
