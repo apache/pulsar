@@ -76,6 +76,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
         builder.maxPendingMessages(count);
+        // disable periodical flushing
+        builder.batchingMaxPublishDelay(1, TimeUnit.DAYS);
         builder.topic(topic);
         if (enableBatch) {
             builder.enableBatching(true);
@@ -91,6 +93,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
+            producer.flush();
             lastFuture.get();
         }
         return keys;
@@ -125,8 +128,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
-
-        Thread.sleep(100);
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                             .startMessageIdInclusive().readerName(subscription).create();

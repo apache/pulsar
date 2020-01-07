@@ -952,7 +952,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // send a message, which will make dispatcher-ratelimiter initialize and schedule renew task
         producer.send("test".getBytes());
-        assertNotNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        assertNotNull(consumer.receive());
 
         Field lastUpdatedMsgRateIn = PersistentTopic.class.getDeclaredField("lastUpdatedAvgPublishRateInMsg");
         lastUpdatedMsgRateIn.setAccessible(true);
@@ -967,7 +967,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         // Relative throttling will let it drain immediately because it allows to dispatch = (publish-rate +
         // dispatch-rate)
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+            Message<byte[]> msg = consumer.receive();
             totalReceived++;
             assertNotNull(msg);
         }
