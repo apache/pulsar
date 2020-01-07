@@ -1,4 +1,4 @@
-name: CI - Unit - Brokers
+name: CI - Unit - Proxy
 on:
   pull_request:
     branches:
