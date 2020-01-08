@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Set up Maven
-        uses: actions/setup-maven@v3
+        uses: aahmed-se/setup-maven@v3
         with:
           maven-version: 3.6.1
 
