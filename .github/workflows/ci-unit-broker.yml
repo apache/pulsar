@@ -55,5 +55,14 @@ jobs:
       - name: run unit tests pulsar broker rack aware test
         run: mvn test -DfailIfNoTests=false '-Dtest=RackAwareTest' -pl pulsar-broker
 
+      - name: run unit tests pulsar broker simple producer consumer test
+        run: mvn test -DfailIfNoTests=false '-Dtest=SimpleProducerConsumerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker V1 producer consumer test
+        run: mvn test -DfailIfNoTests=false '-Dtest=V1_ProducerConsumerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker persistent failover end to end test
+        run: mvn test -DfailIfNoTests=false '-Dtest=PersistentFailoverE2ETest' -pl pulsar-broker
+
       - name: run unit test pulsar-broker
-        run: mvn test '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest' -DfailIfNoTests=false -pl pulsar-broker
+        run: mvn test '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest' -DfailIfNoTests=false -pl pulsar-broker
