@@ -927,12 +927,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/unoadTopic";
         final String topicMlName = namespace + "/persistent/unoadTopic";
-        final String producerName = "test-producer";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().producerName(producerName).topic(topicName).sendTimeout(5,
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5,
                 TimeUnit.SECONDS);
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -946,6 +945,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
                 .get(mlFactory);
         assertNotNull(ledgers.get(topicMlName));
+
         org.apache.pulsar.broker.service.Producer prod = (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
         topic.producers.clear();
         topic.producers.put(prod.getProducerName(), prod);
@@ -954,6 +954,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Set<NamespaceBundle> bundles = pulsar.getNamespaceService().getOwnedServiceUnits();
         for (NamespaceBundle bundle : bundles) {
             String ns = bundle.getNamespaceObject().toString();
+            System.out.println();
             if (namespace.equals(ns)) {
                 pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
             }
