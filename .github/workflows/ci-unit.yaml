@@ -46,6 +46,9 @@ jobs:
         with:
           maven-version: 3.6.1
 
+      - name: run unit tests install by skip tests
+        run: mvn clean install -DskipTests
+
       - name: run unit tests
         run: mvn clean install -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
 
