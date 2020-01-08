@@ -19,11 +19,19 @@
     "puppeteer": "^1.5.0",
     "remarkable-embed": "^0.4.1",
     "replace-in-file": "^3.4.0",
-    "redoc": "^2.0.0-alpha.30"
+    "redoc": "^2.0.0-alpha.30",
+    "ejs": "^2.5.2",
+    "highlight.js": "^9.7.0",
+    "marked": "^0.3.6"
   },
   "jest": {
     "preset": "jest-puppeteer"
   },
   "dependencies": {
+    "bootstrap": "^3.3.7",
+    "font-awesome": "^4.7.0",
+    "jquery": "^3.1.1",
+    "jquery.scrollto": "^2.1.2",
+    "node-static": "^0.7.9"
   }
 }
