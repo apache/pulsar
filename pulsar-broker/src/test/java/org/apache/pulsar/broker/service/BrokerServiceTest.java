@@ -946,9 +946,9 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .get(mlFactory);
         assertNotNull(ledgers.get(topicMlName));
 
-        org.apache.pulsar.broker.service.Producer prod = spy(topic.producers.values().get(0));
+        org.apache.pulsar.broker.service.Producer prod = (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
         topic.producers.clear();
-        topic.producers.add(prod);
+        topic.producers.put(prod.getProducerName(), prod);
         CompletableFuture<Void> waitFuture = new CompletableFuture<Void>();
         doReturn(waitFuture).when(prod).disconnect();
         Set<NamespaceBundle> bundles = pulsar.getNamespaceService().getOwnedServiceUnits();
