@@ -54,6 +54,3 @@ jobs:
 
       - name: run unit tests pulsar proxy
         run: mvn test -DfailIfNoTests=false '-Dtest=ProxyTest,ProxyLookupThrottlingTest' -pl pulsar-proxy
-
-      - name: cat pulsr proxy runtime log
-        run: cat pulsar-proxy/target/surefire-reports/org.apache.pulsar.proxy.server.ProxyTest-output.txt
