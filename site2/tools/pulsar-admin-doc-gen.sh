@@ -24,6 +24,7 @@ DEST_DIR=$ROOT_DIR/generated-site
 
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}/node_modules
+mkdir -p $ROOT_DIR/site2/website/brodocs/documents
 
 $ROOT_DIR/bin/pulsar-admin documents generate broker-stats > $ROOT_DIR/site2/website/brodocs/documents/broker-stats.md
 $ROOT_DIR/bin/pulsar-admin documents generate brokers > $ROOT_DIR/site2/website/brodocs/documents/brokers.md
