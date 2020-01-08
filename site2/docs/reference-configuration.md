@@ -128,7 +128,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
-|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned|
+|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned| 
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
@@ -136,6 +136,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to see if topics with compaction policies need to be compacted  |60|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
 |clientLibraryVersionCheckEnabled|  Enable check for minimum allowed client library version |false|
+|clientLibraryVersionCheckAllowUnversioned| Allow client libraries with no version information  |true|
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
 |tlsEnabled|  Enable TLS  |false|
@@ -147,6 +148,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
+|tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
 |tokenAuthClaim| Specify which of the token's claims will be used as the authentication "principal" or "role". The default "sub" claim will be used if this is left blank ||
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
@@ -194,14 +196,17 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
+|loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
 |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10|
 |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
 |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30|
 |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000|
+|loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1|
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
 |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15|
+|loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
 |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
 |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
 |loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000|
@@ -224,88 +229,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
 |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864|
 |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576|
-|anonymousUserRole|  ||
-|authenticateOriginalAuthData| If this flag is set then the broker authenticates the original Auth data； else it just accepts the originalPrincipal and authorizes it (if required). |false|
-|authorizationAllowWildcardsMatching| Allow wildcard matching in authorization (wildcard matching only applicable if wildcard-char: * presents at first or last position eg: `*.pulsar.service, pulsar.service.*` |false|
-|authorizationProvider| Authorization provider fully qualified class-name. |org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider|
-|backlogQuotaDefaultRetentionPolicy| Default backlog quota retention policy.<br>Optional:<br>1) `producer_request_hold`: holds producer's send request until the resource becomes available (or holding times out);<br>2) `producer_exception`: throws javax.jms.ResourceAllocationException to the producer;<br>3) `consumer_backlog_eviction`: evicts the oldest message from the slowest consumer's backlog.<br>Default: `producer_request_hold`. |producer_request_hold|
-|bookkeeperUseV2WireProtocol| Use older Bookkeeper wire protocol with bookie. |true|
-|bootstrapNamespaces| Bootstrap namespaces. ||
-|brokerClientTlsEnabled| Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters. |false|
-|brokerClientTrustCertsFilePath|  ||
-|brokerServicePurgeInactiveFrequencyInSeconds| How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected). |60|
-|defaultNumberOfNamespaceBundles| When a namespace is created without specifying the number of bundle, this value will be used as the default. |4|
-|delayedDeliveryEnabled| Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead. |true|
-|delayedDeliveryTickTimeMillis| Control the tick time for when retrying on delayed delivery, affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. |1000|
-|dispatcherMaxReadBatchSize| Max number of entries to read from bookkeeper. By default it is 100 entries. |100|
-|dispatcherMaxRoundRobinBatchSize| Max number of entries to dispatch for a shared subscription. By default it is 20 entries. |20|
-|dispatcherMinReadBatchSize| Min number of entries to read from bookkeeper. By default it is 1 entries. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number. |1|
-|dispatchThrottlingOnNonBacklogConsumerEnabled| By default we enable dispatch-throttling for both caught up consumers as well as consumers who have backlog. |true|
-|dispatchThrottlingRatePerReplicatorInByte| Default bytes per second dispatch throttling-limit for every replicator in replication.<br>Using a value of `0`, is disabling replication message-byte dispatch-throttling. |0|
-|dispatchThrottlingRatePerReplicatorInMsg| Default messages per second dispatch throttling-limit for every replicator in replication.<br>Using a value of `0`, is disabling replication message dispatch-throttling. |0|
-|dispatchThrottlingRatePerSubscriptionInByte| Default number of message-bytes dispatching throttling-limit for a subscription.<br>Using a value of `0`, is disabling default message-byte dispatch-throttling. |0|
-|dispatchThrottlingRatePerSubscriptionInMsg| Default number of message dispatching throttling-limit for a subscription.<br>Using a value of `0`, is disabling default message dispatch-throttling. |0|
-|dispatchThrottlingRatePerTopicInByte| Default bytes per second dispatch throttling-limit for every topic.<br>Using a value of `0`, is disabling default message-byte dispatch-throttling. |0|
-|dispatchThrottlingRatePerTopicInMsg| Default messages per second dispatch throttling-limit for every topic.<br>Using a value of `0`, is disabling default message dispatch-throttling. |0|
-|enableReplicatedSubscriptions| Enable tracking of replicated subscriptions state across clusters. |true|
-|enableRunBookieAutoRecoveryTogether| Enable to run bookie autorecovery along with broker. |false|
-|enableRunBookieTogether| Enable to run bookie along with broker. |false|
-|exposeConsumerLevelMetricsInPrometheus| Enable consumer level metrics. |false|
-|exposePublisherStats| Enable topic level metrics. |true|
-|exposeTopicLevelMetricsInPrometheus| Enable topic level metrics. |true|
-|failureDomainsEnabled| Enable cluster's failure-domain which can distribute brokers into logical region. |false|
-|gcsManagedLedgerOffloadBucket|  ||
-|gcsManagedLedgerOffloadMaxBlockSizeInBytes| For Google Cloud Storage ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864|
-|gcsManagedLedgerOffloadReadBufferSizeInBytes| For Google Cloud Storage ledger offload, Read buffer size in bytes. (1MB by default) |1048576|
-|gcsManagedLedgerOffloadRegion| For Google Cloud Storage ledger offload, region where offload bucket is located.<br>Reference this page for more details: https://cloud.google.com/storage/docs/bucket-locations ||
-|gcsManagedLedgerOffloadServiceAccountKeyFile| For Google Cloud Storage, path to json file containing service account credentials.<br>For more details, see the "Service Accounts" section of https://support.google.com/googleapi/answer/6158849 ||
-|globalZookeeperServers| Deprecated. Use `configurationStoreServers`. ||
-|isRunningStandalone| Flag to control features that are meant to be used when running in standalone mode. ||
-|isSchemaValidationEnforced| Enforce schema validation on following cases:<br>If a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. Note: PLEASE be carefully on using this, since non-java clients don't support schema.<br>If you enable this setting, it will cause non-java clients failed to produce. |false|
-|loadBalancerAutoUnloadSplitBundlesEnabled| Enable automatic unloading of split bundles. |true|
-|loadBalancerOverrideBrokerNicSpeedGbps| Override the auto-detection of the network interfaces max speed.<br>This option is useful in some environments (eg: EC2 VMs) where the max speed reported by Linux is not reflecting the real bandwidth available to the broker. Since the network usage is employed by the load manager to decide when a broker is overloaded, it is important to make sure the info is correct or override it with the right value here. The configured value can be a double (eg: `0.8`) and that can be used to trigger load-shedding even before hitting on NIC limits. ||
-|loadBalancerSheddingEnabled| Enable automatic bundle unloading for load-shedding. |true|
-|managedLedgerAddEntryTimeoutSeconds| Add entry timeout when broker tries to publish message to bookkeeper (0 to disable it). |0|
-|managedLedgerDigestType| Default type of checksum to use when writing to BookKeeper.<br> Optional:<br>- CRC32<br>- MAC<br>- DUMMY: no checksum. |CRC32|
-|managedLedgerMaxUnackedRangesToPersistInZooKeeper| Max number of "acknowledgment holes" that can be stored in Zookeeper.<br>If number of unack message range is higher than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into zookeeper. |1000|
-|managedLedgerMetadataOperationsTimeoutSeconds| Operation timeout while updating managed-ledger metadata. |60|
-|managedLedgerNumSchedulerThreads| Number of threads to be used for managed ledger scheduled tasks. |8|
-|managedLedgerNumWorkerThreads| Number of threads to be used for managed ledger tasks dispatching. |8|
-|managedLedgerOffloadDeletionLagMs| Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper. By default it is 4 hours. |14400000|
-|managedLedgerReadEntryTimeoutSeconds| Read entries timeout when broker tries to read messages from bookkeeper. |0|
-|managedLedgerUnackedRangesOpenCacheSetEnabled| Use Open Range-Set to cache unacked messages. |true|
-|maxConcurrentNonPersistentMessagePerConnection| Max concurrent non-persistent message can be processed per connection. |1000|
-|maxConsumersPerSubscription| Max number of consumers allowed to connect to subscription. Once this limit reaches, Broker will reject new consumers until the number of connected consumers decrease.<br>Using a value of `0`, is disabling maxConsumersPerSubscription-limit check. |0|
-|maxConsumersPerTopic| Max number of consumers allowed to connect to topic. Once this limit reaches, Broker will reject new consumers until the number of connected consumers decrease.<br>Using a value of `0`, is disabling maxConsumersPerTopic-limit check. |0|
-|maxMessageSize| Max size of messages. |5242880|
-|maxProducersPerTopic| Max number of producers allowed to connect to topic. Once this limit reaches, Broker will reject new producers until the number of connected producers decrease.<br>Using a value of `0`, is disabling maxProducersPerTopic-limit check. |0|
-|maxUnackedMessagesPerBroker| Max number of unacknowledged messages allowed per broker. Once this limit reaches, broker will stop dispatching messages to all shared subscription which has higher number of unack messages until subscriptions start acknowledging messages back and unack count reaches to limit/2.<br>Using a value of `0`, is disabling unackedMessage-limit check and broker doesn't block dispatchers. |0|
-|maxUnackedMessagesPerSubscriptionOnBrokerBlocked| Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher unacked messages than this percentage limit and subscription will not receive any new messages until that subscription acks back limit/2 messages. |0.16|
-|numHttpServerThreads| Number of threads to use for HTTP requests processing. Default is set to 2 * `Runtime.getRuntime().availableProcessors()`. ||
-|numIOThreads| Number of IO threads in Pulsar Client used in WebSocket proxy. |8|
-|numWorkerThreadsForNonPersistentTopic| Number of worker threads to serve non-persistent topic. |8|
-|offloadersDirectory| The directory for all the offloader implementations. |./offloaders|
-|proxyRoles| Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it will demand to see a valid original principal. ||
-|replicatedSubscriptionsSnapshotFrequencyMillis| Frequency of snapshots for replicated subscriptions tracking. |1000|
-|replicatedSubscriptionsSnapshotMaxCachedPerSubscription| Max number of snapshot to be cached per subscription. |10|
-|replicatedSubscriptionsSnapshotTimeoutSeconds| Timeout for building a consistent snapshot for tracking replicated subscriptions state. |30|
-|saslJaasBrokerSectionName| Service Principal, for login context name. Default value `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "Broker". ||
-|saslJaasClientAllowedIds| This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. Default value: `SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT`, which is ".*pulsar.*", so only clients whose id contains 'pulsar' are allowed to connect. ||
-|schemaRegistryStorageClassName| The schema storage implementation used by this broker. |org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
-|statsUpdateFrequencyInSecs|  |60|
-|statsUpdateInitialDelayInSecs|  |60|
-|subscribeRatePeriodPerConsumerInSecond| Rate period for {subscribeThrottlingRatePerConsumer}. |30|
-|subscribeThrottlingRatePerConsumer| Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. The default value of this setting is `0` - throttling is disabled. |0|
-|subscriptionExpirationTimeMinutes| How long to delete inactive subscriptions from last consuming. When it is `0`, inactive subscriptions are not deleted automatically. |0|
-|subscriptionExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired subscription. |5|
-|subscriptionKeySharedEnable| Enable Key_Shared subscription. |true|
-|tlsCertRefreshCheckDurationSec| TLS cert refresh duration in seconds. Set `0` to check on every new connection. |300|
-|tlsRequireTrustedClientCertOnConnect| Trusted client certificates are required for to connect TLS. Reject the Connection if the Client Certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication. |false|
-|ttlDurationDefaultInSeconds|  |0|
-|webSocketConnectionsPerBroker| Number of connections per Broker in Pulsar Client used in WebSocket proxy. |8|
-|webSocketNumIoThreads| Number of IO threads in Pulsar Client used in WebSocket proxy. |8|
-|webSocketSessionIdleTimeoutMillis| Time in milliseconds that idle WebSocket session times out. |300000|
-|zooKeeperOperationTimeoutSeconds| ZooKeeper operation timeout in seconds. |30|
+|s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 ||
+|s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
+
 
 
 
