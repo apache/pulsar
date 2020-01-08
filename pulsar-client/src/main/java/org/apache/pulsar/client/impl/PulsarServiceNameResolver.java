@@ -21,7 +21,10 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import io.netty.util.internal.PlatformDependent;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -40,6 +43,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile String serviceUrl;
     private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
+    private volatile List<InetSocketAddress> unReachableAddressList
+            = new ArrayList<InetSocketAddress>();
+
+    private boolean checkReachable = true;
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -48,13 +55,28 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             list != null, "No service url is provided yet");
         checkState(
             !list.isEmpty(), "No hosts found for service url : " + serviceUrl);
-        if (list.size() == 1) {
-            return list.get(0);
-        } else {
-            currentIndex = (currentIndex + 1) % list.size();
-            return list.get(currentIndex);
 
+        InetSocketAddress address = null;
+        if(unReachableAddressList.size() == list.size()){
+            unReachableAddressList.clear();
         }
+        if (list.size() == 1) {
+            if(isAddressReachable(list.get(0))){
+                address = list.get(0);
+            }
+        } else {
+            for (int i = 0; i < list.size(); i++){
+                currentIndex = (currentIndex + 1) % list.size();
+                if(!unReachableAddressList.contains(list.get(currentIndex))
+                        && isAddressReachable(list.get(currentIndex))){
+                    address = list.get(currentIndex);
+                    break;
+                }
+            }
+        }
+        checkState(
+                address != null, "No host is reachable for service url :"  + serviceUrl);
+        return address;
     }
 
     @Override
@@ -100,6 +122,30 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
+    }
+
+    public void disableCheckReachable(){
+        this.checkReachable = false;
+    }
+
+    public void enableCheckReachable(){
+        this.checkReachable = true;
+    }
+
+    private boolean isAddressReachable(InetSocketAddress address){
+        if(!checkReachable){
+            return true;
+        }
+        try {
+            Socket socket = new Socket(address.getHostName(), address.getPort());
+            socket.close();
+            unReachableAddressList.remove(address);
+            return true;
+        } catch (IOException e) {
+            log.warn("Address unreachable {}",address.toString());
+        }
+        unReachableAddressList.add(address);
+        return false;
     }
 
     private static int randomIndex(int numAddresses) {

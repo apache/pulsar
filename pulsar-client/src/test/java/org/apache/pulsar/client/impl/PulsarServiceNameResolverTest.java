@@ -44,6 +44,7 @@ public class PulsarServiceNameResolverTest {
         this.resolver = new PulsarServiceNameResolver();
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
+        this.resolver.disableCheckReachable();
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
@@ -128,5 +129,18 @@ public class PulsarServiceNameResolverTest {
             assertTrue(expectedAddresses.contains(resolver.resolveHost()));
             assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
         }
+    }
+
+    @Test
+    public void testUrlReachable() throws Exception {
+        resolver.enableCheckReachable();
+        String serviceUrl = "pulsar://host1:6650";
+        resolver.updateServiceUrl(serviceUrl);
+        try{
+            resolver.resolveHost();
+        } catch(IllegalStateException e){
+            assertEquals(e.getMessage(),"No host is reachable for service url :"  + serviceUrl);
+        }
+        resolver.disableCheckReachable();
     }
 }
