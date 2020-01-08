@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -229,6 +230,7 @@ public class PulsarFunctionE2ETest {
         admin.tenants().updateTenant(tenant, propAdmin);
 
         // setting up simple web sever to test submitting function via URL
+        CountDownLatch latch = new CountDownLatch(1);
         fileServerThread = new Thread(() -> {
             try {
                 fileServer = HttpServer.create(new InetSocketAddress(0), 0);
@@ -283,9 +285,10 @@ public class PulsarFunctionE2ETest {
                 log.error("Failed to start file server: ", e);
                 fileServer.stop(0);
             }
-
+            latch.countDown();
         });
         fileServerThread.start();
+        latch.await(1, TimeUnit.SECONDS);
     }
 
     @AfterMethod
