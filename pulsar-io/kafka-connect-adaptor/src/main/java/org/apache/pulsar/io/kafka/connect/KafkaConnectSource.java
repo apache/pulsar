@@ -35,9 +35,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import io.confluent.connect.avro.AvroData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.concurrent.ConcurrentException;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -78,6 +83,9 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
     private AtomicInteger outstandingRecords = new AtomicInteger(0);
+
+    private final Cache<String, KafkaSchema> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -216,14 +224,21 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
             this.value = new KeyValue(keyBytes, valueBytes);
 
+            if (readerCache.getIfPresent("keySchema") == null || readerCache.getIfPresent("valueSchema") == null) {
+                keySchema = new KafkaSchema();
+                valueSchema = new KafkaSchema();
+            } else {
+                keySchema = readerCache.getIfPresent("keySchema");
+                valueSchema = readerCache.getIfPresent("valueSchema");
+            }
             keyAvroSchema = (org.apache.avro.Schema) this.avroData.fromConnectData(
                     srcRecord.keySchema(), keyBytes);
             valueAvroSchema = (org.apache.avro.Schema) this.avroData.fromConnectData(
                     srcRecord.valueSchema(), valueBytes);
-            keySchema = new KafkaSchema();
             keySchema.setAvroSchema(true, this.avroData, keyAvroSchema, keyConverter);
-            valueSchema = new KafkaSchema();
             valueSchema.setAvroSchema(false, this.avroData, valueAvroSchema, valueConverter);
+            readerCache.getIfPresent("valueSchema");
+
 
             this.topicName = Optional.of(srcRecord.topic());
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
