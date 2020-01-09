@@ -790,7 +790,7 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
-        // Complete the topic opening
+        // Complete the topic opening: It will make 2nd producer creation successful
         openTopicFuture.get().run();
 
         // Close succeeds
@@ -798,13 +798,11 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandSuccess.class);
         assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
-        // 2nd producer fails to create
+        // 2nd producer will be successfully created as topic is open by then
         response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 3);
+        assertEquals(response.getClass(), CommandProducerSuccess.class);
+        assertEquals(((CommandProducerSuccess) response).getRequestId(), 3);
 
-        // We should not receive response for 1st producer, since it was cancelled by the close
-        assertTrue(channel.outboundMessages().isEmpty());
         assertTrue(channel.isActive());
 
         channel.finish();
@@ -928,7 +926,7 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap());
         channel.writeInbound(createProducer2);
 
-        // Now the topic gets opened
+        // Now the topic gets opened.. It will make 2nd producer creation successful
         openFailedTopic.get().run();
 
         // Close succeeds
@@ -936,10 +934,10 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandSuccess.class);
         assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
-        // 2nd producer fails
+        // 2nd producer success as topic is opened
         response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 3);
+        assertEquals(response.getClass(), CommandProducerSuccess.class);
+        assertEquals(((CommandProducerSuccess) response).getRequestId(), 3);
 
         // Wait till the failtopic timeout interval
         Thread.sleep(500);
@@ -947,10 +945,10 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap());
         channel.writeInbound(createProducer3);
 
-        // 3rd producer succeeds
+        // 3rd producer fails because 2nd is already connected
         response = getResponse();
-        assertEquals(response.getClass(), CommandProducerSuccess.class);
-        assertEquals(((CommandProducerSuccess) response).getRequestId(), 4);
+        assertEquals(response.getClass(), CommandError.class);
+        assertEquals(((CommandError) response).getRequestId(), 4);
 
         Thread.sleep(500);
 
