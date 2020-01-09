@@ -33,10 +33,6 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -47,10 +43,6 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  * Configuration object for the Twitter Firehose Connector.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class TwitterFireHoseConfig implements Serializable {
 

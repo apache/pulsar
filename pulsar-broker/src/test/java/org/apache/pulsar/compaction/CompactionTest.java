@@ -75,7 +75,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
@@ -786,7 +786,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         // force ledger roll
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
@@ -813,7 +813,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         ledgersOpened.clear();
 
         // force broker to close resources for topic
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         // write a message to avoid issue #1517
         try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {

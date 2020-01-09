@@ -80,8 +80,12 @@ zookeeper:
     data:
       name: data
       size: 20Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -146,8 +150,12 @@ bookkeeper:
     journal:
       name: journal
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -156,8 +164,12 @@ bookkeeper:
     ledgers:
       name: ledgers
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -331,7 +343,13 @@ dashboard:
   ingress:
     enabled: false
     annotations: {}
-    tls: {}
+    tls:
+      enabled: false
+
+      ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+      secretName: ""
+    
+    ## Required if ingress is enabled
     hostname: ""
     path: "/"
     port: 80
@@ -381,8 +399,12 @@ prometheus:
     data:
       name: data
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-standard
@@ -412,10 +434,10 @@ grafana:
     repository: apachepulsar/pulsar-grafana
     tag: latest
     pullPolicy: IfNotPresent
-  resources:
-    requests:
-      memory: 4Gi
-      cpu: 1
+#  resources:
+#    requests:
+#      memory: 4Gi
+#      cpu: 1
   ## Grafana service
   ## templates/grafana-service.yaml
   ##

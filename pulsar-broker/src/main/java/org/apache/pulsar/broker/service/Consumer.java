@@ -258,8 +258,11 @@ public class Consumer {
                             consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
-                int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                int redeliveryCount = 0;
+                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                if (redeliveryTracker.contains(position)) {
+                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                }
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
@@ -275,7 +278,7 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (shouldBlockConsumerOnUnackMsgs() && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages) {
+        if (addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages && shouldBlockConsumerOnUnackMsgs()) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }

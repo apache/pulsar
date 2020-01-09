@@ -123,10 +123,10 @@ public class FunctionCommon {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             try {
                 theCls = Class.forName(userClassName, true, classLoader);
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new RuntimeException("User class must be in class path", cnfe);
             }
         }
@@ -274,7 +274,7 @@ public class FunctionCommon {
         Class<?> objectClass;
         try {
             objectClass = loadClass(className, classLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException("Cannot find/load class " + className);
         }
 
@@ -288,7 +288,7 @@ public class FunctionCommon {
         Class<?> objectClass;
         try {
             objectClass = Class.forName(className);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             if (classLoader != null) {
                 objectClass = classLoader.loadClass(className);
             } else {

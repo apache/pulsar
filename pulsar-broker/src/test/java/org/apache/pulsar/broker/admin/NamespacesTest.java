@@ -54,6 +54,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
@@ -149,9 +150,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessForTenant("non-existing-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
-        admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:" + BROKER_WEBSERVICE_PORT));
-        admin.clusters().createCluster("usc", new ClusterData("http://broker-usc.com:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
+        admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:8080"));
+        admin.clusters().createCluster("usc", new ClusterData("http://broker-usc.com:8080"));
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
@@ -523,7 +524,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         uriField.set(namespaces, uriInfo);
         doReturn(false).when(namespaces).isLeaderBroker();
 
-        URI uri = URI.create("http://localhost" + ":" + BROKER_WEBSERVICE_PORT + "/admin/namespace/"
+        URI uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString());
         doReturn(uri).when(uriInfo).getRequestUri();
 
@@ -537,9 +538,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(BROKER_WEBSERVICE_PORT).toString());
+                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
 
-        uri = URI.create("http://localhost" + ":" + BROKER_WEBSERVICE_PORT + "/admin/namespace/"
+        uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
         doReturn(uri).when(uriInfo).getRequestUri();
 
@@ -551,15 +552,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // OK
             assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
             assertEquals(wae.getResponse().getLocation().toString(),
-                    UriBuilder.fromUri(uri).host("broker-usc.com").port(BROKER_WEBSERVICE_PORT).toString());
+                    UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
         }
 
-        uri = URI.create("http://localhost" + ":" + BROKER_WEBSERVICE_PORT + "/admin/namespace/"
+        uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testGlobalNamespaces.get(0).toString() + "/configversion");
         doReturn(uri).when(uriInfo).getRequestUri();
 
         // setup to redirect to another broker in the same cluster
-        doReturn(Optional.of(new URL("http://otherhost" + ":" + BROKER_WEBSERVICE_PORT))).when(nsSvc)
+        doReturn(Optional.of(new URL("http://otherhost" + ":" + 8080))).when(nsSvc)
                 .getWebServiceUrl(Mockito.argThat(new ArgumentMatcher<NamespaceName>() {
                     @Override
                     public boolean matches(NamespaceName nsname) {
@@ -570,7 +571,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(testGlobalNamespaces.get(0).toString(),
                 Sets.newHashSet("usw"));
 
-        uri = URI.create("http://localhost" + ":" + BROKER_WEBSERVICE_PORT + "/admin/namespace/"
+        uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "?authoritative=false");
         doReturn(uri).when(uriInfo).getRequestUri();
         doReturn(true).when(namespaces).isLeaderBroker();
@@ -582,7 +583,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("broker-usc.com").port(BROKER_WEBSERVICE_PORT).toString());
+                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
     }
 
     @Test
@@ -1070,6 +1071,46 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
         admin.tenants().deleteTenant("my-tenants");
+    }
+
+    @Test
+    public void testSetOffloadThreshold() throws Exception {
+        TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
+        String namespace =  topicName.getNamespaceObject().toString();
+        System.out.println(namespace);
+        // set a default
+        pulsar.getConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(1);
+        // create the namespace
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+
+        // assert we get the default which indicates it will fall back to default
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+        // the ledger config should have the expected value
+        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+
+        // set an override for the namespace
+        admin.namespaces().setOffloadThreshold(namespace, 100);
+        assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 100);
+
+        // set another negative value to disable
+        admin.namespaces().setOffloadThreshold(namespace, -2);
+        assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), -2);
+
+        // set back to -1 and fall back to default
+        admin.namespaces().setOffloadThreshold(namespace, -1);
+        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
+        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
+        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+
+        // cleanup
+        admin.topics().delete(topicName.toString(), true);
+        admin.namespaces().deleteNamespace(namespace);
     }
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {

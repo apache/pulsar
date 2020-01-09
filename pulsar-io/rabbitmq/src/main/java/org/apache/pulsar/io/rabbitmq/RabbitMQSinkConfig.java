@@ -23,9 +23,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -35,10 +32,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
-@Setter
-@Getter
 @EqualsAndHashCode(callSuper = false)
-@ToString
 @Accessors(chain = true)
 public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serializable {
 

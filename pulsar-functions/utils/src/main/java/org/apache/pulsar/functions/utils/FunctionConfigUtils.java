@@ -52,7 +52,7 @@ public class FunctionConfigUtils {
             if (classLoader != null) {
                 try {
                     typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
                             String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
                 }
@@ -386,7 +386,7 @@ public class FunctionConfigUtils {
                         String.format("Function class %s does not implement the correct interface",
                                 functionClass.getName()));
             }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
         }
@@ -394,7 +394,7 @@ public class FunctionConfigUtils {
         Class<?>[] typeArgs;
         try {
             typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
         }

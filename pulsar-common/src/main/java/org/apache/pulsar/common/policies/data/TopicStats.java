@@ -63,6 +63,9 @@ public class TopicStats {
 
     public String deduplicationStatus;
 
+    public long bytesInCounter;
+    public long msgInCounter;
+
     public TopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -78,6 +81,8 @@ public class TopicStats {
         this.averageMsgSize = 0;
         this.storageSize = 0;
         this.backlogSize = 0;
+        this.bytesInCounter = 0;
+        this.msgInCounter = 0;
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
@@ -93,6 +98,8 @@ public class TopicStats {
         this.msgThroughputIn += stats.msgThroughputIn;
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
+        this.bytesInCounter += stats.bytesInCounter;
+        this.msgInCounter += stats.msgInCounter;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;

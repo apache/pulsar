@@ -104,6 +104,9 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
+        stats.msgInCounter = topic.getStats().msgInCounter;
+        stats.bytesInCounter = topic.getStats().bytesInCounter;
+
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
             if (producer.isRemote()) {

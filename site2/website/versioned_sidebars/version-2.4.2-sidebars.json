@@ -77,6 +77,7 @@
       "version-2.4.2-security-token-admin",
       "version-2.4.2-security-athenz",
       "version-2.4.2-security-kerberos",
+      "version-2.4.2-security-jwt",
       "version-2.4.2-security-authorization",
       "version-2.4.2-security-encryption",
       "version-2.4.2-security-extending"

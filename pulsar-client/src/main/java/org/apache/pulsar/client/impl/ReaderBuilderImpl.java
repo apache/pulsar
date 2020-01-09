@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -35,6 +37,7 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Getter(AccessLevel.PUBLIC)
 public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     private final PulsarClientImpl client;
@@ -43,7 +46,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     private final Schema<T> schema;
 
-    ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    public ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ReaderConfigurationData<T>(), schema);
     }
 
@@ -56,11 +59,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     @SuppressWarnings("unchecked")
     public ReaderBuilder<T> clone() {
-        try {
-            return (ReaderBuilder<T>) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ReaderBuilderImpl");
-        }
+        return new ReaderBuilderImpl<>(client, conf.clone(), schema);
     }
 
     @Override
@@ -112,7 +111,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setStartMessageFromRollbackDurationInSec(timeunit.toSeconds(rollbackDuration));
         return this;
     }
-    
+
     @Override
     public ReaderBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);

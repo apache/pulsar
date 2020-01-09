@@ -21,6 +21,11 @@ package org.apache.pulsar.broker.web;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import com.google.common.io.CharStreams;
+import com.google.common.io.Closeables;
+
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -40,7 +45,6 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
@@ -59,11 +63,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.io.CharStreams;
-import com.google.common.io.Closeables;
-
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
 /**
  * Tests for the {@code WebService} class. Note that this test only covers the newly added ApiVersionFilter related
  * tests for now as this test class was added quite a bit after the class was written.
@@ -72,14 +71,8 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 public class WebServiceTest {
 
     private PulsarService pulsar;
-    private final static int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final static int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
-    private static final String BROKER_URL_BASE = "http://localhost:" + BROKER_WEBSERVICE_PORT;
-    private static final String BROKER_URL_BASE_TLS = "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS;
-    private static final String BROKER_LOOKUP_URL = BROKER_URL_BASE
-            + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-    private static final String BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
-            + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+    private String BROKER_LOOKUP_URL;
+    private String BROKER_LOOKUP_URL_TLS;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
@@ -144,7 +137,7 @@ public class WebServiceTest {
             makeHttpRequest(true, false);
             Assert.fail("HTTPS request should fail ");
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Connection refused"));
+            // Expected
         }
     }
 
@@ -246,9 +239,10 @@ public class WebServiceTest {
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
-        config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
         if (enableTls) {
-            config.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
+            config.setWebServicePortTls(Optional.of(0));
         }
         config.setClientLibraryVersionCheckEnabled(enableFilter);
         config.setAuthenticationEnabled(enableAuth);
@@ -274,6 +268,8 @@ public class WebServiceTest {
         }
         pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
 
+        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
         String serviceUrl = BROKER_URL_BASE;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
@@ -286,6 +282,11 @@ public class WebServiceTest {
 
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
+
+        BROKER_LOOKUP_URL = BROKER_URL_BASE
+                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
+                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
 
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 

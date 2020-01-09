@@ -71,6 +71,10 @@ public class ManagedLedgerException extends Exception {
         public ManagedLedgerNotFoundException(Exception e) {
             super(e);
         }
+
+        public ManagedLedgerNotFoundException(String message) {
+            super(message);
+        }
     }
 
     public static class ManagedLedgerTerminatedException extends ManagedLedgerException {

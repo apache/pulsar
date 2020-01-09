@@ -162,7 +162,7 @@ public class TopicSchema {
         try {
             Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf
             return false;
         }
