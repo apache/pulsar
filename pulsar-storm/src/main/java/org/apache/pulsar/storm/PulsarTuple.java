@@ -8,19 +8,21 @@ import java.io.Serializable;
  * Returned by MessageToValuesMapper, this specifies the Values
  * for an output tuple and the stream it should be sent to.
  */
-public interface PulsarTuple extends Serializable {
+public class PulsarTuple extends Values {
+
+    protected final String outputStream;
+
+    public PulsarTuple(String outStream, Object ... values) {
+        super(values);
+        outputStream = outStream;
+    }
 
     /**
      * Return stream the tuple should be emitted on.
      *
      * @return String
      */
-    String getOutputStream();
-
-    /**
-     * Return Values for the tuple.
-     *
-     * @return Values
-     */
-    Values getValues();
+    public String getOutputStream() {
+        return outputStream;
+    }
 }

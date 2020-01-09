@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.storm;
 
-import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import backtype.storm.metric.api.IMetric;
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.topology.base.BaseRichSpout;
+import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -36,14 +35,13 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import backtype.storm.metric.api.IMetric;
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichSpout;
-import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 public class PulsarSpout extends BaseRichSpout implements IMetric {
 
@@ -81,7 +79,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     }
 
     public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfiguration clientConf,
-            ConsumerConfiguration consumerConf) {
+                       ConsumerConfiguration consumerConf) {
         this.clientConf = clientConf;
         this.consumerConf = consumerConf;
         Preconditions.checkNotNull(pulsarSpoutConf.getServiceUrl());
@@ -163,7 +161,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         if (msg != null) {
             MessageRetries messageRetries = pendingMessageRetries.get(msg.getMessageId());
             if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
-                    messageRetries.getNumRetries())) {
+                                      messageRetries.getNumRetries())) {
                 Utils.sleep(100);
             } else {
                 // remove the message from the queue and emit to the topology, only if it should not be backedoff
@@ -226,16 +224,20 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     private void mapToValueAndEmit(Message msg) {
         if (msg != null) {
-            PulsarTuple ptuple = pulsarSpoutConf.getMessageToValuesMapper().toTuple(msg);
+            Values values = pulsarSpoutConf.getMessageToValuesMapper().toValues(msg);
             ++pendingAcks;
-            if (ptuple == null) {
+            if (values == null) {
                 // since the mapper returned null, we can drop the message and ack it immediately
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Dropping message {}", spoutId, msg.getMessageId());
                 }
                 ack(msg);
             } else {
-                collector.emit(ptuple.getOutputStream(), ptuple.getValues(), msg);
+                if (values instanceof PulsarTuple) {
+                    collector.emit(((PulsarTuple) values).getOutputStream(), values, msg);
+                } else {
+                    collector.emit(values, msg);
+                }
                 ++messagesEmitted;
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Emitted message {} to the collector", spoutId, msg.getMessageId());

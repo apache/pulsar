@@ -18,45 +18,26 @@
  */
 package org.apache.pulsar.storm;
 
-import java.io.Serializable;
-
-import org.apache.pulsar.client.api.Message;
-
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Values;
+import org.apache.pulsar.client.api.Message;
+
+import java.io.Serializable;
 
 public interface MessageToValuesMapper extends Serializable {
 
     /**
      * Convert {@link org.apache.pulsar.client.api.Message} to tuple values.
-     * Deprecated, please migrate to toTuple().
-     * Note: PulsarSpout doesn't call toValues(), only toTuple(). For now,
-     * toTuple() will do the conversion from toValues() to PulsarTuple.
-     * It's recommended, though, to implement toTuple() instead and leave this as
-     * is.
      *
      * @param msg
-     * @return Values
+     * @return
      */
-    @Deprecated
-    default Values toValues(Message msg) {
-        return null;
-    }
+    public Values toValues(Message msg);
 
-    /**
-     * Convert {@link org.apache.pulsar.client.api.Message} to PulsarTuple.
-     * @param msg
-     * @return PulsarTuple
-     */
-    default PulsarTuple toTuple(Message msg) {
-        Values values = toValues(msg);
-        return (values == null) ? null :
-               (values instanceof PulsarTuple) ? (PulsarTuple) values : new PulsarDefaultTuple(values);
-    }
     /**
      * Declare the output schema for the spout.
      *
      * @param declarer
      */
-    void declareOutputFields(OutputFieldsDeclarer declarer);
+    public void declareOutputFields(OutputFieldsDeclarer declarer);
 }

@@ -96,29 +96,17 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
 
     @SuppressWarnings("serial")
     public static MessageToValuesMapper messageToValuesMapper = new MessageToValuesMapper() {
-
-        @Override
-        public PulsarTuple toTuple(Message msg) {
-            Values vals = toValues(msg);
-            if (vals == null) {
-                return null;
-            }
-
-            Object v = vals.get(0);
-            if ((v instanceof String) && ((String) v).startsWith("stream:")) {
-                String[] parts = ((String) v).split(":");
-                return new PulsarValuesTuple(parts[1], vals.toArray());
-            } else {
-                return new PulsarDefaultTuple(vals);
-            }
-        }
-
         @Override
         public Values toValues(Message msg) {
             if ("message to be dropped".equals(new String(msg.getData()))) {
                 return null;
             }
-            return new Values(new String(msg.getData()));
+            String val = new String(msg.getData());
+            if (val.startsWith("stream:")) {
+                String stream = val.split(":")[1];
+                return new PulsarTuple(stream, val);
+            }
+            return new Values(val);
         }
 
         @Override
