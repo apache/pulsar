@@ -28,16 +28,19 @@ public interface MessageToValuesMapper extends Serializable {
 
     /**
      * Convert {@link org.apache.pulsar.client.api.Message} to tuple values.
+     * Note: If the returned Values is an instance of
+     * {@link org.apache.pulsar.storm.PulsarTuple}, it specifies which
+     * output stream to emit to.
      *
      * @param msg
      * @return
      */
-    public Values toValues(Message msg);
+    Values toValues(Message msg);
 
     /**
      * Declare the output schema for the spout.
      *
      * @param declarer
      */
-    public void declareOutputFields(OutputFieldsDeclarer declarer);
+    void declareOutputFields(OutputFieldsDeclarer declarer);
 }
