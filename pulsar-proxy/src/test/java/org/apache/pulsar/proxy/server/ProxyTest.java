@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -184,27 +185,30 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRegexSubscription() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
             .connectionsPerBroker(5).ioThreads(5).build();
 
         // create two topics by subscribing to a topic and closing it
         try (Consumer<byte[]> ignored = client.newConsumer()
             .topic("persistent://sample/test/local/topic1")
-            .subscriptionName("ignored")
+            .subscriptionName("proxy-ignored")
             .subscribe()) {
         }
         try (Consumer<byte[]> ignored = client.newConsumer()
             .topic("persistent://sample/test/local/topic2")
-            .subscriptionName("ignored")
+            .subscriptionName("proxy-ignored")
             .subscribe()) {
         }
+
+        String subName = "regex-sub-proxy-test-" + System.currentTimeMillis();
 
         // make sure regex subscription
         String regexSubscriptionPattern = "persistent://sample/test/local/topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
             .topicsPattern(regexSubscriptionPattern)
-            .subscriptionName("regex-sub")
+            .subscriptionName(subName)
             .subscribe()) {
             log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
 

@@ -76,6 +76,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
         builder.maxPendingMessages(count);
+        // disable periodical flushing
+        builder.batchingMaxPublishDelay(1, TimeUnit.DAYS);
         builder.topic(topic);
         if (enableBatch) {
             builder.enableBatching(true);
@@ -91,6 +93,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
+            producer.flush();
             lastFuture.get();
         }
         return keys;

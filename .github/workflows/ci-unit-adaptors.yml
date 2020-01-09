@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit
+name: CI - Unit - Adaptors
 on:
   pull_request:
     branches:
@@ -49,19 +49,8 @@ jobs:
       - name: run unit tests install by skip tests
         run: mvn clean install -DskipTests
 
-      - name: run unit tests
-        run: mvn clean install -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
+      - name: run unit tests pulsar io kafka connect adaptor
+        run: mvn test -pl pulsar-io/kafka-connect-adaptor
 
-      - name: package surefire artifacts
-        if: failure()
-        run: |
-          rm -rf artifacts
-          mkdir artifacts
-          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
-          zip -r artifacts.zip artifacts
-      - uses: actions/upload-artifact@master
-        name: upload surefire-artifacts
-        if: failure()
-        with:
-          name: surefire-artifacts
-          path: artifacts.zip
+      - name: run unit tests pulsar storm tests
+        run: mvn test -pl tests/pulsar-storm-test
