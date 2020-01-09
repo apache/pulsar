@@ -419,19 +419,6 @@ public class PulsarService implements AutoCloseable {
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
 
-            if (StringUtils.isNotBlank(config.getTransactionMetadataStoreProviderClassName())) {
-                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
-            } else {
-                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(InMemTransactionMetadataStoreProvider.class.getName()), this);
-            }
-
-            // Start topic level policies service
-            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
-                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
-            }
-
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -502,6 +489,11 @@ public class PulsarService implements AutoCloseable {
 
             // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
             this.nsService.initialize();
+
+            // Start topic level policies service
+            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
+                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
+            }
 
             this.topicPoliciesService.start();
 
