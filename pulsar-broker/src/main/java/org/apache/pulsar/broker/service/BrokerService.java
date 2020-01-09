@@ -75,7 +75,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,7 +82,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -1822,10 +1820,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     partitionedTopicPath(topicName), content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
-                            // we wait for the data to be synced in all quorums and the observers
-                            executor().schedule(
-                                    SafeRunnable.safeRun(() -> partitionedTopicFuture.complete(configMetadata)),
-                                    PersistentTopicsBase.PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS, TimeUnit.MILLISECONDS);
+                            // Sync data to all quorums and the observers
+                            pulsar.getGlobalZkCache().getZooKeeper().sync(partitionedTopicPath(topicName),
+                                (rc2, path2, ctx2) -> {
+                                    if (rc2 == KeeperException.Code.OK.intValue()) {
+                                        partitionedTopicFuture.complete(configMetadata);
+                                    } else {
+                                        partitionedTopicFuture.completeExceptionally(KeeperException.create(rc2));
+                                    }
+                            }, null);
                         } else {
                             partitionedTopicFuture.completeExceptionally(KeeperException.create(rc));
                         }

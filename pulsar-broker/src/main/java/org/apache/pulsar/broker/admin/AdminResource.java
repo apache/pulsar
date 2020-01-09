@@ -30,6 +30,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletContext;
@@ -66,9 +68,9 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -111,12 +113,32 @@ public abstract class AdminResource extends PulsarWebResource {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
+    protected void zkCreateOptimisticAsync(String path, byte[] content, AsyncCallback.StringCallback callback) {
+        ZkUtils.asyncCreateFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT, callback, null);
+    }
+
     protected boolean zkPathExists(String path) throws KeeperException, InterruptedException {
         Stat stat = globalZk().exists(path, false);
         if (null != stat) {
             return true;
         }
         return false;
+    }
+
+    protected void zkSync(String path) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger rc = new AtomicInteger(KeeperException.Code.OK.intValue());
+        globalZk().sync(path, (rc2, s, ctx) -> {
+            if (KeeperException.Code.OK.intValue() != rc2) {
+                rc.set(rc2);
+            }
+            latch.countDown();
+        }, null);
+        latch.await();
+        if (KeeperException.Code.OK.intValue() != rc.get()) {
+            throw KeeperException.create(KeeperException.Code.get(rc.get()));
+        }
     }
 
     /**
@@ -231,6 +253,37 @@ public abstract class AdminResource extends PulsarWebResource {
 
         namespaces.sort(null);
         return namespaces;
+    }
+
+    protected void tryCreatePartitionsAsync(int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return;
+        }
+        for (int i = 0; i < numPartitions; i++) {
+            tryCreatePartitionAsync(i);
+        }
+    }
+
+    private void tryCreatePartitionAsync(final int partition) {
+        zkCreateOptimisticAsync(ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
+            (rc, s, o, s1) -> {
+                if (KeeperException.Code.OK.intValue() == rc) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Topic partition {} created.", clientAppId(),
+                            topicName.getPartition(partition));
+                    }
+                } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
+                    log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
+                        topicName.getPartition(partition));
+                } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
+                    log.warn("[{}] Fail to create topic partition {} with concurrent modification, retry now.",
+                            clientAppId(), topicName.getPartition(partition));
+                    tryCreatePartitionAsync(partition);
+                } else {
+                    log.error("[{}] Fail to create topic partition {}", clientAppId(),
+                        topicName.getPartition(partition), KeeperException.create(KeeperException.Code.get(rc)));
+                }
+        });
     }
 
     protected NamespaceName namespaceName;
