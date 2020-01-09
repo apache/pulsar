@@ -174,7 +174,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
         admin.tenants().createTenant("system-topic",
                 new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);

@@ -34,9 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
@@ -109,7 +107,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
         admin.tenants().createTenant("system-topic",
             new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
