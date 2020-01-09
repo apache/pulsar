@@ -226,16 +226,16 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     private void mapToValueAndEmit(Message msg) {
         if (msg != null) {
-            Values values = pulsarSpoutConf.getMessageToValuesMapper().toValues(msg);
+            PulsarTuple ptuple = pulsarSpoutConf.getMessageToValuesMapper().toTuple(msg);
             ++pendingAcks;
-            if (values == null) {
+            if (ptuple == null) {
                 // since the mapper returned null, we can drop the message and ack it immediately
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Dropping message {}", spoutId, msg.getMessageId());
                 }
                 ack(msg);
             } else {
-                collector.emit(values, msg);
+                collector.emit(ptuple.getOutputStream(), ptuple.getValues(), msg);
                 ++messagesEmitted;
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Emitted message {} to the collector", spoutId, msg.getMessageId());

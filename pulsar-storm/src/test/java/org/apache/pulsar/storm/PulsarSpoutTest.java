@@ -21,19 +21,10 @@ package org.apache.pulsar.storm;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.pulsar.storm.MessageToValuesMapper;
-import org.apache.pulsar.storm.PulsarSpout;
-import org.apache.pulsar.storm.PulsarSpoutConfiguration;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Values;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -41,11 +32,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Values;
+import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
@@ -103,6 +98,22 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     public static MessageToValuesMapper messageToValuesMapper = new MessageToValuesMapper() {
 
         @Override
+        public PulsarTuple toTuple(Message msg) {
+            Values vals = toValues(msg);
+            if (vals == null) {
+                return null;
+            }
+
+            Object v = vals.get(0);
+            if ((v instanceof String) && ((String) v).startsWith("stream:")) {
+                String[] parts = ((String) v).split(":");
+                return new PulsarValuesTuple(parts[1], vals.toArray());
+            } else {
+                return new PulsarDefaultTuple(vals);
+            }
+        }
+
+        @Override
         public Values toValues(Message msg) {
             if ("message to be dropped".equals(new String(msg.getData()))) {
                 return null;
@@ -116,13 +127,23 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     };
 
     @Test
-    public void testBasic() throws Exception {
-        String msgContent = "hello world";
+    public void testDefaultStream() throws Exception {
+        testBasic(null);
+    }
+
+    @Test
+    public void testAltStream() throws Exception {
+        testBasic("altStream");
+    }
+
+    public void testBasic(String stream) throws Exception {
+        String msgContent = (stream == null) ? "hello world" : "stream:" + stream;
         producer.send(msgContent.getBytes());
         spout.nextTuple();
         Assert.assertTrue(mockCollector.emitted());
         Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
         spout.ack(mockCollector.getLastMessage());
+        Assert.assertEquals((stream == null) ? "default" : stream, mockCollector.getStreamId());
     }
 
     @Test

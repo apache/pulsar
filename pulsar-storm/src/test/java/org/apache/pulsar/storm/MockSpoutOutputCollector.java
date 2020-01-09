@@ -18,24 +18,25 @@
  */
 package org.apache.pulsar.storm;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import backtype.storm.spout.ISpoutOutputCollector;
 import org.apache.pulsar.client.api.Message;
 
-import backtype.storm.spout.ISpoutOutputCollector;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MockSpoutOutputCollector implements ISpoutOutputCollector {
 
     private boolean emitted = false;
     private Message lastMessage = null;
     private String data = null;
+    private String streamId = null;
 
     @Override
     public List<Integer> emit(String streamId, List<Object> tuple, Object messageId) {
         emitted = true;
         data = (String) tuple.get(0);
         lastMessage = (Message) messageId;
+        this.streamId = streamId;
         return new ArrayList<Integer>();
     }
 
@@ -43,6 +44,7 @@ public class MockSpoutOutputCollector implements ISpoutOutputCollector {
     public void emitDirect(int taskId, String streamId, List<Object> tuple, Object messageId) {
         emitted = true;
         data = (String) tuple.get(0);
+        this.streamId = streamId;
         lastMessage = (Message) messageId;
     }
 
@@ -62,9 +64,14 @@ public class MockSpoutOutputCollector implements ISpoutOutputCollector {
         return lastMessage;
     }
 
+    public String getStreamId() {
+        return streamId;
+    }
+
     public void reset() {
         emitted = false;
         data = null;
         lastMessage = null;
+        streamId = null;
     }
 }
