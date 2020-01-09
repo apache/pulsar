@@ -649,6 +649,22 @@ ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action wh
 boolean|`readCompacted`|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.<br/><br/> A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/>`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions). <br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
 boolean|`resetIncludeHead`|If set to true, the first message to be returned is the one specified by `messageId`.<br/><br/>If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
 
+### Sticky key range reader
+
+In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+
+The following is an example to create a sticky key range reader.
+
+```java
+pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
+        .create();
+```
+
+Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+
 ## Schema
 
 In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
