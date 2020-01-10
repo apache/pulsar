@@ -57,7 +57,7 @@ public class ElasticSearchConfig implements Serializable {
             defaultValue = "_doc",
             help = "The type name that the connector writes messages to, with the default value set to _doc." +
                     " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
-                    " and left to the default value for Elasticsearch version after 7.0."
+                    " and left to the default value otherwise."
     )
     private String typeName = "_doc";
 

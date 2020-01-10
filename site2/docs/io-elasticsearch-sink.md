@@ -16,6 +16,7 @@ The configuration of the ElasticSearch sink connector has the following properti
 |------|----------|----------|---------|-------------|
 | `elasticSearchUrl` | String| true |" " (empty string)| The URL of elastic search cluster to which the connector connects. |
 | `indexName` | String| true |" " (empty string)| The index name to which the connector writes messages. |
+| `typeName` | String | false | "_doc" | The type name to which the connector writes messages to. <br><br> The value should be set explicitly to a valid type name other than "_doc" for Elasticsearch version before 6.2, and left to default otherwise. |
 | `indexNumberOfShards` | int| false |1| The number of shards of the index. |
 | `indexNumberOfReplicas` | int| false |1 | The number of replicas of the index. |
 | `username` | String| false |" " (empty string)| The username used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided. |
