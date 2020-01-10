@@ -16,30 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.interceptor;
+package org.apache.pulsar.broker.events.data;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
-/**
- * Metadata information about a broker interceptor.
- */
 @Data
-@NoArgsConstructor
-public class InterceptorDefinition {
+public class BrokerEvents {
 
-    /**
-     * The name of the interceptor.
-     */
-    private String name;
+    enum Type {
+        PRODUCER,
+        CONSUMER
+    }
 
-    /**
-     * The description of the interceptor to be used for user help.
-     */
-    private String description;
+    private Type type;
 
-    /**
-     * The class name for the interceptor.
-     */
-    private String interceptorClass;
 }

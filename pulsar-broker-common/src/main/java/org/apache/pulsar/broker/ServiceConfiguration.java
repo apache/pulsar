@@ -91,8 +91,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
-    @Category
-    private static final String CATEGORY_INTERCEPTORS = "Interceptors";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -680,6 +678,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
     @FieldContext(
+<<<<<<< HEAD
         category = CATEGORY_SERVER,
         doc = "Max memory size for broker handling messages sending from producers.\n\n"
             + " If the processing message size exceed this value, broker will stop read data"
@@ -708,6 +707,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
     private int maxNumPartitionsPerPartitionedTopic = 0;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory to locate broker listeners"
+    )
+    private String brokerListenersDirectory = "./brokerListeners";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of broker listener to load, which is a list of broker listener names"
+    )
+    private Set<String> brokerListeners = Sets.newTreeSet();
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1655,6 +1666,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String transactionMetadataStoreProviderClassName =
             "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
 
+<<<<<<< HEAD
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -1765,6 +1777,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> interceptors = Sets.newTreeSet();
 
+=======
+>>>>>>> Add broker event listener
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
      */
