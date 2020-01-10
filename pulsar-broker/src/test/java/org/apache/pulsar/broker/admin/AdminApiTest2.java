@@ -862,6 +862,47 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testTenantWithBlankClusterName() throws Exception {
+        List<String> availableClusters = admin.clusters().getClusters();
+
+        // Check blank cluster
+        String blankCluster = "";
+        assertFalse(availableClusters.contains(blankCluster));
+
+        Set<String> allowedClusters = Sets.newHashSet(blankCluster);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+
+        String testTenant = "test-tenant";
+
+        // When create tenant with blank clusters, it should be successful
+        try {
+            admin.tenants().createTenant(testTenant, tenantInfo);
+        } catch (PulsarAdminException e) {
+            e.printStackTrace();
+            fail("Should be successful");
+        }
+
+        // Check existing tenant
+        assertTrue(admin.tenants().getTenants().contains(testTenant));
+        assertEquals(admin.tenants().getTenantInfo(testTenant).getAllowedClusters(), availableClusters);
+
+        Set<String> allowedClusters1 = Sets.newHashSet(blankCluster);
+        TenantInfo tenantInfo1 = new TenantInfo(Sets.newHashSet("role1"), allowedClusters1);
+
+        // When update tenant with blank clusters, it should be successful
+        try {
+            admin.tenants().updateTenant(testTenant, tenantInfo1);
+        } catch (PulsarAdminException e) {
+            e.printStackTrace();
+            fail("Should be successful");
+        }
+
+        assertEquals(admin.tenants().getTenantInfo(testTenant).getAllowedClusters(), availableClusters);
+        assertEquals(admin.tenants().getTenantInfo(testTenant).getAdminRoles().size(), 1);
+        assertEquals(admin.tenants().getTenantInfo(testTenant).getAdminRoles().toArray()[0].toString(), "role1");
+    }
+
+    @Test
     public void brokerNamespaceIsolationPolicies() throws Exception {
 
         // create

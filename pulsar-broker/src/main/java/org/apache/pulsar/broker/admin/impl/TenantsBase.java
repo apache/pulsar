@@ -31,8 +31,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
@@ -97,13 +99,24 @@ public class TenantsBase extends AdminResource {
         @ApiParam(value = "TenantInfo") TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+
+        Set<String> availableClusters = getClusters();
+        // Default to all available cluster if cluster is empty
+        if (config == null) {
+            config = new TenantInfo();
+            config.setAllowedClusters(availableClusters);
+        } else {
+            Set<String> allowedClusters = config.getAllowedClusters();
+            if (allowedClusters.isEmpty() || isBlankCluster(allowedClusters)) {
+                config.setAllowedClusters(availableClusters);
+            }
+        }
+
+        // Check if the cluster exists
         validateClusters(config);
 
         try {
             NamedEntity.checkName(tenant);
-            if (config == null) {
-                config = new TenantInfo();
-            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
@@ -131,12 +144,21 @@ public class TenantsBase extends AdminResource {
         @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
-        validateClusters(newTenantAdmin);
 
         Stat nodeStat = new Stat();
         try {
             byte[] content = globalZk().getData(path(POLICIES, tenant), null, nodeStat);
             TenantInfo oldTenantAdmin = jsonMapper().readValue(content, TenantInfo.class);
+
+            // Default to the current set of clusters if cluster is empty
+            Set<String> allowedClusters = newTenantAdmin.getAllowedClusters();
+            if (allowedClusters.isEmpty() || isBlankCluster(allowedClusters)) {
+                newTenantAdmin.setAllowedClusters(oldTenantAdmin.getAllowedClusters());
+            }
+
+            // Check if the cluster exists
+            validateClusters(newTenantAdmin);
+
             List<String> clustersWithActiveNamespaces = Lists.newArrayList();
             if (oldTenantAdmin.getAllowedClusters().size() > newTenantAdmin.getAllowedClusters().size()) {
                 // Get the colo(s) being removed from the list
@@ -220,21 +242,34 @@ public class TenantsBase extends AdminResource {
         }
     }
 
-    private void validateClusters(TenantInfo info) {
-        List<String> nonexistentClusters;
+    public Set<String> getClusters() {
         try {
-            if (info == null) {
-                info = new TenantInfo();
-            }
-            Set<String> availableClusters = clustersListCache().get();
-            Set<String> allowedClusters = info.getAllowedClusters();
-            nonexistentClusters = allowedClusters.stream()
-                .filter(cluster -> !availableClusters.contains(cluster))
-                .collect(Collectors.toList());
+            Set<String> clusters = clustersListCache().get();
+
+            // Remove "global" cluster from returned list
+            clusters.remove(Constants.GLOBAL_CLUSTER);
+            return clusters;
         } catch (Exception e) {
             log.error("[{}] Failed to get available clusters", clientAppId(), e);
             throw new RestException(e);
         }
+    }
+
+    private boolean isBlankCluster(Set<String> allowedClusters) {
+        boolean isBlank = false;
+        if (allowedClusters.size() ==1 && StringUtils.isBlank(allowedClusters.toArray()[0].toString().trim())) {
+            isBlank = true;
+        }
+        return isBlank;
+    }
+
+    private void validateClusters(TenantInfo info) {
+        List<String> nonexistentClusters;
+        Set<String> availableClusters = getClusters();
+        Set<String> allowedClusters = info.getAllowedClusters();
+        nonexistentClusters = allowedClusters.stream()
+            .filter(cluster -> !availableClusters.contains(cluster))
+            .collect(Collectors.toList());
         if (nonexistentClusters.size() > 0) {
             log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);
             throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
