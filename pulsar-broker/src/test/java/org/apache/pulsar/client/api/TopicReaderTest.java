@@ -513,7 +513,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
             .startMessageId(MessageId.earliest).create()) {

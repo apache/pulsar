@@ -901,18 +901,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return deleteFuture;
     }
 
+    public CompletableFuture<Void> close() {
+        return close(false);
+    }
+    
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
      *
+     * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
-            if (!isFenced) {
+            // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
+            // forcefully wants to close managed-ledger without waiting all resources to be closed.
+            if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
@@ -928,8 +935,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        
+        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
+                : FutureUtil.waitForAll(futures);
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
+        clientCloseFuture.thenRun(() -> {
             // After having disconnected all producers/consumers, close the managed ledger
             ledger.asyncClose(new CloseCallback() {
                 @Override
@@ -1432,7 +1442,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgRateOut", topicStatsHelper.aggMsgRateOut);
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
-        topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
+        topicStatsStream.writePair("storageSize", ledger.getTotalSize());
+        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
 
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;

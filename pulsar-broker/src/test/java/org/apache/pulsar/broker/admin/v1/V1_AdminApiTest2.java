@@ -293,7 +293,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/use/ns2";
         admin.namespaces().createNamespace(namespace);
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -707,13 +707,13 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
 
         Set<String> namespaces = new HashSet<>(
-                admin.namespaces().getAntiAffinityNamespaces("dummy", "use", antiAffinityGroup));
+                admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", antiAffinityGroup));
         assertEquals(namespaces.size(), 3);
         assertTrue(namespaces.contains(ns1));
         assertTrue(namespaces.contains(ns2));
         assertTrue(namespaces.contains(ns3));
 
-        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
+        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", "invalid-group");
         assertEquals(namespaces2.size(), 0);
     }
 

@@ -209,6 +209,7 @@ The Apache Software License, Version 2.0
 
   * Jackson
     - jackson-annotations-2.8.11.jar
+    - jackson-core-2.8.11.jar
     - jackson-databind-2.8.11.4.jar
     - jackson-dataformat-smile-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar
@@ -217,9 +218,6 @@ The Apache Software License, Version 2.0
     - jackson-datatype-jdk8-2.8.11.jar
     - jackson-datatype-joda-2.8.11.jar
     - jackson-datatype-jsr310-2.8.11.jar
-    - jackson-core-2.8.11.jar
-    - jackson-core-asl-1.9.13.jar
-    - jackson-mapper-asl-1.9.13.jar
     - jackson-dataformat-yaml-2.8.11.jar
  * Guava
     - guava-25.1-jre.jar
@@ -355,8 +353,8 @@ The Apache Software License, Version 2.0
   * Apache XBean :: Reflect
     - xbean-reflect-3.4.jar
   * Avro
-    - avro-1.8.2.jar
-    - avro-protobuf-1.8.2.jar
+    - avro-1.9.1.jar
+    - avro-protobuf-1.9.1.jar
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
@@ -475,8 +473,6 @@ BSD License
     - asm-util-6.0.jar
  * JLine
    - jline-2.14.6.jar
- * ParaNamer Core
-   - paranamer-2.7.jar
  * Zstd-jni
    - zstd-jni-1.3.7-3.jar
 
@@ -545,8 +541,6 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
    - HdrHistogram-2.1.9.jar
  * AOP Alliance
    - aopalliance-1.0.jar
- * XZ For Java
-    - xz-1.5.jar
  * Reactive Streams
     - reactive-streams-1.0.2.jar
 

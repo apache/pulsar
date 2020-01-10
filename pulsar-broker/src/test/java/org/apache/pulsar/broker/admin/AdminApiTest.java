@@ -815,9 +815,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 4);
 
-        // check if the virtual topic doesn't get created
         List<String> topics = admin.topics().getList("prop-xyz/ns1");
-        assertEquals(topics.size(), 0);
+        assertEquals(topics.size(), 4);
 
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
@@ -829,15 +828,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedStats(partitionedTopicName, false).partitions.size(),
                 0);
 
-        try {
-            admin.topics().getSubscriptions(partitionedTopicName);
-            fail("should have failed");
-        } catch (PulsarAdminException e) {
-            // ok
-            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
+        assertEquals(subscriptions.size(), 0);
 
         // create consumer and subscription
         PulsarClient client = PulsarClient.builder()
@@ -1902,6 +1894,29 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         client.close();
 
+    }
+
+    @Test
+    public void testPersistentTopicCreation() throws Exception {
+        final String nonPartitionedtopic = "persistent://prop-xyz/ns1/non-partitioned-topic";
+        final String partitionedtopic = "persistent://prop-xyz/ns1/partitioned-topic";
+
+        admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+        admin.topics().createPartitionedTopic(partitionedtopic, 2);
+
+        try {
+            admin.topics().createPartitionedTopic(nonPartitionedtopic, 2);
+            fail("should not be able to create a partitioned topic with the same name");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
+
+        try {
+            admin.topics().createNonPartitionedTopic(partitionedtopic);
+            fail("should not be able to create a non-partitioned topic with the same name");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
     }
 
     /**

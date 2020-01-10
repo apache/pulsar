@@ -1,0 +1,74 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: CI - Unit - Brokers
+on:
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+
+jobs:
+
+  unit-tests:
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: checkout
+        uses: actions/checkout@v1
+
+      - name: Set up Maven
+        uses: aahmed-se/setup-maven@v3
+        with:
+          maven-version: 3.6.1
+
+      - name: run unit tests install by skip tests
+        run: mvn clean install -DskipTests
+
+      - name: run unit tests pulsar broker reader test
+        run: mvn test -DfailIfNoTests=false '-Dtest=ReaderTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker rack aware test
+        run: mvn test -DfailIfNoTests=false '-Dtest=RackAwareTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker simple producer consumer test
+        run: mvn test -DfailIfNoTests=false '-Dtest=SimpleProducerConsumerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker V1 producer consumer test
+        run: mvn test -DfailIfNoTests=false '-Dtest=V1_ProducerConsumerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker persistent failover end to end test
+        run: mvn test -DfailIfNoTests=false '-Dtest=PersistentFailoverE2ETest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker client integration test
+        run: mvn test -DfailIfNoTests=false '-Dtest=BrokerClientIntegrationTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker replicatior rate limiter test
+        run: mvn test -DfailIfNoTests=false '-Dtest=ReplicatorRateLimiterTest' -pl pulsar-broker
+
+      - name: run unit test pulsar-broker
+        run: mvn test '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest' -DfailIfNoTests=false -pl pulsar-broker
