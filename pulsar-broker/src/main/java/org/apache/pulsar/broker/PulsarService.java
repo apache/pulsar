@@ -160,6 +160,8 @@ public class PulsarService implements AutoCloseable {
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
+    private LedgerOffloader defaultOffloader;
+    private Map<NamespaceName, LedgerOffloader> namespacesOffloaders;
 
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
             new DefaultThreadFactory("pulsar"));

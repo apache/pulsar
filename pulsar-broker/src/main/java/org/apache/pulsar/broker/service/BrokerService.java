@@ -941,7 +941,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             serviceConfig.getDefaultRetentionSizeInMB())
             );
 
-            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElseGet(
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offloadPolicies).orElseGet(
                     () -> new OffloadPolicies(serviceConfig.getDefaultOffloadDriver(),
                             serviceConfig.getDefaultOffloadEndpoint(),
                             serviceConfig.getDefaultOffloadBucket(),

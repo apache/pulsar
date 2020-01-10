@@ -18,15 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.common.naming.NamespaceName;
-
-import java.io.IOException;
 import java.util.Objects;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  */
@@ -37,7 +29,8 @@ public class OffloadPolicies {
     private long maxBlockSizeInBytes;
     private long readBufferSizeInBytes;
 
-    public OffloadPolicies(String driver, String endpoint, String bucket, long maxBlockSizeInBytes, long readBufferSizeInBytes) {
+    public OffloadPolicies(String driver, String endpoint, String bucket,
+        long maxBlockSizeInBytes, long readBufferSizeInBytes) {
         this.driver = driver;
         this.endpoint = endpoint;
         this.bucket = bucket;
@@ -67,14 +60,18 @@ public class OffloadPolicies {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         OffloadPolicies that = (OffloadPolicies) o;
-        return maxBlockSizeInBytes == that.maxBlockSizeInBytes &&
-                readBufferSizeInBytes == that.readBufferSizeInBytes &&
-                Objects.equals(driver, that.driver) &&
-                Objects.equals(endpoint, that.endpoint) &&
-                Objects.equals(bucket, that.bucket);
+        return maxBlockSizeInBytes == that.maxBlockSizeInBytes
+                && readBufferSizeInBytes == that.readBufferSizeInBytes
+                && Objects.equals(driver, that.driver)
+                && Objects.equals(endpoint, that.endpoint)
+                && Objects.equals(bucket, that.bucket);
     }
 
     @Override
@@ -84,12 +81,12 @@ public class OffloadPolicies {
 
     @Override
     public String toString() {
-        return "OffloadPolicies{" +
-                "driver=" + driver +
-                ", endpoint='" + endpoint + '\'' +
-                ", bucket='" + bucket + '\'' +
-                ", maxBlockSizeInBytes=" + maxBlockSizeInBytes +
-                ", readBufferSizeInBytes=" + readBufferSizeInBytes +
-                '}';
+        return "OffloadPolicies{"
+                + "driver=" + driver
+                + ", endpoint='" + endpoint + '\''
+                + ", bucket='" + bucket + '\''
+                + ", maxBlockSizeInBytes=" + maxBlockSizeInBytes
+                + ", readBufferSizeInBytes=" + readBufferSizeInBytes
+                + '}';
     }
 }
