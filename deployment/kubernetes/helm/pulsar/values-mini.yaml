@@ -373,10 +373,10 @@ grafana:
   annotations: {}
   tolarations: []
   gracePeriod: 0
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 0.1
+#  resources:
+#    requests:
+#      memory: 64Mi
+#      cpu: 0.1
   image:
     repository: apachepulsar/pulsar-grafana
     tag: latest
