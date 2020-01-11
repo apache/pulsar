@@ -20,15 +20,16 @@
 package main
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/core/pf"
 )
 
-func hello() {
-	fmt.Println("hello pulsar function")
+func HandleResponse(ctx context.Context, in []byte) ([]byte, error) {
+	res := append(in, 110)
+	return res, nil
 }
 
 func main() {
-	pf.Start(hello)
+	pf.Start(HandleResponse)
 }

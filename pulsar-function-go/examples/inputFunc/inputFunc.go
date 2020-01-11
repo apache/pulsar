@@ -21,15 +21,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/core/pf"
 )
 
-func HandleResponse(ctx context.Context, in []byte) ([]byte, error) {
-	res := append(in, 110)
-	return res, nil
+func HandleRequest(ctx context.Context, in []byte) error {
+	fmt.Println(string(in) + "!")
+	return nil
 }
 
 func main() {
-	pf.Start(HandleResponse)
+	pf.Start(HandleRequest)
 }

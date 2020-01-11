@@ -27,8 +27,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	log "github.com/apache/pulsar/pulsar-function-go/logutil"
-	pb "github.com/apache/pulsar/pulsar-function-go/pb"
+	log "github.com/apache/pulsar/pulsar-function-go/core/logutil"
+	pb "github.com/apache/pulsar/pulsar-function-go/core/pb"
 )
 
 type goInstance struct {
@@ -38,6 +38,7 @@ type goInstance struct {
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
 	lastHealthCheckTs int64
+	properties        map[string]string
 }
 
 // newGoInstance init goInstance and init function context
@@ -48,7 +49,13 @@ func newGoInstance() *goInstance {
 	}
 	now := time.Now()
 	goInstance.lastHealthCheckTs = now.UnixNano()
+	goInstance.properties = make(map[string]string)
 	return goInstance
+}
+func (gi *goInstance) getProperties() {
+	gi.properties["application"] = "pulsar-function"
+	gi.properties["id"] = gi.context.GetFuncFQFN()
+	gi.properties["instance_id"] = gi.context.GetFuncID()
 }
 
 func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {

@@ -20,19 +20,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/core/pf"
 )
 
-func contextFunc(ctx context.Context) {
-	if fc, ok := pf.FromContext(ctx); ok {
-		fmt.Printf("function ID is:%s, ", fc.GetFuncID())
-		fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
-	}
+func hello() {
+	fmt.Println("hello pulsar function")
 }
 
 func main() {
-	pf.Start(contextFunc)
+	pf.Start(hello)
 }

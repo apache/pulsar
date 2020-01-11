@@ -61,6 +61,10 @@ func (c *FunctionContext) GetFuncTenant() string {
 	return c.instanceConf.funcDetails.Tenant
 }
 
+func (c *FunctionContext) GetFuncFQFN() string {
+	return c.GetFuncTenant() + "/" + c.GetFuncNamespace() + "/" + c.GetFuncName()
+}
+
 func (c *FunctionContext) GetFuncName() string {
 	return c.instanceConf.funcDetails.Name
 }
