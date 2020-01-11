@@ -57,6 +57,14 @@ func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
 }
 
+func (c *FunctionContext) GetTenantAndNamespace() string {
+	return c.GetFuncTenant() + "/" + c.GetFuncNamespace()
+}
+
+func (c *FunctionContext) GetTenantAndNamespaceAndName() string {
+	return c.GetFuncTenant() + "/" + c.GetFuncNamespace() + "/" + c.GetFuncName()
+}
+
 func (c *FunctionContext) GetFuncTenant() string {
 	return c.instanceConf.funcDetails.Tenant
 }
