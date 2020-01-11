@@ -71,6 +71,8 @@ type Conf struct {
 	//retryDetails config
 	MaxMessageRetries int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
 	DeadLetterTopic   string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
+	ExpectedHealthCheckInterval int32 `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
+
 }
 
 var (
