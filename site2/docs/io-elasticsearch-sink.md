@@ -22,16 +22,20 @@ The configuration of the ElasticSearch sink connector has the following properti
 | `username` | String| false |" " (empty string)| The username used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided. |
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided.  |
 
-### Example
+## Example
 
 Before using the ElasticSearch sink connector, you need to create a configuration file through one of the following methods.
+
+### Configuration
+
+#### For Elasticsearch After 6.2
 
 * JSON 
 
     ```json
     {
-        "elasticSearchUrl": "http://localhost:90902",
-        "indexName": "myIndex",
+        "elasticSearchUrl": "http://localhost:9200",
+        "indexName": "my_index",
         "username": "scooby",
         "password": "doobie"
     }
@@ -41,10 +45,95 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
 
     ```yaml
     configs:
-        elasticSearchUrl: "http://localhost:90902"
-        indexName: "myIndex"
+        elasticSearchUrl: "http://localhost:9200"
+        indexName: "my_index"
         username: "scooby"
         password: "doobie"
     ```
 
+#### For Elasticsearch Before 6.2
 
+* JSON 
+
+    ```json
+    {
+        "elasticSearchUrl": "http://localhost:9200",
+        "indexName": "my_index",
+        "typeName": "doc",
+        "username": "scooby",
+        "password": "doobie"
+    }
+    ```
+
+* YAML
+
+    ```yaml
+    configs:
+        elasticSearchUrl: "http://localhost:9200"
+        indexName: "my_index"
+        typeName: "doc"
+        username: "scooby"
+        password: "doobie"
+    ```
+
+### Usage
+
+1. Start a single node Elasticsearch cluster.
+
+    ```bash
+    $ docker run -p 9200:9200 -p 9300:9300 \
+        -e "discovery.type=single-node" \
+        docker.elastic.co/elasticsearch/elasticsearch:7.5.1
+    ```
+
+2. Start a Pulsar service locally in standalone mode.
+    ```bash
+    $ bin/pulsar standalone
+    ```
+    Make sure the nar file is available at `connectors/pulsar-io-elastic-search-{{pulsar:version}}.nar`.
+
+3. Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.
+    * Use the **JSON** configuration as shown previously. 
+        ```bash
+        $ bin/pulsar-admin sinks localrun \
+            --archive connectors/pulsar-io-elastic-search-{{pulsar:version}}.nar \
+            --tenant public \
+            --namespace default \
+            --name elasticsearch-test-sink \
+            --sink-type elastic_search \
+            --sink-config '{"elasticSearchUrl":"http://localhost:9200","indexName": "my_index","username": "scooby","password": "doobie"}' \
+            --inputs elasticsearch_test
+        ```
+    * Use the **YAML** configuration file as shown previously.
+    
+        ```bash
+        $ bin/pulsar-admin sinks localrun \
+            --archive connectors/pulsar-io-elastic-search-{{pulsar:version}}.nar \
+            --tenant public \
+            --namespace default \
+            --name elasticsearch-test-sink \
+            --sink-type elastic_search \
+            --sink-config-file elasticsearch-sink.yml \
+            --inputs elasticsearch_test
+        ```
+
+4. Publish records to the topic.
+
+    ```bash
+    $ bin/pulsar-client produce elasticsearch_test --messages "{\"a\":1}"
+    ```
+
+5. Check documents in Elasticsearch.
+    
+    * refresh the index
+        ```bash
+            $ curl -s http://localhost:9200/my_index/_refresh
+        ``` 
+    * search documents
+        ```bash
+            $ curl -s http://localhost:9200/my_index/_search
+        ```
+        You can see the record that published earlier has been successfully written into Elasticsearch.
+        ```bash
+        {"took":2,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"max_score":1.0,"hits":[{"_index":"my_index","_type":"_doc","_id":"FSxemm8BLjG_iC0EeTYJ","_score":1.0,"_source":{"a":1}}]}}
+        ```
