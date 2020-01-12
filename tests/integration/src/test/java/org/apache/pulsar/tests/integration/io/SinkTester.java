@@ -37,7 +37,8 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         KAFKA,
         JDBC,
         HDFS,
-        ELASTIC_SEARCH
+        ELASTIC_SEARCH,
+        RABBITMQ
     }
 
     protected final String networkAlias;
