@@ -177,7 +177,17 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            return getProducer(record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())).newMessage();
+            if (record.getSchema() != null) {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()))
+                        .newMessage(record.getSchema());
+            } else {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()))
+                        .newMessage();
+            }
         }
 
         @Override
@@ -215,11 +225,16 @@ public class PulsarSink<T> implements Sink<T> {
                 throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
             }
 
-            return getProducer(
+            Producer<T> producer = getProducer(
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
-            ).newMessage();
+            );
+            if (record.getSchema() != null) {
+                return producer.newMessage(record.getSchema());
+            } else {
+                return producer.newMessage();
+            }
         }
 
         @Override

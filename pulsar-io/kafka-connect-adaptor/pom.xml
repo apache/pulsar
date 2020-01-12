@@ -69,6 +69,22 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>kafka-connect-avro-converter-shaded</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.confluent</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
@@ -95,13 +111,12 @@
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
-    </dependency>
-
-    <!-- confluent client -->
-    <dependency>
-      <groupId>io.confluent</groupId>
-      <artifactId>kafka-connect-avro-converter</artifactId>
-      <version>${confluent.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>
