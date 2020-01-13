@@ -125,6 +125,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     @Test
+    public void testRabbitMQSink() throws Exception {
+        final String containerName = "rabbitmq-" + randomName(8);
+        testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
+    }
+
+    @Test
     public void testDebeziumMySqlSource() throws Exception {
         testDebeziumMySqlConnect();
     }
