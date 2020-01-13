@@ -45,6 +45,12 @@ message Resources {
     int64 disk = 3;
 }
 
+message SkywalkingConfig {
+    string skywalkingAgentJarPath = 1;
+    string skywalkingAgentConfPath = 2;
+    string skywalkingBackendService = 3;
+}
+
 message RetryDetails {
     int32 maxMessageRetries = 1;
     string deadLetterTopic = 2;
@@ -81,6 +87,7 @@ message FunctionDetails {
     string runtimeFlags = 17;
     ComponentType componentType = 18;
     string customRuntimeOptions = 19;
+    SkywalkingConfig skywalkingConfig = 20;
 }
 
 message ConsumerSpec {
