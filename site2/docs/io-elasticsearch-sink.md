@@ -134,6 +134,6 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
             $ curl -s http://localhost:9200/my_index/_search
         ```
         You can see the record that published earlier has been successfully written into Elasticsearch.
-        ```bash
+        ```json
         {"took":2,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"max_score":1.0,"hits":[{"_index":"my_index","_type":"_doc","_id":"FSxemm8BLjG_iC0EeTYJ","_score":1.0,"_source":{"a":1}}]}}
         ```
