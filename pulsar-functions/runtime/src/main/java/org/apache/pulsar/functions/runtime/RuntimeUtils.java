@@ -292,6 +292,35 @@ public class RuntimeUtils {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
             }
+            
+            // function with skywalking
+            Function.SkywalkingConfig skywalkingConfig = instanceConfig.getFunctionDetails().getSkywalkingConfig();
+            if (null != skywalkingConfig) {
+                String skywalkingAgentJarPath = skywalkingConfig.getSkywalkingAgentJarPath();
+                String skywalkingAgentConfPath = skywalkingConfig.getSkywalkingAgentConfPath();
+                String skywalkingBackService = skywalkingConfig.getSkywalkingBackendService();
+
+                if (!StringUtils.isEmpty(skywalkingAgentJarPath)
+                        && (!StringUtils.isEmpty(skywalkingAgentConfPath)
+                        || !StringUtils.isEmpty(skywalkingBackService))) {
+
+                    args.add("-javaagent:" + skywalkingAgentJarPath);
+
+                    if (!StringUtils.isEmpty(skywalkingAgentConfPath)) {
+                        args.add("-Dskywalking_config=" + skywalkingAgentConfPath);
+                    }
+
+                    if (!StringUtils.isEmpty(skywalkingBackService)) {
+                        args.add("-Dservice.url=" + skywalkingBackService);
+                    }
+
+                    args.add("-Dskywalking.agent.service_name=" + instanceConfig.getFunctionDetails().getName());
+                } else {
+                    log.error("skywalking options is invalid, instanceConfig: {}", instanceConfig.toString());
+                }
+            }
+            // function with skywalking
+            
             args.add("org.apache.pulsar.functions.instance.JavaInstanceMain");
 
             args.add("--jar");
