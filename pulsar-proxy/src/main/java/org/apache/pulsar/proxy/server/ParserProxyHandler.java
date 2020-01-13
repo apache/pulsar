@@ -19,8 +19,7 @@
 
 package org.apache.pulsar.proxy.server;
 
-
-import avro.shaded.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
