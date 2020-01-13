@@ -144,6 +144,7 @@ public class PulsarCluster {
                         .withEnv("journalSyncData", "false")
                         .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
+                        .withEnv("diskUsageThreshold", "0.99")
                 )
         );
 

@@ -142,7 +142,13 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 currentBatch = recordList.iterator();
             }
             if (currentBatch.hasNext()) {
-                return processSourceRecord(currentBatch.next());
+                Record<KeyValue<byte[], byte[]>> processRecord = processSourceRecord(currentBatch.next());
+                if (processRecord.getValue().getValue() == null) {
+                    outstandingRecords.decrementAndGet();
+                    continue;
+                } else {
+                    return processRecord;
+                }
             } else {
                 // there is no records any more, then waiting for the batch to complete writing
                 // to sink and the offsets are committed as well, then do next round read.

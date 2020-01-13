@@ -22,10 +22,6 @@ package org.apache.pulsar.io.rabbitmq;
 import com.google.common.base.Preconditions;
 import com.rabbitmq.client.ConnectionFactory;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -35,10 +31,6 @@ import java.io.Serializable;
  * Configuration object for all RabbitMQ components.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class RabbitMQAbstractConfig implements Serializable {
 

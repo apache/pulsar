@@ -83,8 +83,12 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
 
 
     @Override
-    public void configure(Configuration config, HistoryRecordComparator comparator, DatabaseHistoryListener listener) {
-        super.configure(config, comparator, listener);
+    public void configure(
+            Configuration config,
+            HistoryRecordComparator comparator,
+            DatabaseHistoryListener listener,
+            boolean useCatalogBeforeSchema) {
+        super.configure(config, comparator, listener, useCatalogBeforeSchema);
         if (!config.validateAndRecord(ALL_FIELDS, logger::error)) {
             throw new IllegalArgumentException("Error configuring an instance of "
                 + getClass().getSimpleName() + "; check the logs for details");

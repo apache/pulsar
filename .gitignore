@@ -77,6 +77,9 @@ docker.debug-info
 
 **/website/i18n/*
 **/website/translated_docs*
+**/website/brodocs/index.html
+**/website/brodocs/navData.js
+**/website/brodocs/documents/*.md
 
 # Avro
 examples/flink/src/main/java/org/apache/flink/avro/generated

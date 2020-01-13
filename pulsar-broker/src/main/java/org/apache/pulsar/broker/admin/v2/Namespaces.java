@@ -879,7 +879,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/offloadThreshold")
     @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
                           + " before the broker will start offloading to longterm storage",
-                  notes = "A negative value disables automatic offloading")
+                  notes = "-1 will revert to using the cluster default. A negative value disables automatic offloading. ")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification"),

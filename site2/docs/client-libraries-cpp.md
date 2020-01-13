@@ -1,21 +1,20 @@
 ---
 id: client-libraries-cpp
-title: The Pulsar C++ client
+title: Pulsar C++ client
 sidebar_label: C++
 ---
 
 ## Supported platforms
 
-The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
+Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 
 ## Linux
 
-### Install
+> Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.
 
-> Since the 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can choose to download
-> and install those packages instead of building them yourself.
+### Install RPM
 
-#### RPM
+1. Download a RPM package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
@@ -23,36 +22,34 @@ The Pulsar C++ client has been successfully tested on **MacOS** and **Linux**.
 | [client-debuginfo]({{pulsar:dist_rpm:client-debuginfo}}) | [asc]({{pulsar:dist_rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:dist_rpm:client-debuginfo}}.sha512) |
 | [client-devel]({{pulsar:dist_rpm:client-devel}}) | [asc]({{pulsar:dist_rpm:client-devel}}.asc),  [sha512]({{pulsar:dist_rpm:client-devel}}.sha512) |
 
-To install a RPM package, download the RPM packages and install them using the following command:
+2. Install the package using the following command.
 
 ```bash
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
+### Install Debian
 
-#### DEB
+1. Download a Debian package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
 | [client]({{pulsar:deb:client}}) | [asc]({{pulsar:dist_deb:client}}.asc), [sha512]({{pulsar:dist_deb:client}}.sha512) |
 | [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:dist_deb:client-devel}}.asc),  [sha512]({{pulsar:dist_deb:client-devel}}.sha512) |
 
-To install a DEB package, download the DEB packages and install them using the following command:
+2. Install the package using the following command:
 
 ```bash
 $ apt install ./apache-pulsar-client*.deb
 ```
-
 ### Build
 
-> If you want to build RPM and Debian packages off latest master, you can follow the instructions
-> below to do so. All the instructions are run at the root directory of your cloned Pulsar
-> repo.
+> If you want to build RPM and Debian packages from the latest master, follow the instructions below. All the instructions are run at the root directory of your cloned Pulsar repository.
 
 There are recipes that build RPM and Debian packages containing a
 statically linked `libpulsar.so` / `libpulsar.a` with all the required
 dependencies.
 
-To build the C++ library packages, first build the Java packages:
+To build the C++ library packages, build the Java packages first.
 
 ```shell
 mvn install -DskipTests
@@ -64,8 +61,7 @@ mvn install -DskipTests
 pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
 ```
 
-This will build the RPM inside a Docker container and it will leave the RPMs
-in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
+This builds the RPM inside a Docker container and it leaves the RPMs in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
 
 | Package name | Content |
 |-----|-----|
@@ -73,15 +69,15 @@ in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
 | pulsar-client-devel | Static library `libpulsar.a` and C++ and C headers |
 | pulsar-client-debuginfo | Debug symbols for `libpulsar.so` |
 
-#### Deb
+#### Debian
 
-To build Debian packages:
+To build Debian packages, enter the following command.
 
 ```shell
 pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 ```
 
-Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
+Debian packages are created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`.
 
 | Package name | Content |
 |-----|-----|
@@ -90,43 +86,40 @@ Debian packages will be created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`
 
 ## MacOS
 
-Pulsar releases are available through the [Homebrew](https://brew.sh/) core repository. You can install the C++ client 
-library with:
+Pulsar releases are available in the [Homebrew](https://brew.sh/) core repository. You can install the C++ client library with the following command. The package is installed with the library and headers.
 
 ```shell
 brew install libpulsar
 ```
 
-This will install the package with the library and headers.
-
 ## Connection URLs
-
 
 To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the pulsar URI scheme and have a default port of 6650. Here’s an example for localhost:
+Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is `6650`. The following is an example for localhost.
 
 ```http
 pulsar://localhost:6650
 ```
 
-A URL for a production Pulsar cluster may look something like this:
+In a Pulsar cluster in production, the URL looks as follows: 
 ```http
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you’re using TLS authentication, the URL will look like something like this:
+If you use TLS authentication, you need to add `ssl`, and the default port is `6651`. The following is an example.
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Consumer
+## Create a consumer
+To connect to Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example. 
 
 ```c++
 Client client("pulsar://localhost:6650");
 
 Consumer consumer;
-Result result = client.subscribe("my-topic", "my-subscribtion-name", consumer);
+Result result = client.subscribe("my-topic", "my-subscription-name", consumer);
 if (result != ResultOk) {
     LOG_ERROR("Failed to subscribe: " << result);
     return -1;
@@ -145,8 +138,8 @@ while (true) {
 client.close();
 ```
 
-
-## Producer
+## Create a producer
+To connect to Pulsar as a producer, you need to create a producer on the C++ client. The following is an example. 
 
 ```c++
 Client client("pulsar://localhost:6650");
@@ -167,7 +160,8 @@ for (int i = 0; i < 10; i++){
 client.close();
 ```
 
-## Authentication
+## Enable authentication in connection URLs
+If you use TLS authentication when connecting to Pulsar, you need to add `ssl` in the connection URLs, and the default port is `6651`. The following is an example.
 
 ```cpp
 ClientConfiguration config = ClientConfiguration();
@@ -179,3 +173,5 @@ config.setAuth(pulsar::AuthTls::create(
 
 Client client("pulsar+ssl://my-broker.com:6651", config);
 ```
+
+For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
