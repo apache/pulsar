@@ -287,6 +287,9 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
         msgMetadata.set_compression(CompressionCodecProvider::convertType(conf_.getCompressionType()));
         msgMetadata.set_uncompressed_size(uncompressedSize);
     }
+    if (!this->getSchemaVersion().empty()) {
+        msgMetadata.set_schema_version(this->getSchemaVersion());
+    }
 }
 
 void ProducerImpl::statsCallBackHandler(Result res, const MessageId& msgId, SendCallback callback,

@@ -105,7 +105,7 @@ public class CmdGenerateDocument extends CmdBase {
                 sb.append("* `").append(s).append("`\n");
             }
             cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
-                sb.append("\n\n## ").append(subK).append("\n\n");
+                sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
                 sb.append(cmdObj.jcommander.getCommandDescription(subK)).append("\n\n");
                 sb.append("### Usage\n\n");
                 sb.append("------------\n\n\n");

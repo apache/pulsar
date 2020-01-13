@@ -145,6 +145,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsAllowInsecureConnection|  Accept untrusted TLS certificate from client  |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 |tokenAuthClaim| Specify which of the token's claims will be used as the authentication "principal" or "role". The default "sub" claim will be used if this is left blank ||
@@ -219,6 +220,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
+|managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000|
+|managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)|
 |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  ||
 |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into ||
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
@@ -402,7 +405,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB|  The default per-topic backlog quota limit.  |10|
-|ttlDurationDefaultInSeconds|  Default ttl for namespaces if ttl is not already configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|

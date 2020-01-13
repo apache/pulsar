@@ -21,20 +21,12 @@ package org.apache.pulsar.common.functions;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * Class representing resources, such as CPU, RAM, and disk size.
  */
-@Getter
-@Setter
 @Data
-@EqualsAndHashCode
-@ToString
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder(toBuilder = true)
