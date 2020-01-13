@@ -132,6 +132,12 @@
   	</dependency>
 
     <dependency>
+      <groupId>com.rabbitmq</groupId>
+      <artifactId>amqp-client</artifactId>
+      <version>${rabbitmq-client.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.facebook.presto</groupId>
       <artifactId>presto-jdbc</artifactId>
       <version>${presto.version}</version>
