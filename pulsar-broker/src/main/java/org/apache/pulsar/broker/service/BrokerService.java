@@ -75,7 +75,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,7 +82,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -989,8 +987,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     if (p.offload_deletion_lag_ms != null) {
                         lag = p.offload_deletion_lag_ms;
                     }
+                    long bytes = serviceConfig.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
+                    if (p.offload_threshold != -1L) {
+                        bytes = p.offload_threshold;
+                    }
                     managedLedgerConfig.setOffloadLedgerDeletionLag(lag, TimeUnit.MILLISECONDS);
-                    managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(p.offload_threshold);
+                    managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(bytes);
                 });
 
             future.complete(managedLedgerConfig);
@@ -1212,9 +1214,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * Unload all the topic served by the broker service under the given service unit
      *
      * @param serviceUnit
+     * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect and forcefully close managed-ledger
      * @return
      */
-    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit) {
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Integer> result = new CompletableFuture<Integer>();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
@@ -1223,7 +1226,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close() : CompletableFuture.completedFuture(null)));
+                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect) : CompletableFuture.completedFuture(null)));
             }
         });
         CompletableFuture<Void> aggregator = FutureUtil.waitForAll(closeFutures);
@@ -1817,10 +1820,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     partitionedTopicPath(topicName), content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
-                            // we wait for the data to be synced in all quorums and the observers
-                            executor().schedule(
-                                    SafeRunnable.safeRun(() -> partitionedTopicFuture.complete(configMetadata)),
-                                    PersistentTopicsBase.PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS, TimeUnit.MILLISECONDS);
+                            // Sync data to all quorums and the observers
+                            pulsar.getGlobalZkCache().getZooKeeper().sync(partitionedTopicPath(topicName),
+                                (rc2, path2, ctx2) -> {
+                                    if (rc2 == KeeperException.Code.OK.intValue()) {
+                                        partitionedTopicFuture.complete(configMetadata);
+                                    } else {
+                                        partitionedTopicFuture.completeExceptionally(KeeperException.create(rc2));
+                                    }
+                            }, null);
                         } else {
                             partitionedTopicFuture.completeExceptionally(KeeperException.create(rc));
                         }

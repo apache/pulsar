@@ -1210,14 +1210,15 @@ public class ServerCnx extends PulsarHandler {
         if (!producerFuture.isDone() && producerFuture
                 .completeExceptionally(new IllegalStateException("Closed producer before creation was complete"))) {
             // We have received a request to close the producer before it was actually completed, we have marked the
-            // producer future as failed and we can tell the client the close operation was successful. When the actual
-            // create operation will complete, the new producer will be discarded.
+            // producer future as failed and we can tell the client the close operation was successful.
             log.info("[{}] Closed producer {} before its creation was completed", remoteAddress, producerId);
             ctx.writeAndFlush(Commands.newSuccess(requestId));
+            producers.remove(producerId, producerFuture);
             return;
         } else if (producerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed producer {} that already failed to be created", remoteAddress, producerId);
             ctx.writeAndFlush(Commands.newSuccess(requestId));
+            producers.remove(producerId, producerFuture);
             return;
         }
 

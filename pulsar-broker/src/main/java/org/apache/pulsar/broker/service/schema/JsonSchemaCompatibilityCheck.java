@@ -99,6 +99,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
         try {
 
             Schema.Parser fromParser = new Schema.Parser();
+            fromParser.setValidateDefaults(false);
             Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
         } catch (SchemaParseException e) {

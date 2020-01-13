@@ -28,7 +28,7 @@ on:
 jobs:
 
   unit-tests:
-    name: 
+    name:
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -46,9 +46,12 @@ jobs:
         with:
           maven-version: 3.6.1
 
+      - name: run unit tests install by skip tests
+        run: mvn clean install -DskipTests
+
       - name: run unit tests
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR install '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!ProxyTest' -DfailIfNoTests=false
-          
+        run: mvn clean install -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
+
       - name: package surefire artifacts
         if: failure()
         run: |
@@ -56,7 +59,6 @@ jobs:
           mkdir artifacts
           find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
           zip -r artifacts.zip artifacts
-
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
         if: failure()

@@ -141,8 +141,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
@@ -161,7 +161,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         otheradmin = mockPulsarSetup.getAdmin();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
@@ -198,27 +198,27 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
-                new ClusterData("http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.use.example.com:8080"));
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
         // failure-domain znode of this default cluster
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
 
         assertEquals(admin.clusters().getCluster("use"),
-                new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData(pulsar.getWebServiceAddress()));
 
         admin.clusters().updateCluster("usw",
-                new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://new-broker.messaging.usw.example.com:8080"));
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
-                new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://new-broker.messaging.usw.example.com:8080"));
 
         admin.clusters().updateCluster("usw",
-                new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT,
-                        "https://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT_TLS));
+                new ClusterData("http://new-broker.messaging.usw.example.com:8080",
+                        "https://new-broker.messaging.usw.example.com:4443"));
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
-                new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT,
-                        "https://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT_TLS));
+                new ClusterData("http://new-broker.messaging.usw.example.com:8080",
+                        "https://new-broker.messaging.usw.example.com:4443"));
 
         admin.clusters().deleteCluster("usw");
         Thread.sleep(300);
@@ -412,7 +412,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         String[] parts = list.get(0).split(":");
         Assert.assertEquals(parts.length, 2);
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("use",
-                String.format("%s:%d", parts[0], BROKER_WEBSERVICE_PORT_TLS));
+                String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
         Assert.assertEquals(nsMap2.size(), 1);
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
@@ -704,8 +704,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/use/ns1/" + topicName));
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -781,17 +782,17 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 4);
 
-        // check if the virtual topic doesn't get created
         List<String> topics = admin.topics().getList("prop-xyz/use/ns1");
-        assertEquals(topics.size(), 0);
+        assertEquals(topics.size(), 4);
 
         assertEquals(
                 admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/use/ns1/ds2").partitions,
                 0);
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(partitionedTopicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -806,6 +807,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             fail(e.getMessage());
         }
+
+        List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
+        assertEquals(subscriptions.size(), 1);
 
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName("my-sub-1")
                 .subscribe();
@@ -1634,8 +1638,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/use/ns1"), Lists.newArrayList(topicName));
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -1711,9 +1716,10 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/use/ns1/ds2"));
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer().topic("persistent://prop-xyz/use/ns1/ds2")
                 .subscriptionType(SubscriptionType.Shared);
@@ -1764,8 +1770,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic("persistent://prop-xyz/use/ns1/ds1", 4);
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop-xyz/use/ns1/ds1")
                 .subscriptionName("my-sub").subscribe();

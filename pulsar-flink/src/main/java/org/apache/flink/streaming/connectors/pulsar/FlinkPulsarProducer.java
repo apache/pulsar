@@ -214,7 +214,7 @@ public class FlinkPulsarProducer<T>
     }
 
     private Producer<byte[]> createProducer() throws Exception {
-        PulsarClientImpl client = new PulsarClientImpl(clientConf);
+        PulsarClientImpl client = CachedPulsarClient.getOrCreate(clientConf);
         return client.createProducerAsync(producerConf).get();
     }
 

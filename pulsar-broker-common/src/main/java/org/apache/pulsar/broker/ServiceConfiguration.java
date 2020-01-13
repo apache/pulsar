@@ -987,6 +987,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The number of bytes before triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )

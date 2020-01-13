@@ -18,29 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.NoOpShutdownService;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
-import org.apache.pulsar.client.admin.BrokerStats;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -55,12 +41,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.broker.NoOpShutdownService;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+@Slf4j
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -73,31 +74,19 @@ public class ClientDeduplicationFailureTest {
     final String tenant = "external-repl-prop";
     String primaryHost;
 
-    private int ZOOKEEPER_PORT;
-    private int brokerWebServicePort;
-    private int brokerServicePort;
-
-    private static final Logger log = LoggerFactory.getLogger(ClientDeduplicationFailureTest.class);
-
     @BeforeMethod(timeOut = 300000)
     void setup(Method method) throws Exception {
-        ZOOKEEPER_PORT = PortManager.nextFreePort();
-        brokerWebServicePort = PortManager.nextFreePort();
-        brokerServicePort = PortManager.nextFreePort();
-
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
-
-        String brokerServiceUrl = "http://127.0.0.1:" + brokerWebServicePort;
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        config.setWebServicePort(Optional.ofNullable(brokerWebServicePort));
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(Optional.ofNullable(brokerServicePort));
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
@@ -108,21 +97,24 @@ public class ClientDeduplicationFailureTest {
 
         config.setAllowAutoTopicCreationType("non-partitioned");
 
-        url = new URL(brokerServiceUrl);
+
         pulsar = new PulsarService(config, Optional.empty());
         pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
+        String brokerServiceUrl = pulsar.getWebServiceAddress();
+        url = new URL(brokerServiceUrl);
+
         admin = PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build();
 
         brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", "localhost", brokerWebServicePort);
+        primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
         ClusterData clusterData = new ClusterData(url.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get()).maxBackoffInterval(1, TimeUnit.SECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 
         TenantInfo tenantInfo = new TenantInfo();

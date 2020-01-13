@@ -272,7 +272,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         policyData.namespaces = new ArrayList<String>();
         policyData.namespaces.add("dummy/colo/ns");
         policyData.primary = new ArrayList<String>();
-        policyData.primary.add("localhost" + ":" + BROKER_WEBSERVICE_PORT);
+        policyData.primary.add("localhost" + ":" + pulsar.getListenPortHTTP());
         policyData.secondary = new ArrayList<String>();
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
@@ -530,7 +530,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 "https://broker.messaging.use.example.com:4443"));
 
         URI requestUri = new URI(
-                "http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT + "/admin/brokers/use");
+                "http://broker.messaging.use.example.com:8080/admin/brokers/use");
         UriInfo mockUri = mock(UriInfo.class);
         doReturn(requestUri).when(mockUri).getRequestUri();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -539,7 +539,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         Set<String> activeBrokers = brokers.getActiveBrokers("use");
         assertEquals(activeBrokers.size(), 1);
-        assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT));
+        assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
     }
 
     @Test
