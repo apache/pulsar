@@ -512,8 +512,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check tenantInfo is null
         TenantInfo nullTenantInfo = new TenantInfo();
-        // Default to all available cluster if cluster is empty
-        nullTenantInfo.setAllowedClusters(clusters.getClusters());
         properties.createTenant("tenant-config-is-null", null);
         assertEquals(properties.getTenantAdmin("tenant-config-is-null"), nullTenantInfo);
 

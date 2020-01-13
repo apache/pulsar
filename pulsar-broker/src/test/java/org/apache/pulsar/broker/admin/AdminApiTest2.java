@@ -884,7 +884,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Check existing tenant
         assertTrue(admin.tenants().getTenants().contains(testTenant));
-        assertEquals(admin.tenants().getTenantInfo(testTenant).getAllowedClusters(), availableClusters);
 
         Set<String> allowedClusters1 = Sets.newHashSet(blankCluster);
         TenantInfo tenantInfo1 = new TenantInfo(Sets.newHashSet("role1"), allowedClusters1);
@@ -897,7 +896,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             fail("Should be successful");
         }
 
-        assertEquals(admin.tenants().getTenantInfo(testTenant).getAllowedClusters(), availableClusters);
         assertEquals(admin.tenants().getTenantInfo(testTenant).getAdminRoles().size(), 1);
         assertEquals(admin.tenants().getTenantInfo(testTenant).getAdminRoles().toArray()[0].toString(), "role1");
     }
