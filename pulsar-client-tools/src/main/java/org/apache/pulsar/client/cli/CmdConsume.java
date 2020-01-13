@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -125,14 +126,30 @@ public class CmdConsume {
      * @return String representation of the message
      */
     private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
+        StringBuilder sb = new StringBuilder();
+
+        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
+
+        String data;
         byte[] msgData = message.getData();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
-            return new String(msgData);
+            data = new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return new String(out.toByteArray());
+            data = new String(out.toByteArray());
         }
+
+        String key = null;
+        if (message.hasKey()) {
+            key = message.getKey();
+        }
+
+        sb.append("key:[").append(key).append("], ");
+        sb.append("properties:").append(properties).append(", ");
+        sb.append("content:").append(data);
+
+        return sb.toString();
     }
 
     /**

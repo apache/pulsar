@@ -425,10 +425,13 @@ public class MockZooKeeper extends ZooKeeper {
                     if (path.length() >= item.length()) {
                         continue;
                     }
-
-                    String child = item.substring(path.length() + 1);
-                    if (!child.contains("/")) {
-                        children.add(child);
+                    String child = item.substring(path.length());
+                    if (child.indexOf("/") == 0) {
+                        child = child.substring(1);
+                        log.debug("child: '{}'", child);
+                        if (!child.contains("/")) {
+                            children.add(child);
+                        }
                     }
                 }
             }
@@ -465,10 +468,13 @@ public class MockZooKeeper extends ZooKeeper {
                 } else if (item.equals(path)) {
                     continue;
                 } else {
-                    String child = item.substring(path.length() + 1);
-                    log.debug("child: '{}'", child);
-                    if (!child.contains("/")) {
-                        children.add(child);
+                    String child = item.substring(path.length());
+                    if (child.indexOf("/") == 0) {
+                        child = child.substring(1);
+                        log.debug("child: '{}'", child);
+                        if (!child.contains("/")) {
+                            children.add(child);
+                        }
                     }
                 }
             }

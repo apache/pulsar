@@ -1030,6 +1030,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--size", "-s" },
                    description = "Maximum number of bytes stored in the pulsar cluster for a topic before data will"
                                  + " start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100)."
+                                 + " -1 falls back to the cluster's namespace default."
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)

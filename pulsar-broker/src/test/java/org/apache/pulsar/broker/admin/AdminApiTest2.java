@@ -100,7 +100,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
@@ -147,7 +147,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
@@ -244,10 +244,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
                 .subscribe();
@@ -301,7 +301,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns2";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -561,13 +561,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
@@ -606,17 +606,17 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west3",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west4",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
         admin.clusters().createCluster("global", new ClusterData());
 
         final String property = "peer-prop";
@@ -752,10 +752,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://prop-xyz/ns1/" + topicName;
         final String producerName = "myProducer";
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         Producer<byte[]> producer = client.newProducer()
@@ -868,8 +866,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // create
         String policyName1 = "policy-1";
-        String namespaceRegex = "other/use/other.*";
-        String cluster = "use";
+        String cluster = pulsar.getConfiguration().getClusterName();
+        String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
         String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
         NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
@@ -899,11 +897,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
         assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
 
-        try {
-            admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
-            Assert.fail("should have failed due to invalid broker address");
-        } catch (PulsarAdminException.NotFoundException e) {// expected
-        }
+        BrokerNamespaceIsolationData isolationData = admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+        assertFalse(isolationData.isPrimary);
     }
 
     @Test
@@ -926,8 +921,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String persistentPartitionedTopicName = "persistent://prop-xyz/ns2/" + topicName;
         final String NonPersistentPartitionedTopicName = "non-persistent://prop-xyz/ns2/" + topicName;
 
-        // init tenant and namespace without cluster
         admin.namespaces().createNamespace("prop-xyz/ns2");
+        // By default the cluster will configure as configuration file. So the create topic operation
+        // will never throw exception except there is no cluster.
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns2", new HashSet<String>());
+
         try {
             admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
             Assert.fail("should have failed due to Namespace does not have any clusters configured");

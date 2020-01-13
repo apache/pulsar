@@ -246,7 +246,7 @@ public class PersistentTopics extends PersistentTopicsBase {
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
-    @ApiOperation(value = "Increment partitons of an existing partitioned topic.", notes = "It only increments partitions of existing non-global partitioned-topic")
+    @ApiOperation(value = "Increment partitions of an existing partitioned topic.", notes = "It only increments partitions of existing non-global partitioned-topic")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -268,6 +268,30 @@ public class PersistentTopics extends PersistentTopicsBase {
             int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly);
+    }
+
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/createMissedPartitions")
+    @ApiOperation(value = "Create missed partitions of an existing partitioned topic.", notes = "This is a best-effort operation for create missed partitions of existing non-global partitioned-topic and does't throw any exceptions when create failed")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    public void createMissedPartitions(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        internalCreateMissedPartitions();
     }
 
     @GET
