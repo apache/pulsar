@@ -303,6 +303,12 @@ public class CmdFunctions extends CmdBase {
         protected String customRuntimeOptions;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String deadLetterTopic;
+        @Parameter(names = "--skywalking-agent-jar-path", description = "The path of skywalking-agent.jar")
+        protected String skywalkingAgentJarPath;
+        @Parameter(names = "--skywalking-agent-conf-path", description = "The path of skywalking config file, if it is not specified, --skywalking-backend-service must be specified")
+        protected String skywalkingAgentConfPath;
+        @Parameter(names = "--skywalking-backend-service", description = "The skywalking-backend-service, if it is not specified, --skywalking-agent-conf-path must be specified")
+        protected String skywalkingBackendService;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -503,6 +509,32 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getGo();
             }
 
+            SkywalkingConfig skywalkingConfig = functionConfig.getSkywalkingConfig();
+            if (skywalkingAgentJarPath != null) {
+                if (skywalkingConfig == null) {
+                    skywalkingConfig = new SkywalkingConfig();
+                }
+                skywalkingConfig.setSkywalkingAgentJarPath(skywalkingAgentJarPath);
+            }
+
+            if (skywalkingAgentConfPath != null) {
+                if (skywalkingConfig == null) {
+                    skywalkingConfig = new SkywalkingConfig();
+                }
+                skywalkingConfig.setSkywalkingAgentConfPath(skywalkingAgentConfPath);
+            }
+
+            if (skywalkingBackendService != null) {
+                if (skywalkingConfig == null) {
+                    skywalkingConfig = new SkywalkingConfig();
+                }
+                skywalkingConfig.setSkywalkingBackendService(skywalkingBackendService);
+            }
+
+            if (skywalkingConfig != null) {
+                functionConfig.setSkywalkingConfig(skywalkingConfig);
+            }
+            
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
         }
