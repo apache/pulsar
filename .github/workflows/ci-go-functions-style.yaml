@@ -45,11 +45,9 @@ jobs:
 
       - name: InstallTool
         run: |
+          cd pulsar-function-go
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
-
-      - name: Build
-        run: go build .
 
       - name: CheckStyle
         run: |
