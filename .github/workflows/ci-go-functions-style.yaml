@@ -24,6 +24,9 @@ on:
       - master
     paths-ignore:
       - '**.md'
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
   build:
