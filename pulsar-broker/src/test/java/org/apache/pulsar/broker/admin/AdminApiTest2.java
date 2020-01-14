@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -31,6 +32,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +62,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -947,5 +951,86 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Global cluster, if there, should be omitted from the results
         assertEquals(admin.namespaces().getNamespaceReplicationClusters(namespace),
                 Collections.singletonList(localCluster));
+    }
+
+    @Test(timeOut = 30000)
+    public void testConsumerStatsLastTimestamp() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        long timestamp = System.currentTimeMillis();
+        final String topicName = "consumer-stats-" + timestamp;
+        final String subscribeName = topicName + "-test-stats-sub";
+        final String topic = "persistent://prop-xyz/ns1/" + topicName;
+        final String producerName = "producer-" + topicName;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        Producer<byte[]> producer = client.newProducer().topic(topic)
+            .enableBatching(false)
+            .producerName(producerName)
+            .create();
+
+        // a. Send a message to the topic.
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+
+        // b. Create a consumer, because there was a message in the topic, the consumer will receive the message pushed
+        // by the broker, the lastConsumedTimestamp will as the consume subscribe time.
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+            .subscriptionName(subscribeName)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
+
+        // Get the consumer stats.
+        TopicStats topicStats = admin.topics().getStats(topic);
+        SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        ConsumerStats consumerStats = subscriptionStats.consumers.get(0);
+        long startConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        long startAckedTimestamp = consumerStats.lastAckedTimestamp;
+
+        // Because the message was pushed by the broker, the consumedTimestamp should not as 0.
+        assertNotEquals(0, startConsumedTimestamp);
+        // There is no consumer ack the message, so the lastAckedTimestamp still as 0.
+        assertEquals(0, startAckedTimestamp);
+
+
+        // c. The Consumer receives the message and acks the message.
+        Message<byte[]> message = consumer.receive();
+        consumer.acknowledge(message);
+        // Waiting for the ack command send to the broker.
+        TimeUnit.SECONDS.sleep(5);
+
+        // Get the consumer stats.
+        topicStats = admin.topics().getStats(topic);
+        subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        consumerStats = subscriptionStats.consumers.get(0);
+        long consumedTimestamp = consumerStats.lastConsumedTimestamp;
+        long ackedTimestamp = consumerStats.lastAckedTimestamp;
+
+        // The lastConsumedTimestamp should same as the last time because the broker does not push any messages and the
+        // consumer does not pull any messages.
+        assertEquals(startConsumedTimestamp, consumedTimestamp);
+        assertTrue(startAckedTimestamp < ackedTimestamp);
+
+        // d. Send another messages. The lastConsumedTimestamp should be updated.
+        producer.send("message-2".getBytes(StandardCharsets.UTF_8));
+
+        // e. Receive the message and ack it.
+        message = consumer.receive();
+        consumer.acknowledge(message);
+        // Waiting for the ack command send to the broker.
+        TimeUnit.SECONDS.sleep(5);
+
+        // Get the consumer stats again.
+        topicStats = admin.topics().getStats(topic);
+        subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        consumerStats = subscriptionStats.consumers.get(0);
+        long lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        long lastAckedTimestamp = consumerStats.lastAckedTimestamp;
+
+        assertTrue(consumedTimestamp < lastConsumedTimestamp);
+        assertTrue(ackedTimestamp < lastAckedTimestamp);
+        assertTrue(startConsumedTimestamp < lastConsumedTimestamp);
+        assertTrue(startAckedTimestamp < lastAckedTimestamp);
+
+        consumer.close();
+        producer.close();
     }
 }
