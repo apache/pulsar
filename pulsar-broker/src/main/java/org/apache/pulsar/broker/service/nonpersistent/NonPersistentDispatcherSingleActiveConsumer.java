@@ -62,8 +62,8 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
-            currentConsumer.sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null);
+            currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {

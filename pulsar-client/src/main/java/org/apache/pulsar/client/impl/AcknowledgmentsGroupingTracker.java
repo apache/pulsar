@@ -31,6 +31,8 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
 
     void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
 
+    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties);
+
     void flush();
 
     @Override

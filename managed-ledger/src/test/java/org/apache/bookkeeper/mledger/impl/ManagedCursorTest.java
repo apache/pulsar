@@ -81,11 +81,13 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.zookeeper.KeeperException.Code;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -3050,5 +3052,110 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getReadPosition(), positions[markDelete + 1]);
     }
 
+    @Test
+    public void testBatchIndexDelete() throws ManagedLedgerException, InterruptedException {
+        ManagedLedger ledger = factory.open("test_batch_index_delete");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        final int totalEntries = 100;
+        final Position[] positions = new Position[totalEntries];
+        for (int i = 0; i < totalEntries; i++) {
+            // add entry
+            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+        assertEquals(cursor.getNumberOfEntries(), totalEntries);
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(2).setEnd(4).build()));
+        List<IntRange> deletedIndexes = cursor.getDeletedBatchIndexes(positions[0]);
+        Assert.assertEquals(1, deletedIndexes.size());
+        Assert.assertEquals(2, deletedIndexes.get(0).getStart());
+        Assert.assertEquals(4, deletedIndexes.get(0).getEnd());
+
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(8).build()));
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[0]);
+        Assert.assertEquals(1, deletedIndexes.size());
+        Assert.assertEquals(2, deletedIndexes.get(0).getStart());
+        Assert.assertEquals(8, deletedIndexes.get(0).getEnd());
+
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(0).build()));
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[0]);
+        Assert.assertEquals(2, deletedIndexes.size());
+        Assert.assertEquals(0, deletedIndexes.get(0).getStart());
+        Assert.assertEquals(0, deletedIndexes.get(0).getEnd());
+        Assert.assertEquals(2, deletedIndexes.get(1).getStart());
+        Assert.assertEquals(8, deletedIndexes.get(1).getEnd());
+
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(1).setEnd(1).build()));
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(9).setEnd(9).build()));
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[0]);
+        Assert.assertNull(deletedIndexes);
+        Assert.assertEquals(positions[0], cursor.getMarkDeletedPosition());
+
+        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
+        cursor.delete(positions[1]);
+        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(6).setEnd(8).build()));
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[1]);
+        Assert.assertNull(deletedIndexes);
+
+        deleteBatchIndex(cursor, positions[2], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
+        cursor.markDelete(positions[3]);
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[2]);
+        Assert.assertNull(deletedIndexes);
+
+        deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
+        cursor.resetCursor(positions[0]);
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[3]);
+        Assert.assertNull(deletedIndexes);
+    }
+
+    @Test
+    public void testBatchIndexesDeletionPersistAndRecover() throws ManagedLedgerException, InterruptedException {
+        ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        final int totalEntries = 100;
+        final Position[] positions = new Position[totalEntries];
+        for (int i = 0; i < totalEntries; i++) {
+            // add entry
+            positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+        assertEquals(cursor.getNumberOfEntries(), totalEntries);
+        deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(6).build()));
+        deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+        deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+        deleteBatchIndex(cursor, positions[2], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+        deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+        deleteBatchIndex(cursor, positions[4], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+
+        ledger = factory.open("test_batch_indexes_deletion_persistent");
+        cursor = ledger.openCursor("c1");
+        List<IntRange> deletedIndexes = cursor.getDeletedBatchIndexes(positions[5]);
+        Assert.assertEquals(deletedIndexes.size(), 1);
+        Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
+        Assert.assertEquals(deletedIndexes.get(0).getEnd(), 6);
+        Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[4]);
+        deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
+        deletedIndexes = cursor.getDeletedBatchIndexes(positions[5]);
+        Assert.assertNull(deletedIndexes);
+        Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[5]);
+    }
+
+    private void deleteBatchIndex(ManagedCursor cursor, Position position, int batchSize,
+                                  List<IntRange> deleteIndexes) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        cursor.asyncDelete(position, batchSize, deleteIndexes,
+            new DeleteCallback() {
+                @Override
+                public void deleteComplete(Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+            }, null);
+        latch.await();
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

@@ -27,9 +27,12 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -66,7 +69,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
-            SendMessageInfo sendMessageInfo) {
+             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor) {
         int totalMessages = 0;
         long totalBytes = 0;
 
@@ -87,7 +90,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                     entries.set(i, null);
                     entry.release();
-                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                    subscription.acknowledgeMessage(Collections.singletonList(pos), null, AckType.Individual,
                             Collections.emptyMap());
                     continue;
                 } else if (msgMetadata.hasDeliverAtTime()
@@ -102,6 +105,18 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
                 batchSizes.setBatchSize(i, batchSize);
+                if (indexesAcks != null && cursor != null) {
+                    List<IntRange> ranges = cursor.getDeletedBatchIndexes(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    if (ranges != null) {
+                        int indexesAckedCount = 0;
+                        for (IntRange range : ranges) {
+                            indexesAckedCount += range.getEnd() - range.getStart() + 1;
+                        }
+                        indexesAcks.setIndexesAcks(Pair.of(indexesAckedCount, ranges));
+                    } else {
+                        indexesAcks.setIndexesAcks(null);
+                    }
+                }
             } finally {
                 msgMetadata.recycle();
             }

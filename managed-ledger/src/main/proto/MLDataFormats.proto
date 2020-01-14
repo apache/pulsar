@@ -66,6 +66,9 @@ message PositionInfo {
     // Additional custom properties associated with
 	// the current cursor position
 	repeated LongProperty properties = 4;
+
+    // Store which index in the batch message has been deleted
+    repeated BatchDeletedIndexInfo batchDeletedIndexes = 5;
 }
 
 message NestedPositionInfo {
@@ -76,6 +79,16 @@ message NestedPositionInfo {
 message MessageRange {
     required NestedPositionInfo lowerEndpoint = 1;
     required NestedPositionInfo upperEndpoint = 2;
+}
+
+message BatchDeletedIndexRange {
+    required uint32 lowerIndex = 1;
+    required uint32 upperIndex = 2;
+}
+
+message BatchDeletedIndexInfo {
+    required NestedPositionInfo position = 1;
+    repeated BatchDeletedIndexRange batchDeletedIndexes = 2;
 }
 
 // Generic string and long tuple
@@ -98,5 +111,8 @@ message ManagedCursorInfo {
 	// the current cursor position
 	repeated LongProperty properties = 5;
 
-  optional int64 lastActive = 6;
+    optional int64 lastActive = 6;
+
+    // Store which index in the batch message has been deleted
+    repeated BatchDeletedIndexInfo batchDeletedIndexes = 7;
 }

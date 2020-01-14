@@ -49,6 +49,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
@@ -189,8 +190,9 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
-            long totalBytes, RedeliveryTracker redeliveryTracker) {
+
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+               int totalMessages, long totalBytes, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -202,6 +204,9 @@ public class Consumer {
             }
             writePromise.setSuccess();
             batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
             return writePromise;
         }
 
@@ -219,7 +224,8 @@ public class Consumer {
         }
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
+        int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
+        MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
         incrementUnackedMessages(totalMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
 
@@ -267,7 +273,12 @@ public class Consumer {
                 if (redeliveryTracker.contains(position)) {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
+
+                List<IntRange> ackedIndexRanges = null;
+                if (batchIndexesAcks != null && batchIndexesAcks.getIndexesAcks(i) != null) {
+                    ackedIndexRanges = batchIndexesAcks.getIndexesAcks(i).getRight();
+                }
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload, ackedIndexRanges), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -276,6 +287,9 @@ public class Consumer {
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
             batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
         });
 
         return writePromise;
@@ -350,7 +364,7 @@ public class Consumer {
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
-            if (ack.getMessageIdCount() != 1) {
+            if (ack.getMessageIdCount() != 1 && ack.getBatchMessageAckIndexesCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
                 return;
             }
@@ -359,10 +373,12 @@ public class Consumer {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
                 return;
             }
-
-            MessageIdData msgId = ack.getMessageId(0);
-            PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
+            PositionImpl position = PositionImpl.earliest;
+            if (ack.getMessageIdCount() == 1) {
+                MessageIdData msgId = ack.getMessageId(0);
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            }
+            subscription.acknowledgeMessage(Collections.singletonList(position), ack.getBatchMessageAckIndexesList(), AckType.Cumulative, properties);
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
@@ -380,7 +396,7 @@ public class Consumer {
                             consumerId, position, ack.getValidationError());
                 }
             }
-            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+            subscription.acknowledgeMessage(positionsAcked, ack.getBatchMessageAckIndexesList(), AckType.Individual, properties);
         }
     }
 

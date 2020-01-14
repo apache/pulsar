@@ -48,6 +48,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
+import org.apache.pulsar.common.api.proto.PulsarApi.BatchMessageIndexesAckData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
@@ -104,6 +105,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -437,12 +439,15 @@ public class Commands {
     }
 
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
-        ByteBuf metadataAndPayload) {
+        ByteBuf metadataAndPayload, List<IntRange> ackedBatchIndexRanges) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
         if (redeliveryCount > 0) {
             msgBuilder.setRedeliveryCount(redeliveryCount);
+        }
+        if (ackedBatchIndexRanges != null && ackedBatchIndexRanges.size() > 0) {
+            msgBuilder.addAllAckedIndexes(ackedBatchIndexRanges);
         }
         CommandMessage msg = msgBuilder.build();
         BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
@@ -926,6 +931,56 @@ public class Commands {
         ackBuilder.recycle();
         messageIdDataBuilder.recycle();
         messageIdData.recycle();
+        return res;
+    }
+
+    public static ByteBuf newBatchIndexAck(long consumerId,
+           List<SingleBatchMessageIndexesAck> batchMessageIndexesAckData,
+           AckType ackType, ValidationError validationError, Map<String, Long> properties) {
+        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
+        ackBuilder.setConsumerId(consumerId);
+        ackBuilder.setAckType(ackType);
+        MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
+        batchMessageIndexesAckData.forEach(singleBatchMessageIndexesAck -> {
+            BatchMessageIndexesAckData.Builder indexAckBuilder = BatchMessageIndexesAckData.newBuilder();
+            messageIdDataBuilder.setLedgerId(singleBatchMessageIndexesAck.getLedgerId());
+            messageIdDataBuilder.setEntryId(singleBatchMessageIndexesAck.getEntryId());
+            indexAckBuilder.setMessageId(messageIdDataBuilder.build());
+            indexAckBuilder.setBatchSize(singleBatchMessageIndexesAck.getBatchSize());
+            if (ackType == AckType.Individual) {
+                indexAckBuilder.addAllAckIndexes(singleBatchMessageIndexesAck.getIndexRangesToAck());
+            } else {
+                if (singleBatchMessageIndexesAck.getIndexRangesToAck() != null
+                    && singleBatchMessageIndexesAck.getIndexRangesToAck().size() == 1) {
+                    indexAckBuilder.addAckIndexes(singleBatchMessageIndexesAck.getIndexRangesToAck().get(0));
+                }
+            }
+            ackBuilder.addBatchMessageAckIndexes(indexAckBuilder.build());
+            indexAckBuilder.recycle();
+        });
+
+        if (validationError != null) {
+            ackBuilder.setValidationError(validationError);
+        }
+
+        if (properties != null) {
+            for (Map.Entry<String, Long> e : properties.entrySet()) {
+                ackBuilder.addProperties(
+                    KeyLongValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
+            }
+        }
+
+        CommandAck ack = ackBuilder.build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
+        ack.getBatchMessageAckIndexesList().forEach(ackData -> {
+            ackData.getMessageId().recycle();
+            ackData.getAckIndexesList().forEach(IntRange::recycle);
+            ackData.recycle();
+        });
+        ack.recycle();
+        messageIdDataBuilder.recycle();
+        ackBuilder.recycle();
         return res;
     }
 
@@ -1761,5 +1816,55 @@ public class Commands {
 
     public static boolean peerSupportsGetOrCreateSchema(int peerVersion) {
         return peerVersion >= ProtocolVersion.v15.getNumber();
+    }
+
+    public static class SingleBatchMessageIndexesAck {
+        private long ledgerId;
+        private long entryId;
+        private int batchSize;
+        private List<IntRange> indexRangesToAck;
+
+        public SingleBatchMessageIndexesAck() {
+        }
+
+        public SingleBatchMessageIndexesAck(long ledgerId, long entryId, int batchSize,
+                List<IntRange> indexRangesToAck) {
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+            this.batchSize = batchSize;
+            this.indexRangesToAck = indexRangesToAck;
+        }
+
+        public long getLedgerId() {
+            return ledgerId;
+        }
+
+        public void setLedgerId(long ledgerId) {
+            this.ledgerId = ledgerId;
+        }
+
+        public long getEntryId() {
+            return entryId;
+        }
+
+        public void setEntryId(long entryId) {
+            this.entryId = entryId;
+        }
+
+        public int getBatchSize() {
+            return batchSize;
+        }
+
+        public void setBatchSize(int batchSize) {
+            this.batchSize = batchSize;
+        }
+
+        public List<IntRange> getIndexRangesToAck() {
+            return indexRangesToAck;
+        }
+
+        public void setIndexRangesToAck(List<IntRange> indexRangesToAck) {
+            this.indexRangesToAck = indexRangesToAck;
+        }
     }
 }

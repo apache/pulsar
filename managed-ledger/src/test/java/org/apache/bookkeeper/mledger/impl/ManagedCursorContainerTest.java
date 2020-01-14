@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.testng.annotations.Test;
 
 @Test
@@ -177,6 +178,10 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx) {
+        }
+
+        @Override
+        public void asyncDelete(Position position, int batchSize, List<IntRange> deleteIndexRanges, DeleteCallback callback, Object ctx) {
         }
 
         @Override
@@ -324,6 +329,11 @@ public class ManagedCursorContainerTest {
         @Override
         public void trimDeletedEntries(List<Entry> entries) {
 
+        }
+
+        @Override
+        public List<IntRange> getDeletedBatchIndexes(Position position) {
+            return null;
         }
 
     }

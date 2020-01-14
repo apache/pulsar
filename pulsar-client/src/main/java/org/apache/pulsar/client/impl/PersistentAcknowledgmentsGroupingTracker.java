@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,8 +39,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.protocol.Commands.SingleBatchMessageIndexesAck;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
 /**
  * Group the acknowledgements for a certain time and then sends them out in a single protobuf command.
@@ -67,6 +74,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * broker.
      */
     private final ConcurrentSkipListSet<MessageIdImpl> pendingIndividualAcks;
+    private final ConcurrentHashMap<MessageIdImpl, Pair<Integer, ConcurrentBitSet>> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
 
@@ -74,6 +82,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                     EventLoopGroup eventLoopGroup) {
         this.consumer = consumer;
         this.pendingIndividualAcks = new ConcurrentSkipListSet<>();
+        this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
 
         if (acknowledgementGroupTimeMicros > 0) {
@@ -118,6 +127,21 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
+    @Override
+    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties) {
+        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() || ackType == AckType.Cumulative) {
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties);
+        } else if (ackType == AckType.Individual) {
+            ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
+                new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) ->
+                Pair.of(batchSize, new ConcurrentBitSet(msgId.getBatchSize()))).getRight();
+            bitSet.set(batchIndex);
+            if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                flush();
+            }
+        }
+    }
+
     private void doCumulativeAck(MessageIdImpl msgId) {
         // Handle concurrent updates from different threads
         while (true) {
@@ -145,6 +169,26 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(), ackType, null,
                 properties);
 
+        cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+        return true;
+    }
+
+    private boolean doImmediateBatchIndexAck(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties) {
+        ClientCnx cnx = consumer.getClientCnx();
+
+        if (cnx == null) {
+            return false;
+        }
+        IntRange.Builder rangeBuilder = IntRange.newBuilder();
+        final ByteBuf cmd = Commands.newBatchIndexAck(consumer.consumerId,
+            Collections.singletonList(
+                new SingleBatchMessageIndexesAck(
+                    msgId.getLedgerId(),
+                    msgId.getEntryId(),
+                    batchSize,
+                    Collections.singletonList(rangeBuilder.setStart(0).setEnd(batchIndex).build())
+                )), ackType, null, properties);
+        rangeBuilder.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
     }
@@ -203,10 +247,36 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
         }
 
+        if (!pendingIndividualBatchIndexAcks.isEmpty()) {
+            Iterator<Map.Entry<MessageIdImpl, Pair<Integer, ConcurrentBitSet>>> iterator = pendingIndividualBatchIndexAcks.entrySet().iterator();
+            List<SingleBatchMessageIndexesAck> batchIndexesAcks = new ArrayList<>(pendingIndividualBatchIndexAcks.size());
+            IntRange.Builder rangeBuilder = IntRange.newBuilder();
+            while (iterator.hasNext()) {
+                Map.Entry<MessageIdImpl, Pair<Integer, ConcurrentBitSet>> entry = iterator.next();
+                SingleBatchMessageIndexesAck ack = new SingleBatchMessageIndexesAck();
+                ack.setLedgerId(entry.getKey().getLedgerId());
+                ack.setEntryId(entry.getKey().getEntryId());
+                ack.setBatchSize(entry.getValue().getLeft());
+                ack.setIndexRangesToAck(Lists.newArrayList());
+                BitSet bitSet = entry.getValue().getRight();
+                int nextSetBit = bitSet.nextSetBit(0);
+                while (nextSetBit != -1) {
+                    int nextClearBit = bitSet.nextClearBit(nextSetBit);
+                    ack.getIndexRangesToAck().add(rangeBuilder.setStart(nextSetBit).setEnd(nextClearBit - 1).build());
+                    nextSetBit = bitSet.nextSetBit(nextClearBit);
+                }
+                batchIndexesAcks.add(ack);
+                iterator.remove();
+            }
+            cnx.ctx().write(Commands.newBatchIndexAck(consumer.consumerId, batchIndexesAcks, AckType.Individual, null,
+                null));
+            shouldFlush = true;
+        }
+
         if (shouldFlush) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}",
-                        consumer, lastCumulativeAck, pendingIndividualAcks);
+                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {} -- individual-batch-index-acks: {}",
+                        consumer, lastCumulativeAck, pendingIndividualAcks, pendingIndividualBatchIndexAcks);
             }
             cnx.ctx().flush();
         }

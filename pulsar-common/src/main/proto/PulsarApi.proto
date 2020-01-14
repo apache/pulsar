@@ -56,6 +56,12 @@ message MessageIdData {
     optional int32 batch_index = 4 [default = -1];
 }
 
+message BatchMessageIndexesAckData {
+    required MessageIdData message_id = 1;
+    required int32 batchSize = 2;
+    repeated IntRange ack_indexes = 3;
+}
+
 message KeyValue {
     required string key = 1;
     required string value = 2;
@@ -453,6 +459,7 @@ message CommandMessage {
     required uint64 consumer_id       = 1;
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
+    repeated IntRange acked_indexes = 4;
 }
 
 message CommandAck {
@@ -483,6 +490,8 @@ message CommandAck {
 
     optional uint64 txnid_least_bits = 6 [default = 0];
     optional uint64 txnid_most_bits = 7 [default = 0];
+
+    repeated BatchMessageIndexesAckData batch_message_ack_indexes = 8;
 }
 
 message CommandAckResponse {

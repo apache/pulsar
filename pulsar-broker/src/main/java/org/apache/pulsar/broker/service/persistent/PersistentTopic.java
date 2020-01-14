@@ -312,7 +312,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated,
+                brokerService.getPulsar().getConfiguration().isBatchIndexAcknowledgeEnable());
         }
     }
 
@@ -718,8 +719,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } catch (ManagedLedgerException e) {
                     subscriptionFuture.completeExceptionally(e);
                 }
-
-                return new PersistentSubscription(this, subscriptionName, cursor, false);
+            return new PersistentSubscription(this, subscriptionName, cursor, false,
+                brokerService.getPulsar().getConfiguration().isBatchIndexAcknowledgeEnable());
             });
 
             if (!subscriptionFuture.isDone()) {
