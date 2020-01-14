@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiParam;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
@@ -221,19 +222,21 @@ public class TenantsBase extends AdminResource {
         }
     }
 
-    private boolean isBlankCluster(Set<String> allowedClusters) {
-        boolean isBlank = false;
-        if (allowedClusters.size() ==1 && StringUtils.isBlank(allowedClusters.toArray()[0].toString().trim())) {
-            isBlank = true;
+    private Set<String> getNonBlankClusters(Set<String> allowedClusters) {
+        Set<String> nonBlankClusters = Sets.newHashSet();
+        for (String ac : allowedClusters) {
+            if (!StringUtils.isBlank(ac)) {
+                nonBlankClusters.add(ac);
+            }
         }
-        return isBlank;
+        return nonBlankClusters;
     }
 
     private void validateClusters(TenantInfo info) {
         List<String> nonexistentClusters;
         try {
             // treat a blank cluster as a cluster is not specified
-            if (info == null || isBlankCluster(info.getAllowedClusters())) {
+            if (info == null || getNonBlankClusters(info.getAllowedClusters()).isEmpty()) {
                 info = new TenantInfo();
             }
             Set<String> availableClusters = clustersListCache().get();
