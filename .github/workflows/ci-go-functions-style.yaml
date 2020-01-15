@@ -47,6 +47,19 @@ jobs:
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
 
+      - name: Install Dependence
+        run: |
+          cd pulsar-function-go
+          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client-dev.deb
+          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client.deb
+          apt install ./apache-pulsar-client.deb
+          apt install ./apache-pulsar-client-dev.deb
+
+      - name: Build
+        run: |
+          cd pulsar-fiunction-go
+          go builld ./pf
+
       - name: CheckStyle
         run: |
           cd pulsar-function-go
