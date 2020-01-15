@@ -23,7 +23,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
@@ -46,8 +46,6 @@ func NewLogAppender(client pulsar.Client, logTopic, fqn string) *LogAppender {
 func (la *LogAppender) Start() error {
 	producer, err := la.pulsarClient.CreateProducer(pulsar.ProducerOptions{
 		Topic:                   la.logTopic,
-		BlockIfQueueFull:        false,
-		Batching:                true,
 		CompressionType:         pulsar.LZ4,
 		BatchingMaxPublishDelay: 100 * time.Millisecond,
 		Properties: map[string]string{
@@ -67,11 +65,10 @@ func (la *LogAppender) Append(logByte []byte) {
 	asyncMsg := pulsar.ProducerMessage{
 		Payload: logByte,
 	}
-	la.producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
-		if err != nil {
-			log.Fatal(err)
-		}
-	})
+	_, err := la.producer.Send(ctx, &asyncMsg)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (la *LogAppender) GetName() string {
@@ -79,9 +76,6 @@ func (la *LogAppender) GetName() string {
 }
 
 func (la *LogAppender) Stop() {
-	err := la.producer.Close()
-	if err != nil {
-		log.Errorf("close log append error:%s", err.Error())
-	}
+	la.producer.Close()
 	la.producer = nil
 }
