@@ -72,7 +72,12 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
 	}
 
-	if message.DeliverAtTime.UnixNano() != 0 {
+	if message.DeliverAfter != 0 {
+		ms := int64(message.DeliverAfter / time.Millisecond)
+		C.pulsar_message_set_deliver_after(cMsg, C.uint64_t(ms))
+	}
+
+	if !message.DeliverAtTime.IsZero() {
 		C.pulsar_message_set_deliver_at(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.DeliverAtTime)))
 	}
 

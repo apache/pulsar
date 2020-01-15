@@ -43,6 +43,9 @@ type ProducerMessage struct {
 	// Set the sequence id to assign to the current message
 	SequenceID int64
 
+	// Set a delay for the delivery of the message
+	DeliverAfter time.Duration
+
 	// Set the time to deliver the message
 	DeliverAtTime time.Time
 }

@@ -416,3 +416,152 @@ func TestProducer_SendAndGetMsgID(t *testing.T) {
 		assert.NotNil(t, IsNil(msgID))
 	}
 }
+
+func TestProducer_DeliverAt(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	msgChannel := make(chan ConsumerMessage)
+
+	topicName := "test-deliver-at-in-producer"
+	sharedSubName := "shared-deliver-at-subscription"
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	sharedConsumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topicName,
+		SubscriptionName: sharedSubName,
+		Type:             Shared,
+		MessageChannel:   msgChannel,
+	})
+	assert.Nil(t, err)
+	defer sharedConsumer.Close()
+
+	ctx := context.Background()
+
+	deliverAt := time.Now()
+	deliverAt = deliverAt.Add(time.Second * 5)
+	deliverAfterMsg := ProducerMessage{
+		Payload:       []byte("deliver-at msg"),
+		DeliverAtTime: deliverAt,
+	}
+
+	immediateMsg := ProducerMessage{
+		Payload: []byte("immediate message"),
+	}
+
+	err = producer.Send(ctx, deliverAfterMsg)
+	assert.Nil(t, err)
+
+	err = producer.Send(ctx, immediateMsg)
+	assert.Nil(t, err)
+
+	err = producer.Flush()
+	assert.Nil(t, err)
+
+	var receivedMsgs []string
+	msgCount := 0
+	for cm := range msgChannel {
+		msg := cm.Message
+		receive := time.Now()
+
+		receivedMsgs = append(receivedMsgs, string(msg.Payload()))
+		msgCount++
+
+		err := sharedConsumer.Ack(msg)
+		assert.Nil(t, err)
+
+		payload := string(msg.Payload())
+		if payload == "deliver-at msg" {
+			assert.True(t, receive.After(deliverAt))
+		}
+
+		if msgCount > 1 {
+			break
+		}
+	}
+
+	assert.Equal(t, 2, len(receivedMsgs))
+	assert.Equal(t, "immediate message", receivedMsgs[0])
+	assert.Equal(t, "deliver-at msg", receivedMsgs[1])
+}
+
+func TestProducer_DeliverAfter(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	msgChannel := make(chan ConsumerMessage)
+
+	topicName := "test-deliver-after-in-producer"
+	sharedSubName := "shared-deliver-after-subscription"
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	sharedConsumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topicName,
+		SubscriptionName: sharedSubName,
+		Type:             Shared,
+		MessageChannel:   msgChannel,
+	})
+	assert.Nil(t, err)
+	defer sharedConsumer.Close()
+
+	ctx := context.Background()
+
+	deliverAfterMsg := ProducerMessage{
+		Payload:      []byte("deliver-after msg"),
+		DeliverAfter: time.Second * 5,
+	}
+
+	immediateMsg := ProducerMessage{
+		Payload: []byte("immediate message"),
+	}
+
+	err = producer.Send(ctx, deliverAfterMsg)
+	assert.Nil(t, err)
+	sendDeliverAfter := time.Now()
+
+	err = producer.Send(ctx, immediateMsg)
+	assert.Nil(t, err)
+
+	err = producer.Flush()
+	assert.Nil(t, err)
+
+	var receivedMsgs []string
+	msgCount := 0
+	for cm := range msgChannel {
+		msg := cm.Message
+		receive := time.Now()
+
+		receivedMsgs = append(receivedMsgs, string(msg.Payload()))
+		msgCount++
+
+		err := sharedConsumer.Ack(msg)
+		assert.Nil(t, err)
+
+		payload := string(msg.Payload())
+		if payload == "deliver-after msg" {
+			assert.True(t, receive.After(sendDeliverAfter.Add(time.Second*5)))
+		}
+
+		if msgCount > 1 {
+			break
+		}
+	}
+
+	assert.Equal(t, 2, len(receivedMsgs))
+	assert.Equal(t, "immediate message", receivedMsgs[0])
+	assert.Equal(t, "deliver-after msg", receivedMsgs[1])
+}
