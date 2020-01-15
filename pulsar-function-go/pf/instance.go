@@ -238,15 +238,16 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 			Payload: output,
 		}
 		// Attempt to send the message and handle the response
-		_, err := gi.producer.Send(context.Background(), &asyncMsg)
-		if err != nil {
-			if autoAck && atLeastOnce {
-				gi.nackInputMessage(msgInput)
+		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID, message *pulsar.ProducerMessage, err error) {
+			if err != nil {
+				if autoAck && atLeastOnce {
+					gi.nackInputMessage(msgInput)
+				}
+				log.Fatal(err)
+			} else if autoAck && !atMostOnce {
+				gi.ackInputMessage(msgInput)
 			}
-			log.Fatal(err)
-		} else if autoAck && !atMostOnce {
-			gi.ackInputMessage(msgInput)
-		}
+		})
 	} else {
 		if autoAck && atLeastOnce {
 			gi.ackInputMessage(msgInput)

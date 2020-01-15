@@ -65,10 +65,11 @@ func (la *LogAppender) Append(logByte []byte) {
 	asyncMsg := pulsar.ProducerMessage{
 		Payload: logByte,
 	}
-	_, err := la.producer.Send(ctx, &asyncMsg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	la.producer.SendAsync(ctx, &asyncMsg, func(id pulsar.MessageID, message *pulsar.ProducerMessage, err error) {
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
 }
 
 func (la *LogAppender) GetName() string {
