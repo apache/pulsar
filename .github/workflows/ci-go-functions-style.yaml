@@ -22,8 +22,9 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
   build:
@@ -48,4 +49,5 @@ jobs:
 
       - name: CheckStyle
         run: |
+          cd pulsar-function-go
           ./bin/golangci-lint run -c ./golangci.yml ./...

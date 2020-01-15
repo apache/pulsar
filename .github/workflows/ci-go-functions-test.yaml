@@ -22,8 +22,9 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
 
@@ -44,10 +45,9 @@ jobs:
 
       - name: build cpp artifacts
         run: |
-          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client-dev.deb
-          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client.deb
-          apt install ./apache-pulsar-client.deb
-          apt install ./apache-pulsar-client-dev.deb
+          echo "Build C++ client library"
+          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
+          pulsar-client-cpp/docker-build.sh
       - name: run c++ tests
         run: |
           cd pulsar-function-go
