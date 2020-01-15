@@ -981,15 +981,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Get the consumer stats.
         TopicStats topicStats = admin.topics().getStats(topic);
         SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long startConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long startAckedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
         ConsumerStats consumerStats = subscriptionStats.consumers.get(0);
-        long startConsumedTimestamp = consumerStats.lastConsumedTimestamp;
-        long startAckedTimestamp = consumerStats.lastAckedTimestamp;
+        long startConsumedTimestampInConsumerStats = consumerStats.lastConsumedTimestamp;
+        long startAckedTimestampInConsumerStats = consumerStats.lastAckedTimestamp;
 
         // Because the message was pushed by the broker, the consumedTimestamp should not as 0.
-        assertNotEquals(0, startConsumedTimestamp);
+        assertNotEquals(0, startConsumedTimestampInConsumerStats);
         // There is no consumer ack the message, so the lastAckedTimestamp still as 0.
-        assertEquals(0, startAckedTimestamp);
-
+        assertEquals(0, startAckedTimestampInConsumerStats);
+        assertNotEquals(0, startConsumedFlowTimestamp);
+        assertEquals(0, startAckedTimestampInSubStats);
 
         // c. The Consumer receives the message and acks the message.
         Message<byte[]> message = consumer.receive();
@@ -1000,14 +1003,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Get the consumer stats.
         topicStats = admin.topics().getStats(topic);
         subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long consumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long ackedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
         consumerStats = subscriptionStats.consumers.get(0);
         long consumedTimestamp = consumerStats.lastConsumedTimestamp;
         long ackedTimestamp = consumerStats.lastAckedTimestamp;
 
         // The lastConsumedTimestamp should same as the last time because the broker does not push any messages and the
         // consumer does not pull any messages.
-        assertEquals(startConsumedTimestamp, consumedTimestamp);
-        assertTrue(startAckedTimestamp < ackedTimestamp);
+        assertEquals(startConsumedTimestampInConsumerStats, consumedTimestamp);
+        assertTrue(startAckedTimestampInConsumerStats < ackedTimestamp);
+        assertNotEquals(0, consumedFlowTimestamp);
+        assertTrue(startAckedTimestampInSubStats < ackedTimestampInSubStats);
 
         // d. Send another messages. The lastConsumedTimestamp should be updated.
         producer.send("message-2".getBytes(StandardCharsets.UTF_8));
@@ -1021,14 +1028,20 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // Get the consumer stats again.
         topicStats = admin.topics().getStats(topic);
         subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long lastConsumedTimestampInSubStats = subscriptionStats.lastConsumedTimestamp;
+        long lastAckedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
         consumerStats = subscriptionStats.consumers.get(0);
         long lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         long lastAckedTimestamp = consumerStats.lastAckedTimestamp;
 
         assertTrue(consumedTimestamp < lastConsumedTimestamp);
         assertTrue(ackedTimestamp < lastAckedTimestamp);
-        assertTrue(startConsumedTimestamp < lastConsumedTimestamp);
-        assertTrue(startAckedTimestamp < lastAckedTimestamp);
+        assertTrue(startConsumedTimestampInConsumerStats < lastConsumedTimestamp);
+        assertTrue(startAckedTimestampInConsumerStats < lastAckedTimestamp);
+        assertTrue(consumedFlowTimestamp == lastConsumedFlowTimestamp);
+        assertTrue(ackedTimestampInSubStats < lastAckedTimestampInSubStats);
+        assertEquals(lastConsumedTimestamp, lastConsumedTimestampInSubStats);
 
         consumer.close();
         producer.close();
