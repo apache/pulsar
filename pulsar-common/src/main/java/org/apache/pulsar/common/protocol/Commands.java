@@ -101,6 +101,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -146,6 +147,12 @@ public class Commands {
                 originalPrincipal, clientAuthData, clientAuthMethod);
     }
 
+    public static FeatureFlags getFeatureFlags() {
+        FeatureFlags.Builder flags = FeatureFlags.newBuilder();
+        flags.setSupportsAuthRefresh(true);
+        return flags.build();
+    }
+
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
             String targetBroker, String originalPrincipal, String originalAuthData,
             String originalAuthMethod) {
@@ -181,6 +188,8 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -216,6 +225,7 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -258,9 +268,11 @@ public class Commands {
 
         challengeBuilder.setProtocolVersion(versionToAdvertise);
 
+        byte[] authData = brokerData != null ? brokerData.getBytes() : new byte[0];
+
         CommandAuthChallenge challenge = challengeBuilder
             .setChallenge(PulsarApi.AuthData.newBuilder()
-                .setAuthData(copyFrom(brokerData.getBytes()))
+                .setAuthData(copyFrom(authData))
                 .setAuthMethodName(authMethod)
                 .build())
             .build();
