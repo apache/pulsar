@@ -536,11 +536,15 @@ public class CmdNamespaces extends CmdBase {
                 "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+        
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setDispatchRate(namespace,
-                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -608,11 +612,15 @@ public class CmdNamespaces extends CmdBase {
             "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setSubscriptionDispatchRate(namespace,
-                new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -1022,6 +1030,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--size", "-s" },
                    description = "Maximum number of bytes stored in the pulsar cluster for a topic before data will"
                                  + " start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100)."
+                                 + " -1 falls back to the cluster's namespace default."
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
@@ -1082,7 +1091,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace", hidden = true)
     private class GetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1095,7 +1104,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace", hidden = true)
     private class SetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;

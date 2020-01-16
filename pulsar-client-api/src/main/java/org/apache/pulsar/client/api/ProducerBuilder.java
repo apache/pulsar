@@ -344,8 +344,24 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @param timeUnit
      *            the time unit of the {@code batchDelay}
      * @return the producer builder instance
+     * @see #batchingMaxMessages(int)
+     * @see #batchingMaxBytes(int)
      */
     ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
+
+    /**
+     * Set the partition switch frequency while batching of messages is enabled and
+     * using round-robin routing mode for non-keyed message <i>default: 10</i>.
+     *
+     * <p>The time period of partition switch is frequency * batchingMaxPublishDelay. During this period,
+     * all messages arrives will be route to the same partition.
+     *
+     * @param frequency the frequency of partition switch
+     * @return the producer builder instance
+     * @see #messageRoutingMode(MessageRoutingMode)
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     */
+    ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency);
 
     /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
@@ -354,12 +370,28 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>All messages in batch will be published as a single batch message. The consumer will be delivered individual
      * messages in the batch in the same order they were enqueued.
      *
-     * @see #batchingMaxPublishDelay(long, TimeUnit)
      * @param batchMessagesMaxMessagesPerBatch
      *            maximum number of messages in a batch
      * @return the producer builder instance
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxBytes(int)
      */
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+
+    /**
+     * Set the maximum number of bytes permitted in a batch. <i>default: 128KB</i>
+     * If set to a value greater than 0, messages will be queued until this threshold is reached
+     * or other batching conditions are met.
+     *
+     * <p>All messages in a batch will be published as a single batched message. The consumer will be delivered
+     * individual messages in the batch in the same order they were enqueued.
+     *
+     * @param batchingMaxBytes maximum number of bytes in a batch
+     * @return the producer builder instance
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxMessages(int)
+     */
+    ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes);
 
     /**
      * Set the batcher builder {@link BatcherBuilder} of the producer. Producer will use the batcher builder to

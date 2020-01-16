@@ -239,7 +239,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    private static ReadHandle getLedgerHandle() {
+    static ReadHandle getLedgerHandle() {
         final ReadHandle lh = mock(ReadHandle.class);
         final LedgerEntry ledgerEntry = mock(LedgerEntry.class, Mockito.CALLS_REAL_METHODS);
         doReturn(Unpooled.wrappedBuffer(new byte[10])).when(ledgerEntry).getEntryBuffer();

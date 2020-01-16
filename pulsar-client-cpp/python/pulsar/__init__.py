@@ -21,7 +21,7 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-Currently, the only supported Python version is 2.7.
+Currently, the supported Python versions are 2.7, 3.4, 3.5, 3.6 and 3.7.
 
 ## Install from PyPI
 
@@ -212,6 +212,12 @@ class Message:
         Get the topic Name from which this message originated from
         """
         return self._message.topic_name()
+
+    def redelivery_count(self):
+        """
+        Get the redelivery count for this message
+        """
+        return self._message.redelivery_count()
 
     @staticmethod
     def _wrap(_message):

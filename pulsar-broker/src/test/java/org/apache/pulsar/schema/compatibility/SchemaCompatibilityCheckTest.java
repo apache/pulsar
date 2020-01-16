@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -45,6 +46,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 
 @Slf4j
@@ -57,7 +59,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData(pulsar.getBrokerServiceUrl()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
@@ -233,6 +235,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet(CLUSTER_NAME)
         );
 
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+                SchemaCompatibilityStrategy.FULL);
+        
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
@@ -245,23 +250,41 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         try {
             producerThreeBuilder.create();
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Don't allow auto update schema."));
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
-
-        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
-        Consumer<Schemas.PersonTwo> consumerTwo = pulsarClient.newConsumer(Schema.AVRO(
+        ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(Schemas.PersonTwo.class).build()))
                 .subscriptionName("test")
-                .topic(fqtn)
-                .subscribe();
+                .topic(fqtn);
+
+        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
+        Consumer<Schemas.PersonTwo> consumerTwo = comsumerBuilder.subscribe();
+
         producer.send(new Schemas.PersonTwo(2, "Lucy"));
         Message<Schemas.PersonTwo> message = consumerTwo.receive();
 
         Schemas.PersonTwo personTwo = message.getValue();
+        consumerTwo.acknowledge(message);
+
+        assertEquals(personTwo.id, 2);
+        assertEquals(personTwo.name, "Lucy");
+
+        producer.close();
+        consumerTwo.close();
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+
+        producer = producerThreeBuilder.create();
+        consumerTwo = comsumerBuilder.subscribe();
+
+        producer.send(new Schemas.PersonTwo(2, "Lucy"));
+        message = consumerTwo.receive();
+
+        personTwo = message.getValue();
         consumerTwo.acknowledge(message);
 
         assertEquals(personTwo.id, 2);

@@ -6,10 +6,13 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
+With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
 
@@ -41,6 +44,7 @@ Currently we support driver of types:
 
 - `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
 - `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+- `filesystem`: [Filesystem Storage](http://hadoop.apache.org/)
 
 > Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
@@ -186,6 +190,63 @@ Pulsar also provides some knobs to configure the size of requests sent to GCS.
 
 In both cases, these should not be touched unless you know what you are doing.
 
+### "filesystem" Driver configuration
+
+
+#### Configure connection address
+
+You can configure the connection address in the `broker.conf` file.
+
+```conf
+fileSystemURI="hdfs://127.0.0.1:9000"
+```
+#### Configure Hadoop profile path
+
+The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
+
+```conf
+fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
+```
+
+The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can use all of the configurations in `org.apache.hadoop.io.MapFile` for Hadoop.
+
+**Example**
+
+```conf
+
+    <property>
+        <name>fs.defaultFS</name>
+        <value></value>
+    </property>
+    
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>pulsar</value>
+    </property>
+    
+    <property>
+        <name>io.file.buffer.size</name>
+        <value>4096</value>
+    </property>
+    
+    <property>
+        <name>io.seqfile.compress.blocksize</name>
+        <value>1000000</value>
+    </property>
+    <property>
+    
+        <name>io.seqfile.compression.type</name>
+        <value>BLOCK</value>
+    </property>
+    
+    <property>
+        <name>io.map.index.interval</name>
+        <value>128</value>
+    </property>
+    
+```
+
+For more information about the configurations in `org.apache.hadoop.io.MapFile`, see [Filesystem Storage](http://hadoop.apache.org/).
 ## Configuring offload to run automatically
 
 Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.

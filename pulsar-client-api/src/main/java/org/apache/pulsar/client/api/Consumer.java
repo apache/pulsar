@@ -108,6 +108,33 @@ public interface Consumer<T> extends Closeable {
     Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
+     * Batch receiving messages.
+     *
+     * <p>This calls blocks until has enough messages or wait timeout, more details to see {@link BatchReceivePolicy}.
+     *
+     * @return messages
+     * @since 2.4.1
+     * @throws PulsarClientException
+     */
+    Messages<T> batchReceive() throws PulsarClientException;
+
+    /**
+     * Batch receiving messages.
+     * <p>
+     * Retrieves messages when has enough messages or wait timeout and
+     * completes {@link CompletableFuture} with received messages.
+     * </p>
+     * <p>
+     * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
+     * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
+     * </p>
+     * @return messages
+     * @since 2.4.1
+     * @throws PulsarClientException
+     */
+    CompletableFuture<Messages<T>> batchReceiveAsync();
+
+    /**
      * Acknowledge the consumption of a single message.
      *
      * @param message
@@ -126,6 +153,15 @@ public interface Consumer<T> extends Closeable {
      *             if the consumer was already closed
      */
     void acknowledge(MessageId messageId) throws PulsarClientException;
+
+    /**
+     * Acknowledge the consumption of {@link Messages}.
+     *
+     * @param messages messages
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void acknowledge(Messages<?> messages) throws PulsarClientException;
 
     /**
      * Acknowledge the failure to process a single message.
@@ -178,6 +214,36 @@ public interface Consumer<T> extends Closeable {
     void negativeAcknowledge(MessageId messageId);
 
     /**
+     * Acknowledge the failure to process {@link Messages}.
+     *
+     * <p>When messages is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     *
+     * <p>This call is not blocking.
+     *
+     * <p>Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Messages&lt;String&gt; msgs = consumer.batchReceive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msgs);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msgs);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param messages
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(Messages<?> messages);
+
+    /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
      *
      * <p>This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
@@ -228,6 +294,15 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeAsync(MessageId messageId);
+
+    /**
+     * Asynchronously acknowledge the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            The {@link Messages} to be acknowledged
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
 
     /**
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided

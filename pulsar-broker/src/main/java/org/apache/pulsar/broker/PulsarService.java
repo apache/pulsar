@@ -400,14 +400,6 @@ public class PulsarService implements AutoCloseable {
 
             this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
-            if (StringUtils.isNotBlank(config.getTransactionMetadataStoreProviderClassName())) {
-                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
-            } else {
-                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(InMemTransactionMetadataStoreProvider.class.getName()), this);
-            }
-
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -483,9 +475,11 @@ public class PulsarService implements AutoCloseable {
             // Register heartbeat and bootstrap namespaces.
             this.nsService.registerBootstrapNamespaces();
 
-            // Register pulsar system namespaces
+            // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-               this.nsService.registerNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), false);
+                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
+                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
+                transactionMetadataStoreService.start();
             }
 
             this.metricsGenerator = new MetricsGenerator(this);

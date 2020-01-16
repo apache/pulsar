@@ -225,6 +225,20 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void createMissedPartitions(String topic) throws PulsarAdminException {
+        try {
+            createMissedPartitionsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
     	TopicName tn = validateTopic(topic);
     	WebTarget path = topicPath(tn);
@@ -237,6 +251,13 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> createMissedPartitionsAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "createMissedPartitions");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override

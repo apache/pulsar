@@ -54,6 +54,9 @@ public interface SchemaRegistry extends AutoCloseable {
     CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
                                                        SchemaCompatibilityStrategy strategy);
 
+    CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                  SchemaData schemaData);
+
     SchemaVersion versionFromBytes(byte[] version);
 
     class SchemaAndMetadata {

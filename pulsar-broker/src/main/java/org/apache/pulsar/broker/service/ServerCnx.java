@@ -61,13 +61,13 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
-import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -110,6 +110,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +186,7 @@ public class ServerCnx extends PulsarHandler {
         producers.values().forEach((producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
                 Producer producer = producerFuture.getNow(null);
-                producer.closeNow();
+                producer.closeNow(true);
             }
         });
 
@@ -817,6 +820,8 @@ public class ServerCnx extends PulsarHandler {
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
                 : service.generateUniqueProducerName();
+        final long epoch = cmdProducer.getEpoch();
+        final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
@@ -938,7 +943,7 @@ public class ServerCnx extends PulsarHandler {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata, schemaVersion);
+                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
 
                                 try {
                                     topic.addProducer(producer);
@@ -952,12 +957,12 @@ public class ServerCnx extends PulsarHandler {
                                         } else {
                                             // The producer's future was completed before by
                                             // a close command
-                                            producer.closeNow();
+                                            producer.closeNow(true);
                                             log.info("[{}] Cleared producer created after timeout on client side {}",
                                                 remoteAddress, producer);
                                         }
                                     } else {
-                                        producer.closeNow();
+                                        producer.closeNow(true);
                                         log.info("[{}] Cleared producer created after connection was closed: {}",
                                             remoteAddress, producer);
                                         producerFuture.completeExceptionally(
@@ -1038,8 +1043,9 @@ public class ServerCnx extends PulsarHandler {
             if (nonPersistentPendingMessages > MaxNonPersistentPendingMessages) {
                 final long producerId = send.getProducerId();
                 final long sequenceId = send.getSequenceId();
+                final long highestSequenceId = send.getHighestSequenceId();
                 service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), SafeRun.safeRun(() -> {
-                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, -1, -1), ctx.voidPromise());
+                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, -1, -1), ctx.voidPromise());
                 }));
                 producer.recordMessageDrop(send.getNumMessages());
                 return;
@@ -1051,7 +1057,12 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                    headersAndPayload, send.getNumMessages());
+        } else {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {
@@ -1199,14 +1210,15 @@ public class ServerCnx extends PulsarHandler {
         if (!producerFuture.isDone() && producerFuture
                 .completeExceptionally(new IllegalStateException("Closed producer before creation was complete"))) {
             // We have received a request to close the producer before it was actually completed, we have marked the
-            // producer future as failed and we can tell the client the close operation was successful. When the actual
-            // create operation will complete, the new producer will be discarded.
+            // producer future as failed and we can tell the client the close operation was successful.
             log.info("[{}] Closed producer {} before its creation was completed", remoteAddress, producerId);
             ctx.writeAndFlush(Commands.newSuccess(requestId));
+            producers.remove(producerId, producerFuture);
             return;
         } else if (producerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed producer {} that already failed to be created", remoteAddress, producerId);
             ctx.writeAndFlush(Commands.newSuccess(requestId));
+            producers.remove(producerId, producerFuture);
             return;
         }
 
@@ -1214,7 +1226,7 @@ public class ServerCnx extends PulsarHandler {
         Producer producer = producerFuture.getNow(null);
         log.info("[{}][{}] Closing producer on cnx {}", producer.getTopic(), producer.getProducerName(), remoteAddress);
 
-        producer.close().thenAccept(v -> {
+        producer.close(true).thenAccept(v -> {
             log.info("[{}][{}] Closed producer on cnx {}", producer.getTopic(), producer.getProducerName(),
                     remoteAddress);
             ctx.writeAndFlush(Commands.newSuccess(requestId));
@@ -1392,6 +1404,85 @@ public class ServerCnx extends PulsarHandler {
                     requestId, errorCode, ex.getMessage()));
             return null;
         });
+    }
+
+    @Override
+    protected void handleNewTxn(CommandNewTxn command) {
+        if (log.isDebugEnabled()) {
+            log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
+        }
+        TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId)
+            .whenComplete(((txnID, ex) -> {
+                if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response {} for new txn request {}", tcId.getId(),  command.getRequestId());
+                    }
+                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for new txn request {}", command.getRequestId(), ex);
+                    }
+                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), tcId.getId(), BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            }));
+    }
+
+    @Override
+    protected void handleAddPartitionToTxn(PulsarApi.CommandAddPartitionToTxn command) {
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive add published partition to txn request {} from {} with txnId {}", command.getRequestId(), remoteAddress, txnID);
+        }
+        service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID, command.getPartitionsList())
+            .whenComplete(((v, ex) -> {
+                if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response success for add published partition to txn request {}",  command.getRequestId());
+                    }
+                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for add published partition to txn request {}",  command.getRequestId(), ex);
+                    }
+                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            }));
+    }
+
+    @Override
+    protected void handleEndTxn(PulsarApi.CommandEndTxn command) {
+        TxnStatus newStatus = null;
+        switch (command.getTxnAction()) {
+            case COMMIT:
+                newStatus = TxnStatus.COMMITTING;
+                break;
+            case ABORT:
+                newStatus = TxnStatus.ABORTING;
+                break;
+        }
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive end txn by {} request {} from {} with txnId {}", newStatus, command.getRequestId(), remoteAddress, txnID);
+        }
+        service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
+            .whenComplete((v, ex) -> {
+                if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response success for end txn request {}", command.getRequestId());
+                    }
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(),
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for end txn request {}", command.getRequestId());
+                    }
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
