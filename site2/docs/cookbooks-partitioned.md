@@ -71,7 +71,7 @@ producer.send("Partitioned topic message".getBytes());
 ```
 
 ### How to choose partition when using a key
-If a message has a key, it supersedes the round robin routing policy. The following is an example on how to choose partition when you use a key.
+If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose partition when you use a key.
 
 ```java
 // If the message has a key, it supersedes the round robin routing policy
