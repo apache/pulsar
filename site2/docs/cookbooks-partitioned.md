@@ -70,7 +70,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
 producer.send("Partitioned topic message".getBytes());
 ```
 
-### How to choose partition when using a key
+### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose partition when you use a key.
 
 ```java
