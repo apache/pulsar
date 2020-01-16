@@ -90,7 +90,7 @@ To install the Python bindings:
                     batching_max_publish_delay_ms=10
                 )
 
-    def send_callback(res, msg):
+    def send_callback(res, msg_id):
         print('Message published res=%s', res)
 
     while True:
@@ -858,7 +858,7 @@ class Producer:
         Example:
 
             #!python
-            def callback(res, msg):
+            def callback(res, msg_id):
                 print('Message published: %s' % res)
 
             producer.send_async(msg, callback)
