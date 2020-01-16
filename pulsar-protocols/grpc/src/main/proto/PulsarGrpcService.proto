@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.apache.pulsar.protocols.grpc";
+option optimize_for = SPEED;
+
+package pulsar.protocols.grpc;
+
+service PulsarGrpcService {
+    rpc Hello(SimpleValue) returns (SimpleValue) {}
+}
+
+message SimpleValue {
+    string name = 1;
+}

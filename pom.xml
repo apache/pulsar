@@ -117,6 +117,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- protocols-related modules -->
+    <module>pulsar-protocols</module>
+
     <!-- examples -->
     <module>examples</module>
 
