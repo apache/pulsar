@@ -16,16 +16,16 @@
 #### Fixes
 
 - [Broker] Avoid retrying deleting namespace when topic is already deleted/fenced [#4665](https://github.com/apache/pulsar/pull/4665)
-- [pulsar-broker] Fix expiry monitor to continue on non-recoverable error [#4818](https://github.com/apache/pulsar/pull/4818) 
+- [Broker] Fix expiry monitor to continue on non-recoverable error [#4818](https://github.com/apache/pulsar/pull/4818) 
 - [pulsar-broker] fix ns-isolation api to fetch policy for specific broker [#5314](https://github.com/apache/pulsar/pull/5314)
-- [broker] external protocols not set to local broker data [#5749](https://github.com/apache/pulsar/pull/5479)
+- [Broker] external protocols not set to local broker data [#5749](https://github.com/apache/pulsar/pull/5479)
 - [broker]Add handle exception KeeperException.BadVersionException  [#5563](https://github.com/apache/pulsar/pull/5563)
 - Fix message deduplicate issue while using external sequence id with batch produce [#5491](https://github.com/apache/pulsar/pull/5491)
 - Remove cursor while remove non-durable subscription [#5719](https://github.com/apache/pulsar/pull/5719) 
 
 #### Enhancements
 
-- Process requests asynchronously on some REST APIs [4765](https://github.com/apache/pulsar/pull/4765) [4778](https://github.com/apache/pulsar/pull/4778) [4795](https://github.com/apache/pulsar/pull/4795) 
+- Process requests asynchronously on some REST APIs [#4765](https://github.com/apache/pulsar/pull/4765) [#4778](https://github.com/apache/pulsar/pull/4778) [#4795](https://github.com/apache/pulsar/pull/4795) 
 - Reduce char[] creation on jvm heap [#5055](https://github.com/apache/pulsar/pull/5055)
 - Fixes not owned bundles got selected when broker overloading [#5002](https://github.com/apache/pulsar/pull/5002)
 - [pulsar-broker] support update partition for global topic  [#5306](https://github.com/apache/pulsar/pull/5306)
@@ -45,7 +45,7 @@
 - Added delayed messages in Prometheus when using namespace-level metrics aggregation [#4691](https://github.com/apache/pulsar/pull/4691)
 - Increasing Dashboard consumerName field to 256 varchar [4716](https://github.com/apache/pulsar/pull/4716)
 - [dashboard] integrate peek into messages page [#4966](https://github.com/apache/pulsar/pull/4966)
-- ashboard] support parse batch entry [#4992](https://github.com/apache/pulsar/pull/4992)
+- [Dashboard] support parse batch entry [#4992](https://github.com/apache/pulsar/pull/4992)
 
 #### Security
 
@@ -76,7 +76,7 @@
 
 - Allow resource overcommitting when running functions in Kubernetes [4829](https://github.com/apache/pulsar/pull/4829)
 - Make Function Authentication Provider pluggable [#5404](https://github.com/apache/pulsar/pull/5404)
-- added deletion of state for Functions [#5469](https://github.com/apache/pulsar/pull/5469) 
+- Added deletion of state for Functions [#5469](https://github.com/apache/pulsar/pull/5469) 
 - [functions] Distribute the CA for KubernetesSecretsTokenAuthProvider [#5398](https://github.com/apache/pulsar/pull/5398)
 - Function runtime pluggable [#5463](https://github.com/apache/pulsar/pull/5463)
 - Allow functions to pass runtime specific options [#5400](https://github.com/apache/pulsar/pull/5400)
@@ -94,26 +94,26 @@
 
 #### Go client
 
-- Use Buffered channels to avoid blocking on callback  [#5336](https://github.com/apache/pulsar/pull/5336)
+- Use buffered channels to avoid blocking on callback  [#5336](https://github.com/apache/pulsar/pull/5336)
 
 #### C++ client
 
-- [pulsar-client-cpp]Change state_ to closed when resultOk is returned [#5446](https://github.com/apache/pulsar/pull/5446)
+- [pulsar-client-cpp] Change state_ to closed when resultOk is returned [#5446](https://github.com/apache/pulsar/pull/5446)
 - [C++ client] Expose redelivery count [#5677](https://github.com/apache/pulsar/pull/5677)
 
 #### Adaptors
 
-- Add support of pulsar-kafka-adapter for kafka-0.9 api [4886](https://github.com/apache/pulsar/pull/4886)
-- Add support of pulsar-kafka-adapter for kafka-0.8 api [4797](https://github.com/apache/pulsar/pull/4797) 
+- Add support of pulsar-kafka-adapter for kafka-0.9 API [#4886](https://github.com/apache/pulsar/pull/4886)
+- Add support of pulsar-kafka-adapter for kafka-0.8 API [#4797](https://github.com/apache/pulsar/pull/4797) 
 - Make client keepalive interval configurable on pulsar-client-kafka [#5131](https://github.com/apache/pulsar/pull/5131)
 
 #### Transaction
 
-- [Buffer]Add new marker to show which message belongs to transaction [4776](https://github.com/apache/pulsar/pull/4776)
-- [buffer] Add data ledger position in txn commit marker [4826](https://github.com/apache/pulsar/pull/4826)
-- [buffer] Add basic operation of transaction [4738](https://github.com/apache/pulsar/pull/4738)
-- [buffer] Add new commands for the transaction [4866](https://github.com/apache/pulsar/pull/4866)
-- Add default handler to handle transaction related commands [4891](https://github.com/apache/pulsar/pull/4891)
+- [Buffer] Add new marker to show which message belongs to transaction [#4776](https://github.com/apache/pulsar/pull/4776)
+- [buffer] Add data ledger position in txn commit marker [#4826](https://github.com/apache/pulsar/pull/4826)
+- [buffer] Add basic operation of transaction [#4738](https://github.com/apache/pulsar/pull/4738)
+- [buffer] Add new commands for the transaction [#4866](https://github.com/apache/pulsar/pull/4866)
+- Add default handler to handle transaction related commands [#4891](https://github.com/apache/pulsar/pull/4891)
 - Introduce Transaction Client API [#4952](https://github.com/apache/pulsar/pull/4952)
 -  Add transaction coordinator client [#4953](https://github.com/apache/pulsar/pull/4953)
 - Ownership change listeners [#5457](https://github.com/apache/pulsar/pull/5457)
