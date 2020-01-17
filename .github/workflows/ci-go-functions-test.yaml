@@ -43,14 +43,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: build cpp artifacts
-        run: |
-          cd pulsar-function-go
-          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client-dev.deb
-          wget https://archive.apache.org/dist/pulsar/pulsar-2.4.2/DEB/apache-pulsar-client.deb
-          apt install ./apache-pulsar-client.deb
-          apt install ./apache-pulsar-client-dev.deb
-
       - name: run c++ tests
         run: |
           cd pulsar-function-go
