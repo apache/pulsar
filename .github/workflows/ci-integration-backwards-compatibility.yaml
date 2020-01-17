@@ -44,5 +44,8 @@ jobs:
       - name: build artifacts and docker image
         run: mvn -B install -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -Pdocker -DskipTests
 
+      - name: clean up
+        run: docker system prune -f
+
       - name: run integration tests
         run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests -DredirectTestOutputToFile=false

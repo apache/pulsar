@@ -63,7 +63,7 @@ public abstract class SslContextAutoRefreshBuilder<T> {
     }
 
     /**
-     * udpates and returns cached SSLContext.
+     * updates and returns cached SSLContext.
      *
      * @return
      * @throws GeneralSecurityException

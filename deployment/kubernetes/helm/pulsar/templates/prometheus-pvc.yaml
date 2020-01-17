@@ -29,7 +29,9 @@ spec:
     requests:
       storage: {{ .Values.prometheus.volumes.data.size }}
   accessModes: [ "ReadWriteOnce" ]
-{{- if .Values.prometheus.volumes.data.storageClass }}
+{{- if .Values.prometheus.volumes.data.storageClassName }}
+  storageClassName: "{{ .Values.prometheus.volumes.data.storageClassName }}"
+{{- else if .Values.prometheus.volumes.data.storageClass }}
   storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
 {{- end }}
 {{- end }}

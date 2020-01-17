@@ -63,7 +63,7 @@ public class ValidatorUtils {
         if (inputSerializer.equals(DEFAULT_SERDE)) return;
         try {
             Class<?> serdeClass = FunctionCommon.loadClass(inputSerializer, clsLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("The input serialization/deserialization class %s does not exist",
                             inputSerializer));
@@ -84,7 +84,7 @@ public class ValidatorUtils {
         try {
             fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
             serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException("Failed to load type class", e);
         }
 
@@ -115,7 +115,7 @@ public class ValidatorUtils {
         try {
             fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
             schemaInputClass = Class.forName(schemaTypes[0].getName(), true, clsLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException("Failed to load type class", e);
         }
 
@@ -147,7 +147,7 @@ public class ValidatorUtils {
         Class functionClass;
         try {
             functionClass = classLoader.loadClass(functionDetailsBuilder.getClassName());
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionDetailsBuilder.getClassName()), e);
         }

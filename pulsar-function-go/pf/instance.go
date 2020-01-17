@@ -24,7 +24,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"github.com/apache/pulsar/pulsar-function-go/pb"
 )
@@ -134,12 +134,9 @@ func (gi *goInstance) setupProducer() (err error) {
 			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
-			BlockIfQueueFull:        true,
-			Batching:                true,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
 			// set send timeout to be infinity to prevent potential deadlock with consumer
 			// that might happen when consumer is blocked due to unacked messages
-			SendTimeout: 0,
 		})
 		if err != nil {
 			log.Errorf("create producer error:%s", err.Error())
@@ -240,13 +237,13 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		asyncMsg := pulsar.ProducerMessage{
 			Payload: output,
 		}
-		// Attempt to send the message asynchronously and handle the response
-		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
-			if e != nil {
+		// Attempt to send the message and handle the response
+		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID, message *pulsar.ProducerMessage, err error) {
+			if err != nil {
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
 				}
-				log.Fatal(e)
+				log.Fatal(err)
 			} else if autoAck && !atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}

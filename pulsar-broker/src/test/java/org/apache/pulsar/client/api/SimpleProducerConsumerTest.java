@@ -541,7 +541,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT).build();
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         client1.close();
 
         try {

@@ -41,10 +41,13 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: Setup Maven Version
-        run: mvn -B --version
+      # license check fails with 3.6.2 so we have to downgrade
+      - name: Set up Maven
+        uses: aahmed-se/setup-maven@v3
+        with:
+          maven-version: 3.6.1
 
-      - name: run unit tests
+      - name: build and check license
         run: mvn -B -ntp -DskipTests license:check install
           
       - name: license check

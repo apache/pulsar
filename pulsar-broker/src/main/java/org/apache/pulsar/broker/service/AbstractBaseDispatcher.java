@@ -28,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -124,5 +126,21 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     public void resetCloseFuture() {
         // noop
+    }
+
+    public static final String NONE_KEY = "NONE_KEY";
+    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
+        metadataAndPayload.markReaderIndex();
+        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        metadataAndPayload.resetReaderIndex();
+        String key = metadata.getPartitionKey();
+        if (log.isDebugEnabled()) {
+            log.debug("Parse message metadata, partition key is {}, ordering key is {}", key, metadata.getOrderingKey());
+        }
+        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
+            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
+        }
+        metadata.recycle();
+        return NONE_KEY.getBytes();
     }
 }

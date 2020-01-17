@@ -196,7 +196,7 @@ public class PropertiesFileConfigurationProvider extends
         } catch (IOException ex) {
             LOGGER.error("Unable to load file:" + file
                     + " (I/O failure) - Exception follows.", ex);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             LOGGER.error("Configuration resolver class not found", e);
         } catch (InstantiationException e) {
             LOGGER.error("Instantiation exception", e);

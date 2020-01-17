@@ -381,7 +381,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}][{} -> {}] Error producing on remote broker", replicator.topicName,
                         replicator.localCluster, replicator.remoteCluster, exception);
-                // cursor shoud be rewinded since it was incremented when readMoreEntries
+                // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
             } else {
                 if (log.isDebugEnabled()) {
