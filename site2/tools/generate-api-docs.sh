@@ -39,6 +39,3 @@ cd $SCRIPT_DIR
 ./javadoc-gen.sh
 
 ./python-doc-gen.sh
-
-# Generate document for command line tools.
-./pulsar-admin-doc-gen.sh
