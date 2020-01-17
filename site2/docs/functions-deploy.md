@@ -27,7 +27,7 @@ When managing Pulsar Functions, you need to specify a variety of information abo
 
 Parameter | Default
 :---------|:-------
-Function name | You can specify any value for the class name (except org, library, or similar class names). For example, when you specify the flag `--classname org.example.MyFunction`, the function name is `MyFunction`.
+Function name | You can specify any value for the class name (except org, library, or similar class names). For example, when you specify the flag `--className org.example.MyFunction`, the function name is `MyFunction`.
 Tenant | Derived from names of the input topics. If the input topics are under the `marketing` tenant, which means the topic names have the form `persistent://marketing/{namespace}/{topicName}`, the tenant is `marketing`.
 Namespace | Derived from names of the input topics. If the input topics are under the `asia` namespace under the `marketing` tenant, which means the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace is `asia`.
 Output topic | `{input topic}-{function name}-output`. For example, if an input topic name of a function is `incoming`, and the function name is `exclamation`, then the name of the output topic is `incoming-exclamation-output`.
@@ -42,7 +42,7 @@ Take the `create` command as an example.
 ```bash
 $ bin/pulsar-admin functions create \
   --jar my-pulsar-functions.jar \
-  --classname org.example.MyFunction \
+  --className org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
 ```
 
@@ -55,7 +55,7 @@ If you run a Pulsar Function in **local run** mode, it runs on the machine from 
 ```bash
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
-  --classname myfunc.SomeFunction \
+  --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -75,7 +75,7 @@ When you run a Pulsar Function in **cluster** mode, the function code is uploade
 ```bash
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
-  --classname myfunc.SomeFunction \
+  --className myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 ```
@@ -87,7 +87,7 @@ You can use the [`update`](reference-pulsar-admin.md#update-1) command to update
 ```bash
 $ bin/pulsar-admin functions update \
   --py myfunc.py \
-  --classname myfunc.SomeFunction \
+  --className myfunc.SomeFunction \
   --inputs persistent://public/default/new-input-topic \
   --output persistent://public/default/new-output-topic
 ```
@@ -145,7 +145,7 @@ The following function creation command allocates 8 cores, 8 GB of RAM, and 10 G
 ```bash
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
-  --classname org.example.functions.MyFunction \
+  --className org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
@@ -176,7 +176,7 @@ $ bin/pulsar-admin functions create \
   --namespace default \
   --name myfunc \
   --py myfunc.py \
-  --classname myfunc \
+  --className myfunc \
   --inputs persistent://public/default/in \
   --output persistent://public/default/out
 ```
