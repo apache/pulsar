@@ -489,7 +489,7 @@ public class ServerCnx extends PulsarHandler {
         // authentication has completed, will send newConnected command.
         if (authState.isComplete()) {
             String newAuthRole = authState.getAuthRole();
-            if (authRole != null) {
+            if (!StringUtils.isEmpty(authRole)) {
                 if (!authRole.equals(newAuthRole)) {
                     log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
                     ctx.close();
