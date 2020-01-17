@@ -267,6 +267,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "Max duration of topic inactivity in seconds, default is 60s\n"
+        + "Topics that are inactive for longer than this value will be deleted"
+    )
+    private int brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = 60;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
     )
     private int messageExpiryCheckIntervalInMinutes = 5;

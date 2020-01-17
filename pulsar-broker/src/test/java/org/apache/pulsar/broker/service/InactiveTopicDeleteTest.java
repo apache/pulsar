@@ -103,4 +103,29 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         super.internalCleanup();
     }
+
+    @Test
+    public void testMaxInactiveDuration() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
+        super.baseSetup();
+
+        final String topic = "persistent://prop/ns-abc/testMaxInactiveDuration";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .create();
+
+        producer.close();
+        Thread.sleep(2000);
+        Assert.assertTrue(admin.topics().getList("prop/ns-abc")
+            .contains(topic));
+
+        Thread.sleep(4000);
+        Assert.assertFalse(admin.topics().getList("prop/ns-abc")
+            .contains(topic));
+
+        super.internalCleanup();
+    }
 }

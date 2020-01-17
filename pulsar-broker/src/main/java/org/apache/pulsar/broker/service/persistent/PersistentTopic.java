@@ -1618,10 +1618,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void checkGC(int gcIntervalInSeconds, InactiveTopicDeleteMode deleteMode) {
+    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
-        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
+        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
         } else if (shouldTopicBeRetained()) {
@@ -1636,7 +1636,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // provided no remote producers connected to the broker.
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                            gcIntervalInSeconds);
+                        maxInactiveDurationInSec);
                 }
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
@@ -1648,7 +1648,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
                     } else {
                         log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
-                                gcIntervalInSeconds);
+                            maxInactiveDurationInSec);
                         replCloseFuture.complete(null);
                     }
                 }).exceptionally(e -> {

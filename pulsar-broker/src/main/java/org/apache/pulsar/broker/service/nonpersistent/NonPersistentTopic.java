@@ -823,11 +823,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkGC(int gcIntervalInSeconds, InactiveTopicDeleteMode deleteMode) {
+    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {
-            if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
+            if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
 
                 if (TopicName.get(topic).isGlobal()) {
                     // For global namespace, close repl producers first.
@@ -835,7 +835,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     // provided no remote producers connected to the broker.
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                                gcIntervalInSeconds);
+                            maxInactiveDurationInSec);
                     }
 
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
