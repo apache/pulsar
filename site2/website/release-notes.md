@@ -16,35 +16,35 @@
 #### Fixes
 
 - [Broker] Avoid retrying deleting namespace when topic is already deleted/fenced [#4665](https://github.com/apache/pulsar/pull/4665)
-- [pulsar-broker] Fix expiry monitor to continue on non-recoverable error [#4818](https://github.com/apache/pulsar/pull/4818) 
-- [pulsar-broker] fix ns-isolation api to fetch policy for specific broker [#5314](https://github.com/apache/pulsar/pull/5314)
-- [broker] external protocols not set to local broker data [#5749](https://github.com/apache/pulsar/pull/5479)
-- [broker]Add handle exception KeeperException.BadVersionException  [#5563](https://github.com/apache/pulsar/pull/5563)
-- Fix message deduplicate issue while using external sequence id with batch produce [#5491](https://github.com/apache/pulsar/pull/5491)
-- Remove cursor while remove non-durable subscription [#5719](https://github.com/apache/pulsar/pull/5719) 
+- [Broker] Fix expiry monitor to continue on non-recoverable error [#4818](https://github.com/apache/pulsar/pull/4818) 
+- [Broker] fix ns-isolation api to fetch policy for specific broker [#5314](https://github.com/apache/pulsar/pull/5314)
+- [Broker] external protocols not set to local broker data [#5749](https://github.com/apache/pulsar/pull/5479)
+- [Broker] Add handle exception KeeperException.BadVersionException  [#5563](https://github.com/apache/pulsar/pull/5563)
+- [Broker] Fix message deduplicate issue while using external sequence id with batch produce [#5491](https://github.com/apache/pulsar/pull/5491)
+- [Broker] Remove cursor while remove non-durable subscription [#5719](https://github.com/apache/pulsar/pull/5719) 
 
 #### Enhancements
 
-- Process requests asynchronously on some REST APIs [4765](https://github.com/apache/pulsar/pull/4765) [4778](https://github.com/apache/pulsar/pull/4778) [4795](https://github.com/apache/pulsar/pull/4795) 
-- Reduce char[] creation on jvm heap [#5055](https://github.com/apache/pulsar/pull/5055)
-- Fixes not owned bundles got selected when broker overloading [#5002](https://github.com/apache/pulsar/pull/5002)
-- [pulsar-broker] support update partition for global topic  [#5306](https://github.com/apache/pulsar/pull/5306)
-- Ensure the handling of PartitionMetadataRequest is async end-to-end [#5307](https://github.com/apache/pulsar/pull/5307)
-- [pulsar-broker] Introduce publish rate-limiting on topic [#3986](https://github.com/apache/pulsar/pull/3986)
-- Allow to automatically assign TCP ports when starting a broker  [#3555](https://github.com/apache/pulsar/pull/3555) 
-- [zookeeper] bump zookeeper to version 3.5.6 [#5043](https://github.com/apache/pulsar/pull/5043)
-- Validate topic name before creating partition/non partition topic via admin cli. [#5148](https://github.com/apache/pulsar/pull/5148)
-- Upgrade bk version to 4.10.0 [#5607](https://github.com/apache/pulsar/pull/5607)
-- [client] Introduce `batchingMaxBytes` setting in pulsar producer [#5045](https://github.com/apache/pulsar/pull/5045)
-- Add epoch for connection handler to handle create producer timeout.  [#5571](https://github.com/apache/pulsar/pull/5571)
-- Add publish rate limit for each broker to avoid OOM [#5710](https://github.com/apache/pulsar/pull/5710)
-- Add a broker tool for operations of a specific broker [#5768](https://github.com/apache/pulsar/pull/5768)
+- [Zookeeper] bump zookeeper to version 3.5.6 [#5043](https://github.com/apache/pulsar/pull/5043)
+- [BookKeeper] Upgrade bk version to 4.10.0 [#5607](https://github.com/apache/pulsar/pull/5607)
+- [Broker] Process requests asynchronously on some REST APIs [4765](https://github.com/apache/pulsar/pull/4765) [4778](https://github.com/apache/pulsar/pull/4778) [4795](https://github.com/apache/pulsar/pull/4795) 
+- [Broker] Fixes not owned bundles got selected when broker overloading [#5002](https://github.com/apache/pulsar/pull/5002)
+- [Broker] support update partition for global topic  [#5306](https://github.com/apache/pulsar/pull/5306)
+- [Broker] Ensure the handling of PartitionMetadataRequest is async end-to-end [#5307](https://github.com/apache/pulsar/pull/5307)
+- [Broker] Allow to automatically assign TCP ports when starting a broker  [#3555](https://github.com/apache/pulsar/pull/3555) 
+- [Broker] Introduce publish rate-limiting on topic [#3986](https://github.com/apache/pulsar/pull/3986)
+- [Broker] Add publish rate limit for each broker to avoid OOM [#5710](https://github.com/apache/pulsar/pull/5710)
+- [Client][Java] Introduce `batchingMaxBytes` setting in pulsar producer [#5045](https://github.com/apache/pulsar/pull/5045)
+- [Client][Java] Add epoch for connection handler to handle create producer timeout [#5571](https://github.com/apache/pulsar/pull/5571)
+- [Performance] Reduce char[] creation on jvm heap [#5055](https://github.com/apache/pulsar/pull/5055)
+- [CLI] Add a broker tool for operations of a specific broker [#5768](https://github.com/apache/pulsar/pull/5768)
+- [CLI] Validate topic name before creating partition/non partition topic via admin cli [#5148](https://github.com/apache/pulsar/pull/5148)
 
 #### Stats & Monitoring 
 
-- Added delayed messages in Prometheus when using namespace-level metrics aggregation [#4691](https://github.com/apache/pulsar/pull/4691)
-- Increasing Dashboard consumerName field to 256 varchar [4716](https://github.com/apache/pulsar/pull/4716)
-- [dashboard] integrate peek into messages page [#4966](https://github.com/apache/pulsar/pull/4966)
+- [Broker] Added delayed messages in Prometheus when using namespace-level metrics aggregation [#4691](https://github.com/apache/pulsar/pull/4691)
+- [Dashboard] Increasing Dashboard consumerName field to 256 varchar [4716](https://github.com/apache/pulsar/pull/4716)
+- [Dashboard] integrate peek into messages page [#4966](https://github.com/apache/pulsar/pull/4966)
 - ashboard] support parse batch entry [#4992](https://github.com/apache/pulsar/pull/4992)
 
 #### Security
