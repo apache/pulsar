@@ -20,7 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -30,10 +32,12 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -302,5 +306,74 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         } finally {
             consumer.close();
         }
+    }
+
+    @Test
+    public void testZeroQueueSizeMessageRedelivery() throws PulsarClientException {
+        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedelivery";
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+            .topic(topic)
+            .receiverQueueSize(0)
+            .subscriptionName("sub")
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1, TimeUnit.SECONDS)
+            .subscribe();
+
+        final int messages = 10;
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < messages; i++) {
+            producer.send(i);
+        }
+
+        Set<Integer> receivedMessages = new HashSet<>();
+        for (int i = 0; i < messages * 2; i++) {
+            receivedMessages.add(consumer.receive().getValue());
+        }
+
+        Assert.assertEquals(receivedMessages.size(), messages);
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testZeroQueueSizeMessageRedeliveryForListener() throws Exception {
+        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForListener";
+        final int messages = 10;
+        final CountDownLatch latch = new CountDownLatch(messages * 2);
+        Set<Integer> receivedMessages = new HashSet<>();
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+            .topic(topic)
+            .receiverQueueSize(0)
+            .subscriptionName("sub")
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1, TimeUnit.SECONDS)
+            .messageListener((MessageListener<Integer>) (c, msg) -> {
+                try {
+                    receivedMessages.add(msg.getValue());
+                } finally {
+                    latch.countDown();
+                }
+            })
+            .subscribe();
+
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < messages; i++) {
+            producer.send(i);
+        }
+
+        latch.await();
+        Assert.assertEquals(receivedMessages.size(), messages);
+
+        consumer.close();
+        producer.close();
     }
 }
