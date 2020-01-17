@@ -633,7 +633,7 @@ public class ServerCnx extends PulsarHandler {
             //  1. client is coming through a proxy
             //  2. we require to validate the original credentials
             //  3. no credentials were passed
-            if (service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+            if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
                 AuthenticationProvider originalAuthenticationProvider = getBrokerService()
                         .getAuthenticationService()
                         .getAuthenticationProvider(authMethod);
