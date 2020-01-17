@@ -82,6 +82,7 @@
 <li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a></li>
 <li><a href="#pulsar-perf"><code>pulsar-perf</code></a></li>
 <li><a href="#bookkeeper"><code>bookkeeper</code></a></li>
+<li><a href="#broker-tool"><code>broker-tool</code></a></li>
 </ul>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="ヘルプの表示"></a><a href="#ヘルプの表示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ヘルプの表示</h3>
@@ -305,7 +306,7 @@ $ pulsar command
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</td></tr>
 <tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td>org.apache.pulsar.client.impl.auth.AuthenticationSasl</td></tr>
-<tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
+<tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a> </br> <a href="ws://localhost:8080">ws://localhost:8080</a></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="produce"></a><a href="#produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
@@ -664,7 +665,29 @@ $ pulsar command
 <p>Example</p>
 <pre><code class="hljs css language-bash">$ bookkeeper shell bookiesanity
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/reference-terminology"><span class="arrow-prev">← </span><span>Terminology</span></a><a class="docs-next button" href="/docs/ja/next/pulsar-admin"><span>Pulsar Admin CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h2><a class="anchor" aria-hidden="true" id="broker-tool"></a><a href="#broker-tool" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker-tool</code></h2>
+<p>The <code>broker- tool</code> is used for operations on a specific broker.</p>
+<p>使い方</p>
+<pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">command</span>
+</code></pre>
+<p>Commands * <code>load-report</code> * <code>help</code></p>
+<p>Example Two ways to get more information about a command as below:</p>
+<pre><code class="hljs css language-bash">$ broker-tool <span class="hljs-built_in">help</span> <span class="hljs-built_in">command</span>
+$ broker-tool <span class="hljs-built_in">command</span> --<span class="hljs-built_in">help</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="load-report"></a><a href="#load-report" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>load-report</code></h3>
+<p>Collect the load report of a specific broker. The command is run on a broker, and used for troubleshooting why broker can’t collect right load report.</p>
+<p>オプション</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-i</code>, <code>--interval</code></td><td>Interval to collect load report, in milliseconds</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Display help information</td><td></td></tr>
+</tbody>
+</table>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/reference-terminology"><span class="arrow-prev">← </span><span>Terminology</span></a><a class="docs-next button" href="/docs/ja/next/pulsar-admin"><span>Pulsar Admin CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li><li><a href="#broker-tool"><code>broker-tool</code></a><ul class="toc-headings"><li><a href="#load-report"><code>load-report</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

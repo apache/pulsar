@@ -803,6 +803,22 @@ You can configure parameters if you do not want to use the default configuration
     
   If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
   
+  ### Sticky key range reader
+  
+  In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+  
+  The following is an example to create a sticky key range reader.
+  
+  ```java
+  pulsarClient.newReader()
+          .topic(topic)
+          .startMessageId(MessageId.earliest)
+          .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
+          .create();
+  ```
+  
+  Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+  
   ## Schema
   
   In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定schema的情况下构造 [生产者](#producers)，则生产者只能生成类型为 `byte[] `的消息。 The following is an example.

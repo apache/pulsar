@@ -4121,6 +4121,54 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/createMissedPartitions" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Create missed partitions of an existing partitioned topic.",
+        "description" : "This is a best-effort operation for create missed partitions of existing non-global partitioned-topic and does't throw any exceptions when create failed",
+        "operationId" : "createMissedPartitions",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant does not exist"
+          },
+          "409" : {
+            "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/internal-info" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
@@ -4545,7 +4593,7 @@
       },
       "post" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Increment partitons of an existing partitioned topic.",
+        "summary" : "Increment partitions of an existing partitioned topic.",
         "description" : "It only increments partitions of existing non-global partitioned-topic",
         "operationId" : "updatePartitionedTopic",
         "produces" : [ "application/json" ],
@@ -4934,7 +4982,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "401" : {
@@ -6124,6 +6172,54 @@
         }
       }
     },
+    "/persistent/{tenant}/{namespace}/{topic}/createMissedPartitions" : {
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Create missed partitions of an existing partitioned topic.",
+        "description" : "This is a best-effort operation for create missed partitions of existing non-global partitioned-topic and does't throw any exceptions when create failed",
+        "operationId" : "createMissedPartitions",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant does not exist"
+          },
+          "409" : {
+            "description" : "Partitioned topic does not exist"
+          },
+          "412" : {
+            "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
     "/persistent/{tenant}/{namespace}/{topic}/internal-info" : {
       "get" : {
         "tags" : [ "persistent topic" ],
@@ -6551,7 +6647,7 @@
       },
       "post" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Increment partitons of an existing partitioned topic.",
+        "summary" : "Increment partitions of an existing partitioned topic.",
         "description" : "It only increments partitions of existing non-global partitioned-topic",
         "operationId" : "updatePartitionedTopic",
         "produces" : [ "application/json" ],
@@ -8688,10 +8784,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9048,23 +9144,32 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9074,15 +9179,6 @@
         },
         "loadReportType" : {
           "type" : "string"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -9253,10 +9349,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9966,10 +10062,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
