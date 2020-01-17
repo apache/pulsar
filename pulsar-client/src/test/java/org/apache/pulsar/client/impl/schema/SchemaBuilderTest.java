@@ -85,7 +85,7 @@ public class SchemaBuilderTest {
     @Test
     public void testAllOptionalFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllOptionalFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllOptionalFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32).optional();
         recordSchemaBuilder.field("longField")
@@ -118,7 +118,7 @@ public class SchemaBuilderTest {
     @Test
     public void testAllPrimitiveFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")
@@ -149,7 +149,7 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")
@@ -188,7 +188,7 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByIndex() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")

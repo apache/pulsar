@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class BooleanSchema extends AbstractSchema<Boolean> {
 
-    public static BooleanSchema of() {
-        return INSTANCE;
-    }
-
     private static final BooleanSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
                 .setType(SchemaType.BOOLEAN)
                 .setSchema(new byte[0]);
         INSTANCE = new BooleanSchema();
+    }
+
+    public static BooleanSchema of() {
+        return INSTANCE;
     }
 
     @Override

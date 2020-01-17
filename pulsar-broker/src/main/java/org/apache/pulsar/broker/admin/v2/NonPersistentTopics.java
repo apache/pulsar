@@ -29,6 +29,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -189,8 +190,8 @@ public class NonPersistentTopics extends PersistentTopics {
                     topicName.getEncodedLocalName());
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+            // Sync data to all quorums and the observers
+            zkSync(path);
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
@@ -292,7 +293,12 @@ public class NonPersistentTopics extends PersistentTopics {
                     return null;
                 }
             }
-            asyncResponse.resume(topics);
+
+            final List<String> nonPersistentTopics =
+                topics.stream()
+                      .filter(name -> !TopicName.get(name).isPersistent())
+                      .collect(Collectors.toList());
+            asyncResponse.resume(nonPersistentTopics);
             return null;
         });
     }

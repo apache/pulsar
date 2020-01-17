@@ -487,11 +487,11 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
 
-        // 3. verify consumer get methods, to get 0 number of partitions and topics.
+        // 3. verify consumer get methods, to get 5 number of partitions and topics.
         assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 0);
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 0);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 5);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 5);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 2);
 
         // 4. create producer
         String messagePredicate = "my-message-" + key + "-";

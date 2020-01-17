@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.zookeeper.KeeperException;
@@ -31,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ZookeeperClientFactoryImpl implements ZooKeeperClientFactory {
-    public static final Charset ENCODING_SCHEME = Charset.forName("UTF-8");
+    public static final Charset ENCODING_SCHEME = StandardCharsets.UTF_8;
 
     @Override
     public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType, int zkSessionTimeoutMillis) {

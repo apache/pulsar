@@ -102,6 +102,21 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
     }
 
     @Override
+    public void prepareInsertEvent() throws Exception {
+        // pass
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        // pass
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+        // pass
+    }
+
+    @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
         KafkaProducer<String, String> producer = new KafkaProducer<>(
                 ImmutableMap.of(

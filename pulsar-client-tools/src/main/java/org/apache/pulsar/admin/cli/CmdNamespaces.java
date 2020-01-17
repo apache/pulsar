@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -535,11 +536,15 @@ public class CmdNamespaces extends CmdBase {
                 "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+        
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setDispatchRate(namespace,
-                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -607,11 +612,15 @@ public class CmdNamespaces extends CmdBase {
             "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setSubscriptionDispatchRate(namespace,
-                new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -1021,6 +1030,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--size", "-s" },
                    description = "Maximum number of bytes stored in the pulsar cluster for a topic before data will"
                                  + " start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100)."
+                                 + " -1 falls back to the cluster's namespace default."
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
@@ -1081,7 +1091,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace", hidden = true)
     private class GetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1094,7 +1104,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace", hidden = true)
     private class SetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1127,6 +1137,77 @@ public class CmdNamespaces extends CmdBase {
                 throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
             }
             admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, strategy);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the schema compatibility strategy for a namespace")
+    private class GetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            System.out.println(admin.namespaces().getSchemaCompatibilityStrategy(namespace)
+                    .toString().toUpperCase());
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema compatibility strategy for a namespace")
+    private class SetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--compatibility", "-c" },
+                description = "Compatibility level required for new schemas created via a Producer. "
+                        + "Possible values (FULL, BACKWARD, FORWARD, " +
+                        "UNDEFINED, BACKWARD_TRANSITIVE, " +
+                        "FORWARD_TRANSITIVE, FULL_TRANSITIVE, " +
+                        "ALWAYS_INCOMPATIBLE," +
+                        "ALWAYS_COMPATIBLE).")
+        private String strategyParam = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
+            admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.valueOf(strategyStr));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the namespace whether allow auto update schema")
+    private class GetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            System.out.println(admin.namespaces().getIsAllowAutoUpdateSchema(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the namespace whether allow auto update schema")
+    private class SetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable schema validation enforced")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setIsAllowAutoUpdateSchema(namespace, enable);
         }
     }
 
@@ -1255,6 +1336,12 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
+
+        jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+        jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
+
+        jcommander.addCommand("get-is-allow-auto-update-schema", new GetIsAllowAutoUpdateSchema());
+        jcommander.addCommand("set-is-allow-auto-update-schema", new SetIsAllowAutoUpdateSchema());
 
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());

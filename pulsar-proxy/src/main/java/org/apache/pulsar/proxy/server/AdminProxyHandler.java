@@ -214,7 +214,7 @@ class AdminProxyHandler extends ProxyServlet {
             if (config.isTlsEnabledWithBroker()) {
                 try {
                     X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(config.getTlsTrustCertsFilePath());
+                        .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
                     AuthenticationDataProvider authData = auth.getAuthData();
@@ -232,7 +232,8 @@ class AdminProxyHandler extends ProxyServlet {
                         );
                     }
 
-                    SslContextFactory contextFactory = new SslContextFactory();
+
+                    SslContextFactory contextFactory = new SslContextFactory.Client(true);
                     contextFactory.setSslContext(sslCtx);
 
                     return new JettyHttpClient(contextFactory);

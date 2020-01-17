@@ -474,4 +474,8 @@ void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
     callback(ResultOperationNotSupported);
 }
 
+void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    callback(ResultOperationNotSupported);
+}
+
 }  // namespace pulsar

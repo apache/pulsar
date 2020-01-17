@@ -266,7 +266,7 @@ public class NamespaceService {
      * @throws PulsarServerException
      * @throws Exception
      */
-    private boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
+    public boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
 
         String myUrl = pulsar.getSafeBrokerServiceUrl();
 
@@ -839,10 +839,10 @@ public class NamespaceService {
 
     private boolean isTopicOwned(TopicName topicName) throws Exception {
         Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
-        if (!bundle.isPresent()) {
-            return false;
-        } else {
+        if (bundle.isPresent()) {
             return ownershipCache.getOwnedBundle(bundle.get()) != null;
+        } else {
+            return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
         }
     }
 

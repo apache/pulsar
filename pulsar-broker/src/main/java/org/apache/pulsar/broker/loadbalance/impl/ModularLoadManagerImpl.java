@@ -29,7 +29,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -869,7 +868,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             updateLocalBrokerData();
             if (needBrokerDataUpdate()) {
                 localData.setLastUpdate(System.currentTimeMillis());
-                zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+
+                try {
+                    zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+                } catch (KeeperException.NoNodeException e) {
+                    ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
+                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                }
 
                 // Clear deltas.
                 localData.getLastBundleGains().clear();

@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -516,7 +518,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
             .startMessageId(MessageId.earliest).create()) {
@@ -735,5 +737,33 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         reader.close();
         producer.close();
+    }
+
+    @Test
+    public void testReaderBuilderConcurrentCreate() throws Exception {
+        String topicName = "persistent://my-property/my-ns/testReaderBuilderConcurrentCreate_";
+        int numTopic = 30;
+        ReaderBuilder<byte[]> builder = pulsarClient.newReader().startMessageId(MessageId.earliest);
+
+        List<CompletableFuture<Reader<byte[]>>> readers = Lists.newArrayListWithExpectedSize(numTopic);
+        List<Producer<byte[]>> producers = Lists.newArrayListWithExpectedSize(numTopic);
+        // create producer firstly
+        for (int i = 0; i < numTopic; i++) {
+            producers.add(pulsarClient.newProducer()
+                .topic(topicName + i)
+                .create());
+        }
+
+        // create reader concurrently
+        for (int i = 0; i < numTopic; i++) {
+            readers.add(builder.clone().topic(topicName + i).createAsync());
+        }
+
+        // verify readers config are different for topic name.
+        for (int i = 0; i < numTopic; i++) {
+            assertEquals(readers.get(i).get().getTopic(), topicName + i);
+            readers.get(i).get().close();
+            producers.get(i).close();
+        }
     }
 }

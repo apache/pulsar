@@ -24,7 +24,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"github.com/apache/pulsar/pulsar-function-go/pb"
 )
@@ -69,8 +69,13 @@ func (gi *goInstance) startFunction(function function) error {
 		return err
 	}
 
+	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)
+	idleTimer := time.NewTimer(idleDuration)
+	defer idleTimer.Stop()
+
 CLOSE:
 	for {
+		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -94,7 +99,7 @@ CLOSE:
 
 			gi.processResult(msgInput, output)
 
-		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)):
+		case <-idleTimer.C:
 			close(channel)
 			break CLOSE
 		}
@@ -107,6 +112,7 @@ CLOSE:
 
 func (gi *goInstance) setupClient() error {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
+
 		URL: gi.context.instanceConf.pulsarServiceURL,
 	})
 	if err != nil {
@@ -128,12 +134,9 @@ func (gi *goInstance) setupProducer() (err error) {
 			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
-			BlockIfQueueFull:        true,
-			Batching:                true,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
 			// set send timeout to be infinity to prevent potential deadlock with consumer
 			// that might happen when consumer is blocked due to unacked messages
-			SendTimeout: 0,
 		})
 		if err != nil {
 			log.Errorf("create producer error:%s", err.Error())
@@ -234,13 +237,13 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		asyncMsg := pulsar.ProducerMessage{
 			Payload: output,
 		}
-		// Attempt to send the message asynchronously and handle the response
-		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
-			if e != nil {
+		// Attempt to send the message and handle the response
+		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID, message *pulsar.ProducerMessage, err error) {
+			if err != nil {
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
 				}
-				log.Fatal(e)
+				log.Fatal(err)
 			} else if autoAck && !atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
@@ -271,7 +274,7 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 func (gi *goInstance) setupLogHandler() error {
 	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
 		gi.context.logAppender = NewLogAppender(
-			gi.client,                                         //pulsar client
+			gi.client, //pulsar client
 			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
 			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
 				gi.context.instanceConf.funcDetails.Namespace,
@@ -283,6 +286,11 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
+	// Clear StrEntry regardless gi.context.logAppender is set or not
+	defer func() {
+		log.StrEntry = nil
+	}()
+
 	if gi.context.logAppender == nil {
 		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return

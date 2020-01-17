@@ -35,14 +35,13 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.chrono.ISOChronology;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -187,7 +186,7 @@ public class SchemaTest extends PulsarTestSuite {
         AvroLogicalType messageForSend = AvroLogicalType.builder()
                 .decimal(new BigDecimal("12.34"))
                 .timestampMicros(System.currentTimeMillis() * 1000)
-                .timestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()))
+                .timestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"))
                 .timeMillis(LocalTime.now())
                 .timeMicros(System.currentTimeMillis() * 1000)
                 .date(LocalDate.now())
@@ -268,7 +267,6 @@ public class SchemaTest extends PulsarTestSuite {
         List<Schema> schemas = new ArrayList<>();
 
         schemas.add(Schema.STRING);
-        schemas.add(Schema.BYTES);
         schemas.add(Schema.INT8);
         schemas.add(Schema.INT16);
         schemas.add(Schema.INT32);
@@ -279,35 +277,19 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.add(Schema.DATE);
         schemas.add(Schema.TIME);
         schemas.add(Schema.TIMESTAMP);
-        schemas.add(null);
 
-
-        schemas.stream().forEach(schemaProducer -> {
-            schemas.stream().forEach(schemaConsumer -> {
+        schemas.forEach(schemaProducer -> {
+            schemas.forEach(schemaConsumer -> {
                 try {
                     String topicName = schemaProducer.getSchemaInfo().getName() + schemaConsumer.getSchemaInfo().getName();
-                    if (schemaProducer == null) {
-                        client.newProducer()
-                                .topic(topicName)
-                                .create().close();
-                    } else {
                         client.newProducer(schemaProducer)
                                 .topic(topicName)
                                 .create().close();
-                    }
 
-                    if (schemaConsumer == null) {
-                        client.newConsumer()
-                                .topic(topicName)
-                                .subscriptionName("test")
-                                .subscribe().close();
-                    } else {
                         client.newConsumer(schemaConsumer)
                                 .topic(topicName)
                                 .subscriptionName("test")
                                 .subscribe().close();
-                    }
-
                     assertEquals(schemaProducer.getSchemaInfo().getType(),
                             schemaConsumer.getSchemaInfo().getType());
 

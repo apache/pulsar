@@ -1603,6 +1603,7 @@ Subcommands
 * `offload`
 * `offload-status`
 * `create-partitioned-topic`
+* `create-missed-partitions`
 * `delete-partitioned-topic`
 * `create`
 * `get-partitioned-topic-metadata`
@@ -1703,6 +1704,15 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
+
+### `create-missed-partitions`
+Try to create partitions for partitioned topic. The partitions of partition topic has to be created, 
+can be used by repair partitions when topic auto creation is disabled
+
+Usage
+```bash
+$ pulsar-admin topics create-missed-partitions persistent://tenant/namespace/topic
+```
 
 ### `delete-partitioned-topic`
 Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
@@ -1874,6 +1884,9 @@ Usage
 $ pulsar-admin topics stats topic
 ```
 
+> Note   
+> The unit of `storageSize` and `averageMsgSize` is Byte.
+
 ### `stats-internal`
 Get the internal stats for the topic
 
@@ -1978,7 +1991,7 @@ Options
 
 
 ### `reset-cursor`
-Reset position for subscription to closest to timestamp
+Reset position for subscription to a position that is closest to timestamp or messageId.
 
 Usage
 ```bash
@@ -1986,10 +1999,12 @@ $ pulsar-admin topics reset-cursor topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|Subscription to reset position on||
-|`-t`, `--time`|The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
+|`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
 
 

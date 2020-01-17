@@ -63,8 +63,6 @@ public class InfluxDBGenericRecordSinkTest {
      * A Simple class to test InfluxDB class
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Cpu {
         private String measurement;
         private String model;

@@ -448,16 +448,18 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             Set<AuthAction> permittedActions = permissionData.getValue();
 
             // Prefix match
-            if (permittedRole.charAt(permittedRole.length() - 1) == '*'
-                    && checkedRole.startsWith(permittedRole.substring(0, permittedRole.length() - 1))
-                    && permittedActions.contains(checkedAction)) {
-                return true;
-            }
+            if (checkedRole != null) {
+                if (permittedRole.charAt(permittedRole.length() - 1) == '*'
+                        && checkedRole.startsWith(permittedRole.substring(0, permittedRole.length() - 1))
+                        && permittedActions.contains(checkedAction)) {
+                    return true;
+                }
 
-            // Suffix match
-            if (permittedRole.charAt(0) == '*' && checkedRole.endsWith(permittedRole.substring(1))
-                    && permittedActions.contains(checkedAction)) {
-                return true;
+                // Suffix match
+                if (permittedRole.charAt(0) == '*' && checkedRole.endsWith(permittedRole.substring(1))
+                        && permittedActions.contains(checkedAction)) {
+                    return true;
+                }
             }
         }
         return false;
