@@ -1096,7 +1096,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void checkGC(int gcIntervalInSeconds) {
-        forEachTopic(topic -> topic.checkGC(gcIntervalInSeconds));
+        forEachTopic(topic -> topic.checkGC(gcIntervalInSeconds, pulsar.getConfiguration().getBrokerDeleteInactiveTopicsMode()));
     }
 
     public void checkMessageExpiry() {

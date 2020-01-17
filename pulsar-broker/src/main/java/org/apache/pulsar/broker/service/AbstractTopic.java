@@ -134,6 +134,16 @@ public abstract class AbstractTopic implements Topic {
         return foundLocal.get();
     }
 
+    protected boolean hasLocalConsumers() {
+        AtomicBoolean foundLocal = new AtomicBoolean(false);
+        getSubscriptions().values().forEach(sub -> {
+            if (sub.getConsumers() != null && sub.getConsumers().size() > 0) {
+                foundLocal.set(true);
+            }
+        });
+        return foundLocal.get();
+    }
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("topic", topic).toString();
