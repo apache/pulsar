@@ -49,7 +49,7 @@ jobs:
 
       - name: Build
         run: |
-          cd pulsar-fiunction-go
+          cd pulsar-function-go
           go builld ./pf
 
       - name: CheckStyle

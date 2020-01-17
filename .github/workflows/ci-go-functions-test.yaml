@@ -43,7 +43,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: run c++ tests
+      - name: run tests
         run: |
           cd pulsar-function-go
-          go test -v ./pf
+          go test -v ./pf ./conf
