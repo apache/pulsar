@@ -257,17 +257,11 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 
 // ackInputMessage doesn't produce any result or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
-	if err := gi.consumers[inputMessage.Topic()].Ack(inputMessage); err != nil {
-		log.Errorf("ack input messages error:%s", err.Error())
-		return
-	}
+	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
-	if err := gi.consumers[inputMessage.Topic()].Nack(inputMessage); err != nil {
-		log.Errorf("nack input messages error:%s", err.Error())
-		return
-	}
+	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
