@@ -50,7 +50,7 @@ jobs:
       - name: Build
         run: |
           cd pulsar-function-go
-          go builld ./pf
+          go build ./pf
 
       - name: CheckStyle
         run: |
