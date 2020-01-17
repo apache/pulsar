@@ -196,7 +196,7 @@ $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name myfunc \
-  --trigger-value "hello world"
+  --triggerValue "hello world"
 ```
 
 The consumer listening on the output topic produces something as follows in the log.
