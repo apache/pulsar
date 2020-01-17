@@ -40,6 +40,10 @@ yarn build
 
 node ./scripts/replace.js
 
+# Generate document for command line tools.
+${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
+cd ${ROOT_DIR}/site2/website
+
 rm -rf ${ROOT_DIR}/generated-site/content
 mkdir -p ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
