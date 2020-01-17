@@ -24,12 +24,20 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.KeySharedPolicy;
@@ -112,13 +120,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 
 @UtilityClass
 @Slf4j
