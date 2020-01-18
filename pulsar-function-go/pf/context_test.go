@@ -31,13 +31,9 @@ func TestContext(t *testing.T) {
 	defer cancel()
 	fc := NewFuncContext()
 	ctx = NewContext(ctx, fc)
-
-	ctx = context.WithValue(ctx, "pulsar", "function")
-
 	if resfc, ok := FromContext(ctx); ok {
 		assert.Equal(t, "1.0.0", resfc.GetFuncVersion())
 		assert.Equal(t, "pulsar-function", resfc.GetFuncID())
 		assert.Equal(t, "go-function", resfc.GetFuncName())
 	}
-	assert.Equal(t, "function", ctx.Value("pulsar"))
 }

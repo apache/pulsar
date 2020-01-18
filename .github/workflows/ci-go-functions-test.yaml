@@ -46,4 +46,4 @@ jobs:
       - name: run tests
         run: |
           cd pulsar-function-go
-          go test -v ./pf ./conf
+          go test -v $(go list ./... | grep -v examples)
