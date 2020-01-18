@@ -40,7 +40,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     public void testDeleteWhenNoSubscriptions() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -73,7 +72,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     public void testDeleteWhenNoBacklogs() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoBacklogs";

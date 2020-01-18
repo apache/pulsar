@@ -1600,10 +1600,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (!subscriptions.isEmpty()) {
                     return true;
                 }
+                break;
             case delete_when_subscriptions_caught_up:
-                if (hasLocalConsumers() || hasBacklogs()) {
+                if (hasBacklogs()) {
                     return true;
                 }
+                break;
         }
         if (TopicName.get(topic).isGlobal()) {
             // no local producers

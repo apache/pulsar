@@ -267,10 +267,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Max duration of topic inactivity in seconds, default is 60s\n"
+        doc = "Max duration of topic inactivity in seconds, default is not present\n"
+        + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
         + "Topics that are inactive for longer than this value will be deleted"
     )
-    private int brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = 60;
+    private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1465,6 +1466,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isDefaultTopicTypePartitioned() {
         return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+    }
+
+    public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
+        if (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds == null) {
+            return brokerDeleteInactiveTopicsFrequencySeconds;
+        } else {
+            return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
+        }
     }
 
     enum TopicType {
