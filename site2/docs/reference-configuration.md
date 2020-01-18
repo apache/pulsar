@@ -122,11 +122,13 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
+|dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
+|dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
-|backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
+|backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit | -1 |
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
 |allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
@@ -225,6 +227,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
+|managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
 |managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000|
 |managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)|
 |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  ||
@@ -361,11 +364,18 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientReorderReadSequenceEnabled|    |false|
 |bookkeeperClientIsolationGroups|||
+|bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||
+|bookkeeperClientMinAvailableBookiesInIsolationGroups| Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.  ||
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
 |managedLedgerCacheSizeMB|    |1024|
+|managedLedgerCacheCopyEntries| Whether we should make a copy of the entry payloads when inserting in cache| false|
 |managedLedgerCacheEvictionWatermark|   |0.9|
+|managedLedgerCacheEvictionFrequency| Configure the cache eviction frequency for the managed ledger cache (evictions/sec) | 100.0 |
+|managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 |
+|managedLedgerCursorBackloggedThreshold| Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive. | 1000|
+|managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
 |managedLedgerDefaultMarkDeleteRateLimit|   |0.1|
 |managedLedgerMaxEntriesPerLedger|    |50000|
 |managedLedgerMinLedgerRolloverTimeMinutes|   |10|
