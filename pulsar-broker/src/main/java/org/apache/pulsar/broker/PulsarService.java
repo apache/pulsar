@@ -56,11 +56,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -68,6 +66,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
@@ -157,7 +156,6 @@ public class PulsarService implements AutoCloseable {
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
-    private LocalZooKeeperConnectionService ledgerZooKeeperConnectionProvider = null;
     private Compactor compactor;
 
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
@@ -266,14 +264,8 @@ public class PulsarService implements AutoCloseable {
             if (globalZkCache != null) {
                 globalZkCache.close();
                 globalZkCache = null;
-                if (localZooKeeperConnectionProvider != null) {
-                    localZooKeeperConnectionProvider.close();
-                    localZooKeeperConnectionProvider = null;
-                }
-                if (ledgerZooKeeperConnectionProvider != null) {
-                    ledgerZooKeeperConnectionProvider.close();
-                    ledgerZooKeeperConnectionProvider = null;
-                }
+                localZooKeeperConnectionProvider.close();
+                localZooKeeperConnectionProvider = null;
             }
 
             configurationCacheService = null;
@@ -407,23 +399,7 @@ public class PulsarService implements AutoCloseable {
             this.startZkCacheService();
 
             this.bkClientFactory = newBookKeeperClientFactory();
-
-            // Initialize BookKeeper ledger storage metadata
-            if (!isLedgerSeparated()) {
-                ServerConfiguration bkConf = new ServerConfiguration();
-                bkConf.setZkServers(config.getZookeeperServers());
-                bkConf.setZkTimeout(new Long(config.getZooKeeperSessionTimeoutMillis()).intValue());
-                if (getZkClient().exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
-                    throw new IOException("Failed to initialize BookKeeper metadata");
-                }
-            } else {
-                ledgerZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
-                    config.getBookkeeperLedgersStore(), config.getZooKeeperSessionTimeoutMillis());
-                ledgerZooKeeperConnectionProvider.start(shutdownService);
-            }
-
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(bkClientFactory, this);
+            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
 
             this.brokerService = new BrokerService(this);
 
@@ -746,32 +722,33 @@ public class PulsarService implements AutoCloseable {
         return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
     }
 
-    public boolean isLedgerSeparated() {
-        boolean separated = false;
-        if (StringUtils.isNotBlank(config.getBookkeeperLedgersStore())) {
-            separated = true;
+    public String getMetadataServiceUri() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        // init bookkeeper metadata service uri
+        String metadataServiceUri = null;
+        try {
+            String zkServers = this.getConfiguration().getZookeeperServers();
+            String ledgerManagerType = bkConf.getLedgerManagerLayoutStringFromFactoryClass();
+            metadataServiceUri = String.format("zk+%s://%s%s", ledgerManagerType,
+                zkServers.replace(",", ";"), "/ledgers");
+        } catch (ConfigurationException e) {
+            LOG.error("Failed to set bookkeeper metadata service uri", e);
         }
-        return separated;
-    }
-
-    public ZooKeeper getLedgersZkClient() throws IOException {
-        return this.ledgerZooKeeperConnectionProvider.getLocalZooKeeper();
+        return metadataServiceUri;
     }
 
     public InternalConfigurationData getInternalConfigurationData() {
-        ClientConfiguration bkConf = new ClientConfiguration();
-        String zookeeperServers = this.getConfiguration().getZookeeperServers();
-        String zkLedgersServers = zookeeperServers;
-        String zkLedgersRootPath = bkConf.getZkLedgersRootPath();
-        if (isLedgerSeparated()) {
-            zkLedgersServers = this.getConfiguration().getBookkeeperLedgersStore();
-            zkLedgersRootPath = this.getConfiguration().getBookkeeperLedgersRootPath();
+
+        String metadataServiceUri = getMetadataServiceUri();
+
+        if (StringUtils.isNotBlank(config.getBookkeeperServiceUri())) {
+            metadataServiceUri = this.getConfiguration().getBookkeeperServiceUri();
         }
+
         return new InternalConfigurationData(
-            zookeeperServers,
+            this.getConfiguration().getZookeeperServers(),
             this.getConfiguration().getConfigurationStoreServers(),
-            zkLedgersServers,
-            zkLedgersRootPath,
+            metadataServiceUri,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
@@ -1214,8 +1191,8 @@ public class PulsarService implements AutoCloseable {
                 // initializing dlog namespace for function worker
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace with zookeeper {} at ledgers store {} for storing function packages",
-                    internalConf.getZookeeperServers(), internalConf.getLedgersStoreServers(), ioe);
+                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
+                    internalConf.getZookeeperServers(), internalConf.getMetadataServiceUri(), ioe);
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");

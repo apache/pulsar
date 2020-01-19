@@ -30,6 +30,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +46,8 @@ public class ManagedLedgerClientFactory implements Closeable {
     private final BookKeeper defaultBkClient;
     private final Map<EnsemblePlacementPolicyConfig, BookKeeper> bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
 
-    public ManagedLedgerClientFactory(BookKeeperClientFactory bookkeeperProvider, PulsarService pulsar) throws Exception {
-        ServiceConfiguration conf = pulsar.getConfiguration();
+    public ManagedLedgerClientFactory(ServiceConfiguration conf, ZooKeeper zkClient,
+            BookKeeperClientFactory bookkeeperProvider) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -56,22 +58,22 @@ public class ManagedLedgerClientFactory implements Closeable {
         managedLedgerFactoryConfig.setThresholdBackloggedCursor(conf.getManagedLedgerCursorBackloggedThreshold());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
 
-        this.defaultBkClient = bookkeeperProvider.create(pulsar, Optional.empty(), null);
+        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, Optional.empty(), null);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
-            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
+                EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
             BookKeeper bkClient = null;
             // find or create bk-client in cache for a specific ensemblePlacementPolicy
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
                     try {
-                        return bookkeeperProvider.create(pulsar,
-                            Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                            ensemblePlacementPolicyConfig.getProperties());
+                        return bookkeeperProvider.create(conf, zkClient,
+                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                                ensemblePlacementPolicyConfig.getProperties());
                     } catch (Exception e) {
                         log.error("Failed to initialize bk-client for policy {}, properties {}",
-                            ensemblePlacementPolicyConfig.getPolicyClass(),
-                            ensemblePlacementPolicyConfig.getProperties(), e);
+                                ensemblePlacementPolicyConfig.getPolicyClass(),
+                                ensemblePlacementPolicyConfig.getProperties(), e);
                     }
                     return this.defaultBkClient;
                 });
@@ -79,7 +81,7 @@ public class ManagedLedgerClientFactory implements Closeable {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(bkFactory, pulsar.getZkClient(), managedLedgerFactoryConfig);
+        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

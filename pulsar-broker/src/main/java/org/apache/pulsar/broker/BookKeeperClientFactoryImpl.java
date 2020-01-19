@@ -53,28 +53,20 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     private final AtomicReference<ZooKeeperCache> zkCache = new AtomicReference<>();
 
     @Override
-    public BookKeeper create(PulsarService pulsar,
-            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-            Map<String, Object> properties) throws IOException {
-        ServiceConfiguration conf = pulsar.getConfiguration();
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass, Map<String, Object> properties) throws IOException {
         ClientConfiguration bkConf = createBkClientConfiguration(conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
         }
-
-        // Choose which zookeeper client to use
-        ZooKeeper pulsarZkClient = pulsar.getZkClient();
-        ZooKeeper ledgerZkClient = pulsar.isLedgerSeparated() ? pulsar.getLedgersZkClient() : pulsarZkClient;
-
         if (ensemblePlacementPolicyClass.isPresent()) {
-            setEnsemblePlacementPolicy(bkConf, conf, pulsarZkClient, ensemblePlacementPolicyClass.get());
+            setEnsemblePlacementPolicy(bkConf, conf, zkClient, ensemblePlacementPolicyClass.get());
         } else {
-            setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, pulsarZkClient);
+            setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, zkClient);
         }
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .zk(ledgerZkClient)
                     .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
@@ -114,9 +106,12 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
-        if (StringUtils.isNotBlank(conf.getBookkeeperLedgersStore())) {
-            bkConf.setZkServers(conf.getBookkeeperLedgersStore());
-            bkConf.setZkLedgersRootPath(conf.getBookkeeperLedgersRootPath());
+        if (StringUtils.isNotBlank(conf.getBookkeeperServiceUri())) {
+            bkConf.setMetadataServiceUri(conf.getBookkeeperServiceUri());
+        } else {
+            PulsarService pulsar = new PulsarService(conf);
+            String metadataServiceUri = pulsar.getMetadataServiceUri();
+            bkConf.setMetadataServiceUri(metadataServiceUri);
         }
 
         if (conf.isBookkeeperClientHealthCheckEnabled()) {

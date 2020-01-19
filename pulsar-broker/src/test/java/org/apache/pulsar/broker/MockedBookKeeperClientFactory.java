@@ -54,7 +54,7 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(PulsarService pulsar,
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
             Map<String, Object> properties) throws IOException {
         return mockedBk;
