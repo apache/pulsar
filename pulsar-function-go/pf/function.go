@@ -18,7 +18,8 @@
 //
 
 //
-// This file borrows some of the implementations from {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
+// This file borrows some of the implementations from
+// {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
 //  - errorHandler
 //  - validateArguments
 //  - validateReturns
@@ -76,17 +77,20 @@ func validateArguments(handler reflect.Type) (bool, error) {
 
 func validateReturns(handler reflect.Type) error {
 	errorType := reflect.TypeOf((*error)(nil)).Elem()
-	if handler.NumOut() > 2 {
+
+	switch {
+	case handler.NumOut() > 2:
 		return fmt.Errorf("function may not return more than two values")
-	} else if handler.NumOut() > 1 {
+	case handler.NumOut() > 1:
 		if !handler.Out(1).Implements(errorType) {
 			return fmt.Errorf("function returns two values, but the second does not implement error")
 		}
-	} else if handler.NumOut() == 1 {
+	case handler.NumOut() == 1:
 		if !handler.Out(0).Implements(errorType) {
 			return fmt.Errorf("function returns a single value, but it does not implement error")
 		}
 	}
+
 	return nil
 }
 
