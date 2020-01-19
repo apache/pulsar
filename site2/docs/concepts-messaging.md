@@ -55,6 +55,8 @@ If batching is enabled, the producer will accumulate and send a batch of message
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
 
+A consumer pulls messages from a broker. There is a queue at the consumer side to receive messages pushed from the broker. The queue size is configurable by [`receiverQueueSize`](client-libraries-java.md#configure-consumer) (default: 1000). Each time `consumer.receive()` is called, a message is dequeued from the buffer. If the requested message size of a consumer is larger than the queue size, after all messages in the queue are consumed, messages are delivered to the consumer immediately once there comes new messages in the queue.  
+
 ### Receive modes
 
 Messages can be received from [brokers](reference-terminology.md#broker) either synchronously (sync) or asynchronously (async).
@@ -165,7 +167,7 @@ A namespace is a logical nomenclature within a tenant. A tenant can create multi
 
 ## Subscription modes
 
-A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
+A subscription is a named configuration rule that determines how messages are delivered to consumers. There are four available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These modes are illustrated in the figure below.
 
 ![Subscription modes](assets/pulsar-subscription-modes.png)
 
