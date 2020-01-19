@@ -69,7 +69,7 @@ func (gi *goInstance) startFunction(function function) error {
 		return err
 	}
 
-	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)
+	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdle)
 	idleTimer := time.NewTimer(idleDuration)
 	defer idleTimer.Stop()
 
@@ -238,7 +238,8 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 			Payload: output,
 		}
 		// Attempt to send the message and handle the response
-		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID, message *pulsar.ProducerMessage, err error) {
+		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
+			message *pulsar.ProducerMessage, err error) {
 			if err != nil {
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
@@ -248,10 +249,8 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				gi.ackInputMessage(msgInput)
 			}
 		})
-	} else {
-		if autoAck && atLeastOnce {
-			gi.ackInputMessage(msgInput)
-		}
+	} else if autoAck && atLeastOnce {
+		gi.ackInputMessage(msgInput)
 	}
 }
 
