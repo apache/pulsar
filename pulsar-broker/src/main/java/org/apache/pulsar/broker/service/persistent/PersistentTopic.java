@@ -154,6 +154,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    public long delayedDeliveryTickTimeMillis;
+    public boolean delayedDeliveryEnabled;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     protected final MessageDeduplication messageDeduplication;
@@ -1744,6 +1746,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
+
+        delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
+        delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
         
