@@ -255,6 +255,7 @@ name you configured in <code>broker.conf</code>.</p>
 <tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this topic owned by this broker (bytes).</td></tr>
 <tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this topic owned by this broker (messages).</td></tr>
 <tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this topic offloaded to the tiered storage (bytes).</td></tr>
+<tr><td>pulsar_storage_backlog_quota_limit</td><td>Gauge</td><td>The total amount of the data in this topic that limit the backlog quota (bytes).</td></tr>
 <tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this topic (message batches / second).</td></tr>
 <tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this topic (message batches / second).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
