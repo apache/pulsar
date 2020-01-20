@@ -21,14 +21,15 @@ package pf
 
 import (
 	"context"
+	"log"
+	"net"
+	"testing"
+
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
-	"log"
-	"net"
-	"testing"
 )
 
 const bufSize = 1024 * 1024
