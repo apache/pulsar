@@ -207,8 +207,8 @@ public abstract class BookKeeperClusterTestCase {
         tmpDirs.add(f);
         f.delete();
         f.mkdir();
-
-        int port = PortManager.nextFreePort();
+        
+        int port = 0;
         return newServerConfiguration(port, zkUtil.getZooKeeperConnectString(), f, new File[] { f }, ledgerRootPath);
     }
 

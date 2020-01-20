@@ -67,7 +67,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             zkServers = this.getAdvertisedAddress();
         } else if (isBlank(config.getAdvertisedAddress())) {
             // Use advertised address as local hostname
-            config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+            config.setAdvertisedAddress("localhost");
         } else {
             // Use advertised address from config file
         }
