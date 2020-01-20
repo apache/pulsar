@@ -31,14 +31,13 @@ import (
 )
 
 type goInstance struct {
-	function  function
-	context   *FunctionContext
-	producer  pulsar.Producer
-	consumers map[string]pulsar.Consumer
-	client    pulsar.Client
+	function          function
+	context           *FunctionContext
+	producer          pulsar.Producer
+	consumers         map[string]pulsar.Consumer
+	client            pulsar.Client
 	lastHealthCheckTs int64
 }
-
 
 // newGoInstance init goInstance and init function context
 func newGoInstance() *goInstance {
@@ -51,19 +50,19 @@ func newGoInstance() *goInstance {
 	return goInstance
 }
 
-func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker){
+func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {
 	log.Info("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := gi.context.GetMaxIdleTime()
 	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTs
-	if (timeSinceLastCheck) > (maxIdleTime)  {
+	if (timeSinceLastCheck) > (maxIdleTime) {
 		log.Error("Haven't received health check from spawner in a while. Stopping instance...")
 		gi.close()
 		tkr.Stop()
 	}
 }
 
-func (gi *goInstance) startScheduler(){
+func (gi *goInstance) startScheduler() {
 	if gi.context.instanceConf.expectedHealthCheckInterval > 0 {
 		log.Info("Starting Scheduler")
 		go func() {
@@ -80,8 +79,8 @@ func (gi *goInstance) startScheduler(){
 func (gi *goInstance) startFunction(function function) error {
 	gi.function = function
 
-	// start proccess spawner health check timer
-	now := time.Now();
+	// start process spawner health check timer
+	now := time.Now()
 	gi.lastHealthCheckTs = now.UnixNano()
 
 	gi.startScheduler()
@@ -107,11 +106,11 @@ func (gi *goInstance) startFunction(function function) error {
 		return err
 	}
 
-	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)
+	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdle)
 	idleTimer := time.NewTimer(idleDuration)
 	defer idleTimer.Stop()
 
-	servicer := InstanceControlServicer{goInstance:gi}
+	servicer := InstanceControlServicer{goInstance: gi}
 	servicer.serve(gi)
 
 CLOSE:
@@ -364,7 +363,6 @@ func (gi *goInstance) close() {
 	}
 }
 
-
 func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
 	now := time.Now()
 	gi.lastHealthCheckTs = now.UnixNano()
@@ -377,11 +375,11 @@ func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 }
 
 func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
- return nil // Not implemented until we add the statistics features
+	return nil // Not implemented until we add the statistics features
 }
 
 func (gi *goInstance) resetMetrics() *empty.Empty {
- return nil // Not implemented until we add the statistics features
+	return nil // Not implemented until we add the statistics features
 }
 
 func (gi *goInstance) getMetrics() *pb.MetricsData {

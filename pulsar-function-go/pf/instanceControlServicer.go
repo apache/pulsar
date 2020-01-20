@@ -22,31 +22,36 @@ package pf
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
-	"net"
-	"google.golang.org/grpc"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
+	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+	"net"
 )
-
 
 type InstanceControlServicer struct {
 	goInstance *goInstance
 }
-func (icServicer *InstanceControlServicer) GetFunctionStatus(ctx context.Context, req *empty.Empty) (*pb.FunctionStatus, error) {
+
+func (icServicer *InstanceControlServicer) GetFunctionStatus(
+	ctx context.Context, req *empty.Empty) (*pb.FunctionStatus, error) {
 	return icServicer.goInstance.getFunctionStatus(), nil
 	//return nil, status.Errorf(codes.Unimplemented, "method GetFunctionStatus not implemented")
 }
-func (icServicer *InstanceControlServicer) GetAndResetMetrics(ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
+func (icServicer *InstanceControlServicer) GetAndResetMetrics(
+	ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
 	return icServicer.goInstance.getAndResetMetrics(), nil
 }
-func (icServicer *InstanceControlServicer) ResetMetrics(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
+func (icServicer *InstanceControlServicer) ResetMetrics(
+	ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
 	return icServicer.goInstance.resetMetrics(), nil
 }
-func (icServicer *InstanceControlServicer) GetMetrics(ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
+func (icServicer *InstanceControlServicer) GetMetrics(
+	ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
 	return icServicer.goInstance.getMetrics(), nil
 }
-func (icServicer *InstanceControlServicer) HealthCheck(ctx context.Context, req *empty.Empty) (*pb.HealthCheckResult, error) {
+func (icServicer *InstanceControlServicer) HealthCheck(
+	ctx context.Context, req *empty.Empty) (*pb.HealthCheckResult, error) {
 	return icServicer.goInstance.healthCheck(), nil
 }
 
