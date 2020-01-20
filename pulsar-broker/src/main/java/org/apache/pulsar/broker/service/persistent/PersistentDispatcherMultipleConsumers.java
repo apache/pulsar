@@ -95,7 +95,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
     private volatile int totalUnackedMessages = 0;
-    private int maxUnackedMessages;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
@@ -117,7 +116,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
-        this.maxUnackedMessages = unackedMessagesExceededOnSubscription();
         this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
                 .isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -197,24 +195,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return true;
         }
         return false;
-    }
-
-    private int unackedMessagesExceededOnSubscription() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxUnackedMessagesPerSubscription = policies.max_unacked_messages_per_subscription > 0 ?
-                policies.max_unacked_messages_per_subscription :
-                serviceConfig.getMaxUnackedMessagesPerSubscription();
-        return maxUnackedMessagesPerSubscription;
     }
 
     @Override
@@ -349,7 +329,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, maxUnackedMessages);
+                        totalUnackedMessages, topic.maxUnackedMessagesOnSubscription);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -671,13 +651,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
         // don't block dispatching if maxUnackedMessages = 0
+        int maxUnackedMessages = topic.maxUnackedMessagesOnSubscription;
         if (maxUnackedMessages <= 0) {
             return;
-        }
-
-        int unackedMessagesFromPolicies = topic.maxUnackedMessagesOnSubscription;
-        if (unackedMessagesFromPolicies > 0 && unackedMessagesFromPolicies != maxUnackedMessages) {
-            maxUnackedMessages = unackedMessagesFromPolicies;
         }
 
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);

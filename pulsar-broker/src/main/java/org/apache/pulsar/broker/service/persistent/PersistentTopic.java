@@ -250,7 +250,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             schemaValidationEnforced = policies.schema_validation_enforced;
 
             maxUnackedMessagesOnConsumer = policies.max_unacked_messages_per_consumer;
-            maxUnackedMessagesOnSubscription = policies.max_unacked_messages_per_subscription;
+            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription();
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -625,6 +625,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return future;
+    }
+
+    private int unackedMessagesExceededOnSubscription() {
+        final int maxUnackedMessages = maxUnackedMessagesOnSubscription > 0 ?
+                maxUnackedMessagesOnSubscription :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
+
+        return maxUnackedMessages;
     }
 
     private int unackedMessagesExceededOnConsumer() {
