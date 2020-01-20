@@ -28,7 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testProcessSpawnerHealthCheckTimer(tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int) {
+func testProcessSpawnerHealthCheckTimer(
+	tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int) {
 	fmt.Println("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := int64(time.Duration(expectedHealthCheckInterval) * 3 * time.Second)
