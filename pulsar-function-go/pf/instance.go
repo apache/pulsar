@@ -59,7 +59,6 @@ func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker){
 	if (timeSinceLastCheck) > (maxIdleTime)  {
 		log.Error("Haven't received health check from spawner in a while. Stopping instance...")
 		gi.close()
-		// os.Exit(1)
 		tkr.Stop()
 	}
 }
