@@ -504,7 +504,7 @@ In this section, you need to configure a JDBC sink connector.
 
     > #### Tip
     >
-    > For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.8.2/).
+    > For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
 
 
 3. Upload a schema to a topic.  

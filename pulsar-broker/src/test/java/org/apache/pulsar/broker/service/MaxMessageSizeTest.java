@@ -22,8 +22,8 @@ import com.google.common.collect.Sets;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -41,7 +41,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class MaxMessageSizeTest {
-    private static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
+
     PulsarService pulsar;
     ServiceConfiguration configuration;
 
@@ -49,23 +49,20 @@ public class MaxMessageSizeTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int BROKER_WEBSERVER_PORT = PortManager.nextFreePort();
-
     @BeforeMethod
     void setup() {
         try {
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
             ServerConfiguration conf = new ServerConfiguration();
             conf.setNettyMaxFrameSizeBytes(10 * 1024 * 1024);
             bkEnsemble.startStandalone(conf, false);
 
             configuration = new ServiceConfiguration();
-            configuration.setZookeeperServers("127.0.0.1:" + ZOOKEEPER_PORT);
+            configuration.setZookeeperServers("127.0.0.1:" + bkEnsemble.getZookeeperPort());
             configuration.setAdvertisedAddress("localhost");
-            configuration.setWebServicePort(Optional.of(BROKER_WEBSERVER_PORT));
+            configuration.setWebServicePort(Optional.of(0));
             configuration.setClusterName("max_message_test");
-            configuration.setBrokerServicePort(Optional.of(BROKER_SERVICE_PORT));
+            configuration.setBrokerServicePort(Optional.of(0));
             configuration.setAuthorizationEnabled(false);
             configuration.setAuthenticationEnabled(false);
             configuration.setManagedLedgerMaxEntriesPerLedger(5);
@@ -76,7 +73,7 @@ public class MaxMessageSizeTest {
             pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
-            String url = "http://127.0.0.1:" + BROKER_WEBSERVER_PORT;
+            String url = "http://127.0.0.1:" + pulsar.getListenPortHTTP().get();
             admin = PulsarAdmin.builder().serviceHttpUrl(url).build();
             admin.clusters().createCluster("max_message_test", new ClusterData(url));
             admin.tenants()
@@ -100,7 +97,7 @@ public class MaxMessageSizeTest {
     @Test
     public void testMaxMessageSetting() throws PulsarClientException {
 
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://127.0.0.1:" + BROKER_SERVICE_PORT).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         String topicName = "persistent://test/message/topic1";
         Producer producer = client.newProducer().topic(topicName).sendTimeout(60, TimeUnit.SECONDS).create();
         Consumer consumer = client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();

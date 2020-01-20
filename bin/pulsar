@@ -294,7 +294,7 @@ OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
 
 
-ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
+ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

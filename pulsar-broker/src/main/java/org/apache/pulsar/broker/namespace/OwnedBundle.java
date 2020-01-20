@@ -122,11 +122,17 @@ public class OwnedBundle {
 
             // close topics forcefully
             try {
-                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle).get(timeout, timeoutUnit);
+                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle, false).get(timeout, timeoutUnit);
             } catch (TimeoutException e) {
                 // ignore topic-close failure to unload bundle
                 LOG.error("Failed to close topics in namespace {} in {}/{} timeout", bundle.toString(), timeout,
                         timeoutUnit);
+                try {
+                    LOG.info("Forcefully close topics for bundle {}", bundle);
+                    pulsar.getBrokerService().unloadServiceUnit(bundle, true).get(timeout, timeoutUnit);
+                } catch (Exception e1) {
+                    LOG.error("Failed to close topics forcefully under bundle {}", bundle, e1);
+                }
             } catch (Exception e) {
                 // ignore topic-close failure to unload bundle
                 LOG.error("Failed to close topics under namespace {}", bundle.toString(), e);

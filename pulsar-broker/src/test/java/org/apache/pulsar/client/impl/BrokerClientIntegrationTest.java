@@ -36,7 +36,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -527,7 +526,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
             startBroker();
-            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            String lookupUrl = pulsar.getBrokerServiceUrl();
 
             @Cleanup
             PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
@@ -601,7 +600,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             startBroker();
-            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            String lookupUrl = pulsar.getBrokerServiceUrl();
 
             pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
                     .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
@@ -655,8 +654,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
 
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         ClientCnx cnx = producer.cnx();

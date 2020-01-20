@@ -116,7 +116,6 @@ import org.slf4j.LoggerFactory;
 public class PersistentTopicsBase extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
 
-    public static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
@@ -414,8 +413,9 @@ public class PersistentTopicsBase extends AdminResource {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+            tryCreatePartitionsAsync(numPartitions);
+            // Sync data to all quorums and the observers
+            zkSync(path);
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
@@ -438,13 +438,20 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-    	try {
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        if (partitionMetadata.partitions > 0) {
+            log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
+            throw new RestException(Status.CONFLICT, "This topic already exists");
+        }
+
+        try {
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
-    	} catch (Exception e) {
-    		log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-    		throw new RestException(e);
-    	}
+        } catch (Exception e) {
+            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
     }
 
     /**
@@ -530,6 +537,13 @@ public class PersistentTopicsBase extends AdminResource {
             }
             log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
+        }
+    }
+
+    protected void internalCreateMissedPartitions() {
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
+        if (metadata != null) {
+            tryCreatePartitionsAsync(metadata.partitions);
         }
     }
 
@@ -620,8 +634,8 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 globalZk().delete(path, -1);
                 globalZkCache().invalidate(path);
-                // we wait for the data to be synced in all quorums and the observers
-                Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+                // Sync data to all quorums and the observers
+                zkSync(path);
                 log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                 asyncResponse.resume(Response.noContent().build());
                 return;
@@ -1839,24 +1853,28 @@ public class PersistentTopicsBase extends AdminResource {
             }
 
             admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
-                stats.subscriptions.keySet().forEach(subscription -> {
-                    List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
-                    for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
-                        final String topicNamePartition = topicName.getPartition(i).toString();
+                if (stats.subscriptions.size() == 0) {
+                    result.complete(null);
+                } else {
+                    stats.subscriptions.keySet().forEach(subscription -> {
+                        List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+                        for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
+                            final String topicNamePartition = topicName.getPartition(i).toString();
 
-                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest));
-                    }
+                            subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
+                                    subscription, MessageId.latest));
+                        }
 
-                    FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                        log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
-                        result.complete(null);
-                    }).exceptionally(ex -> {
-                        log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
-                        result.completeExceptionally(ex);
-                        return null;
+                        FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
+                            log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
+                            result.complete(null);
+                        }).exceptionally(ex -> {
+                            log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
+                            result.completeExceptionally(ex);
+                            return null;
+                        });
                     });
-                });
+                }
             }).exceptionally(ex -> {
                 if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
                     // The first partition doesn't exist, so there are currently to subscriptions to recreate
@@ -1880,7 +1898,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
         try {
             Topic topic = getTopicReference(topicName);
-            topic.close().get();
+            topic.close(false).get();
             log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
         } catch (NullPointerException e) {
             log.error("[{}] topic {} not found", clientAppId(), topicName);

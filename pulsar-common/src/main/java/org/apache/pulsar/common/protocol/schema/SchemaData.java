@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
-import lombok.ToString;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -31,7 +30,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @Builder
 @Data
-@ToString
 public class SchemaData {
     private final SchemaType type;
     private final boolean isDeleted;
