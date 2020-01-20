@@ -41,8 +41,26 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: build artifacts and docker image
-        run: mvn -B install -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -Pdocker -DskipTests
+      - name: run install by skip tests
+        run: mvn clean install -DskipTests
 
-      - name: run integration tests
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false
+      - name: build artifacts and docker image
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+
+      - name: clean docker container
+        run: docker system prune -f
+
+      - name: remove docker node image
+        run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
+
+      - name: remove docker builder and microsoft image
+        run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
+
+      - name: run integration function
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
+
+      - name: run integration source
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
+
+      - name: run integraion sink
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
