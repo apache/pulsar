@@ -20,10 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Lists;
@@ -371,6 +374,42 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
 
         latch.await();
+        Assert.assertEquals(receivedMessages.size(), messages);
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testZeroQueueSizeMessageRedeliveryForAsyncReceive() throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+            .topic(topic)
+            .receiverQueueSize(0)
+            .subscriptionName("sub")
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1, TimeUnit.SECONDS)
+            .subscribe();
+
+        final int messages = 10;
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < messages; i++) {
+            producer.send(i);
+        }
+
+        Set<Integer> receivedMessages = new HashSet<>();
+        List<CompletableFuture<Message<Integer>>> futures = new ArrayList<>(20);
+        for (int i = 0; i < messages * 2; i++) {
+            futures.add(consumer.receiveAsync());
+        }
+        for (CompletableFuture<Message<Integer>> future : futures) {
+            receivedMessages.add(future.get().getValue());
+        }
+
         Assert.assertEquals(receivedMessages.size(), messages);
 
         consumer.close();
