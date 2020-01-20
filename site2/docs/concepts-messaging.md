@@ -55,7 +55,7 @@ If batching is enabled, the producer will accumulate and send a batch of message
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
 
-A consumer pulls messages from a broker. There is a queue at the consumer side to receive messages pushed from the broker. The queue size is configurable by [`receiverQueueSize`](client-libraries-java.md#configure-consumer) (default: 1000). Each time `consumer.receive()` is called, a message is dequeued from the buffer. If the requested message size of a consumer is larger than the queue size, after all messages in the queue are consumed, messages are delivered to the consumer immediately once there comes new messages in the queue.  
+A consumer sends a [flow permit request](developing-binary-protocol.md#flow-control) to a broker to get messages. There is a queue at the consumer side to receive messages pushed from the broker. The queue size is configurable by [`receiverQueueSize`](client-libraries-java.md#configure-consumer) (default: 1000). Each time `consumer.receive()` is called, a message is dequeued from the buffer.  
 
 ### Receive modes
 
