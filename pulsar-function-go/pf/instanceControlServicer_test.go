@@ -40,6 +40,11 @@ var lis *bufconn.Listener
 func bufDialer(string, time.Duration) (net.Conn, error) {
 	return lis.Dial()
 }
+func getBufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
+	return func(ctx context.Context, url string) (net.Conn, error) {
+		return listener.Dial()
+	}
+}
 func TestInstanceControlServicer_serve_creates_valid_instance(t *testing.T) {
 	lis = bufconn.Listen(bufSize)
 	// create a gRPC server object
@@ -60,7 +65,7 @@ func TestInstanceControlServicer_serve_creates_valid_instance(t *testing.T) {
 	// Now we can setup the client:
 
 	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithDialer(bufDialer), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(getBufDialer(lis)), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
