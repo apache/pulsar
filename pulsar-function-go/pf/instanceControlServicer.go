@@ -22,11 +22,12 @@ package pf
 import (
 	"context"
 	"fmt"
+	"net"
+
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
-	"net"
 )
 
 type InstanceControlServicer struct {

@@ -21,9 +21,10 @@ package pf
 
 import (
 	"context"
-	"github.com/golang/protobuf/ptypes/empty"
 	"math"
 	"time"
+
+	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"

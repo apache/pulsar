@@ -21,21 +21,21 @@ package pf
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-
-func testProcessSpawnerHealthCheckTimer(tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int ){
+func testProcessSpawnerHealthCheckTimer(tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int) {
 	fmt.Println("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := int64(time.Duration(expectedHealthCheckInterval) * 3 * time.Second)
 	fmt.Println("maxIdleTime is: " + strconv.FormatInt(maxIdleTime, 10))
 	timeSinceLastCheck := now.UnixNano() - lastHealthCheckTs
 	fmt.Println("timeSinceLastCheck is: " + strconv.FormatInt(timeSinceLastCheck, 10))
-	if (timeSinceLastCheck) > (maxIdleTime)  {
+	if (timeSinceLastCheck) > (maxIdleTime) {
 		fmt.Println("Haven't received health check from spawner in a while. Stopping instance...")
 		// os.Exit(1)
 		tkr.Stop()
@@ -45,7 +45,7 @@ func testProcessSpawnerHealthCheckTimer(tkr *time.Ticker, lastHealthCheckTs int6
 	}
 }
 
-func testStartScheduler(counter *int){
+func testStartScheduler(counter *int) {
 	now := time.Now()
 	lastHealthCheckTs := now.UnixNano()
 
@@ -65,7 +65,6 @@ func testStartScheduler(counter *int){
 	}
 }
 
-
 func TestInstance_HeartbeatTimer(t *testing.T) {
 	counter := 0
 	testStartScheduler(&counter)
@@ -76,7 +75,7 @@ func TestInstance_HeartbeatTimer(t *testing.T) {
 func TestTime_EqualsThreeSecondsFixed(t *testing.T) {
 	var expectedHealthCheckInterval int32 = 3
 	timeAmount := time.Millisecond * 1000 * time.Duration(expectedHealthCheckInterval)
-	assert.Equal(t, time.Second * 3, timeAmount)
+	assert.Equal(t, time.Second*3, timeAmount)
 }
 func TestTime_EqualsThreeSecondsTimed(t *testing.T) {
 	start := time.Now()
@@ -89,6 +88,6 @@ func TestTime_EqualsThreeSecondsTimed(t *testing.T) {
 
 	diff := endTime - startTime
 
-	assert.True(t, time.Duration(diff) > time.Second * 3)
-	assert.True(t, time.Duration(diff) < time.Millisecond * 3100)
+	assert.True(t, time.Duration(diff) > time.Second*3)
+	assert.True(t, time.Duration(diff) < time.Millisecond*3100)
 }
