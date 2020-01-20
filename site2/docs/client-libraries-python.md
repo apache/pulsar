@@ -101,7 +101,7 @@ while True:
 ```
 ### Multi-topic subscriptions
 
-In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex). If you select topics via regex, all topics must be within the same Pulsar namespace.
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
 The following is an example. 
 
