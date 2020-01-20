@@ -1648,50 +1648,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    public long checkTickTimeDelayedDelivery() {
-        TopicName name = TopicName.get(topic);
-        try {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()));
-            // If no policies, the default is to delayed delivery messages and the tick time is 1s.
-            DelayedDeliveryPolicies delayedDeliveryPolicies = policies.map(p -> p.delayed_delivery_policies).orElseGet(
-                    () -> new DelayedDeliveryPolicies(
-                            brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
-                            brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled())
-            );
-
-            return delayedDeliveryPolicies.getTickTime();
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
-
-            return 0;
-        }
-    }
-
-    public boolean checkActiveDelayedDelivery() {
-        TopicName name = TopicName.get(topic);
-        try {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()));
-            // If no policies, the default is to delayed delivery messages and the tick time is 1s.
-            DelayedDeliveryPolicies delayedDeliveryPolicies = policies.map(p -> p.delayed_delivery_policies).orElseGet(
-                    () -> new DelayedDeliveryPolicies(
-                            brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
-                            brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled())
-            );
-
-            return delayedDeliveryPolicies.isActive();
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
-
-            return false;
-        }
-    }
-
     @Override
     public void checkInactiveSubscriptions() {
         final long expirationTime = TimeUnit.MINUTES.toMillis(brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes());
