@@ -770,12 +770,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                  String sinkName,
                                                  int numMessages) throws Exception {
         final String[] commands = {
-            PulsarCluster.ADMIN_SCRIPT,
-            "sink",
-            "status",
-            "--tenant", tenant,
-            "--namespace", namespace,
-            "--name", sinkName
+                PulsarCluster.ADMIN_SCRIPT,
+                "sink",
+                "status",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", sinkName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -1996,8 +1996,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         } else {
             @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic(inputTopic)
-                .create();
+                    .topic(inputTopic)
+                    .create();
 
             for (int i = 0; i < numMessages; i++) {
                 producer.send(("message-" + i).getBytes(UTF_8));
