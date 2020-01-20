@@ -249,8 +249,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             schemaValidationEnforced = policies.schema_validation_enforced;
 
-            maxUnackedMessagesOnConsumer = policies.max_unacked_messages_per_consumer;
-            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription();
+            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -582,7 +582,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : getNonDurableSubscription(subscriptionName, startMessageId, startMessageRollbackDurationSec);
 
         int maxUnackedMessages = isDurable
-                ? unackedMessagesExceededOnConsumer()
+                ? maxUnackedMessagesOnConsumer
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
@@ -627,17 +627,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    private int unackedMessagesExceededOnSubscription() {
-        final int maxUnackedMessages = maxUnackedMessagesOnSubscription > 0 ?
-                maxUnackedMessagesOnSubscription :
+    private int unackedMessagesExceededOnSubscription(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > 0 ?
+                data.max_unacked_messages_per_subscription :
                 brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
 
         return maxUnackedMessages;
     }
 
-    private int unackedMessagesExceededOnConsumer() {
-        final int maxUnackedMessages = maxUnackedMessagesOnConsumer > 0 ?
-                maxUnackedMessagesOnConsumer :
+    private int unackedMessagesExceededOnConsumer(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > 0 ?
+                data.max_unacked_messages_per_consumer :
                 brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
 
         return maxUnackedMessages;
@@ -1721,8 +1721,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        maxUnackedMessagesOnConsumer = data.max_unacked_messages_per_consumer;
-        maxUnackedMessagesOnSubscription = data.max_unacked_messages_per_subscription;
+        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
         
