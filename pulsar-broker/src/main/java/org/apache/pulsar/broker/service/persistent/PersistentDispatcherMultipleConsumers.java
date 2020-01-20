@@ -82,7 +82,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final RedeliveryTracker redeliveryTracker;
 
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
-    private final boolean isDelayedDeliveryEnabled;
 
     private volatile boolean havePendingRead = false;
     private volatile boolean havePendingReplayRead = false;
@@ -119,8 +118,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
-        this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
-                .isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 
@@ -718,7 +715,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-        if (!isDelayedDeliveryEnabled || !topic.delayedDeliveryEnabled) {
+        if (!topic.delayedDeliveryEnabled) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }

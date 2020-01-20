@@ -299,8 +299,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
 
-
-
         this.defaultServerBootstrap = defaultServerBootstrap();
     }
 
