@@ -1705,8 +1705,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
-        delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
+        if (data.delayed_delivery_policies != null) {
+            delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
+            delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
+        }
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
         
