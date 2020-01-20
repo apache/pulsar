@@ -182,18 +182,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
-                + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + randomName(8);
+            + tester.getSinkType() + "-" + functionRuntimeType + "-input-topic-" + randomName(8);
         final String sinkName = "test-sink-connector-"
-                + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-" + randomName(8);
+            + tester.getSinkType().name().toLowerCase() + "-" + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 20;
 
         // prepare the testing environment for sink
         prepareSink(tester);
 
         ensureSubscriptionCreated(
-                inputTopicName,
-                String.format("public/default/%s", sinkName),
-                tester.getInputTopicSchema());
+            inputTopicName,
+            String.format("public/default/%s", sinkName),
+            tester.getInputTopicSchema());
 
         // submit the sink connector
         submitSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
@@ -289,8 +289,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
-                result.getStdout());
+            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout());
     }
 
     protected void updateSinkConnector(SinkTester tester,
@@ -338,12 +338,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                       String sinkName,
                                       boolean builtin) throws Exception {
         String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sink",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sinkName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sink",
+            "get",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sinkName
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get sink info : {}", result.getStdout());
@@ -362,12 +362,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     protected void getSinkStatus(String tenant, String namespace, String sinkName) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sink",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sinkName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sink",
+            "status",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sinkName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -390,13 +390,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                               int numMessages) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(inputTopicName)
-                .create();
+            .topic(inputTopicName)
+            .create();
 
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
@@ -404,9 +404,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             String value = "value-" + i;
             kvs.put(key, value);
             producer.newMessage()
-                    .key(key)
-                    .value(value)
-                    .send();
+                .key(key)
+                .value(value)
+                .send();
         }
         return kvs;
     }
@@ -417,13 +417,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                                           Schema<Foo> schema) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup
         Producer<Foo> producer = client.newProducer(schema)
-                .topic(inputTopicName)
-                .create();
+            .topic(inputTopicName)
+            .create();
 
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
@@ -527,33 +527,33 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void deleteSink(String tenant, String namespace, String sinkName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sink",
-                "delete",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sinkName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sink",
+            "delete",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sinkName
         };
 
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("Deleted successfully"),
-                result.getStdout()
+            result.getStdout().contains("Deleted successfully"),
+            result.getStdout()
         );
         assertTrue(
-                result.getStderr().isEmpty(),
-                result.getStderr()
+            result.getStderr().isEmpty(),
+            result.getStderr()
         );
     }
 
     protected void getSinkInfoNotFound(String tenant, String namespace, String sinkName) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sink",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sinkName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sink",
+            "get",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sinkName
         };
         try {
             pulsarCluster.getAnyWorker().execCmd(commands);
@@ -571,15 +571,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
-                + functionRuntimeType + "-output-topic-" + randomName(8);
+            + functionRuntimeType + "-output-topic-" + randomName(8);
         final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+            + functionRuntimeType + "-name-" + randomName(8);
         final int numMessages = 20;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
@@ -587,10 +587,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(outputTopicName)
-                .subscriptionName("source-tester")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
+            .topic(outputTopicName)
+            .subscriptionName("source-tester")
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscribe();
 
         // prepare the testing environment for source
         prepareSource(tester);
@@ -634,21 +634,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                          String sourceName,
                                          String outputTopicName) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source", "create",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName,
-                "--source-type", tester.sourceType(),
-                "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
-                "--destinationTopicName", outputTopicName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source", "create",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName,
+            "--source-type", tester.sourceType(),
+            "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
+            "--destinationTopicName", outputTopicName
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
-                result.getStdout());
+            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout());
     }
 
     protected void updateSourceConnector(SourceTester tester,
@@ -680,31 +680,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                         String namespace,
                                         String sourceName) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "get",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName
         };
 
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get source info : {}", result.getStdout());
         assertTrue(
-                result.getStdout().contains("\"archive\": \"builtin://" + tester.getSourceType() + "\""),
-                result.getStdout()
+            result.getStdout().contains("\"archive\": \"builtin://" + tester.getSourceType() + "\""),
+            result.getStdout()
         );
     }
 
     protected void getSourceStatus(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "status",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -739,12 +739,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                    String sourceName,
                                                    int numMessages) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "status",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -770,12 +770,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                  String sinkName,
                                                  int numMessages) throws Exception {
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "sink",
-                "status",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sinkName
+            PulsarCluster.ADMIN_SCRIPT,
+            "sink",
+            "status",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sinkName
         };
 
         final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
@@ -800,34 +800,34 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void deleteSource(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "delete",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "delete",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName
         };
 
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("Delete source successfully"),
-                result.getStdout()
+            result.getStdout().contains("Delete source successfully"),
+            result.getStdout()
         );
         assertTrue(
-                result.getStderr().isEmpty(),
-                result.getStderr()
+            result.getStderr().isEmpty(),
+            result.getStderr()
         );
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
 
         final String[] commands = {
-                PulsarCluster.ADMIN_SCRIPT,
-                "source",
-                "get",
-                "--tenant", tenant,
-                "--namespace", namespace,
-                "--name", sourceName
+            PulsarCluster.ADMIN_SCRIPT,
+            "source",
+            "get",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", sourceName
         };
 
         try {
@@ -1559,7 +1559,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitExclamationFunction(
-                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema);
+            runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -1601,15 +1601,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                   boolean withExtraDeps,
                                                   Schema<?> schema) throws Exception {
         submitFunction(
-                runtime,
-                inputTopicName,
-                outputTopicName,
-                functionName,
-                pyZip,
-                withExtraDeps,
-                false,
-                getExclamationClass(runtime, pyZip, withExtraDeps),
-                schema);
+            runtime,
+            inputTopicName,
+            outputTopicName,
+            functionName,
+            pyZip,
+            withExtraDeps,
+            false,
+            getExclamationClass(runtime, pyZip, withExtraDeps),
+            schema);
     }
 
     private static <T> void submitFunction(Runtime runtime,
@@ -1743,25 +1743,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             throws Exception {
         // ensure the function subscription exists before we start producing messages
         try (PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build()) {
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build()) {
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
-                    .topic(inputTopicName)
-                    .subscriptionType(SubscriptionType.Shared)
-                    .subscriptionName(subscriptionName)
-                    .subscribe()) {
+                .topic(inputTopicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subscriptionName)
+                .subscribe()) {
             }
         }
     }
 
     private static void getFunctionInfoSuccess(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "get",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
+            PulsarCluster.ADMIN_SCRIPT,
+            "functions",
+            "get",
+            "--tenant", "public",
+            "--namespace", "default",
+            "--name", functionName
         );
 
         log.info("FUNCTION STATE: {}", result.getStdout());
@@ -1887,12 +1887,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
+            PulsarCluster.ADMIN_SCRIPT,
+            "functions",
+            "status",
+            "--tenant", "public",
+            "--namespace", "default",
+            "--name", functionName
         );
 
         FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
@@ -1917,14 +1917,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                   String outputTopic,
                                                   int numMessages) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(outputTopic)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName("test-sub")
-                .subscribe();
+            .topic(outputTopic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName("test-sub")
+            .subscribe();
 
         if (inputTopic.endsWith(".*")) {
             @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
@@ -1969,14 +1969,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                        String outputTopic,
                                                        int numMessages) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
-                .topic(outputTopic)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName("test-sub")
-                .subscribe();
+            .topic(outputTopic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName("test-sub")
+            .subscribe();
 
         if (inputTopic.endsWith(".*")) {
             @Cleanup Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
@@ -1996,8 +1996,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         } else {
             @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                    .topic(inputTopic)
-                    .create();
+                .topic(inputTopic)
+                .create();
 
             for (int i = 0; i < numMessages; i++) {
                 producer.send(("message-" + i).getBytes(UTF_8));
@@ -2020,12 +2020,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private static void deleteFunction(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "delete",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
+            PulsarCluster.ADMIN_SCRIPT,
+            "functions",
+            "delete",
+            "--tenant", "public",
+            "--namespace", "default",
+            "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
         assertTrue(result.getStderr().isEmpty());
@@ -2045,15 +2045,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(
-                Runtime.JAVA,
-                inputTopicName,
-                outputTopicName,
-                functionName,
-                false,
-                false,
-                false,
-                AutoSchemaFunction.class.getName(),
-                Schema.AVRO(CustomObject.class));
+            Runtime.JAVA,
+            inputTopicName,
+            outputTopicName,
+            functionName,
+            false,
+            false,
+            false,
+            AutoSchemaFunction.class.getName(),
+            Schema.AVRO(CustomObject.class));
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -2077,18 +2077,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                       int numMessages) throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(outputTopic)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName("test-sub")
-                .subscribe();
+            .topic(outputTopic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName("test-sub")
+            .subscribe();
 
         @Cleanup Producer<CustomObject> producer = client.newProducer(Schema.AVRO(CustomObject.class))
-                .topic(inputTopic)
-                .create();
+            .topic(inputTopic)
+            .create();
 
         for (int i = 0; i < numMessages; i++) {
             CustomObject co = new CustomObject(i);
@@ -2102,14 +2102,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private  void testDebeziumMySqlConnect()
-            throws Exception {
+        throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "public/default/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+            + functionRuntimeType + "-name-" + randomName(8);
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
@@ -2121,8 +2121,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build();
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
@@ -2141,10 +2141,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
-                .topic(consumeTopicName)
-                .subscriptionName("debezium-source-tester")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
+            .topic(consumeTopicName)
+            .subscriptionName("debezium-source-tester")
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscribe();
 
         @Cleanup
         DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
