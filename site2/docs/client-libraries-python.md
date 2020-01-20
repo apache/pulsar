@@ -99,6 +99,26 @@ while True:
     print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
 ```
+### Multi-topic subscriptions
+
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions you can supply a regular expression (regex). If you select topics via regex, all topics must be within the same Pulsar namespace.
+
+The following is an example. 
+
+```python
+import re
+consumer = client.subscribe(re.compile('persistent://public/default/topic-*'), 'my-subscription')
+while True:
+    msg = consumer.receive()
+    try:
+        print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+    except:
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+client.close()
+```
 
 ## Schema
 
