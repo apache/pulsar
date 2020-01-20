@@ -178,7 +178,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    public volatile int maxUnackedMessagesOnSubscription = 0;
+    public volatile int maxUnackedMessagesOnSubscription = -1;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -629,7 +629,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private int unackedMessagesExceededOnSubscription(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > 0 ?
+        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > -1 ?
                 data.max_unacked_messages_per_subscription :
                 brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
 
@@ -637,7 +637,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private int unackedMessagesExceededOnConsumer(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > 0 ?
+        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1 ?
                 data.max_unacked_messages_per_consumer :
                 brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
 
