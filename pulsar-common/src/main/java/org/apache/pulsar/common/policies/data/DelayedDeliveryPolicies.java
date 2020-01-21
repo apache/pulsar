@@ -16,33 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.common.policies.data;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions.
+ * Definition of the delayed delivery policy.
  */
 @Data
-public class InstanceConfig {
-    private int instanceId;
-    private String functionId;
-    private String functionVersion;
-    private FunctionDetails functionDetails;
-    private int maxBufferedTuples;
-    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
-    private int port;
-    private String clusterName;
-
-    /**
-     * Get the string representation of {@link #getInstanceId()}.
-     *
-     * @return the string representation of {@link #getInstanceId()}.
-     */
-    public String getInstanceName() {
-        return "" + instanceId;
-    }
+@AllArgsConstructor
+@Setter
+@Getter
+@NoArgsConstructor
+public class DelayedDeliveryPolicies {
+    private long tickTime;
+    private boolean active;
 }

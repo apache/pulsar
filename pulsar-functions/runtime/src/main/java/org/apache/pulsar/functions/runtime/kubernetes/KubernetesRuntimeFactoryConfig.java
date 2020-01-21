@@ -19,14 +19,12 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import lombok.Data;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
 
 import java.util.Map;
 
 @Data
-@ToString
 @Accessors(chain = true)
 public class KubernetesRuntimeFactoryConfig {
     @FieldContext(

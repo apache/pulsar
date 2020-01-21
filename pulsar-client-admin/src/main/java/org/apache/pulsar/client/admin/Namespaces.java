@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1152,7 +1153,69 @@ public interface Namespaces {
      */
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 
-     /**
+    /**
+     * Get the delayed delivery messages for all topics within a namespace.
+     * <p>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "active" : true,   // Enable or disable delayed delivery for messages on a namespace
+     *     "tickTime" : 1000, // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DelayedDeliveryPolicies getDelayedDelivery(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery messages for all topics within a namespace.
+     * <p>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
+     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDelayedDeliveryMessages(String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+
+    /**
      * Set the given subscription auth mode on all topics on a namespace
      *
      * @param namespace
