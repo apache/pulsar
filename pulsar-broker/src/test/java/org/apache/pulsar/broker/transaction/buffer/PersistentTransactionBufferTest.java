@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.PulsarServerCnx;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionMetaImpl;
@@ -109,7 +110,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     private PulsarService pulsar;
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
-    private ServerCnx serverCnx;
+    private PulsarServerCnx serverCnx;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
@@ -155,7 +156,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = spy(new PulsarServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();

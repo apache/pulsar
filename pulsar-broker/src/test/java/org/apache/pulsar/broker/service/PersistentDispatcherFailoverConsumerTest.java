@@ -97,8 +97,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
-    private ServerCnx serverCnx;
-    private ServerCnx serverCnxWithOldVersion;
+    private PulsarServerCnx serverCnx;
+    private PulsarServerCnx serverCnxWithOldVersion;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
@@ -169,14 +169,14 @@ public class PersistentDispatcherFailoverConsumerTest {
             return null;
         }).when(channelCtx).writeAndFlush(any(), any());
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = spy(new PulsarServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getNumber());
         when(serverCnx.ctx()).thenReturn(channelCtx);
 
-        serverCnxWithOldVersion = spy(new ServerCnx(pulsar));
+        serverCnxWithOldVersion = spy(new PulsarServerCnx(pulsar));
         doReturn(true).when(serverCnxWithOldVersion).isActive();
         doReturn(true).when(serverCnxWithOldVersion).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234))

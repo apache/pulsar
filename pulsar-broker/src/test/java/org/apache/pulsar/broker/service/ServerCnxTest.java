@@ -78,7 +78,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.ServerCnx.State;
+import org.apache.pulsar.broker.service.PulsarServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
@@ -125,7 +125,7 @@ import org.testng.annotations.Test;
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
-    private ServerCnx serverCnx;
+    private PulsarServerCnx serverCnx;
     protected BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ClientChannelHelper clientChannelHelper;
@@ -1411,7 +1411,7 @@ public class ServerCnxTest {
             serverCnx.close();
             channel.close().get();
         }
-        serverCnx = new ServerCnx(pulsar);
+        serverCnx = new PulsarServerCnx(pulsar);
         serverCnx.authRole = "";
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), serverCnx);
     }

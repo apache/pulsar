@@ -7,14 +7,17 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.protocol.ProtocolHandler;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 
-@Slf4j
 public class GrpcHandler implements ProtocolHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GrpcHandler.class);
 
     public static final String NAME = "grpc";
     private GrpcServer grpcServer;

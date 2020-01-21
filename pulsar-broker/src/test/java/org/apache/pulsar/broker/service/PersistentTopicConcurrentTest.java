@@ -64,7 +64,7 @@ import com.google.common.collect.Lists;
 public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
-    private ServerCnx serverCnx;
+    private PulsarServerCnx serverCnx;
     @SuppressWarnings("unused")
     private ManagedLedger ledgerMock;
     @SuppressWarnings("unused")
@@ -98,7 +98,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(pulsar));
+        serverCnx = spy(new PulsarServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
 
         NamespaceService nsSvc = mock(NamespaceService.class);

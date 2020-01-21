@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
 public class Consumer {
     private final Subscription subscription;
     private final SubType subType;
-    private final ServerCnx cnx;
+    private final PulsarServerCnx cnx;
     private final String appId;
     private AuthenticationDataSource authenticationData;
     private final String topicName;
@@ -111,7 +111,7 @@ public class Consumer {
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    int maxUnackedMessages, PulsarServerCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
                     PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
 

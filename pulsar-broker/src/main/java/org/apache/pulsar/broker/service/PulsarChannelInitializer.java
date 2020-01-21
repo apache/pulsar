@@ -51,7 +51,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     // This cache is used to maintain a list of active connections to iterate over them
     // We keep weak references to have the cache to be auto cleaned up when the connections
     // objects are GCed.
-    private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
+    private final Cache<SocketAddress, PulsarServerCnx> connections = Caffeine.newBuilder()
             .weakKeys()
             .weakValues()
             .build();
@@ -97,10 +97,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
         // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
-        // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
+        // PulsarServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = new ServerCnx(pulsar);
+        PulsarServerCnx cnx = new PulsarServerCnx(pulsar);
         ch.pipeline().addLast("handler", cnx);
 
         connections.put(ch.remoteAddress(), cnx);

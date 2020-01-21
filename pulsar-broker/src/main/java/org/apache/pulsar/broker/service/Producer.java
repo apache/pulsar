@@ -1,27 +1,4 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 package org.apache.pulsar.broker.service;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
-import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -36,60 +13,65 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
-import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
-/**
- * Represents a currently connected producer
- */
-public class Producer {
-    private final Topic topic;
-    private final ServerCnx cnx;
-    private final String producerName;
-    private final long epoch;
-    private final boolean userProvidedProducerName;
-    private final long producerId;
-    private final String appId;
-    private Rate msgIn;
+public abstract class Producer {
+    protected final Topic topic;
+    protected final ServerCnx cnx;
+    protected final String producerName;
+    protected final long epoch;
+    protected final boolean userProvidedProducerName;
+    protected final long producerId;
+    protected final String appId;
+    protected Rate msgIn;
     // it records msg-drop rate only for non-persistent topic
-    private final Rate msgDrop;
-    private AuthenticationDataSource authenticationData;
+    protected final Rate msgDrop;
+    protected AuthenticationDataSource authenticationData;
 
-    private volatile long pendingPublishAcks = 0;
-    private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
+    protected volatile long pendingPublishAcks = 0;
+    protected static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
             .newUpdater(Producer.class, "pendingPublishAcks");
 
-    private boolean isClosed = false;
-    private final CompletableFuture<Void> closeFuture;
+    protected boolean isClosed = false;
+    protected final CompletableFuture<Void> closeFuture;
 
-    private final PublisherStats stats;
-    private final boolean isRemote;
-    private final String remoteCluster;
-    private final boolean isNonPersistentTopic;
-    private final boolean isEncrypted;
+    protected final PublisherStats stats;
+    protected final boolean isRemote;
+    protected final String remoteCluster;
+    protected final boolean isNonPersistentTopic;
+    protected final boolean isEncrypted;
 
-    private final Map<String, String> metadata;
+    protected final Map<String, String> metadata;
 
-    private final SchemaVersion schemaVersion;
+    protected final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean userProvidedProducerName) {
+                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+                    boolean userProvidedProducerName) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -98,7 +80,7 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.authenticationData = cnx.authenticationData;
+        this.authenticationData = cnx.getAuthenticationData();
         this.msgIn = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
@@ -142,13 +124,10 @@ public class Producer {
     }
 
     public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
-           ByteBuf headersAndPayload, long batchSize) {
+                               ByteBuf headersAndPayload, long batchSize) {
         if (lowestSequenceId > highestSequenceId) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, highestSequenceId, ServerError.MetadataError,
-                        "Invalid lowest or highest sequence id"));
-                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            });
+            sendError(producerId, highestSequenceId, PulsarApi.ServerError.MetadataError, "Invalid lowest or highest sequence id");
+            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             return;
         }
         beforePublish(producerId, highestSequenceId, headersAndPayload, batchSize);
@@ -157,38 +136,28 @@ public class Producer {
 
     public void beforePublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.PersistenceError,
-                        "Producer is closed"));
-                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            });
-
+            sendError(producerId, sequenceId, PulsarApi.ServerError.PersistenceError, "Producer is closed");
+            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             return;
         }
 
         if (!verifyChecksum(headersAndPayload)) {
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(
-                        Commands.newSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker"));
-                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            });
+            sendError(producerId, sequenceId, PulsarApi.ServerError.ChecksumError, "Checksum failed on the broker");
+            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             return;
         }
 
         if (topic.isEncryptionRequired()) {
 
             headersAndPayload.markReaderIndex();
-            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            PulsarApi.MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
 
             // Check whether the message is encrypted or not
             if (msgMetadata.getEncryptionKeysCount() < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
-                cnx.ctx().channel().eventLoop().execute(() -> {
-                    cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
-                            "Messages must be encrypted"));
-                    cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-                });
+                sendError(producerId, sequenceId, PulsarApi.ServerError.MetadataError, "Messages must be encrypted");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
                 return;
             }
         }
@@ -196,13 +165,15 @@ public class Producer {
         startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize) {
+    abstract protected void sendError(long producerId, long sequenceId, PulsarApi.ServerError serverError, String message);
+
+    protected void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize) {
         topic.publishMessage(headersAndPayload,
                 MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize) {
+    protected void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize) {
         topic.publishMessage(headersAndPayload,
                 MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         System.nanoTime()));
@@ -233,7 +204,11 @@ public class Producer {
         }
     }
 
-    private void startPublishOperation(int batchSize, long msgSize) {
+    abstract protected void execute(Runnable runnable);
+
+    abstract protected void sendReceipt(long sequenceId, long highestSequenceId, long ledgerId, long entryId);
+
+    protected void startPublishOperation(int batchSize, long msgSize) {
         // A single thread is incrementing/decrementing this counter, so we can use lazySet which doesn't involve a mem
         // barrier
         pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
@@ -241,7 +216,7 @@ public class Producer {
         this.getTopic().incrementPublishCount(batchSize, msgSize);
     }
 
-    private void publishOperationCompleted() {
+    protected void publishOperationCompleted() {
         long newPendingPublishAcks = this.pendingPublishAcks - 1;
         pendingPublishAcksUpdater.lazySet(this, newPendingPublishAcks);
 
@@ -277,7 +252,7 @@ public class Producer {
         return this.cnx;
     }
 
-    private static final class MessagePublishContext implements PublishContext, Runnable {
+    private static final class MessagePublishContext implements Topic.PublishContext, Runnable {
         private Producer producer;
         private long sequenceId;
         private long ledgerId;
@@ -342,20 +317,19 @@ public class Producer {
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
-                ServerError serverError = (exception instanceof TopicTerminatedException)
-                        ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
+                PulsarApi.ServerError serverError = (exception instanceof BrokerServiceException.TopicTerminatedException)
+                        ? PulsarApi.ServerError.TopicTerminatedError : PulsarApi.ServerError.PersistenceError;
 
-                producer.cnx.ctx().channel().eventLoop().execute(() -> {
-                    if (!(exception instanceof TopicClosedException)) {
+                producer.execute(() -> {
+                    if (!(exception instanceof BrokerServiceException.TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
-                        producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, callBackSequenceId,
-                                serverError, exception.getMessage()));
+                        producer.sendError(producer.producerId, callBackSequenceId,
+                                serverError, exception.getMessage());
                     }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
                     producer.publishOperationCompleted();
-                    recycle();
                 });
             } else {
                 if (log.isDebugEnabled()) {
@@ -365,9 +339,10 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
-                producer.cnx.ctx().channel().eventLoop().execute(this);
+                producer.execute(this);
             }
         }
+
 
         /**
          * Executed from I/O thread when sending receipt back to client
@@ -382,17 +357,15 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            producer.cnx.ctx().writeAndFlush(
-                    Commands.newSendReceipt(producer.producerId, sequenceId, highestSequenceId, ledgerId, entryId),
-                    producer.cnx.ctx().voidPromise());
+            producer.sendReceipt(sequenceId, highestSequenceId, ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             producer.publishOperationCompleted();
             recycle();
         }
 
-        static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                long batchSize, long startTimeNs) {
-            MessagePublishContext callback = RECYCLER.get();
+        static Producer.MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
+                                                  long batchSize, long startTimeNs) {
+            Producer.MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
             callback.rateIn = rateIn;
@@ -404,9 +377,9 @@ public class Producer {
             return callback;
         }
 
-        static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                 int msgSize, long batchSize, long startTimeNs) {
-            MessagePublishContext callback = RECYCLER.get();
+        static Producer.MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
+                                                  int msgSize, long batchSize, long startTimeNs) {
+            Producer.MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
             callback.highestSequenceId = highestSequenceId;
@@ -419,15 +392,15 @@ public class Producer {
             return callback;
         }
 
-        private final Handle<MessagePublishContext> recyclerHandle;
+        private final Recycler.Handle<Producer.MessagePublishContext> recyclerHandle;
 
-        private MessagePublishContext(Handle<MessagePublishContext> recyclerHandle) {
+        private MessagePublishContext(Recycler.Handle<Producer.MessagePublishContext> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
-        private static final Recycler<MessagePublishContext> RECYCLER = new Recycler<MessagePublishContext>() {
-            protected MessagePublishContext newObject(Recycler.Handle<MessagePublishContext> handle) {
-                return new MessagePublishContext(handle);
+        private static final Recycler<Producer.MessagePublishContext> RECYCLER = new Recycler<Producer.MessagePublishContext>() {
+            protected Producer.MessagePublishContext newObject(Recycler.Handle<Producer.MessagePublishContext> handle) {
+                return new Producer.MessagePublishContext(handle);
             }
         };
 
@@ -514,7 +487,7 @@ public class Producer {
     public CompletableFuture<Void> disconnect() {
         if (!closeFuture.isDone()) {
             log.info("Disconnecting producer: {}", this);
-            cnx.ctx().executor().execute(() -> {
+            execute(() -> {
                 cnx.closeProducer(this);
                 closeNow(true);
             });

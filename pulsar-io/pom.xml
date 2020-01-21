@@ -35,7 +35,7 @@
     <module>core</module>
     <module>common</module>
     <module>docs</module>
-    <module>twitter</module>
+<!--    <module>twitter</module>
     <module>cassandra</module>
     <module>aerospike</module>
     <module>kafka</module>
@@ -56,7 +56,7 @@
     <module>flume</module>
     <module>redis</module>
     <module>solr</module>
-    <module>influxdb</module>
+    <module>influxdb</module>-->
   </modules>
 
 </project>
