@@ -64,7 +64,6 @@
     "Administration": [
       "version-2.5.0-administration-zk-bk",
       "version-2.5.0-administration-geo",
-      "version-2.5.0-administration-dashboard",
       "version-2.5.0-administration-pulsar-manager",
       "version-2.5.0-administration-stats",
       "version-2.5.0-administration-load-balance",
