@@ -977,6 +977,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             .subscriptionName(subscribeName)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
             .subscribe();
+        Message<byte[]> message = consumer.receive();
 
         // Get the consumer stats.
         TopicStats topicStats = admin.topics().getStats(topic);
@@ -995,10 +996,15 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(0, startAckedTimestampInSubStats);
 
         // c. The Consumer receives the message and acks the message.
-        Message<byte[]> message = consumer.receive();
         consumer.acknowledge(message);
         // Waiting for the ack command send to the broker.
-        TimeUnit.SECONDS.sleep(5);
+        while (true) {
+            topicStats = admin.topics().getStats(topic);
+            if (topicStats.subscriptions.get(subscribeName).lastAckedTimestamp != 0) {
+                break;
+            }
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
 
         // Get the consumer stats.
         topicStats = admin.topics().getStats(topic);
@@ -1023,7 +1029,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         message = consumer.receive();
         consumer.acknowledge(message);
         // Waiting for the ack command send to the broker.
-        TimeUnit.SECONDS.sleep(5);
+        while (true) {
+            topicStats = admin.topics().getStats(topic);
+            if (topicStats.subscriptions.get(subscribeName).lastAckedTimestamp != ackedTimestampInSubStats) {
+                break;
+            }
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
 
         // Get the consumer stats again.
         topicStats = admin.topics().getStats(topic);
