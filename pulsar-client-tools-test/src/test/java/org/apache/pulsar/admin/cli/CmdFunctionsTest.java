@@ -185,6 +185,8 @@ public class CmdFunctionsTest {
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
+            "--dead-letter-topic", "test-dead-letter-topic",
+            "--custom-runtime-options", "custom-runtime-options"
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -192,6 +194,8 @@ public class CmdFunctionsTest {
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
         assertEquals(new Boolean(false), creater.getAutoAck());
+        assertEquals("test-dead-letter-topic", creater.getDeadLetterTopic());
+        assertEquals("custom-runtime-options", creater.getCustomRuntimeOptions());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
