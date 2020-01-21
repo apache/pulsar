@@ -99,6 +99,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -154,6 +155,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    public volatile long delayedDeliveryTickTimeMillis = 1000;
+    public volatile boolean delayedDeliveryEnabled = false;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     protected final MessageDeduplication messageDeduplication;
@@ -209,6 +212,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         USAGE_COUNT_UPDATER.set(this, 0);
+        this.delayedDeliveryEnabled = brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled();
+        this.delayedDeliveryTickTimeMillis = brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
 
         initializeDispatchRateLimiterIfNeeded(Optional.empty());
 
@@ -1736,6 +1741,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
+
+        if (data.delayed_delivery_policies != null) {
+            delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
+            delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
+        }
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
         
