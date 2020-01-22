@@ -1,5 +1,8 @@
 package org.apache.pulsar.protocols.grpc;
 
+import com.google.protobuf.ByteString;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+
 public class Commands {
 
     public static PulsarApi.BaseCommand newLookupErrorResponse(PulsarApi.ServerError error, String errorMsg, long requestId) {
@@ -44,6 +47,20 @@ public class Commands {
         return PulsarApi.BaseCommand.newBuilder()
             .setType(PulsarApi.BaseCommand.Type.ERROR)
             .setError(cmdError)
+            .build();
+    }
+
+    public static PulsarApi.BaseCommand newProducerSuccess(long requestId, String producerName, long lastSequenceId,
+                                                           SchemaVersion schemaVersion) {
+        PulsarApi.CommandProducerSuccess.Builder producerSuccessBuilder = PulsarApi.CommandProducerSuccess.newBuilder();
+        producerSuccessBuilder.setRequestId(requestId);
+        producerSuccessBuilder.setProducerName(producerName);
+        producerSuccessBuilder.setLastSequenceId(lastSequenceId);
+        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        PulsarApi.CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
+        return PulsarApi.BaseCommand.newBuilder()
+            .setType(PulsarApi.BaseCommand.Type.PRODUCER_SUCCESS)
+            .setProducerSuccess(producerSuccess)
             .build();
     }
 

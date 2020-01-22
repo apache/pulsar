@@ -5,6 +5,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
+import io.grpc.stub.StreamObserver;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,5 +52,32 @@ public class GrpcServer {
         PulsarGrpcServiceGrpc.PulsarGrpcServiceBlockingStub stub = PulsarGrpcServiceGrpc.newBlockingStub(channel);
         String test = stub.hello(SimpleValue.newBuilder().setName("persistent://public/default/my-topic").build()).getName();
         System.out.println(test);
+
+        PulsarGrpcServiceGrpc.PulsarGrpcServiceStub asyncStub = PulsarGrpcServiceGrpc.newStub(channel);
+        StreamObserver<PulsarApi.BaseCommand> responseObserver = new StreamObserver<PulsarApi.BaseCommand>() {
+            @Override
+            public void onNext(PulsarApi.BaseCommand value) {
+                PulsarApi.BaseCommand.Type type = value.getType();
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        };
+        StreamObserver<PulsarApi.BaseCommand> produce = asyncStub.produce(responseObserver);
+
+        try {
+            Thread.sleep(100000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 }

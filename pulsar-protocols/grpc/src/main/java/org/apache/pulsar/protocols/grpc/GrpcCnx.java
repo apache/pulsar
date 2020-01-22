@@ -38,7 +38,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public SocketAddress clientAddress() {
-        return null;
+        return remoteAddress;
     }
 
     @Override

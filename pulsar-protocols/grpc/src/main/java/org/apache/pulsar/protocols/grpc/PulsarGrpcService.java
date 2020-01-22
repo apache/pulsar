@@ -1,8 +1,6 @@
 package org.apache.pulsar.protocols.grpc;
 
-import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.common.naming.TopicName;
@@ -17,6 +15,7 @@ import java.net.SocketAddress;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceImplBase {
 
@@ -31,18 +30,18 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
     @Override
     public void hello(SimpleValue request, StreamObserver<SimpleValue> responseObserver) {
         service.getTopic(request.getName(), true)
-                .whenComplete((topic, throwable) ->
-                        {
-                            if (throwable == null) {
-                                String state = topic.map(topic1 -> topic1.getInternalStats().state).orElse("null");
-                                SimpleValue reply = SimpleValue.newBuilder().setName(state).build();
-                                responseObserver.onNext(reply);
-                                responseObserver.onCompleted();
-                            } else {
-                                responseObserver.onError(throwable);
-                            }
-                        }
-                );
+            .whenComplete((topic, throwable) ->
+                {
+                    if (throwable == null) {
+                        String state = topic.map(topic1 -> topic1.getInternalStats().state).orElse("null");
+                        SimpleValue reply = SimpleValue.newBuilder().setName(state).build();
+                        responseObserver.onNext(reply);
+                        responseObserver.onCompleted();
+                    } else {
+                        responseObserver.onError(throwable);
+                    }
+                }
+            );
 
     }
 
@@ -74,37 +73,68 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         // TODO: pass topic name in metadata
         String topic = "my-topic";
         String authRole = "admin";
+
+        TopicName topicName;
         try {
-            TopicName topicName = TopicName.get(topic);
-            service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topik) -> {
-                Producer producer = new GrpcProducer(topik, cnx, producerId, producerName, authRole,
-                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName);
-            });
+            topicName = TopicName.get(topic);
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, e);
             }
-            responseObserver.onError(new StatusException(Status.INVALID_ARGUMENT.withCause(e)));
+
+            // TODO: add InvalidTopicName code in error metadata so that it's passed to the client
+            throw Status.INVALID_ARGUMENT
+                .withDescription("Invalid topic name: " + e.getMessage())
+                .withCause(e)
+                .asRuntimeException();
         }
 
+        try {
+            service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topik) -> {
+                Producer producer = new GrpcProducer(topik, cnx, producerId, producerName, authRole,
+                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName);
 
-
-
+                try {
+                    // TODO : check that removeProducer is called even with early client disconnect
+                    topik.addProducer(producer);
+                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    responseObserver.onNext(Commands.newProducerSuccess(requestId, producerName,
+                        producer.getLastSequenceId(), producer.getSchemaVersion()));
+                } catch (BrokerServiceException ise) {
+                    log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
+                        ise.getMessage());
+                    throw new RuntimeException(ise);
+                }
+                // TODO: make the code non-blocking and run on directExecutor (maybe)
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (!(cause instanceof BrokerServiceException.ServiceUnitNotReadyException)) {
+                // Do not print stack traces for expected exceptions
+                log.error("[{}] Failed to create topic {}", remoteAddress, topicName, e);
+            }
+            // TODO: add BrokerServiceException code in error metadata so that it's passed to the client
+            throw Status.FAILED_PRECONDITION
+                .withDescription(e.getMessage())
+                .withCause(e)
+                .asRuntimeException();
+        }
 
         return new StreamObserver<PulsarApi.BaseCommand>() {
             @Override
-            public void onNext(PulsarApi.BaseCommand baseCommand) {
+            public void onNext(PulsarApi.BaseCommand cmd) {
+                switch (cmd.getType()) {
+                    case SEND:
 
+                }
             }
 
             @Override
             public void onError(Throwable throwable) {
-
             }
 
             @Override
             public void onCompleted() {
-
             }
         };
     }
