@@ -549,7 +549,7 @@ class Client:
                   This method will accept these forms:
                     - `topic='my-topic'`
                     - `topic=['topic-1', 'topic-2', 'topic-3']`
-                    - `topic=re.compile('topic-.*')`
+                    - `topic=re.compile('persistent://public/default/topic-*')`
         * `subscription`: The name of the subscription.
 
         **Options**
