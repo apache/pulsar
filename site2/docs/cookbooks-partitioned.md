@@ -10,7 +10,7 @@ You can publish to partitioned topics using Pulsar client libraries and you can 
 
 ## Publish to partitioned topics
 
-When publishing to partitioned topics, you do not need to explicitly specify a [routing mode](concepts-messaging.md#routing-modes) when you create a new producer. If you do not specify a routing mode, the round Robin route mode is used. Take [Java](#java) as an example.
+When publishing to partitioned topics, you do not need to explicitly specify a [routing mode](concepts-messaging.md#routing-modes) when you create a new producer. If you do not specify a routing mode, the round robin route mode is used. Take [Java](#java) as an example.
 
 Publishing messages to partitioned topics in the Java client works much like [publishing to normal topics](client-libraries-java.md#using-producers). The difference is that you need to specify either one of the currently available message routers or a custom router.
 
