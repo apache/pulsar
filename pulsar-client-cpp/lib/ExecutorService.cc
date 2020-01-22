@@ -59,11 +59,12 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
 }
 
 void ExecutorService::close() {
-    // Ensure this service has not already been closed. This is
-    // because worker_.join() is not re-entrant on Windows
-    if (work_) {
-        io_service_->stop();
-        work_.reset();
+    io_service_->stop();
+    work_.reset();
+    // If this thread is attempting to join itself, do not. The destructor's
+    // call to close will handle joining if it does not occur here. This also ensures
+    // join is not called twice since it is not re-entrant on windows
+    if (std::this_thread::get_id() != worker_.get_id() && worker_.joinable()) {
         worker_.join();
     }
 }
