@@ -11,7 +11,7 @@ Currently, the following Go clients are maintained in two repositories.
 | Language | Project | Maintainer | License | Description |
 |----------|---------|------------|---------|-------------|
 | CGo | [pulsar-client-go](https://github.com/apache/pulsar/tree/master/pulsar-client-go) | [Apache Pulsar](https://github.com/apache/pulsar) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | CGo client that depends on C++ client library |
-| CGo | [pulsar-client-go](https://github.com/apache/pulsar-client-go) | [Apache Pulsar](https://github.com/apache/pulsar) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | A native golang client |
+| Go | [pulsar-client-go](https://github.com/apache/pulsar-client-go) | [Apache Pulsar](https://github.com/apache/pulsar) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | A native golang client |
 
 > #### API docs available as well
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
