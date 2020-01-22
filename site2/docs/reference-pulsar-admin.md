@@ -1472,7 +1472,7 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-c`, `--max-unacked-messages-per-subscription`|maxUnackedMessagesPerSubscription for a namespace|0|
+|`-c`, `--max-unacked-messages-per-subscription`|maxUnackedMessagesPerSubscription for a namespace|-1|
 
 ### `get-max-unacked-messages-per-consumer`
 Get maxUnackedMessagesPerConsumer for a namespace
@@ -1494,7 +1494,7 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-c`, `--max-unacked-messages-per-consumer`|maxUnackedMessagesPerConsumer for a namespace|0|
+|`-c`, `--max-unacked-messages-per-consumer`|maxUnackedMessagesPerConsumer for a namespace|-1|
 
 
 ### `get-compaction-threshold`
