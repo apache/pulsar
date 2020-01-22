@@ -330,7 +330,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     collector.emit(((PulsarTuple) values).getOutputStream(), values, msg);
                 } else {
                     collector.emit(values, msg);
-                };
+                }
                 ++messagesEmitted;
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Emitted message {} to the collector", spoutId, msg.getMessageId());
