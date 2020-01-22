@@ -196,22 +196,25 @@ public class NamespaceService {
      *
      * If the service unit is not owned, return an empty optional
      */
-	public Optional<URL> getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
-			throws Exception {
+    public Optional<URL> getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps,
+            boolean readOnly) throws Exception {
         if (suName instanceof TopicName) {
             TopicName name = (TopicName) suName;
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Getting web service URL of topic: {} - auth: {}", name, authoritative);
             }
-            return this.internalGetWebServiceUrl(getBundle(name), authoritative, isRequestHttps, readOnly).get();
+            return this.internalGetWebServiceUrl(getBundle(name), authoritative, isRequestHttps, readOnly)
+                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, isRequestHttps, readOnly).get();
+            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), authoritative, isRequestHttps,
+                    readOnly).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, isRequestHttps, readOnly).get();
+            return this.internalGetWebServiceUrl((NamespaceBundle) suName, authoritative, isRequestHttps, readOnly)
+                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
         }
 
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
