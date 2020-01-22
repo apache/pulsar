@@ -464,9 +464,11 @@ public class PulsarService implements AutoCloseable {
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
-            ClusterData clusterData =
-                new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
-            this.webSocketService.setLocalCluster(clusterData);
+            if (null != this.webSocketService) {
+                ClusterData clusterData =
+                    new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
+                this.webSocketService.setLocalCluster(clusterData);
+            }
 
             // needs load management service
             this.startNamespaceService();
