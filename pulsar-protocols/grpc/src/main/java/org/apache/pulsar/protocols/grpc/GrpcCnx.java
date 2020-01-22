@@ -1,16 +1,10 @@
 package org.apache.pulsar.protocols.grpc;
 
-import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.stub.StreamObserver;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
-
-import org.apache.pulsar.protocols.grpc.PulsarApi;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +71,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public void removedProducer(Producer producer) {
-
+        log.info("########### remove producer");
     }
 
     @Override
@@ -105,30 +99,8 @@ public class GrpcCnx implements ServerCnx {
     public void disableCnxAutoRead() {
     }
 
-    public TopicName validateTopicName(String topic, long requestId, GeneratedMessageV3 requestCommand) {
-        try {
-            return TopicName.get(topic);
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);
-            }
-
-            if (requestCommand instanceof PulsarApi.CommandLookupTopic) {
-                responseObserver.onNext(Commands.newLookupErrorResponse(PulsarApi.ServerError.InvalidTopicName,
-                        "Invalid topic name: " + t.getMessage(), requestId));
-            } else if (requestCommand instanceof PulsarApi.CommandPartitionedTopicMetadata) {
-                responseObserver.onNext(Commands.newPartitionMetadataResponse(PulsarApi.ServerError.InvalidTopicName,
-                        "Invalid topic name: " + t.getMessage(), requestId));
-            } else {
-                responseObserver.onNext(Commands.newError(requestId, PulsarApi.ServerError.InvalidTopicName,
-                        "Invalid topic name: " + t.getMessage()));
-            }
-
-            return null;
-        }
-    }
-
     public StreamObserver<PulsarApi.BaseCommand> getResponseObserver() {
         return responseObserver;
     }
+
 }

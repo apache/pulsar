@@ -427,6 +427,9 @@ message CommandSend {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
+
+    // Opaque payload and headers
+    required bytes headers_and_payload = 7;
 }
 
 message CommandSendReceipt {
