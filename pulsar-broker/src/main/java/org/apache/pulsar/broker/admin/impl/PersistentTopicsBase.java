@@ -498,7 +498,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             return;
         }
-        
+
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
@@ -1511,6 +1511,51 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(exception);
         }
     }
+
+    protected void internalTerminatePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+      validateAdminOperationOnTopic(authoritative);
+
+      List<MessageId> messageIds = new ArrayList<>();
+
+      PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        if (partitionMetadata.partitions > 0) {
+          final List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
+
+          for (int i = 0; i < partitionMetadata.partitions; i++) {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            try {
+              futures.add(pulsar().getAdminClient().topics()
+                  .terminateTopicAsync(topicNamePartition.toString()).whenComplete((messageId, throwable) -> {
+                      if(throwable != null) {
+                          log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition, throwable);
+                          asyncResponse.resume(new RestException(throwable));
+                      }
+                      messageIds.add(messageId);
+                  }));
+            } catch (Exception e) {
+              log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition, e);
+              throw new RestException(e);
+            }
+          }
+            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+              Throwable t = exception.getCause();
+              if (t instanceof NotFoundException) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+              } else {
+                log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, t);
+                  asyncResponse.resume( new RestException(t));
+              }
+            }
+          asyncResponse.resume(messageIds);
+            return null;
+          });
+        }
+    }
+
 
     protected void internalExpireMessages(AsyncResponse asyncResponse, String subName, int expireTimeInSeconds,
             boolean authoritative) {
