@@ -66,7 +66,7 @@ client.close()
 
 ### Consumer example
 
-The following example creates a consumer with the `my-subscription` subscription name on the `my-topic` topic, receives  incoming messages, prints the content and ID of messages that arrive, and acknowledges each message to the Pulsar broker.
+The following example creates a consumer with the `my-subscription` subscription name on the `my-topic` topic, receives incoming messages, prints the content and ID of messages that arrive, and acknowledges each message to the Pulsar broker.
 
 ```python
 consumer = client.subscribe('my-topic', 'my-subscription')
