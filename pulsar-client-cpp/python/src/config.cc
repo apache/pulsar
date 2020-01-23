@@ -18,6 +18,102 @@
  */
 #include "utils.h"
 
+class LoggerWrapper: public Logger {
+    std::string _logger;
+    PyObject* _pyLogger;
+    int _currentPythonLogLevel = 10 + (Logger::LEVEL_INFO*10);
+
+    void _updateCurrentPythonLogLevel() {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            _currentPythonLogLevel = py::call_method<int>(_pyLogger, "getEffectiveLevel");
+        } catch (py::error_already_set e) {
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    };
+
+public:
+
+    LoggerWrapper(const std::string &logger, PyObject* pyLogger) : _logger(logger) {
+        _pyLogger = pyLogger;
+        Py_XINCREF(_pyLogger);
+
+        _updateCurrentPythonLogLevel();
+    }
+
+    LoggerWrapper(const LoggerWrapper& other) {
+        _pyLogger = other._pyLogger;
+        Py_XINCREF(_pyLogger);
+    }
+
+    LoggerWrapper& operator=(const LoggerWrapper& other) {
+        _pyLogger = other._pyLogger;
+        Py_XINCREF(_pyLogger);
+        return *this;
+    }
+
+    virtual ~LoggerWrapper() {
+        Py_XDECREF(_pyLogger);
+    }
+
+    bool isEnabled(Level level) {
+        return 10 + (level*10) >= _currentPythonLogLevel;
+    }
+
+    void log(Level level, int line, const std::string& message) {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+          switch (level) {
+            case Logger::LEVEL_DEBUG:
+                py::call_method<void>(_pyLogger, "debug", message.c_str());
+                break;
+            case Logger::LEVEL_INFO:
+                py::call_method<void>(_pyLogger, "info", message.c_str());
+                break;
+            case Logger::LEVEL_WARN:
+                py::call_method<void>(_pyLogger, "warning", message.c_str());
+                break;
+            case Logger::LEVEL_ERROR:
+                py::call_method<void>(_pyLogger, "error", message.c_str());
+                break;
+          }
+            
+        } catch (py::error_already_set e) {
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    }
+};
+
+class LoggerWrapperFactory : public LoggerFactory {
+    static LoggerWrapperFactory* _instance;
+    PyObject* _pyLogger;
+
+    LoggerWrapperFactory(py::object pyLogger) {
+        _pyLogger = pyLogger.ptr();
+        Py_XINCREF(_pyLogger);
+    }
+
+public:
+    virtual ~LoggerWrapperFactory() {
+        Py_XDECREF(_pyLogger);
+    }
+
+    Logger* getLogger(const std::string &fileName) {
+        return new LoggerWrapper(fileName, _pyLogger);
+    }
+
+    static LoggerFactoryPtr create(py::object pyLogger) {
+        return LoggerFactoryPtr(new LoggerWrapperFactory(pyLogger));
+    }
+};
+
+
 template<typename T>
 struct ListenerWrapper {
     PyObject* _pyListener;
@@ -74,6 +170,12 @@ static ClientConfiguration& ClientConfiguration_setAuthentication(ClientConfigur
     return conf;
 }
 
+static ClientConfiguration& ClientConfiguration_setLogger(ClientConfiguration& conf,
+                                                                  py::object logger) {
+    conf.setLogger(LoggerWrapperFactory::create(logger));
+    return conf;
+}
+
 void export_config() {
     using namespace boost::python;
 
@@ -89,6 +191,7 @@ void export_config() {
             .def("concurrent_lookup_requests", &ClientConfiguration::setConcurrentLookupRequest, return_self<>())
             .def("log_conf_file_path", &ClientConfiguration::getLogConfFilePath, return_value_policy<copy_const_reference>())
             .def("log_conf_file_path", &ClientConfiguration::setLogConfFilePath, return_self<>())
+            .def("set_logger", &ClientConfiguration_setLogger, return_self<>())
             .def("use_tls", &ClientConfiguration::isUseTls)
             .def("use_tls", &ClientConfiguration::setUseTls, return_self<>())
             .def("tls_trust_certs_file_path", &ClientConfiguration::getTlsTrustCertsFilePath)
