@@ -21,14 +21,14 @@
 #include <stdlib.h>
 
 #if BOOST_ARCH_X86_64
-#  include <nmmintrin.h>  // SSE4.2
-#  include <wmmintrin.h>  // PCLMUL
+#include <nmmintrin.h>  // SSE4.2
+#include <wmmintrin.h>  // PCLMUL
 #endif
 
 #ifdef _MSC_VER
-#  include <intrin.h>
+#include <intrin.h>
 #elif BOOST_ARCH_X86_64
-#  include <cpuid.h>
+#include <cpuid.h>
 #endif
 
 //#define CRC32C_DEBUG
@@ -240,7 +240,7 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
     return crc;
 }
 
-#else // ! BOOST_ARCH_X86_64
+#else  // ! BOOST_ARCH_X86_64
 
 uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *config) {
     // SSE 4.2 extension for hw implementation are not present
