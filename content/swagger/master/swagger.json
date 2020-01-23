@@ -1861,6 +1861,71 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/delayedDelivery" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get delayed delivery messages config on a namespace.",
+        "description" : "",
+        "operationId" : "getDelayedDeliveryPolicies",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/DelayedDeliveryPolicies"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set delayed delivery messages config on a namespace.",
+        "description" : "",
+        "operationId" : "setDelayedDeliveryPolicies",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/dispatchRate" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -2471,11 +2536,6 @@
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "cluster",
           "in" : "path",
           "required" : true,
           "type" : "string"
@@ -3324,11 +3384,6 @@
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "cluster",
           "in" : "path",
           "required" : true,
           "type" : "string"
@@ -8862,6 +8917,18 @@
         }
       }
     },
+    "DelayedDeliveryPolicies" : {
+      "type" : "object",
+      "properties" : {
+        "tickTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "active" : {
+          "type" : "boolean"
+        }
+      }
+    },
     "DeleteSchemaResponse" : {
       "type" : "object",
       "properties" : {
@@ -9144,12 +9211,27 @@
           "type" : "number",
           "format" : "double"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "underLoaded" : {
           "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -9157,28 +9239,13 @@
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -9346,10 +9413,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -9800,6 +9867,9 @@
         "encryption_required" : {
           "type" : "boolean"
         },
+        "delayed_delivery_policies" : {
+          "$ref" : "#/definitions/DelayedDeliveryPolicies"
+        },
         "subscription_auth_mode" : {
           "type" : "string",
           "enum" : [ "None", "Prefix" ]
@@ -10059,10 +10129,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -10167,11 +10237,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
