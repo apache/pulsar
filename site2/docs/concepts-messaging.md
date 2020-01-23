@@ -49,7 +49,14 @@ Messages published by producers can be compressed during transportation in order
 
 ### Batching
 
-If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batching size is defined by the maximum number of messages and maximum publish latency.
+If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batch size is defined by the maximum number of messages and maximum publish latency.
+
+Batches are tracked and stored by Pulsar as batches rather than as individual messages. Under the hood the consumer unbundles these batches into individual messages. Since the messages are stored as batches, the backlog size will also represent the total number of batches rather than the total number of messages.
+
+Scheduled messages (using `deliverAt` or `deliverAfter`) are always sent as individual messages even when batching is enabled.
+
+> Note
+> Since batches are tracked as single units, a batch will only be considered acknowledged when all its messages are acknowledged by the consumer. This means unexpected failures, negative acknowledgements, and acknowledgement timeouts can result in redelivery of all messages in the batch, even if some of the messages have already been acknowledged.
 
 ## Consumers
 
@@ -91,12 +98,18 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+> Note
+> If batching is enabled, other messages in the same batch may be redelivered to the consumer as well as the negatively acknowledged messages.
+
 ### Acknowledgement timeout
 
 When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire `acktimeout` time range, and send a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
+> Note
+> If batching is enabled, other messages in the same batch may be redelivered to the consumer as well as the unacknowledged messages.
+
 > Note    
-> Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+> Prefer negative acknowledgements over acknowledgement timeout. Negative acknowledgement controls the re-delivery of individual messages with more precision, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
 
 ### Dead letter topic
 
