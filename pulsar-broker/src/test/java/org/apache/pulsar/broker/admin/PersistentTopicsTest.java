@@ -207,65 +207,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testTerminatePartitionedTopic() {
         String testLocalTopicName = "topic-not-found";
 
-        // 1) Confirm that the topic does not exist
-        AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName, true);
-        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
-        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
-                Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Topic not found");
-
-        // 2) Confirm that the partitioned topic does not exist
-        response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
-                true);
-        errorCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
-        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
-                Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(),
-                "Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has zero partitions");
-
         // 3) Create the partitioned topic
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 1);
 
-        // 4) Confirm that the topic partitions has not been created yet
-        response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
-                true);
-        errorCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
-        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
-                Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Topic partitions were not yet created");
-
         // 5) Create a subscription
-        response = mock(AsyncResponse.class);
+        AsyncResponse response  = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
                 (MessageIdImpl) MessageId.earliest, false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
-        // 6) Confirm that the subscription exists
-        response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
-                true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
-
-        // 7) Delete the subscription
-        response = mock(AsyncResponse.class);
-        persistentTopics.deleteSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true);
-        responseCaptor = ArgumentCaptor.forClass(Response.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
-        // 8) Confirm that the subscription does not exist
-        response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
-                true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
 
         // 9) terminate partitioned topic
         response = mock(AsyncResponse.class);
