@@ -49,7 +49,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // Timestamp at which the timeout is currently set
     private long currentTimeoutTarget;
 
-    private final long tickTimeMillis;
+    private long tickTimeMillis;
 
     private final Clock clock;
 
@@ -125,6 +125,13 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         }
         updateTimer();
         return positions;
+    }
+
+    @Override
+    public void resetTickTime(long tickTime) {
+        if (this.tickTimeMillis != tickTime){
+            this.tickTimeMillis = tickTime;
+        }
     }
 
     @Override

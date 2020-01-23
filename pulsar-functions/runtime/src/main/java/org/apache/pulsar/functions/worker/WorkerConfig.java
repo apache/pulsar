@@ -43,10 +43,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -54,10 +50,6 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
