@@ -369,7 +369,7 @@ int main(int argc, char** argv) {
 
     pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
 
-    std::atomic<bool> exitCondition;
+    std::atomic<bool> exitCondition(false);
     startPerfProducer(args, producerConf, client, exitCondition);
 
     Clock::time_point oldTime = Clock::now();
