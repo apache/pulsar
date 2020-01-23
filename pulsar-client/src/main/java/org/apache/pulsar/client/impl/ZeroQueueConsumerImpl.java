@@ -60,7 +60,9 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
-            return beforeConsume(fetchSingleMessageFromBroker());
+            Message<T> msg = fetchSingleMessageFromBroker();
+            trackMessage(msg);
+            return beforeConsume(msg);
         } finally {
             zeroQueueLock.unlock();
         }
@@ -155,6 +157,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                     log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
                             message.getMessageId());
                 }
+                trackMessage(message);
                 listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,

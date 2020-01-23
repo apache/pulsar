@@ -1686,5 +1686,9 @@ flexible messaging model and an intuitive client API.</description>
       <name>bintray</name>
       <url>https://yahoo.bintray.com/maven</url>
     </repository>
+    <repository>
+      <id>spring-plugins-release</id>
+      <url>https://repo.spring.io/plugins-release/</url>
+    </repository>
   </repositories>
 </project>

@@ -977,6 +977,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (conf.getReceiverQueueSize() == 0) {
             // call interceptor and complete received callback
+            trackMessage(message);
             interceptAndComplete(message, receivedFuture);
             return;
         }

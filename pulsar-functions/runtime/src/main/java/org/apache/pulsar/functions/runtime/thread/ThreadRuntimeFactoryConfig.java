@@ -19,12 +19,10 @@
 package org.apache.pulsar.functions.runtime.thread;
 
 import lombok.Data;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
 
 @Data
-@ToString
 @Accessors(chain = true)
 public class ThreadRuntimeFactoryConfig {
     @FieldContext(
