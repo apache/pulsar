@@ -48,6 +48,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final NettySslContextBuilder sslCtxRefresher;
     private final ServiceConfiguration brokerConf;
 
+    // This cache is used to maintain a list of active connections to iterate over them
+    // We keep weak references to have the cache to be auto cleaned up when the connections
+    // objects are GCed.
     private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
             .weakKeys()
             .weakValues()

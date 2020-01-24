@@ -213,7 +213,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             if (jwt.getBody().getExpiration() != null) {
                 this.expiration = jwt.getBody().getExpiration().getTime();
             } else {
-                this.expiration = 0;
+                // Disable expiration
+                this.expiration = Long.MAX_VALUE;
             }
 
             // There's no additional auth stage required
@@ -233,7 +234,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public boolean isExpired() {
-            return expiration != 0 && expiration < System.currentTimeMillis();
+            return expiration < System.currentTimeMillis();
         }
     }
 }

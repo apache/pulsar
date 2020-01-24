@@ -459,11 +459,6 @@ public class ServerCnx extends PulsarHandler {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
-        if (state == State.Connected) {
-            // Connection was already ready
-            return;
-        }
-
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
         remoteEndpointProtocolVersion = clientProtoVersion;
@@ -486,17 +481,14 @@ public class ServerCnx extends PulsarHandler {
         String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         AuthData brokerData = authState.authenticate(clientData);
 
-        // authentication has completed, will send newConnected command.
+
         if (authState.isComplete()) {
+            // Authentication has completed. It was either:
+            // 1. the 1st time the authentication process was done, in which case we'll
+            //    a `CommandConnected` response
+            // 2. an authentication refresh, in which case we don't need to do anything else
+
             String newAuthRole = authState.getAuthRole();
-            if (!StringUtils.isEmpty(authRole)) {
-                if (!authRole.equals(newAuthRole)) {
-                    log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
-                    ctx.close();
-                } else {
-                    log.info("[{}] Refreshed authentication credentials", remoteAddress);
-                }
-            }
 
             if (!useOriginalAuthState) {
                 this.authRole = newAuthRole;
@@ -504,10 +496,24 @@ public class ServerCnx extends PulsarHandler {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                    remoteAddress, authMethod, authRole, originalPrincipal);
+                        remoteAddress, authMethod, authRole, originalPrincipal);
             }
 
-            completeConnect(clientProtocolVersion, clientVersion);
+            if (state != State.Connected) {
+                // First time authentication is done
+                completeConnect(clientProtocolVersion, clientVersion);
+            } else {
+                // If the connection was already ready, it means we're doing a refresh
+                if (!StringUtils.isEmpty(authRole)) {
+                    if (!authRole.equals(newAuthRole)) {
+                        log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
+                        ctx.close();
+                    } else {
+                        log.info("[{}] Refreshed authentication credentials", remoteAddress);
+                    }
+                }
+            }
+
             return State.Connected;
         }
 
