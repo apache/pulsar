@@ -464,7 +464,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // schedule task that sums up publish-rate across all cnx on a topic
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
                             topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
                             TimeUnit.SECONDS);
                 }
@@ -503,7 +503,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         brokerTickTimeMs,
                         brokerTickTimeMs,
                         TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
                         safeRun(() -> refreshBrokerPublishRate()),
                         1,
@@ -1871,7 +1871,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * If per-broker unack message reached to limit then it blocks dispatcher if its unack message limit has been
+     * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}
      *
      * @param dispatcher

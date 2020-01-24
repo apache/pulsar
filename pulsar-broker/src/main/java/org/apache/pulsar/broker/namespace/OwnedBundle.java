@@ -86,7 +86,7 @@ public class OwnedBundle {
      * 
      * @param pulsar
      * @param timeout
-     *            timeout for unloading bundle. It doesn't throw exception if it timesout while waiting on closing all
+     *            timeout for unloading bundle. It doesn't throw exception if it times out while waiting on closing all
      *            topics
      * @param timeoutUnit
      * @throws Exception
