@@ -225,7 +225,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // unload ns-bundle2 as well
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
-        // let producer2 give some time to get disconnect signal and get disconencted
+        // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
         verify(producer2, atLeastOnce()).connectionClosed(any());
 

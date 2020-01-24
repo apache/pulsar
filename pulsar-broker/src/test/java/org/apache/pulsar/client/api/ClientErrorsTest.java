@@ -572,7 +572,7 @@ public class ClientErrorsTest {
             channelCtx.set(ctx);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
-                // close the cnx immediately when trying to conenct the 2nd time
+                // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
             }
         });
@@ -612,7 +612,7 @@ public class ClientErrorsTest {
             channelCtx.set(ctx);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
-                // close the cnx immediately when trying to conenct the 2nd time
+                // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
             }
             if (numOfConnections.get() == 3) {
