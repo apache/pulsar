@@ -192,7 +192,7 @@ public class WindowManager<T> implements TriggerHandler {
      * @return the list of events to be processed as a part of the current window
      */
     private List<Event<T>> scanEvents(boolean fullScan) {
-        log.debug(String.format("Scan events, eviction policy %s", evictionPolicy));
+        log.debug("Scan events, eviction policy {}", evictionPolicy);
         List<Event<T>> eventsToExpire = new ArrayList<>();
         List<Event<T>> eventsToProcess = new ArrayList<>();
 

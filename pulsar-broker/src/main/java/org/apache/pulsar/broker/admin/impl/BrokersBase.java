@@ -92,7 +92,7 @@ public class BrokersBase extends AdminResource {
             // Add Native brokers
             return pulsar().getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
         } catch (Exception e) {
-            LOG.error(String.format("[%s] Failed to get active broker list: cluster=%s", clientAppId(), cluster), e);
+            LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
             throw new RestException(e);
         }
     }

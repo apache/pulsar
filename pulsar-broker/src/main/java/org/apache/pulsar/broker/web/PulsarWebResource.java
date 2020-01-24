@@ -437,7 +437,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -452,7 +452,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -544,11 +544,11 @@ public abstract class PulsarWebResource {
             }
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), iae);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, iae);
             throw new RestException(Status.PRECONDITION_FAILED,
                     "ServiceUnit format is not expected. ServiceUnit " + bundle);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), ise);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
@@ -592,15 +592,15 @@ public abstract class PulsarWebResource {
             }
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for topic :%s", topicName), iae);
+            log.debug("Failed to find owner for topic: {}", topicName, iae);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), ise);
+            log.debug("Failed to find owner for topic: {}", topicName, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), oe);
+            log.debug("Failed to find owner for topic: {}", topicName, oe);
             throw new RestException(oe);
         }
     }

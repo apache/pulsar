@@ -1200,7 +1200,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
-            log.debug(String.format("Failed to check the ownership of the topic: %s", topicName), e);
+            log.debug("Failed to check the ownership of the topic: {}", topicName, e);
             throw new RuntimeException(new ServerMetadataException(e));
         }
 
