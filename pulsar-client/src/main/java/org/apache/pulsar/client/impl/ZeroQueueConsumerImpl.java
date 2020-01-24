@@ -45,6 +45,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private final Lock zeroQueueLock = new ReentrantLock();
 
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
+    private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
@@ -131,7 +132,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // or queue was not empty: send a flow command
         if (waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
-                || listener != null) {
+                || (listener != null && !waitingOnListenerForZeroQueueSize)) {
             sendFlowPermitsToBroker(cnx, 1);
         }
     }
@@ -157,6 +158,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                     log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
                             message.getMessageId());
                 }
+                waitingOnListenerForZeroQueueSize = true;
                 trackMessage(message);
                 listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
@@ -164,6 +166,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         message.getMessageId(), t);
             }
             increaseAvailablePermits(cnx());
+            waitingOnListenerForZeroQueueSize = false;
         });
     }
 
