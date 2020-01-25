@@ -440,7 +440,7 @@ message CommandSendReceipt {
 }
 
 message CommandSendError {
-    required uint64 producer_id = 1;
+    // required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     required ServerError error  = 3;
     required string message     = 4;
