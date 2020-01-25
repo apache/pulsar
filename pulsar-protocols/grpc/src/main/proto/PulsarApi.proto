@@ -396,8 +396,8 @@ message CommandLookupTopicResponse {
 /// all messages sent with this producer_id will be persisted on the topic
 message CommandProducer {
     required string topic         = 1;
-    required uint64 producer_id   = 2;
-    required uint64 request_id    = 3;
+    // required uint64 producer_id   = 2;
+    // required uint64 request_id    = 3;
 
     /// If a producer name is specified, the name will be used,
     /// otherwise the broker will generate a unique name
@@ -419,7 +419,7 @@ message CommandProducer {
 }
 
 message CommandSend {
-    required uint64 producer_id = 1;
+    // required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     optional int32 num_messages = 3 [default = 1];
     optional uint64 txnid_least_bits = 4 [default = 0];
@@ -433,7 +433,7 @@ message CommandSend {
 }
 
 message CommandSendReceipt {
-    required uint64 producer_id = 1;
+    // required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     optional MessageIdData message_id = 3;
     optional uint64 highest_sequence_id = 4 [default = 0];
@@ -547,7 +547,7 @@ message CommandSuccess {
 
 /// Response from CommandProducer
 message CommandProducerSuccess {
-    required uint64 request_id    = 1;
+    // required uint64 request_id    = 1;
     required string producer_name = 2;
 
     // The last sequence id that was stored by this producer in the previous session

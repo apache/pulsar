@@ -50,10 +50,9 @@ public class Commands {
             .build();
     }
 
-    public static PulsarApi.BaseCommand newProducerSuccess(long requestId, String producerName, long lastSequenceId,
+    public static PulsarApi.BaseCommand newProducerSuccess(String producerName, long lastSequenceId,
                                                            SchemaVersion schemaVersion) {
         PulsarApi.CommandProducerSuccess.Builder producerSuccessBuilder = PulsarApi.CommandProducerSuccess.newBuilder();
-        producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
@@ -79,7 +78,6 @@ public class Commands {
 
     public static PulsarApi.BaseCommand newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId, long entryId) {
         PulsarApi.CommandSendReceipt.Builder sendReceiptBuilder = PulsarApi.CommandSendReceipt.newBuilder();
-        sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
         sendReceiptBuilder.setHighestSequenceId(highestId);
         PulsarApi.MessageIdData.Builder messageIdBuilder = PulsarApi.MessageIdData.newBuilder();

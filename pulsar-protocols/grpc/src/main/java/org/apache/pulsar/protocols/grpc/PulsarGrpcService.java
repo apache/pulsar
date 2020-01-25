@@ -1,25 +1,28 @@
 package org.apache.pulsar.protocols.grpc;
 
-import io.grpc.*;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.pulsar.broker.service.*;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.protocols.grpc.PulsarApi;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_CTX_KEY;
+import static org.apache.pulsar.protocols.grpc.Constants.REMOTE_ADDRESS_CTX_KEY;
 
 public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceImplBase {
 
@@ -51,31 +54,24 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
 
     @Override
     public StreamObserver<PulsarApi.BaseCommand> produce(StreamObserver<PulsarApi.BaseCommand> responseObserver) {
-        // final long producerId = cmdProducer.getProducerId();
-        final long producerId = 42L;
-        // final long requestId = cmdProducer.getRequestId();
-        final long requestId = 42L;
+        PulsarApi.CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
+        final String topic = cmdProducer.getTopic();
+        final long producerId = 0L;
         // Use producer name provided by client if present
-        // final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
-        //         : service.generateUniqueProducerName();
-        final String producerName = service.generateUniqueProducerName();
-        // final long epoch = cmdProducer.getEpoch();
-        final long epoch = Instant.now().toEpochMilli();
-        // final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
-        final boolean userProvidedProducerName = false;
-        // final boolean isEncrypted = cmdProducer.getEncrypted();
-        final boolean isEncrypted = false;
-        // final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
-        final Map<String, String> metadata = Collections.emptyMap();
-        // final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
-        final SchemaData schema = null;
+        final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
+                : service.generateUniqueProducerName();
+        final long epoch = cmdProducer.getEpoch();
+        final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
+        final boolean isEncrypted = cmdProducer.getEncrypted();
+        final Map<String, String> metadata = metadataFromCommand(cmdProducer);
 
-        // TODO: get from gRPC Context
-        SocketAddress remoteAddress = new InetSocketAddress("127.0.0.1", 12345);
+        // TODO: handle schema
+        //final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+
+        InetSocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         GrpcCnx cnx = new GrpcCnx(service, remoteAddress, responseObserver);
 
-        // TODO: pass topic name in metadata
-        String topic = "my-topic";
+        // TODO: handle auth
         String authRole = "admin";
 
         TopicName topicName;
@@ -103,7 +99,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
                     // TODO : check that removeProducer is called even with early client disconnect
                     topik.addProducer(grpcProducer);
                     log.info("[{}] Created new producer: {}", remoteAddress, grpcProducer);
-                    responseObserver.onNext(Commands.newProducerSuccess(requestId, producerName,
+                    responseObserver.onNext(Commands.newProducerSuccess(producerName,
                         grpcProducer.getLastSequenceId(), grpcProducer.getSchemaVersion()));
                 } catch (BrokerServiceException ise) {
                     log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
@@ -111,7 +107,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
                     throw new RuntimeException(ise);
                 }
                 return grpcProducer;
-                // TODO: make the code non-blocking and run on directExecutor (maybe)
+            // TODO: make the code non-blocking and run on directExecutor (maybe)
             }).get();
         } catch (InterruptedException | ExecutionException e) {
             Throwable cause = e.getCause();
@@ -155,12 +151,12 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
 
                         // Persist the message
                         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
-                            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                            producer.publishMessage(producerId, send.getSequenceId(), send.getHighestSequenceId(),
                                 headersAndPayload, send.getNumMessages());
                         } else {
-                            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+                            producer.publishMessage(producerId, send.getSequenceId(), headersAndPayload, send.getNumMessages());
                         }
-
+                        break;
                 }
             }
 
@@ -175,5 +171,16 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
             }
         };
     }
+
+    private Map<String, String> metadataFromCommand(PulsarApi.CommandProducer cmdProducer) {
+        List<PulsarApi.KeyValue> keyValues = cmdProducer.getMetadataList();
+        if (keyValues == null || keyValues.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return keyValues.stream()
+            .collect(Collectors.toMap(PulsarApi.KeyValue::getKey, PulsarApi.KeyValue::getValue));
+    }
+
 
 }

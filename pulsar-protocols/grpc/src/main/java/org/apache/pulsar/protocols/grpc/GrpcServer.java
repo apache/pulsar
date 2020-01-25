@@ -1,31 +1,33 @@
 package org.apache.pulsar.protocols.grpc;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.*;
 import io.grpc.protobuf.services.ProtoReflectionService;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
-// TODO: Message metadata is internal to Pulsar so must be removed from gRPC
 import io.netty.buffer.Unpooled;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.protocols.grpc.PulsarApi.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
+import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_METADATA_KEY;
+
+// TODO: Message metadata is internal to Pulsar so must be removed from gRPC
 
 public class GrpcServer {
 
@@ -37,7 +39,10 @@ public class GrpcServer {
         // TODO: replace with configurable port
         int port = 50444;
         server = ServerBuilder.forPort(port)
-                .addService(new PulsarGrpcService(service))
+                .addService(ServerInterceptors.intercept(
+                    new PulsarGrpcService(service),
+                    Collections.singletonList(new GrpcServerInterceptor())
+                ))
                 .addService(ProtoReflectionService.newInstance())
                 .build()
                 .start();
@@ -63,24 +68,37 @@ public class GrpcServer {
     // TO BE REMOVED : For test
     public static void main(String[] args) {
         ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 50444).usePlaintext().build();
-        PulsarGrpcServiceGrpc.PulsarGrpcServiceBlockingStub stub = PulsarGrpcServiceGrpc.newBlockingStub(channel);
-        String test = stub.hello(SimpleValue.newBuilder().setName("persistent://public/default/my-topic").build()).getName();
-        System.out.println(test);
 
-        PulsarGrpcServiceGrpc.PulsarGrpcServiceStub asyncStub = PulsarGrpcServiceGrpc.newStub(channel);
-        AtomicReference<StreamObserver<PulsarApi.BaseCommand>> requestRef = new AtomicReference<>();
-        StreamObserver<PulsarApi.BaseCommand> responseObserver = new StreamObserver<PulsarApi.BaseCommand>() {
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = CommandProducer.newBuilder()
+            .setTopic("my-topic2")
+            .setProducerName("my-producer")
+            .build();
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpcServiceGrpc.PulsarGrpcServiceStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpcServiceGrpc.newStub(channel), headers);
+
+        AtomicReference<StreamObserver<BaseCommand>> requestRef = new AtomicReference<>();
+        StreamObserver<BaseCommand> responseObserver = new StreamObserver<BaseCommand>() {
             @Override
-            public void onNext(PulsarApi.BaseCommand cmd) {
-                PulsarApi.BaseCommand.Type type = cmd.getType();
+            public void onNext(BaseCommand cmd) {
+                BaseCommand.Type type = cmd.getType();
                 switch(type) {
                     case PRODUCER_SUCCESS:
-                        PulsarApi.CommandProducerSuccess producerSuccess = cmd.getProducerSuccess();
+                        CommandProducerSuccess producerSuccess = cmd.getProducerSuccess();
                         requestRef.get().onNext(getSendCommand(
                             producerSuccess.getProducerName(),
                             producerSuccess.getLastSequenceId() +1,
                             "test message " + (producerSuccess.getLastSequenceId() + 1)
                         ));
+                        break;
+                    case SEND_RECEIPT:
+                        CommandSendReceipt sendReceipt = cmd.getSendReceipt();
+                        System.out.println(String.format("LedgerId: %s, EntryId: %s",
+                            sendReceipt.getMessageId().getLedgerId(),
+                            sendReceipt.getMessageId().getEntryId()
+                        ));
+                        break;
                 }
 
             }
@@ -95,7 +113,7 @@ public class GrpcServer {
 
             }
         };
-        StreamObserver<PulsarApi.BaseCommand> request = asyncStub.produce(responseObserver);
+        StreamObserver<BaseCommand> request = asyncStub.produce(responseObserver);
         requestRef.set(request);
 
         try {
@@ -114,7 +132,7 @@ public class GrpcServer {
 
     }
 
-    private static PulsarApi.BaseCommand getSendCommand(String producerName, long sequenceId, String message) {
+    private static BaseCommand getSendCommand(String producerName, long sequenceId, String message) {
         MessageMetadata metadata = MessageMetadata.newBuilder()
             .setProducerName(producerName)
             .setSequenceId(sequenceId)
@@ -125,14 +143,13 @@ public class GrpcServer {
         ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, payload);
         ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
 
-        PulsarApi.CommandSend send = PulsarApi.CommandSend.newBuilder()
+        CommandSend send = CommandSend.newBuilder()
             .setSequenceId(sequenceId)
-            .setProducerId(42L)
             .setHeadersAndPayload(headersAndPayload)
             .build();
 
-        return PulsarApi.BaseCommand.newBuilder()
-            .setType(PulsarApi.BaseCommand.Type.SEND)
+        return BaseCommand.newBuilder()
+            .setType(BaseCommand.Type.SEND)
             .setSend(send)
             .build();
     }
