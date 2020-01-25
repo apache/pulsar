@@ -294,7 +294,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	}
 }
 
-// ackInputMessage doesn't produce any result, or the user doesn't want the result.
+// ackInputMessage doesn't produce any result or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
