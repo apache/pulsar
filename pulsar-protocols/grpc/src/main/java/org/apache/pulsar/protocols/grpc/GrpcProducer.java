@@ -22,7 +22,7 @@ public class GrpcProducer extends Producer {
 
     @Override
     protected void sendError(long producerId, long sequenceId, org.apache.pulsar.common.api.proto.PulsarApi.ServerError serverError, String message) {
-        cnx.getResponseObserver().onNext(Commands.newSendError(producerId, sequenceId, ServerErrors.convert(serverError), message));
+        cnx.getResponseObserver().onNext(Commands.newSendError(sequenceId, ServerErrors.convert(serverError), message));
     }
 
     @Override
@@ -32,6 +32,6 @@ public class GrpcProducer extends Producer {
 
     @Override
     protected void sendReceipt(long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
-        cnx.getResponseObserver().onNext(Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, ledgerId, entryId));
+        cnx.getResponseObserver().onNext(Commands.newSendReceipt(sequenceId, highestSequenceId, ledgerId, entryId));
     }
 }
