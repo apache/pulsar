@@ -8,11 +8,6 @@ package pulsar.protocols.grpc;
 import 'PulsarApi.proto';
 
 service PulsarGrpcService {
-    rpc Hello(SimpleValue) returns (SimpleValue) {}
     rpc produce(stream pulsar.proto.BaseCommand) returns (stream pulsar.proto.BaseCommand) {}
     rpc consume(stream pulsar.proto.BaseCommand) returns (stream pulsar.proto.BaseCommand) {}
-}
-
-message SimpleValue {
-    string name = 1;
 }
