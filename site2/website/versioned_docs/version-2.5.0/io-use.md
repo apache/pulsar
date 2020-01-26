@@ -1,8 +1,10 @@
 ---
-id: io-use
+id: version-2.5.0-io-use
 title: How to use Pulsar connectors
 sidebar_label: Use
+original_id: io-use
 ---
+
 
 This guide describes how to use Pulsar connectors.
 

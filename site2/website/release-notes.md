@@ -46,6 +46,7 @@
 - [CLI] Add a broker tool for operations of a specific broker [#5768](https://github.com/apache/pulsar/pull/5768)
 - [CLI] Validate topic name before creating partition/non partition topic via admin cli [#5148](https://github.com/apache/pulsar/pull/5148)
 - [CLI] Make PulsarClusterMetadataSetup idempotent [#5879](https://github.com/apache/pulsar/pull/5879)
+- [CLI] Allow for topic deletions with regex consumers [#5230](https://github.com/apache/pulsar/pull/5230)
 
 #### Stats & Monitoring 
 
@@ -207,7 +208,6 @@ https://github.com/apache/pulsar/releases/tag/v2.5.0
 * Close previous dispatcher when subscription type changes [#5288](https://github.com/apache/pulsar/pull/5288)
 * Improve error handling logic for effectively once [#5271](https://github.com/apache/pulsar/pull/5271)
 * Upgrade dependencies for security fixes [#5232](https://github.com/apache/pulsar/pull/5232)
-* Allow for topic deletions with regex consumers [#5230](https://github.com/apache/pulsar/pull/5230)
 * Ensure consumer background tasks are cancelled after subscribe failures [#5204](https://github.com/apache/pulsar/pull/5204)
 * Added missing enum value KeyShared on the python wrapper [#5196](https://github.com/apache/pulsar/pull/5196)
 * Make some member variables of Dispatcher volatile [#5193](https://github.com/apache/pulsar/pull/5193)

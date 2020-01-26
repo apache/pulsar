@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.Consumer;
@@ -56,8 +54,6 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;

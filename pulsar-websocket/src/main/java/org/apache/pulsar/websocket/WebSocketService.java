@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
+import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -77,6 +78,7 @@ public class WebSocketService implements Closeable {
     private ServiceConfiguration config;
     private ConfigurationCacheService configurationCacheService;
 
+    @Setter
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
