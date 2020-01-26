@@ -27,6 +27,8 @@ if(CCACHE_PROGRAM)
     MESSAGE(STATUS "Using CCache")
 endif(CCACHE_PROGRAM)
 
+MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
@@ -49,12 +51,16 @@ set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
-if (NOT MSVC)
-    add_compile_options(-msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations)
-else()
+if (MSVC)
+    # Visual Studio compiler flags
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOGDI -D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS)
     add_compile_options(/wd4244 /wd4267 /wd4018 /wd4715 /wd4251 /wd4275)
-endif(NOT MSVC)
+else()
+    add_compile_options(-Werror=switch -Wno-deprecated-declarations)
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        add_compile_options(-msse4.2 -mpclmul)
+    endif()
+endif(MSVC)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 

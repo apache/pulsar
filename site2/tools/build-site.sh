@@ -33,12 +33,25 @@ yarn run crowdin-download
 # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
 # https://github.com/apache/pulsar/issues/5816
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-CN/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/zh-CN/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-CN/version-2.5.0/io-overview.md
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ja/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/ja/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ja/version-2.5.0/io-overview.md
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/fr/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/fr/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/fr/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-TW/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/zh-TW/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-TW/version-2.5.0/io-overview.md
 
 yarn build
 
 node ./scripts/replace.js
+
+# Generate document for command line tools.
+${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh
+cd ${ROOT_DIR}/site2/website
 
 rm -rf ${ROOT_DIR}/generated-site/content
 mkdir -p ${ROOT_DIR}/generated-site/content

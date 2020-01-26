@@ -476,7 +476,7 @@ public class PersistentSubscription implements Subscription {
                     pendingAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashSet<>());
 
             for (Position position : positions) {
-                // If try to ack message already acked by some ongoign transaction(can be itself), throw exception.
+                // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
                 // Acking single message within range of cumulative ack(if exist) is considered valid operation.
                 if (this.pendingAckMessages.contains(position)) {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
@@ -883,7 +883,7 @@ public class PersistentSubscription implements Subscription {
      *
      * @param consumer
      *            consumer object that is initiating the unsubscribe operation
-     * @return CompletableFuture indicating the completion of ubsubscribe operation
+     * @return CompletableFuture indicating the completion of unsubscribe operation
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer) {

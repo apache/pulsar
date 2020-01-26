@@ -164,21 +164,7 @@ Delivery semantics | Description
 
 
 ### Apply processing guarantees to a function
-You can set the processing guarantees for a Pulsar Function when you create the Function. The [`pulsar-function create`](reference-pulsar-admin.md#create-1) command applies effectively-once guarantees to the Function.
-
-```bash
-$ bin/pulsar-admin functions create \
-  --processing-guarantees EFFECTIVELY_ONCE \
-  # Other function configs
-```
-
-The available options are:
-
-* `ATMOST_ONCE`
-* `ATLEAST_ONCE`
-* `EFFECTIVELY_ONCE`
-
-The following command runs a function in the cluster mode with effectively-once guarantees applied.
+You can set the processing guarantees for a Pulsar Function when you create the Function. The following [`pulsar-function create`](reference-pulsar-admin.md#create-1) command creates a function with effectively-once guarantees applied.
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -186,6 +172,12 @@ $ bin/pulsar-admin functions create \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
+
+The available options for `--processing-guarantees` are:
+
+* `ATMOST_ONCE`
+* `ATLEAST_ONCE`
+* `EFFECTIVELY_ONCE`
 
 > By default, Pulsar Functions provide at-least-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees` flag, the function provides at-least-once guarantees.
 
