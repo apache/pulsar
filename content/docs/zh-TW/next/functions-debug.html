@@ -142,8 +142,8 @@ functionConfig.setOutput(sinkTopic);
 LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
 localRunner.start(<span class="hljs-keyword">true</span>);
 </code></pre>
-<p>So you can debug functions using an IDE easily. Set breakpoints and manually step through a function to debug with real data.</p>
-<p>The following example illustrates how to programmatically launch a function in localrun mode.</p>
+<p>透過這個方法就可以使用 IDE 來對 Pulsar Function 來進行除錯。 設置斷點並手動逐步地執行 function 來以實際數據進行除錯。</p>
+<p>以下範例說明如何以編程方式在 localrun 模式下啟動 function。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
 
    <span class="hljs-meta">@Override</span>
@@ -158,12 +158,8 @@ localRunner.start(<span class="hljs-keyword">true</span>);
     functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
     functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
     functionConfig.setOutput(<span class="hljs-string">"output"</span>);
-
-    LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).build();
-    localRunner.start(<span class="hljs-keyword">false</span>);
-}
 </code></pre>
-<p>To use localrun mode programmatically, add the following dependency.</p>
+<p>要以編程方式使用 localrun 模式，需要添加以下依賴項。</p>
 <pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-functions-local-runner<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
@@ -171,15 +167,15 @@ localRunner.start(<span class="hljs-keyword">true</span>);
 <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
 
 </code></pre>
-<p>For complete code samples, see <a href="https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging">here</a>.</p>
+<p>有關完整的代碼，請參見 <a href="https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging">here</a>。</p>
 <blockquote>
-<p>Note<br>
-Debugging with localrun mode for Pulsar Functions written in other languages will be supported soon.</p>
+<p>注意<br>
+不久之後將支持使用 localrun 模式調試以其他語言編寫的Pulsar Function。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="使用日誌-topic"></a><a href="#使用日誌-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用日誌 topic</h2>
-<p>In Pulsar Functions, you can generate log information defined in functions to a specified log topic. You can configure consumers to consume messages from a specified log topic to check the log information.</p>
+<p>在 Pulsar Function 中，可以產生 function 中定義的日誌信息，並將日誌拋送至指定日誌 topic。 你可以配置 consumer 消費指定的日誌 topic 來檢查日誌訊息。</p>
 <p><img src="/docs/assets/pulsar-functions-overview.png" alt="Pulsar Functions core programming model"></p>
-<p><strong>Example</strong></p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
@@ -200,14 +196,14 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
     }
 }
 </code></pre>
-<p>As shown in the example above, you can get the logger via <code>context.getLogger()</code> and assign the logger to the <code>LOG</code> variable of <code>slf4j</code>, so you can define your desired log information in a function using the <code>LOG</code> variable. Meanwhile, you need to specify the topic to which the log information is produced.</p>
-<p><strong>Example</strong></p>
+<p>如上面的範例所示，可以通過 <code>context.getLogger()</code> 來獲取 logger 物件實例，並將 logger 分配給 <code>slf4j</code> 的 <code>LOG</code> 變數，因此可以使用 <code>LOG</code> 變數在 function 中去拋出所需的日誌訊息。 同時，需要指定產生日誌訊息的 topic。</p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
   <span class="hljs-comment"># Other function configs</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="使用-function-cli"></a><a href="#使用-function-cli" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Function CLI</h2>
-<p>With <a href="/docs/zh-TW/next/pulsar-admin#functions">Pulsar Functions CLI</a>, you can debug Pulsar Functions with the following subcommands:</p>
+<p>使用 <a href="/docs/zh-TW/next/pulsar-admin#functions">Pulsar Functions CLI</a>，可以使用以下子命令調試 Pulsar Function：</p>
 <ul>
 <li><code>get</code></li>
 <li><code>status</code></li>
@@ -216,41 +212,41 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 <li><code>trigger</code></li>
 </ul>
 <blockquote>
-<p><strong>Tip</strong></p>
-<p>For complete commands of <strong>Pulsar Functions CLI</strong>, see <a href="/docs/zh-TW/next/pulsar-admin#functions">here</a>。</p>
+<p><strong>提示</strong></p>
+<p>有關 <strong>Pulsar Functions CLI</strong> 的完整命令，請參見<a href="/docs/zh-TW/next/pulsar-admin#functions">此處</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
-<p>Get information about a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p>獲取有關 Pulsar Function 的訊息。</p>
+<p><strong>使用方法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> get options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>選項</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>旗標</th><th>說明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) of a Pulsar Function.</td></tr>
-<tr><td><code>--name</code></td><td>The name of a Pulsar Function.</td></tr>
-<tr><td><code>--namespace</code></td><td>The namespace of a Pulsar Function.</td></tr>
-<tr><td><code>--tenant</code></td><td>The tenant of a Pulsar Function.</td></tr>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
 </tbody>
 </table>
 <blockquote>
-<p><strong>Tip</strong></p>
-<p><code>--fqfn</code> consists of <code>--name</code>, <code>--namespace</code> and <code>--tenant</code>, so you can specify either <code>--fqfn</code> or <code>--name</code>, <code>--namespace</code> and <code>--tenant</code>.</p>
+<p><strong>提示</strong></p>
+<p><code>--fqfn</code> 包含了 <code>--name</code>、<code>--namespace</code> 與 <code>--tenant</code>, 因此你可以指定<code>--fqfn</code> 或 <code>--name</code>、<code>--namespace</code> 與 <code>--tenant</code>。</p>
 </blockquote>
-<p><strong>Example</strong></p>
-<p>You can specify <code>--fqfn</code> to get information about a Pulsar Function.</p>
+<p><strong>範例</strong></p>
+<p>你可以指定 <code>--fqfn</code> 以獲得有關 Pulsar Function 的訊息。</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> get public/default/ExclamationFunctio6
 </code></pre>
-<p>Optionally, you can specify <code>--name</code>, <code>--namespace</code> and <code>--tenant</code> to get information about a Pulsar Function.</p>
+<p>另外也可以指定 <code>--name</code>、<code>--namespace</code> 和 <code>--tenant</code> 以獲得有關 Pulsar Function 的訊息。</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> get \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6
 </code></pre>
-<p>As shown below, the <code>get</code> command shows input, output, runtime, and other information about the <em>ExclamationFunctio6</em> function.</p>
+<p>如下所示，<code>get</code> 命令顯示有關 * ExclamationFunctio6* 函數的輸入、輸出、運行時以及其它訊息。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -271,31 +267,32 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
-<p>Check the current status of a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p>檢查 Pulsar Function 的當前狀態。</p>
+<p><strong>使用方法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> status options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>選項</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>旗標</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) of a Pulsar Function.</td></tr>
-<tr><td><code>--instance-id</code></td><td>The instance ID of a Pulsar Function</td></tr>
-<tr><td>If the <code>--instance-id</code> is not specified, it gets the IDs of all instances.</td></tr>
-<tr><td><code>--name</code></td><td>The name of a Pulsar Function.</td></tr>
-<tr><td><code>--namespace</code></td><td>The namespace of a Pulsar Function.</td></tr>
-<tr><td><code>--tenant</code></td><td>The tenant of a Pulsar Function.</td></tr>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 的實例ID</td></tr>
+<tr><td>如果未指定 <code>--instance-id</code>，則將獲得所有實例的 ID 列表。</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> status \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6 \
+
 </code></pre>
-<p>As shown below, the <code>status</code> command shows the number of instances, running instances, the instance running under the <em>ExclamationFunctio6</em> function, received messages, successfully processed messages, system exceptions, the average latency and so on.</p>
+<p>如下所示，<code>status</code> 命令顯示 Pulsar Function 實例數、正在運行的實例、在 <em>ExclamationFunctio6</em> 函數下運行的實例、接收到的消息、成功處理的消息、系統異常、平均值延遲等等。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
@@ -319,31 +316,31 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
-<p>Get the current stats of a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p>獲取 Pulsar Function 的當前狀態。</p>
+<p><strong>使用方法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> stats options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>選項</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>旗標</th><th>說明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) of a Pulsar Function.</td></tr>
-<tr><td><code>--instance-id</code></td><td>The instance ID of a Pulsar Function.</td></tr>
-<tr><td>If the <code>--instance-id</code> is not specified, it gets the IDs of all instances.</td></tr>
-<tr><td><code>--name</code></td><td>The name of a Pulsar Function.</td></tr>
-<tr><td><code>--namespace</code></td><td>The namespace of a Pulsar Function.</td></tr>
-<tr><td><code>--tenant</code></td><td>The tenant of a Pulsar Function.</td></tr>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 的實例 ID</td></tr>
+<tr><td>如果未指定 <code>--instance-id</code>，則將獲得所有實例的 ID 列表。</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> stats \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6 \
 </code></pre>
-<p>The output is shown as follows:</p>
+<p>輸出如下所示：</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"receivedTotal"</span> : <span class="hljs-number">1</span>,
   <span class="hljs-attr">"processedSuccessfullyTotal"</span> : <span class="hljs-number">1</span>,
@@ -380,51 +377,51 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
-<p>List all Pulsar Functions running under a specific tenant and namespace.</p>
-<p><strong>Usage</strong></p>
+<p>列出在特定租戶和命名空間下運行的所有 Pulsar Function。</p>
+<p><strong>使用方法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> list options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>選項</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>旗標</th><th>說明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--namespace</code></td><td>The namespace of a Pulsar Function.</td></tr>
-<tr><td><code>--tenant</code></td><td>The tenant of a Pulsar Function.</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
     --tenant public \
     --namespace default
 </code></pre>
-<p>As shown below, the <code>list</code> command returns three functions running under the <em>public</em> tenant and the <em>default</em> namespace.</p>
+<p>如下所示，<code>list</code> 命令返回在 <em>public</em> 租戶和 <em>default</em> 命名空間下運行的三個函數。</p>
 <pre><code class="hljs css language-text">ExclamationFunctio1
 ExclamationFunctio2
 ExclamationFunctio3
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="trigger"></a><a href="#trigger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>trigger</code></h3>
-<p>Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Pulsar Function and verifies it.</p>
-<p><strong>Usage</strong></p>
+<p>給予特定值來觸發一個指定的 Pulsar Function。 此命令模擬 Pulsar Function 的執行過程並進行驗證。</p>
+<p><strong>使用方法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> trigger options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>選項</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>旗標</th><th>說明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--fqfn</code></td><td>The Fully Qualified Function Name (FQFN) of a Pulsar Function.</td></tr>
-<tr><td><code>--name</code></td><td>The name of a Pulsar Function.</td></tr>
-<tr><td><code>--namespace</code></td><td>The namespace of a Pulsar Function.</td></tr>
-<tr><td><code>--tenant</code></td><td>The tenant of a Pulsar Function.</td></tr>
-<tr><td><code>--topic</code></td><td>The topic name that a Pulsar Function consumes from.</td></tr>
-<tr><td><code>--trigger-file</code></td><td>The path to a file that contains the data to trigger a Pulsar Function.</td></tr>
-<tr><td><code>--trigger-value</code></td><td>The value to trigger a Pulsar Function.</td></tr>
+<tr><td><code>--fqfn</code></td><td>Pulsar Function 的 Fully Qualified Function Name (FQFN)</td></tr>
+<tr><td><code>--name</code></td><td>Pulsar Function 的名稱</td></tr>
+<tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空間</td></tr>
+<tr><td><code>--tenant</code></td><td>Pulsar Function 的租戶名稱</td></tr>
+<tr><td><code>--topic</code></td><td>Pulsar Function 要消費的 topic 名稱</td></tr>
+<tr><td><code>--trigger-file</code></td><td>包含觸發 Pulsar Function 的數據文件路徑。</td></tr>
+<tr><td><code>--trigger-value</code></td><td>觸發 Pulsar Function 的值</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>範例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
     --tenant public \
     --namespace default \
@@ -432,12 +429,12 @@ ExclamationFunctio3
     --topic persistent://public/default/my-topic-1 \
     --trigger-value <span class="hljs-string">"hello pulsar functions"</span>
 </code></pre>
-<p>As shown below, the <code>trigger</code> command returns the following result:</p>
+<p>如下所示，<code>trigger</code> 命令返回以下結果：</p>
 <pre><code class="hljs css language-text">This is my function!
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><strong>Note</strong></h4>
-<p>You must specify the <a href="/docs/zh-TW/next/pulsar-2.0#topic-names">entire topic name</a> when using the <code>--topic</code> option. Otherwise, the following error occurs.</p>
+<h4><a class="anchor" aria-hidden="true" id="注意"></a><a href="#注意" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><strong>注意</strong></h4>
+<p>使用 <code>--topic</code> 選項時，必須指定 topic 的 <a href="/docs/zh-TW/next/pulsar-2.0#topic-names">FQFN</a>。 否則，將發生以下錯誤。</p>
 <pre><code class="hljs css language-text"></code></pre>
 </blockquote>
 <p>Function in trigger function has unidentified topic</p>

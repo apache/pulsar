@@ -1351,26 +1351,19 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "topicName" : {
+          "type" : "string"
         },
-        "sequenceId" : {
+        "producerName" : {
+          "type" : "string"
+        },
+        "publishTime" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
@@ -1386,25 +1379,32 @@
             "format" : "byte"
           }
         },
-        "producerName" : {
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "replicatedFrom" : {
           "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
         },
         "data" : {
           "type" : "array",
