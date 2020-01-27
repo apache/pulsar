@@ -1,5 +1,6 @@
 package org.apache.pulsar.protocols.grpc;
 
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -52,12 +53,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public boolean isActive() {
-        return false;
-    }
-
-    @Override
-    public SocketAddress getRemoteAddress() {
-        return null;
+        return true;
     }
 
     @Override
@@ -76,6 +72,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public void closeProducer(Producer producer) {
+        responseObserver.onCompleted();
     }
 
     @Override

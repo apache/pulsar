@@ -107,6 +107,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         return new StreamObserver<PulsarApi.BaseCommand>() {
             @Override
             public void onNext(PulsarApi.BaseCommand cmd) {
+
                 switch (cmd.getType()) {
                     case SEND:
                         PulsarApi.CommandSend send = cmd.getSend();

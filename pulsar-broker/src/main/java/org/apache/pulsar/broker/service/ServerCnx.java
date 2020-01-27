@@ -17,8 +17,6 @@ public interface ServerCnx {
 
     boolean isActive();
 
-    SocketAddress getRemoteAddress();
-
     void completedSendOperation(boolean isNonPersistentTopic, int msgSize);
 
     AuthenticationDataSource getAuthenticationData();

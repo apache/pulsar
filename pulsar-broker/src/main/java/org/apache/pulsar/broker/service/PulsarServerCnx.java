@@ -1894,10 +1894,6 @@ public class PulsarServerCnx extends PulsarHandler implements ServerCnx {
         return state;
     }
 
-    public SocketAddress getRemoteAddress() {
-        return remoteAddress;
-    }
-
     public BrokerService getBrokerService() {
         return service;
     }
