@@ -245,6 +245,11 @@ broker:
   pdb:
     usePolicy: yes
     maxUnavailable: 1
+  ## Broker rbac
+  ## templates/broker-rbac.yaml
+  ##
+  functions:
+    component: functions-worker
 
 ## Pulsar Extra: Proxy
 ## templates/proxy-deployment.yaml
