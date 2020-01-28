@@ -17,7 +17,7 @@ persistent://tenant/namespace/topic
 
 ### Create
 
-Non-partitioned topics in Pulsar must be explicitly created. When creating a new non-partitioned topic you
+Non-partitioned topics in Pulsar must be explicitly created ??? When creating a new non-partitioned topic you
 need to provide a name for the topic.
 
 > #### Note
