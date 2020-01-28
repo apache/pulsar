@@ -120,7 +120,6 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 @SuppressWarnings("unchecked")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
@@ -603,6 +602,7 @@ public class ServerCnxTest {
         assertTrue(getResponse() instanceof CommandSuccess);
     }
 
+    @Test(timeOut = 30000)
     public void testProducerCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
