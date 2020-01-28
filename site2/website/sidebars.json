@@ -130,7 +130,8 @@
       "reference-cli-tools",
       "pulsar-admin",
       "reference-configuration",
-      "reference-metrics"
+      "reference-metrics",
+      "reference-feature-compatibility"
     ]
   },
   "docs-other": {

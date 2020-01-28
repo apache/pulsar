@@ -18,6 +18,10 @@ Key features of Pulsar are listed below:
 * A serverless connector framework [Pulsar IO](io-overview.md), which is built on Pulsar Functions, makes it easier to move data in and out Apache Pulsar.
 * [Tiered Storage](concepts-tiered-storage.md) offloads data from hot/warm storage to cold/longterm storage (such as S3 and GCS) when the data is aging out.
 
+## Feature Compatibility Matrix
+
+Most Pulsar features can be freely mixed and matched, but some features cannot be used in combination with some others. Please refer to [Feature Compatibility Matrices](reference-feature-compatibility.md) for details.
+
 ## Contents
 
 - [Messaging Concepts](concepts-messaging.md)
