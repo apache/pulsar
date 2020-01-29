@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -157,8 +156,7 @@ public class PulsarFunctionE2ESecurityTest {
                 "token:" +  adminToken);
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         brokerServiceUrl = pulsar.getWebServiceAddress();
