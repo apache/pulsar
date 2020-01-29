@@ -42,6 +42,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
     std::lock_guard<std::mutex> acquire(lock_);
     LOG_DEBUG("UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ "
               << consumerReference_.getName().c_str());
+    oldSet_.swap(currentSet_);
     if (!oldSet_.empty()) {
         LOG_INFO(consumerReference_.getName().c_str()
                  << ": " << oldSet_.size() << " Messages were not acked within " << timeoutMs_ << " time");
@@ -49,7 +50,6 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
         currentSet_.clear();
         consumerReference_.redeliverUnacknowledgedMessages();
     }
-    oldSet_.swap(currentSet_);
 }
 
 UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr client,
