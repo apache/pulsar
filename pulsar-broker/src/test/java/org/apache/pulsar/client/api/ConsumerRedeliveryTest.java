@@ -167,7 +167,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         assertEquals(10, messageReceived);
 
         for (int i = 0; i < messages; i++) {
-            Message<String> message = consumer.receive();
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(message);
             messageReceived++;
             consumer.acknowledge(message);

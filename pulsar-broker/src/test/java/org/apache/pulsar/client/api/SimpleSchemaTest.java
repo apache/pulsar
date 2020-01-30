@@ -111,7 +111,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
 
             for (int i = 0; i < N; i++) {
-                Message<String> msg = consumer.receive();
+                Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 assertEquals(msg.getValue(), "my-message-" + i);
 
                 consumer.acknowledge(msg);

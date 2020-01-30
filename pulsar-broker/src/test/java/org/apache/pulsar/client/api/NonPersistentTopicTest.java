@@ -119,7 +119,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
@@ -162,7 +162,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
@@ -217,7 +217,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
@@ -260,7 +260,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());

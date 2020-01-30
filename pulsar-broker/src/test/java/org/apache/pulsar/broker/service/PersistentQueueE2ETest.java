@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -80,13 +81,22 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         }
     }
 
+    // Perhaps it would be better to import this method from PulsarTestBase in tests.integration
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testSimpleConsumerEvents() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic1";
-        final String subName = "sub1";
+        final String topicName = "persistent://prop/use/ns-abc/shared-topic1" + randomName(16);
+        final String subName = "sub1" + randomName(16);
         final int numMsgs = 100;
 
-        // 1. two consumers on the same subscription
+        // 1. two consumers on the same subscription.
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -118,14 +128,14 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         rolloverPerIntervalStats();
 
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs * 2);
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT * 3);
 
         // both consumers will together consumer all messages
         Message<byte[]> msg;
         Consumer<byte[]> c = consumer1;
         while (true) {
             try {
-                msg = c.receive(1, TimeUnit.SECONDS);
+                msg = c.receive(5, TimeUnit.SECONDS);
                 c.acknowledge(msg);
             } catch (PulsarClientException e) {
                 if (c.equals(consumer1)) {
@@ -154,7 +164,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         // 5. cumulative acks disabled
         consumer1.close();
         producer.send("message".getBytes());
-        msg = consumer2.receive();
+        msg = consumer2.receive(5, TimeUnit.SECONDS);
 
         try {
             consumer2.acknowledgeCumulative(msg);

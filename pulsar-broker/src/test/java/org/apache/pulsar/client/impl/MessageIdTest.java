@@ -124,7 +124,7 @@ public class MessageIdTest extends BrokerTestBase {
         Assert.assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
         for (int i = 0; i < numberOfMessages; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(new String(message.getData()), messagePredicate + i);
             MessageId messageId = message.getMessageId();
             Assert.assertTrue(messageIds.remove(messageId), "Failed to receive message");
@@ -343,9 +343,9 @@ public class MessageIdTest extends BrokerTestBase {
 
         ((ConsumerImpl<byte[]>) consumer).grabCnx();
         // We should only receive msg1
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-3");
 
     }
@@ -415,9 +415,9 @@ public class MessageIdTest extends BrokerTestBase {
 
         ((ConsumerImpl<byte[]>) consumer).grabCnx();
         // We should only receive msg1
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-3");
 
     }

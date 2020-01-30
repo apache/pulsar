@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -69,7 +70,7 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
         }
 
         for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals(msg.getValue(), "Hello-" + i);
             assertEquals(msg.getSequenceId(), i);
             consumer.acknowledge(msg);

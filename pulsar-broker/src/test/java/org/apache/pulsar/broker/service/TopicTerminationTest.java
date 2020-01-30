@@ -199,7 +199,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId msgId1 = producer.send("test-msg-1".getBytes());
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
 
-        Message<byte[]> msg1 = consumer.receive();
+        Message<byte[]> msg1 = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(msg1.getMessageId(), msgId1);
         consumer.acknowledge(msg1);
 
@@ -210,11 +210,11 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
-        Message<byte[]> msg2 = consumer.receive();
+        Message<byte[]> msg2 = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(msg2.getMessageId(), msgId2);
         consumer.acknowledge(msg2);
 
-        Message<byte[]> msg3 = consumer.receive();
+        Message<byte[]> msg3 = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(msg3.getMessageId(), msgId3);
         consumer.acknowledge(msg3);
 

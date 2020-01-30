@@ -73,7 +73,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
         int received = 0;
         do {
-            Message<String> message = consumer.receive();
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             System.out.println(message.getValue());
             received++;
         } while (received < 200);

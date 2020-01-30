@@ -90,11 +90,11 @@ public class ResendRequestTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         log.info("Message received " + new String(message.getData()));
 
         for (int i = 1; i < totalMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Message received " + new String(msg.getData()));
             messageDataHashSet.add(new String(msg.getData()));
         }
@@ -111,7 +111,7 @@ public class ResendRequestTest extends BrokerTestBase {
 
         // 6. Check if messages resent in correct order
         for (int i = 0; i < totalMessages - 1; i++) {
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Message received " + new String(message.getData()));
             if (i < 2) {
                 messageIdHashSet.add(message.getMessageId());
@@ -385,11 +385,11 @@ public class ResendRequestTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         log.info("Message received " + new String(message.getData()));
         for (int i = 0; i < 7; i++) {
             printIncomingMessageQueue(consumer);
-            message = consumer.receive();
+            message = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Message received " + new String(message.getData()));
         }
 
@@ -404,7 +404,7 @@ public class ResendRequestTest extends BrokerTestBase {
         consumer.redeliverUnacknowledgedMessages();
 
         int numOfReceives = 0;
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             numOfReceives += 1;
             log.info("Message received " + new String(message.getData()));
@@ -444,7 +444,7 @@ public class ResendRequestTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         int messageCount = 0;
         log.info("Message received " + new String(message.getData()));
         do {
@@ -458,7 +458,7 @@ public class ResendRequestTest extends BrokerTestBase {
         consumer.redeliverUnacknowledgedMessages();
 
         // 6. Check if Messages redelivered again
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         messageCount = 0;
         log.info("Message received " + new String(message.getData()));
         do {

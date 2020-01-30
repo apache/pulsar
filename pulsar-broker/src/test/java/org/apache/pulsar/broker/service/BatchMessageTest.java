@@ -463,7 +463,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             lastunackedMsg = msg;
         }
@@ -708,7 +708,7 @@ public class BatchMessageTest extends BrokerTestBase {
         for (int i = 0; i < numMsgs; i++) {
             executor.submit(() -> {
                 try {
-                    Message<byte[]> msg = myConsumer.receive(1, TimeUnit.SECONDS);
+                    Message<byte[]> msg = myConsumer.receive(5, TimeUnit.SECONDS);
                     myConsumer.acknowledge(msg);
                 } catch (Exception e) {
                     failed.set(false);
@@ -754,7 +754,7 @@ public class BatchMessageTest extends BrokerTestBase {
         FutureUtil.waitForAll(sendFutureList).get();
 
         for (int i = 0; i < 30; i++) {
-            Message<byte[]> received = consumer.receive();
+            Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
             if (i < 10) {
                 assertEquals(received.getKey(), "key-1");
             } else if (i < 20) {
@@ -778,7 +778,7 @@ public class BatchMessageTest extends BrokerTestBase {
         FutureUtil.waitForAll(sendFutureList).get();
 
         for (int i = 0; i < 30; i++) {
-            Message<byte[]> received = consumer.receive();
+            Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
             if (i < 10) {
                 assertEquals(new String(received.getOrderingKey()), "key-1");
             } else if (i < 20) {
@@ -816,7 +816,7 @@ public class BatchMessageTest extends BrokerTestBase {
         FutureUtil.waitForAll(sendFutureList).get();
 
         for (int i = 0; i < numMsgs; i++) {
-            Message<byte[]> received = consumer.receive();
+            Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(received.getSequenceId(), i);
             consumer.acknowledge(received);
         }
@@ -848,7 +848,7 @@ public class BatchMessageTest extends BrokerTestBase {
         FutureUtil.waitForAll(sendFutureList).get();
 
         for (int i = 0; i < numMsgs; i++) {
-            Message<byte[]> received = consumer.receive();
+            Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(received.getSequenceId(), i + 100);
             consumer.acknowledge(received);
         }

@@ -241,7 +241,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         producer.send("Pulsar".getBytes());
 
         for (int i = 0; i < 2; i++) {
-            Message message = consumer.receive();
+            Message message = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(message);
         }
 

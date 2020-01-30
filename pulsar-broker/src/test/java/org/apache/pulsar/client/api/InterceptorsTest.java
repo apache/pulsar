@@ -429,7 +429,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         int keyCount = 0;
         for (int i = 0; i < 2; i++) {
-            Message<String> received = consumer.receive();
+            Message<String> received = consumer.receive(5, TimeUnit.SECONDS);
             MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
             for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
@@ -501,7 +501,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         int keyCount = 0;
         for (int i = 0; i < 2; i++) {
-            Message<String> received = consumer.receive();
+            Message<String> received = consumer.receive(5, TimeUnit.SECONDS);
             MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
             for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
@@ -575,7 +575,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         int keyCount = 0;
         for (int i = 0; i < 100; i++) {
-            Message<String> received = consumer.receive();
+            Message<String> received = consumer.receive(5, TimeUnit.SECONDS);
             MessageImpl<String> msg = (MessageImpl<String>) received;
             for (PulsarApi.KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
@@ -646,7 +646,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         }
 
         for (int i = 0; i < totalNumOfMessages; i++) {
-            Message<String> message = consumer.receive();
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
 
             if (i % 2 == 0) {
                 consumer.negativeAcknowledge(message);
@@ -714,7 +714,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         }
 
         for (int i = 0; i < totalNumOfMessages; i++) {
-            Message<String> message = consumer.receive();
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
 
             if (i % 2 == 0) {
                 consumer.acknowledge(message);

@@ -198,7 +198,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -349,7 +349,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         // 4. Receiver receives the message, not ack, Unacked Message Tracker size should be totalMessages.
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             assertTrue(message instanceof TopicMessageImpl);
             log.debug("Consumer received : " + new String(message.getData()));
@@ -360,7 +360,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(size, totalMessages);
 
         // 5. Blocking call, redeliver should kick in, after receive and ack, Unacked Message Tracker size should be 0.
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         HashSet<String> hSet = new HashSet<>();
         do {
             assertTrue(message instanceof TopicMessageImpl);
@@ -383,7 +383,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         // 7. Receiver receives the message, ack them
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int received = 0;
         while (message != null) {
             assertTrue(message instanceof TopicMessageImpl);
@@ -409,7 +409,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         // 10. Receiver receives the message, doesn't ack
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.debug("Consumer received : " + data);
@@ -422,7 +422,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         Thread.sleep(ackTimeOutMillis);
 
         // 11. Receiver receives redelivered messages
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int redelivered = 0;
         while (message != null) {
             assertTrue(message instanceof TopicMessageImpl);
@@ -493,7 +493,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -516,7 +516,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. should not receive messages from topic3, verify get 2/3 of all messages
         messageSet = 0;
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -547,7 +547,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 10. should receive messages from all 3 topics
         messageSet = 0;
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -638,7 +638,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     /**
      * Test Listener for github issue #2547
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testMultiTopicsMessageListener() throws Exception {
         String key = "MultiTopicsMessageListenerTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -704,7 +704,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
      * 4. produce message to xx-partition-2 again,  and verify consumer could receive message.
      *
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testTopicAutoUpdatePartitions() throws Exception {
         String key = "TestTopicAutoUpdatePartitions";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -757,7 +757,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             log.info("produce message to partition-2 again. messageindex: {}", i);
         }
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             messageSet ++;
             consumer.acknowledge(message);

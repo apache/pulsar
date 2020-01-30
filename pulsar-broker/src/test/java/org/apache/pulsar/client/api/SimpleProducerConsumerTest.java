@@ -190,7 +190,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.flush();
 
         for (int i = 0; i < numMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
             assertEquals(1L + i, msg.getPublishTime());
             assertEquals(100L * (i + 1), msg.getEventTime());
@@ -258,7 +258,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.flush();
 
         for (int i = 0; i < numMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
             assertEquals(1L, msg.getPublishTime());
             assertEquals(100L * (i + 1), msg.getEventTime());
@@ -478,7 +478,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Received: [{}]", new String(msg.getData()));
         }
 
@@ -490,7 +490,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         msg = null;
         log.info("Receiving duplicate messages..");
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             log.info("Received: [{}]", new String(msg.getData()));
             Assert.assertNotNull(msg, "Message cannot be null");
         }
@@ -531,7 +531,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         startBroker();
 
         // We should not have received any message
-        Message<byte[]> msg = consumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
@@ -576,7 +576,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
 
         try {
-            consumer.receive();
+            consumer.receive(5, TimeUnit.SECONDS);
             Assert.fail("Should fail");
         } catch (PulsarClientException.AlreadyClosedException e) {
             // ok
@@ -694,7 +694,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numConsumersThreads; i++) {
             executor.submit((Callable<Void>) () -> {
                 barrier.await();
-                consumer.receive();
+                consumer.receive(10, TimeUnit.SECONDS);
                 return null;
             });
         }
@@ -732,7 +732,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numConsumersThreads; i++) {
             executor.submit((Callable<Void>) () -> {
                 barrier.await();
-                consumer.receive();
+                consumer.receive(10, TimeUnit.SECONDS);
                 return null;
             });
         }
@@ -745,7 +745,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // clear the queue
         while (true) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -759,7 +759,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numConsumersThreads; i++) {
             executor.submit((Callable<Void>) () -> {
                 barrier.await();
-                consumer.receive();
+                consumer.receive(10, TimeUnit.SECONDS);
                 return null;
             });
         }
@@ -941,7 +941,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // sleep for a second: as ledger.updateCursorRateLimit RateLimiter will allow to invoke cursor-update after a
         // second
-        Thread.sleep(1000);//
+        Thread.sleep(2000); // Needs to be replaced with await() approach.
         // produce-consume one more message to trigger : ledger.internalReadFromLedger(..) which updates cursor and
         // EntryCache
         producer.send("message".getBytes());
@@ -965,7 +965,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // sleep for a second: as ledger.updateCursorRateLimit RateLimiter will allow to invoke cursor-update after a
         // second
-        Thread.sleep(1000);//
+        Thread.sleep(2000);// Needs to be replaced with await() approach.
         // produce-consume one more message to trigger : ledger.internalReadFromLedger(..) which updates cursor and
         // EntryCache
         producer.send("message".getBytes());
@@ -1171,7 +1171,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testSharedConsumerAckDifferentConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1296,7 +1296,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     log.info("Received message: " + new String(msg.getData()));
@@ -1319,7 +1319,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // try to consume remaining messages
             int remainingMessages = totalProducedMsgs - messages.size();
             for (int i = 0; i < remainingMessages; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     log.info("Received message: " + new String(msg.getData()));
@@ -1381,7 +1381,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 Message<byte[]> msg = null;
                 List<Message<byte[]>> messages = Lists.newArrayList();
                 for (int i = 0; i < totalProducedMsgs; i++) {
-                    msg = consumer.receive(1, TimeUnit.SECONDS);
+                    msg = consumer.receive(2, TimeUnit.SECONDS);
                     if (msg != null) {
                         messages.add(msg);
                         log.info("Received message: " + new String(msg.getData()));
@@ -1457,7 +1457,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1472,7 +1472,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (3.1) Consumer2 will start consuming messages without ack: it should stop after maxUnackedMessages
             messages.clear();
             for (int i = 0; i < totalProducedMsgs - maxUnackedMessages; i++) {
-                msg = consumer2.receive(1, TimeUnit.SECONDS);
+                msg = consumer2.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1494,7 +1494,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (4) Consumer2 consumer and ack: so it should consume all remaining messages
             messages.clear();
             for (int i = 0; i < totalProducedMsgs - (2 * maxUnackedMessages); i++) {
-                msg = consumer2.receive(1, TimeUnit.SECONDS);
+                msg = consumer2.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1555,7 +1555,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertEquals(consumer.numMessagesInQueue(), receiverQueueSize);
 
             for (int i = 0; i < totalProducedMsgs; i++) {
-                Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+                Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer.acknowledge(msg);
                     totalReceiveMsg++;
@@ -1606,7 +1606,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMsg++;
@@ -1622,7 +1622,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             int alreadyConsumedMessages = messages.size();
             messages.clear();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer.acknowledge(msg);
                     totalReceiveMsg++;
@@ -1687,7 +1687,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1710,7 +1710,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (3) Consumer consumes and ack: so it should consume all remaining messages
             messages.clear();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1771,7 +1771,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -1794,7 +1794,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (4) consumer1 will consumer remaining msgs and consumer2 will ack those messages
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     totalReceiveMessages++;
                     consumer2.acknowledge(msg);
@@ -1805,7 +1805,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer2.receive(1, TimeUnit.SECONDS);
+                msg = consumer2.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     totalReceiveMessages++;
                     log.info("Received message: " + new String(msg.getData()));
@@ -1901,7 +1901,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages1 = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages1.add(msg);
                     log.info("Received message: " + new String(msg.getData()));
@@ -1922,7 +1922,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             Set<MessageIdImpl> messages2 = Sets.newHashSet();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages2.add((MessageIdImpl) msg.getMessageId());
                     log.info("Received message: " + new String(msg.getData()));
@@ -1990,7 +1990,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             List<Message<byte[]>> messages1 = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages1.add(msg);
                     log.info("Received message: " + new String(msg.getData()));
@@ -2011,7 +2011,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             Set<MessageIdImpl> messages2 = Sets.newHashSet();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
+                msg = consumer.receive(2, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages2.add((MessageIdImpl) msg.getMessageId());
                     log.info("Received message: " + new String(msg.getData()));
@@ -2268,7 +2268,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Message<byte[]> msg = null;
         List<Message<byte[]>> messages1 = Lists.newArrayList();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2283,7 +2283,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // (1.b) consume second consumeMsgInParts msgs and trigger redeliver
         messages1.clear();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2305,7 +2305,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
         messages1.clear();
         for (int i = 0; i < remainingMsgs; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -3249,7 +3249,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.seek(resetPos);
         Set<String> messageSet = Sets.newHashSet();
         for (int i = firstMessage; i < numOfMessages; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(message.getData());
             String expectedMessage = String.format("msg num %d", i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);

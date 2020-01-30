@@ -127,7 +127,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             checkNotNull(msg);
             consumer.acknowledge(msg);
         }
@@ -161,7 +161,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
 
@@ -207,7 +207,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
             }
 
             for (int i = 0; i < numMessages; i++) {
-                Message<byte[]> msg = consumer.receive();
+                Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
                 assertEquals("message-" + i, new String(msg.getValue(), UTF_8));
             }
         }

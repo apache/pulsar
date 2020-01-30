@@ -83,7 +83,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -167,7 +167,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             log.info("consumer received message : {} {} - total = {}",
                 message.getMessageId(), new String(message.getData()), ++totalReceived);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -234,7 +234,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -288,7 +288,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // Wait a while, message should not be send to DLQ
         Thread.sleep(5000L);
 
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
 }

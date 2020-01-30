@@ -27,6 +27,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  */
 @Test
@@ -64,7 +66,7 @@ public class PartitionKeyTest extends BrokerTestBase {
         producerWithoutBatches.newMessage().key("key-3").value("msg-3".getBytes()).sendAsync();
 
         for (int i = 1; i <= 3; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
 
             assertTrue(msg.hasKey());
             assertEquals(msg.getKey(), "key-" + i);

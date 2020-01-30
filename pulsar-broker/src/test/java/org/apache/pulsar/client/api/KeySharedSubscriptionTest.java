@@ -452,7 +452,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<Integer> message = consumer.receive();
+            Message<Integer> message = consumer.receive(5, TimeUnit.SECONDS);
             if (i == 9) {
                 try {
                     consumer.acknowledgeCumulative(message);

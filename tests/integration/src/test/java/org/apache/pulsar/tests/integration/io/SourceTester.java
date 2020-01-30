@@ -73,7 +73,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
         int recordsNumber = 0;
-        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
+        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(5, TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
             final String key = new String(msg.getValue().getKey());
@@ -85,7 +85,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
                 Assert.assertTrue(value.contains(this.eventContains(eventType)));
             }
             consumer.acknowledge(msg);
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
         }
 
         Assert.assertEquals(recordsNumber, number);

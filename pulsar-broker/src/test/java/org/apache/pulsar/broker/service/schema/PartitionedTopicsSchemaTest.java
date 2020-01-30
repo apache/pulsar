@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
@@ -93,7 +94,7 @@ public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
         Set<String> messages = new TreeSet<>();
 
         for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(5001, TimeUnit.MILLISECONDS);
             messages.add(msg.getValue());
             consumer.acknowledge(msg);
         }

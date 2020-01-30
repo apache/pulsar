@@ -466,7 +466,7 @@ public class BacklogQuotaManagerTest {
         }
 
         for (int i = 0; i < numMsgs; i++) {
-            consumer.receive();
+            consumer.receive(5, TimeUnit.SECONDS);
             LOG.info("received [{}]", i);
         }
 
@@ -590,7 +590,7 @@ public class BacklogQuotaManagerTest {
         int backlog = (int) stats.subscriptions.get(subName1).msgBacklog;
 
         for (int i = 0; i < backlog; i++) {
-            Message<?> msg = consumer.receive();
+            Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);

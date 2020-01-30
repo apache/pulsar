@@ -74,7 +74,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         int received = 0;
         for (int i = 0; i < messages; i++) {
             // don't ack messages here
-            consumer.receive();
+            consumer.receive(5, TimeUnit.SECONDS);
             received++;
         }
 

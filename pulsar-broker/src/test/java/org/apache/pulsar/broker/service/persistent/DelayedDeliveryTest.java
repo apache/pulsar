@@ -88,7 +88,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         // Failover consumer will receive the messages immediately while
         // the shared consumer will get them after the delay
-        Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
+        Message<String> msg = sharedConsumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         for (int i = 0; i < 10; i++) {
@@ -194,7 +194,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     .send();
         }
 
-        Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
+        Message<String> msg = sharedConsumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
@@ -256,7 +256,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         producer.flush();
 
-        Message<String> msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+        Message<String> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();

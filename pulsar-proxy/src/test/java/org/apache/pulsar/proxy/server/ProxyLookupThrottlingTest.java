@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
@@ -71,6 +72,14 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         proxyService.close();
     }
+    // Perhaps it would be better to import this method from PulsarTestBase in tests.integration
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
 
     @Test
     public void testLookup() throws Exception {
@@ -83,14 +92,15 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
+        String randSeed = randomName(16);
 
         @Cleanup
-        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic" + randSeed)
                 .create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         try {
             @Cleanup
-            Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic" + randSeed)
                     .create();
             Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
         } catch (Exception ex) {
@@ -100,7 +110,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyService.getLookupRequestSemaphore().release();
         try {
             @Cleanup
-            Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+            Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic" + randSeed)
                     .create();
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");

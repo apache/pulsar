@@ -114,7 +114,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
 

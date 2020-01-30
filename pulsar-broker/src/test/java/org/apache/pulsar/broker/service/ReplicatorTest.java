@@ -35,13 +35,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import lombok.Cleanup;
 
@@ -96,13 +90,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass(timeOut = 900000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass(timeOut = 900000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -195,7 +189,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testConcurrentReplicator() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
@@ -409,7 +403,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testReplicatePeekAndSkip() throws Exception {
 
         final TopicName dest = TopicName.get("persistent://pulsar/ns/peekAndSeekTopic");
@@ -431,7 +425,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(entry);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
@@ -541,7 +535,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/ns/repltopicbatch";
@@ -681,7 +675,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 15000)
+    @Test(timeOut = 55000)
     public void testCloseReplicatorStartProducer() throws Exception {
         TopicName dest = TopicName.get("persistent://pulsar/ns1/closeCursor");
         // Producer on r1
@@ -727,7 +721,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(replicatorProducer);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void verifyChecksumAfterReplication() throws Exception {
         final String topicName = "persistent://pulsar/ns/checksumAfterReplication";
 
@@ -767,7 +761,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic;
+        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic + randomName(16);
         final String persistentTopicName = "persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
         final String nonPersistentTopicName = "non-persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
         BrokerService brokerService = pulsar1.getBrokerService();
@@ -815,12 +809,21 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
+    // Perhaps it would be better to import this method from PulsarTestBase in tests.integration
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testReplicatedCluster() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicatedCluster ---");
 
-        final String namespace = "pulsar/global/repl";
+        final String namespace = "pulsar/global/repl" + randomName(16);
         final String topicName = String.format("persistent://%s/topic1", namespace);
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
@@ -839,9 +842,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // publish message local only
         TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(Lists.newArrayList("r1")).value(value);
         msg.send();
-        assertEquals(consumer1.receive().getValue(), value);
+        assertEquals(consumer1.receive(5, TimeUnit.SECONDS).getValue(), value);
 
-        Message<byte[]> msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg2 = consumer2.receive(5, TimeUnit.SECONDS);
         if (msg2 != null) {
             fail("msg should have not been replicated to remote cluster");
         }
@@ -857,7 +860,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * <pre>
      *  1. Create global topic with 4 partitions
      *  2. Update partition with 8 partitions
-     *  3. Create producer on the partition topic which loads all new partitions
+     *  3. Create producer on the partition topic which loads all new partitions.
      *  4. Check subscriptions are created on all new partitions.
      * </pre>
      * @throws Exception
@@ -868,7 +871,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = "pulsar/global/ns3";
+        final String namespace = "pulsar/global/ns3" + randomName(16);
         final String topicName = "persistent://" + namespace + "/topic1";
         int startPartitions = 4;
         int newPartitions = 8;

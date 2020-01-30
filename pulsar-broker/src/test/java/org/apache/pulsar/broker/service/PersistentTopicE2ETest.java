@@ -169,7 +169,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Message<byte[]> msg = null;
         for (int i = 0; i < numMsgs; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             // 3. in-order message delivery
             assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer.acknowledge(msg);
@@ -182,7 +182,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
         for (int i = 0; i < numMsgs; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (i == numMsgs - 1) {
                 consumer.acknowledgeCumulative(msg);
             }
@@ -245,7 +245,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         for (int i = 0; i < recvQueueSize / 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -285,7 +285,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         for (int i = 0; i < recvQueueSize / 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -340,7 +340,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                     Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                             .receiverQueueSize(recvQueueSize).subscribe();
                     for (int i = 0; i < recvQueueSize / numConsumersThreads; i++) {
-                        Message<byte[]> msg = consumer.receive();
+                        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
                         consumer.acknowledge(msg);
                     }
                     return null;
@@ -417,7 +417,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
         }
 
         // 2. verify consumer close fails when there are outstanding
@@ -461,7 +461,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -1012,7 +1012,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertEquals(consumer.getAvailablePermits(), 0);
 
-        msg = consumer.receive(10, TimeUnit.MILLISECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertEquals(consumer.getAvailablePermits(), 1);
 
@@ -1331,7 +1331,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         // We should only receive msg1
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
 
         while ((msg = consumer.receive(1, TimeUnit.SECONDS)) != null) {
@@ -1374,7 +1374,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // (2) Consume and only ack last 10 messages
         for (int i = 0; i < totalMessages; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             if (i >= 10) {
                 unackedMessages.add(msg);
             } else {
@@ -1387,7 +1387,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         for (int i = 0; i < 10; i++) {
             // Verify: msg [L:0] must be redelivered
             try {
-                final Message<String> redeliveredMsg = consumer.receive(1, TimeUnit.SECONDS);
+                final Message<String> redeliveredMsg = consumer.receive(5, TimeUnit.SECONDS);
                 unackedMessages.removeIf(unackedMessage -> unackedMessage.getValue().equals(redeliveredMsg.getValue()));
             } catch (Exception e) {
                 fail("msg should be redelivered ", e);
@@ -1397,7 +1397,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertEquals(unackedMessages.size(), 0);
 
         // Verify no other messages are redelivered
-        msg = consumer.receive(100, TimeUnit.MILLISECONDS);
+        msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         consumer.close();
@@ -1405,7 +1405,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * Verify: 1. Broker should not replay already acknowledged messages 2. Dispatcher should not stuck while
+     * Verify: 1. Broker should not replay already acknowledged messages 2. Dispatcher should not get stuck while
      * dispatching new messages due to previous-replay of invalid/already-acked messages
      *
      * @throws Exception
@@ -1448,7 +1448,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         MessageIdImpl firstAckedMsg = null;
         // (2) Consume and ack messages except first message
         for (int i = 0; i < totalMessages; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
             MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
             if (i == 0) {
@@ -1476,7 +1476,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         producer.send(testMsg.getBytes());
         // consumer should be able to receive only new message and not the
         dispatcher.consumerFlow(dispatcher.getConsumers().get(0), 1);
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertEquals(msg.getData(), testMsg.getBytes());
 
@@ -1543,7 +1543,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
         producer.newMessage().value("test").eventTime(5).send();
-        Message<String> msg = consumer.receive();
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertEquals(msg.getValue(), "test");
         assertEquals(msg.getEventTime(), 5);

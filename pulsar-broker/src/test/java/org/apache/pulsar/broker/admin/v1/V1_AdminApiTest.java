@@ -1481,7 +1481,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), 10);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // messages should still be available due to retention
@@ -1491,7 +1491,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         int receivedAfterReset = 0;
 
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1541,7 +1541,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         });
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
 
@@ -1551,7 +1551,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 4-9
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1565,7 +1565,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 7-9
         for (int i = 7; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1605,7 +1605,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic(topicName, 5, 5);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // messages should still be available due to retention
@@ -1615,7 +1615,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Set<String> expectedMessages = Sets.newHashSet();
         Set<String> receivedMessages = Sets.newHashSet();
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             expectedMessages.add("message-" + i);
             receivedMessages.add(new String(message.getData()));
@@ -1656,7 +1656,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), 10);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // use invalid timestamp

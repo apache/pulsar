@@ -206,7 +206,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw",
                 new ClusterData("http://broker.messaging.use.example.com:8080"));
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
-        // failure-domain znode of this default cluster
+        // failure-domain znode of this default cluster.
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "usw"));
 
         assertEquals(admin.clusters().getCluster("test"),
@@ -1586,7 +1586,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), 10);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // messages should still be available due to retention
@@ -1596,7 +1596,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         int receivedAfterReset = 0;
 
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1646,7 +1646,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         });
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
 
@@ -1656,7 +1656,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 4-9
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1670,7 +1670,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 7-9
         for (int i = 7; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -1778,7 +1778,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic(topicName, 5, 5);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // messages should still be available due to retention
@@ -1788,7 +1788,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Set<String> expectedMessages = Sets.newHashSet();
         Set<String> receivedMessages = Sets.newHashSet();
         for (int i = 4; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             expectedMessages.add("message-" + i);
             receivedMessages.add(new String(message.getData()));
@@ -1829,7 +1829,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), 10);
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
         }
         // use invalid timestamp

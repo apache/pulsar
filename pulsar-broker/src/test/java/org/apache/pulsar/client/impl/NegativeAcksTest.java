@@ -132,7 +132,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         producer.flush();
 
         for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.negativeAcknowledge(msg);
         }
 
@@ -140,7 +140,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         // All the messages should be received again
         for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }

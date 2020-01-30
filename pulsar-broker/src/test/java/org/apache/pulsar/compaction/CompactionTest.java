@@ -233,15 +233,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content0".getBytes());
 
-            m = consumer.receive();
+            m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content1".getBytes());
 
-            m = consumer.receive();
+            m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -251,7 +251,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -279,11 +279,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
 
-            m = consumer.receive();
+            m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content3".getBytes());
         }
@@ -308,7 +308,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.seek(MessageId.earliest);
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -317,15 +317,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(false).subscribe()) {
             consumer.seek(MessageId.earliest);
 
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content0".getBytes());
 
-            m = consumer.receive();
+            m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content1".getBytes());
 
-            m = consumer.receive();
+            m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -351,7 +351,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -359,7 +359,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         stopBroker();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            consumer.receive();
+            consumer.receive(5, TimeUnit.SECONDS);
             Assert.fail("Shouldn't have been able to receive anything");
         } catch (PulsarClientException e) {
             // correct behaviour
@@ -368,7 +368,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content2".getBytes());
         }
@@ -391,7 +391,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive();
+            Message<byte[]> m = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(m.getKey(), "key0");
             Assert.assertEquals(m.getData(), "content0".getBytes());
         }
@@ -427,12 +427,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
             Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
             Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
@@ -486,12 +486,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
             Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
             Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
@@ -529,7 +529,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message.getKey(), "key1");
             Assert.assertEquals(new String(message.getData()), "my-message-4");
         }
@@ -566,27 +566,27 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertFalse(message1.hasKey());
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertFalse(message2.hasKey());
             Assert.assertEquals(new String(message2.getData()), "my-message-2");
 
-            Message<byte[]> message3 = consumer.receive();
+            Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message3.getKey(), "key1");
             Assert.assertEquals(new String(message3.getData()), "my-message-4");
 
-            Message<byte[]> message4 = consumer.receive();
+            Message<byte[]> message4 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message4.getKey(), "key2");
             Assert.assertEquals(new String(message4.getData()), "my-message-6");
 
-            Message<byte[]> message5 = consumer.receive();
+            Message<byte[]> message5 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertFalse(message5.hasKey());
             Assert.assertEquals(new String(message5.getData()), "my-message-7");
 
-            Message<byte[]> message6 = consumer.receive();
+            Message<byte[]> message6 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertFalse(message6.hasKey());
             Assert.assertEquals(new String(message6.getData()), "my-message-8");
         }
@@ -666,11 +666,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key0");
             Assert.assertEquals(new String(message1.getData()), "my-message-0");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key4");
             Assert.assertEquals(new String(message2.getData()), "my-message-4");
         }
@@ -746,11 +746,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key0");
             Assert.assertEquals(new String(message1.getData()), "my-message-0");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key4");
             Assert.assertEquals(new String(message2.getData()), "my-message-4");
         }
@@ -845,15 +845,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // all three messages should be there when we read compacted
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key0");
             Assert.assertEquals(new String(message1.getData()), "my-message-0");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key1");
             Assert.assertEquals(new String(message2.getData()), "my-message-1");
 
-            Message<byte[]> message3 = consumer.receive();
+            Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message3.getKey(), "key2");
             Assert.assertEquals(new String(message3.getData()), "my-message-2");
         }
@@ -889,11 +889,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
         }
@@ -933,11 +933,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
         }
@@ -1012,11 +1012,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
         }
@@ -1059,15 +1059,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-2");
 
-            Message<byte[]> message3 = consumer.receive();
+            Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message3.getKey(), "key2");
             Assert.assertEquals(new String(message3.getData()), "my-message-3");
         }
@@ -1107,11 +1107,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-3");
         }
@@ -1155,15 +1155,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key1");
             Assert.assertEquals(new String(message1.getData()), "my-message-1");
 
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-2");
 
-            Message<byte[]> message3 = consumer.receive();
+            Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message3.getKey(), "key2");
             Assert.assertEquals(new String(message3.getData()), "my-message-3");
         }
@@ -1228,24 +1228,24 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .cryptoKeyReader(new EncKeyReader())
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
-            Message<byte[]> message1 = consumer.receive();
+            Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message1.getKey(), "key0");
             Assert.assertEquals(new String(message1.getData()), "my-message-0");
 
             // see all messages from batch
-            Message<byte[]> message2 = consumer.receive();
+            Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message2.getKey(), "key2");
             Assert.assertEquals(new String(message2.getData()), "my-message-2");
 
-            Message<byte[]> message3 = consumer.receive();
+            Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message3.getKey(), "key3");
             Assert.assertEquals(new String(message3.getData()), "my-message-3");
 
-            Message<byte[]> message4 = consumer.receive();
+            Message<byte[]> message4 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message4.getKey(), "key2");
             Assert.assertEquals(new String(message4.getData()), "");
 
-            Message<byte[]> message5 = consumer.receive();
+            Message<byte[]> message5 = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(message5.getKey(), "key4");
             Assert.assertEquals(new String(message5.getData()), "my-message-4");
         }

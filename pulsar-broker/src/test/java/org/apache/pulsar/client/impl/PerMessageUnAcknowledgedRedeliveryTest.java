@@ -80,7 +80,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -98,7 +98,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 6. Receiver receives the message, ack them
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int received = 0;
         while (message != null) {
             received++;
@@ -123,7 +123,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 9. Receiver receives the message, doesn't ack
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -136,7 +136,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         Thread.sleep(ackTimeOutMillis);
 
         // 10. Receiver receives redelivered messages
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int redelivered = 0;
         while (message != null) {
             redelivered++;
@@ -177,7 +177,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -220,7 +220,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -238,7 +238,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 6. Receiver receives the message, ack them
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int received = 0;
         while (message != null) {
             received++;
@@ -263,7 +263,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 9. Receiver receives the message, doesn't ack
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -276,7 +276,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         Thread.sleep(ackTimeOutMillis);
 
         // 10. Receiver receives redelivered messages
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int redelivered = 0;
         while (message != null) {
             redelivered++;
@@ -318,7 +318,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -336,7 +336,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 6. Receiver receives the message, ack them
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int received = 0;
         while (message != null) {
             received++;
@@ -361,7 +361,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 9. Receiver receives the message, doesn't ack
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -374,7 +374,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         Thread.sleep(ackTimeOutMillis);
 
         // 10. Receiver receives redelivered messages
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int redelivered = 0;
         while (message != null) {
             redelivered++;
@@ -425,7 +425,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -444,7 +444,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 6. Receiver receives the message, ack them
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int received = 0;
         while (message != null) {
             received++;
@@ -469,7 +469,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 9. Receiver receives the message, doesn't ack
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -482,7 +482,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         Thread.sleep(ackTimeOutMillis);
 
         // 10. Receiver receives redelivered messages
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         int redelivered = 0;
         while (message != null) {
             redelivered++;

@@ -891,7 +891,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
 
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -1042,7 +1042,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         // Relative throttling will let it drain immediately because it allows to dispatch = (publish-rate +
         // dispatch-rate)
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             totalReceived++;
             assertNotNull(msg);
         }

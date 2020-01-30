@@ -201,7 +201,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
         consumer.close();
@@ -306,7 +306,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
         consumer.close();
@@ -338,7 +338,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive();
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
         consumer.close();

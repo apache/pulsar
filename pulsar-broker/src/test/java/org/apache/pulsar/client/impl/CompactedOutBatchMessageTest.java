@@ -33,6 +33,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.concurrent.TimeUnit;
+
 public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
@@ -76,7 +78,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
             consumer.receiveIndividualMessagesFromBatch(metadata, 0, batchBuffer,
                                                         MessageIdData.newBuilder().setLedgerId(1234)
                                                         .setEntryId(567).build(), consumer.cnx());
-            Message<?> m = consumer.receive();
+            Message<?> m = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getBatchIndex(), 2);

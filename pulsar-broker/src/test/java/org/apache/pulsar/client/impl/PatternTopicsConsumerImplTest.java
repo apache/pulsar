@@ -206,7 +206,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. should receive all the message
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -297,7 +297,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. should receive all the message
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -388,7 +388,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. should receive all the message
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet++;
@@ -537,7 +537,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 8. should receive all the message
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -612,7 +612,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -646,7 +646,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         messageSet = 0;
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -721,7 +721,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message<byte[]> message = consumer.receive();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -753,7 +753,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         messageSet = 0;
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -800,7 +800,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         producer1.close();
 
-        Message<String> message = consumer.receive();
+        Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(message.getValue(), "msg-1");
         consumer.acknowledge(message);
 
@@ -809,7 +809,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         producer2.send("msg-2");
 
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(message.getValue(), "msg-2");
         consumer.acknowledge(message);
 

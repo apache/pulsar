@@ -636,7 +636,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             .send();
 
 
-        Message<String> msg = consumer.receive();
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(msg.getKey(), "key-1");
         assertEquals(msg.getProperties().get("a"), "1");
         assertEquals(msg.getProperties().get("b"), "2");

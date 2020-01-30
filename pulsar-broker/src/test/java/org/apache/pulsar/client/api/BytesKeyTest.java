@@ -58,7 +58,7 @@ public class BytesKeyTest extends ProducerConsumerBase {
         producer.newMessage().keyBytes(byteKey).value("TestMessage").sendAsync();
         producer.flush();
 
-        Message<String> m = consumer.receive();
+        Message<String> m = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertEquals(m.getValue(), "TestMessage");
         Assert.assertEquals(m.getKeyBytes(), byteKey);
         Assert.assertTrue(m.hasBase64EncodedKey());

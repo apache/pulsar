@@ -449,7 +449,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         MessageIdImpl resetMessageId = null;
         int resetPositionId = 10;
         for (int i = 0; i < 20; i++) {
-            message = consumer.receive(1, TimeUnit.SECONDS);
+            message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             if (i == resetPositionId) {
                 resetMessageId = (MessageIdImpl) message.getMessageId();

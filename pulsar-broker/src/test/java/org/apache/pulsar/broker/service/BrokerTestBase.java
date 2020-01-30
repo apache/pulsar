@@ -30,7 +30,7 @@ import com.google.common.collect.Sets;
 /**
  */
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
-    protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
+    protected static final int ASYNC_EVENT_COMPLETION_WAIT = 500;
 
     protected PulsarService getPulsar() {
         return pulsar;

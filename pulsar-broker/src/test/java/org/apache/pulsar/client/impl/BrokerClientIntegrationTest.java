@@ -352,7 +352,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Message<byte[]> msg = null;
         for (int i = 0; i < numMessagesPerBatch; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
@@ -370,7 +370,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         batchProducer.flush();
 
         // consumer should have not received any message as it should have been disconnected
-        msg = consumer1.receive(100, TimeUnit.MILLISECONDS);
+        msg = consumer1.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         // subscribe consumer2 with supporting batch version

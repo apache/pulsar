@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.testng.annotations.Test;
+import static org.awaitility.Awaitility.*;
 
 import kafka.producer.Partitioner;
 import kafka.producer.ProducerConfig;
@@ -101,10 +102,18 @@ public class PulsarKafkaProducerTest {
         properties.put(PARTITIONER_CLASS, TestPartitioner.class.getName());
         ProducerConfig config = new ProducerConfig(properties);
         PulsarKafkaProducer<byte[], byte[]> producer = new PulsarKafkaProducer<>(config);
-        assertEquals(producer.getKeySerializer().getClass(), TestEncoder.class);
-        assertEquals(producer.getValueSerializer().getClass(), TestEncoder.class);
-        assertEquals(producer.getPartitioner().getClass(), TestPartitioner.class);
-
+        await().atMost(300,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(producer.getKeySerializer().getClass(), TestEncoder.class));
+        await().atMost(300,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(producer.getValueSerializer().getClass(), TestEncoder.class));
+        await().atMost(300,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(producer.getPartitioner().getClass(), TestPartitioner.class));
     }
 
     public static class TestEncoder implements Encoder<String> {
