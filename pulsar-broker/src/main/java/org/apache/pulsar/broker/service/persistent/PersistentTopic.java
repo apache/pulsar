@@ -312,8 +312,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated,
-                brokerService.getPulsar().getConfiguration().isBatchIndexAcknowledgeEnable());
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 

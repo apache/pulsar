@@ -34,7 +34,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 
 /**
  * A ManangedCursor is a persisted cursor inside a ManagedLedger.
@@ -320,21 +319,6 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx);
-
-    /**
-     * Delete a group of batch indexes in a batch message asynchronously
-     *
-     * <p/>
-     * Mark a group of batch indexed for deletion. When all indexes of a batch message are all deleted, then will mark the batch message
-     * for deletion
-     *
-     * @param position the position of the message to deleted
-     * @param batchSize batch size of the batch message
-     * @param deleteIndexRanges delete index ranges for a batch message
-     * @param callback callback object
-     * @param ctx opaque context
-     */
-    void asyncDelete(Position position, int batchSize, List<IntRange> deleteIndexRanges, DeleteCallback callback, Object ctx);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.
@@ -629,5 +613,5 @@ public interface ManagedCursor {
     /**
      * Get deleted batch indexes list for a batch message.
      */
-    List<IntRange> getDeletedBatchIndexes(Position position);
+    long[] getDeletedBatchIndexesLongArray(PositionImpl position);
 }

@@ -273,7 +273,7 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(3, 5));
 
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
-        persistentSubscription.acknowledgeMessage(positions, null, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessage(positions, AckType.Individual, Collections.emptyMap());
 
         //Abort txn.
         persistentSubscription.abortTxn(txnID1, consumerMock);

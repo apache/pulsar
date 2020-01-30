@@ -48,7 +48,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -60,7 +59,6 @@ import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.BatchMessageIndexesAckData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
@@ -108,8 +106,6 @@ public class PersistentSubscription implements Subscription {
     // This parameter only keep the the largest Position it cumulative ack,as any Position smaller will also be covered.
     private volatile Position pendingCumulativeAckMessage;
 
-    private boolean enableBatchLocalIndexAck = false;
-
     private static final AtomicReferenceFieldUpdater<PersistentSubscription, Position> POSITION_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PersistentSubscription.class, Position.class,
                     "pendingCumulativeAckMessage");
@@ -144,17 +140,11 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-          boolean replicated) {
-        this(topic, subscriptionName, cursor, replicated, false);
-    }
-
-    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-            boolean replicated, boolean enableBatchLocalIndexAck) {
+            boolean replicated) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
-        this.enableBatchLocalIndexAck = enableBatchLocalIndexAck;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         this.setReplicated(replicated);
@@ -331,7 +321,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, List<BatchMessageIndexesAckData> batchMessageAckIndexes, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
@@ -352,15 +342,6 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
-            if (enableBatchLocalIndexAck && CollectionUtils.isNotEmpty(batchMessageAckIndexes) && batchMessageAckIndexes.size() == 1) {
-                BatchMessageIndexesAckData ackedIndex = batchMessageAckIndexes.get(0);
-                cursor.asyncDelete(
-                    PositionImpl.get(ackedIndex.getMessageId().getLedgerId(), ackedIndex.getMessageId().getEntryId()),
-                    ackedIndex.getBatchSize(),
-                    ackedIndex.getAckIndexesList(),
-                    deleteCallback,
-                    null);
-            }
 
         } else {
             if (log.isDebugEnabled()) {
@@ -396,15 +377,6 @@ public class PersistentSubscription implements Subscription {
             }
 
             dispatcher.getRedeliveryTracker().removeBatch(positions);
-
-            if (enableBatchLocalIndexAck && CollectionUtils.isNotEmpty(batchMessageAckIndexes)) {
-                batchMessageAckIndexes.forEach(ackedIndex -> cursor.asyncDelete(
-                    PositionImpl.get(ackedIndex.getMessageId().getLedgerId(), ackedIndex.getMessageId().getEntryId()),
-                    ackedIndex.getBatchSize(),
-                    ackedIndex.getAckIndexesList(),
-                    deleteCallback,
-                    null));
-            }
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {

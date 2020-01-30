@@ -29,7 +29,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.BatchMessageIndexesAckData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.Compactor;
@@ -57,7 +56,7 @@ public class CompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, List<BatchMessageIndexesAckData> batchMessageAckIndexes, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));

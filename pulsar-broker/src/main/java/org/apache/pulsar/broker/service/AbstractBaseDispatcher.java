@@ -90,7 +90,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                     entries.set(i, null);
                     entry.release();
-                    subscription.acknowledgeMessage(Collections.singletonList(pos), null, AckType.Individual,
+                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
                             Collections.emptyMap());
                     continue;
                 } else if (msgMetadata.hasDeliverAtTime()
@@ -106,13 +106,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 totalBytes += metadataAndPayload.readableBytes();
                 batchSizes.setBatchSize(i, batchSize);
                 if (indexesAcks != null && cursor != null) {
-                    List<IntRange> ranges = cursor.getDeletedBatchIndexes(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-                    if (ranges != null) {
-                        int indexesAckedCount = 0;
-                        for (IntRange range : ranges) {
-                            indexesAckedCount += range.getEnd() - range.getStart() + 1;
-                        }
-                        indexesAcks.setIndexesAcks(Pair.of(indexesAckedCount, ranges));
+                    long[] ackSet = cursor.getDeletedBatchIndexesLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    if (ackSet != null) {
+                        indexesAcks.setIndexesAcks(Pair.of(batchSize, ackSet));
                     } else {
                         indexesAcks.setIndexesAcks(null);
                     }

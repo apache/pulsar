@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -273,12 +275,8 @@ public class Consumer {
                 if (redeliveryTracker.contains(position)) {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
-
-                List<IntRange> ackedIndexRanges = null;
-                if (batchIndexesAcks != null && batchIndexesAcks.getIndexesAcks(i) != null) {
-                    ackedIndexRanges = batchIndexesAcks.getIndexesAcks(i).getRight();
-                }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload, ackedIndexRanges), ctx.voidPromise());
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
+                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -364,7 +362,7 @@ public class Consumer {
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
-            if (ack.getMessageIdCount() != 1 && ack.getBatchMessageAckIndexesCount() != 1) {
+            if (ack.getMessageIdCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
                 return;
             }
@@ -376,18 +374,27 @@ public class Consumer {
             PositionImpl position = PositionImpl.earliest;
             if (ack.getMessageIdCount() == 1) {
                 MessageIdData msgId = ack.getMessageId(0);
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), BitSet.valueOf(SafeCollectionUtils.longListToArray(msgId.getAckSetList())));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
             }
-            subscription.acknowledgeMessage(Collections.singletonList(position), ack.getBatchMessageAckIndexesList(), AckType.Cumulative, properties);
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
             for (int i = 0; i < ack.getMessageIdCount(); i++) {
                 MessageIdData msgId = ack.getMessageId(i);
-                PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                PositionImpl position;
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), BitSet.valueOf(SafeCollectionUtils.longListToArray(msgId.getAckSetList())));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
                 positionsAcked.add(position);
 
-                if (Subscription.isIndividualAckMode(subType)) {
+                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
                     removePendingAcks(position);
                 }
 
@@ -396,7 +403,7 @@ public class Consumer {
                             consumerId, position, ack.getValidationError());
                 }
             }
-            subscription.acknowledgeMessage(positionsAcked, ack.getBatchMessageAckIndexesList(), AckType.Individual, properties);
+            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
         }
     }
 

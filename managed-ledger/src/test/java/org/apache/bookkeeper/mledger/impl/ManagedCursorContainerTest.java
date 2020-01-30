@@ -181,10 +181,6 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncDelete(Position position, int batchSize, List<IntRange> deleteIndexRanges, DeleteCallback callback, Object ctx) {
-        }
-
-        @Override
         public void clearBacklog() throws InterruptedException, ManagedLedgerException {
         }
 
@@ -332,8 +328,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public List<IntRange> getDeletedBatchIndexes(Position position) {
-            return null;
+        public long[] getDeletedBatchIndexesLongArray(PositionImpl position) {
+            return new long[0];
         }
 
     }

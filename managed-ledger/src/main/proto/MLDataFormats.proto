@@ -81,14 +81,9 @@ message MessageRange {
     required NestedPositionInfo upperEndpoint = 2;
 }
 
-message BatchDeletedIndexRange {
-    required uint32 lowerIndex = 1;
-    required uint32 upperIndex = 2;
-}
-
 message BatchDeletedIndexInfo {
     required NestedPositionInfo position = 1;
-    repeated BatchDeletedIndexRange batchDeletedIndexes = 2;
+    repeated int64 ackBitSet = 2;
 }
 
 // Generic string and long tuple

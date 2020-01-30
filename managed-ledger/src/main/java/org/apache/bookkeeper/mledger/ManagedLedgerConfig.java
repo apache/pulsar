@@ -43,6 +43,7 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean batchIndexDeleteEnabled = true;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
@@ -592,5 +593,13 @@ public class ManagedLedgerConfig {
     public void setBookKeeperEnsemblePlacementPolicyProperties(
             Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    public boolean isBatchIndexDeleteEnabled() {
+        return batchIndexDeleteEnabled;
+    }
+
+    public void setBatchIndexDeleteEnabled(boolean batchIndexDeleteEnabled) {
+        this.batchIndexDeleteEnabled = batchIndexDeleteEnabled;
     }
 }
