@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.awaitility.Awaitility.*;
 import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
@@ -257,7 +256,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // (4) enable dynamic config to skip non-recoverable data-ledgers
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "true");
 
-        with().pollInSameThread().await().atMost(150 * 100, TimeUnit.MILLISECONDS).until(() -> config.isAutoSkipNonRecoverableData());
+        retryStrategically(() -> config.isAutoSkipNonRecoverableData(), 5, 100);
 
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
