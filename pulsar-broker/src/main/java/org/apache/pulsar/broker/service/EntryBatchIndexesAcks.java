@@ -21,28 +21,29 @@ package org.apache.pulsar.broker.service;
 
 import io.netty.util.Recycler;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 
 public class EntryBatchIndexesAcks {
 
-    List<Pair<Integer, List<IntRange>>> indexesAcks = new ArrayList<>();
+    List<Pair<Integer, long[]>> indexesAcks = new ArrayList<>();
 
-    public void setIndexesAcks(Pair<Integer, List<IntRange>> indexesAcks) {
+    public void setIndexesAcks(Pair<Integer, long[]> indexesAcks) {
         this.indexesAcks.add(indexesAcks);
     }
 
-    public Pair<Integer, List<IntRange>> getIndexesAcks(int entryIdx) {
-        return this.indexesAcks.get(entryIdx);
+    public long[] getAckSet(int entryIdx) {
+        Pair<Integer, long[]> pair = indexesAcks.get(entryIdx);
+        return pair == null ? null : pair.getRight();
     }
 
     public int getTotalAckedIndexCount() {
         int count = 0;
-        for (Pair<Integer, List<IntRange>> pair : indexesAcks) {
+        for (Pair<Integer, long[]> pair : indexesAcks) {
             if (pair != null) {
-                count += pair.getLeft();
+                count += pair.getLeft() - BitSet.valueOf(pair.getRight()).cardinality();
             }
         }
         return count;

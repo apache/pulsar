@@ -204,7 +204,7 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        void messageReceived(MessageIdData messageId, int redeliveryCount, List<IntRange> ackedBatchIndexRanges, ByteBuf headersAndPayload, ClientCnx cnx) {
+        void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
                           messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
