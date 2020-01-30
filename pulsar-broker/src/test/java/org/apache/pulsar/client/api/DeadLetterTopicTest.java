@@ -106,7 +106,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> checkMessage = checkConsumer.receive(10, TimeUnit.MILLISECONDS);
         if (checkMessage != null) {
             log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
         }
@@ -288,7 +288,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // Wait a while, message should not be send to DLQ
         Thread.sleep(5000L);
 
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
 }

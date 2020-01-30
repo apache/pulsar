@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 
 public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(UnAcknowledgedMessagesTimeoutTest.class);
-    private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
+    private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(12);
 
     @Override
     @BeforeMethod
@@ -209,7 +209,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 5. Check if Messages redelivered again
         // Since receive is a blocking call hoping that timeout will kick in
-        Thread.sleep((int) (ackTimeOutMillis * 1.1));
+        Thread.sleep((int) (ackTimeOutMillis * 1.1)); // Timeout triggers redelivery of unacked messages.
         log.info(key + " Timeout should be triggered now");
         messageCount1 = receiveAllMessage(consumer1, true);
         messageCount2 += receiveAllMessage(consumer2, false);
@@ -236,7 +236,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     private static int receiveAllMessage(Consumer<?> consumer, boolean ackMessages) throws Exception {
         int messagesReceived = 0;
-        Message<?> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<?> msg = consumer.receive(2, TimeUnit.SECONDS);
         while (msg != null) {
             ++messagesReceived;
             log.info("Consumer received {}", new String(msg.getData()));
@@ -245,7 +245,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
                 consumer.acknowledge(msg);
             }
 
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(2, TimeUnit.SECONDS);
         }
 
         return messagesReceived;

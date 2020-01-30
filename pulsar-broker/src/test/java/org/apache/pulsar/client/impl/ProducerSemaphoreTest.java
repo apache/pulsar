@@ -55,7 +55,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testProducerSemaphoreAcquireAndRelease() throws PulsarClientException, ExecutionException, InterruptedException {
 
         final int pendingQueueSize = 100;
@@ -122,9 +122,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     /**
      * We use semaphore to limit the pending send, so we must ensure that the thread of sending message never block
      * at the pending message queue. If not, the dead lock might occur. Here is the related issue to describe the
-     * dead lock happens {https://github.com/apache/pulsar/issues/5585}
+     * dead lock {https://github.com/apache/pulsar/issues/5585}
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testEnsureNotBlockOnThePendingQueue() throws Exception {
         final int pendingQueueSize = 10;
 

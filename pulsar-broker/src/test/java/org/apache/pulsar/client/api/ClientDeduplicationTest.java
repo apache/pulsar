@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.annotations.AfterClass;
@@ -46,11 +47,11 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect"+ randomName(16);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name");
+                .producerName("my-producer-name"+ randomName(16));
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
@@ -77,11 +78,11 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterRestart() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart"+ randomName(16);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name");
+                .producerName("my-producer-name"+ randomName(16));
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
@@ -109,19 +110,19 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testProducerDeduplication() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplication";
+        String topic = "persistent://my-property/my-ns/testProducerDeduplication"+ randomName(16);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name").sendTimeout(0, TimeUnit.SECONDS);
+                .producerName("my-producer-name" + randomName(16)).sendTimeout(0, TimeUnit.SECONDS);
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription"+ randomName(16))
                 .subscribe();
 
         producer.newMessage().value("my-message-0".getBytes()).sequenceId(0).send();
@@ -141,7 +142,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         }
 
         // No other messages should be received
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         // Kill and restart broker
@@ -154,25 +155,32 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         producer.close();
     }
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testProducerDeduplicationWithDiscontinuousSequenceId() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId";
+        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId"+ randomName(16);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name").enableBatching(true).batchingMaxMessages(10).sendTimeout(0, TimeUnit.SECONDS);
+                .producerName("my-producer-name" + randomName(16)).enableBatching(true).batchingMaxMessages(10).sendTimeout(0, TimeUnit.SECONDS);
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription" + randomName(16))
                 .subscribe();
 
         producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
@@ -194,7 +202,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         }
 
         // No other messages should be received
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         producer.close();
@@ -209,25 +217,25 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
         producer.flush();
 
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testProducerDeduplicationNonBatchAsync() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplicationNonBatchAsync";
+        String topic = "persistent://my-property/my-ns/testProducerDeduplicationNonBatchAsync"+ randomName(16);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name").enableBatching(false).sendTimeout(0, TimeUnit.SECONDS);
+                .producerName("my-producer-name" + randomName(16)).enableBatching(false).sendTimeout(0, TimeUnit.SECONDS);
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription"+ randomName(16))
                 .subscribe();
 
         producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
@@ -246,7 +254,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         }
 
         // No other messages should be received
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         // Kill and restart broker
@@ -259,7 +267,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
 
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
 
         producer.close();

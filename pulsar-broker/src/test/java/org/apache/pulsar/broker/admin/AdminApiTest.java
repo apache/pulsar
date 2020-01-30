@@ -206,7 +206,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw",
                 new ClusterData("http://broker.messaging.use.example.com:8080"));
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
-        // failure-domain znode of this default cluster
+        // failure-domain znode of this default cluster.
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "usw"));
 
         assertEquals(admin.clusters().getCluster("test"),

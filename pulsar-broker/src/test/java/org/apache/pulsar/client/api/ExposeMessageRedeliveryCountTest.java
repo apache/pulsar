@@ -43,7 +43,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testRedeliveryCount() throws PulsarClientException {
 
         final String topic = "persistent://my-property/my-ns/redeliveryCount";
@@ -78,7 +78,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testRedeliveryCountWithPartitionedTopic() throws PulsarClientException, PulsarAdminException {
 
         final String topic = "persistent://my-property/my-ns/redeliveryCount.partitioned";
@@ -117,7 +117,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topic);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 190000)
     public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException, InterruptedException {
 
         String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";
@@ -150,7 +150,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         List<Message<String>> receivedMessagesForConsumer1 = new ArrayList<>();
 
         for (int i = 0; i < messages; i++) {
-            Message<String> msg = consumer0.receive(1, TimeUnit.SECONDS);
+            Message<String> msg = consumer0.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 receivedMessagesForConsumer0.add(msg);
             } else {
@@ -159,7 +159,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         }
 
         for (int i = 0; i < messages; i++) {
-            Message<String> msg = consumer1.receive(1, TimeUnit.SECONDS);
+            Message<String> msg = consumer1.receive(5, TimeUnit.SECONDS);
             if (msg != null) {
                 receivedMessagesForConsumer1.add(msg);
             } else {

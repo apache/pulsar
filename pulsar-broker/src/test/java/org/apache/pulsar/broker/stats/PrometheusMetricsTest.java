@@ -29,8 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.TreeMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
@@ -57,10 +59,21 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    // Perhaps it would be better to import this method from PulsarTestBase in tests.integration
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testPerTopicStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        String randSeed = randomName(16);
+        System.out.println("The randSeed of testPerTopicStats() is: " + randSeed);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/" + randSeed + "/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/" + randSeed + "/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -78,36 +91,95 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // There should be 2 metrics with different tags for each topic
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        List<Metric> matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        // I think there's a race that's causing cm.get(0) and cm.get(1) to swap items...
+        int positionOfTopic1;
+        int positionOfTopic2;
+
+        matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 2){
+            System.out.println("matchingMetrics.size() > 2 in testPerTopicStats(). First check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        if(matchingMetrics.get(0).tags.get("topic").equals("persistent://my-property/use/" + randSeed + "/my-topic1")) {
+            positionOfTopic1 = 0;
+            positionOfTopic2 = 1;
+        } else {
+            positionOfTopic2 = 0;
+            positionOfTopic1 = 1;
+        }
+        assertEquals(matchingMetrics.size(), 2);
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic2");
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("namespace"), "my-property/use/" + randSeed);
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic1");
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("namespace"), "my-property/use/" + randSeed);
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 3);
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
+
+        matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 2){
+            System.out.println("matchingMetrics.size() > 2 in testPerTopicStats(). Second check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        if(matchingMetrics.get(1).tags.get("topic").equals("persistent://my-property/use/" + randSeed + "/my-topic1")) {
+            positionOfTopic1 = 1;
+            positionOfTopic2 = 0;
+        } else {
+            positionOfTopic2 = 1;
+            positionOfTopic1 = 0;
+        }
+        assertEquals(matchingMetrics.size(), 2);
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic2");
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("namespace"), "my-property/use/" + randSeed);
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic1");
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("namespace"), "my-property/use/" + randSeed);
 
         cm = (List<Metric>) metrics.get("topic_load_times_count");
+        //matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(cm.size() > 1){ // This one doesn't have the entire topic name... Hopefully, that won't cause concurrency problems.
+            System.out.println("matchingMetrics.size() > 2 in testPerTopicStats(). Third check. Debug entries: ");
+            cm.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 2){
+            System.out.println("matchingMetrics.size() > 2 in testPerTopicStats(). Fourth check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        if(matchingMetrics.get(0).tags.get("topic").equals("persistent://my-property/use/" + randSeed + "/my-topic1")) {
+            positionOfTopic1 = 0;
+            positionOfTopic2 = 1;
+        } else {
+            positionOfTopic2 = 0;
+            positionOfTopic1 = 1;
+        }
+        assertEquals(matchingMetrics.size(), 2);
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic2");
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("namespace"), "my-property/use/" + randSeed);
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic1");
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("namespace"), "my-property/use/" + randSeed);
 
         cm = (List<Metric>) metrics.get("pulsar_in_messages_total");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 2){
+            System.out.println("matchingMetrics.size() > 2 in testPerTopicStats(). Fifth check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        if(matchingMetrics.get(0).tags.get("topic").equals("persistent://my-property/use/" + randSeed + "/my-topic1")) {
+            positionOfTopic1 = 0;
+            positionOfTopic2 = 1;
+        } else {
+            positionOfTopic2 = 0;
+            positionOfTopic1 = 1;
+        }
+        assertEquals(matchingMetrics.size(), 2);
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic2");
+        assertEquals(matchingMetrics.get(positionOfTopic2).tags.get("namespace"), "my-property/use/" + randSeed);
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("topic"), "persistent://my-property/use/" + randSeed + "/my-topic1");
+        assertEquals(matchingMetrics.get(positionOfTopic1).tags.get("namespace"), "my-property/use/" + randSeed);
 
         p1.close();
         p2.close();
@@ -115,8 +187,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerNamespaceStats() throws Exception {
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        String randSeed = randomName(16);
+        System.out.println("The randSeed of testPerNamespaceStats() is: " + randSeed);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/" + randSeed + "/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/" + randSeed + "/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -135,15 +209,29 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // There should be 1 metric aggregated per namespace
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
-        assertEquals(cm.size(), 1);
-        assertNull(cm.get(0).tags.get("topic"));
-        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
+        // Need to filter out Prometheus metrics like the way we're doing it in the Go Functions API...
+        // Maybe there's a workaround for now.
+        List<Metric> matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 1){
+            System.out.println("matchingMetrics.size() > 1 in testPerNamespaceStats(). First check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        assertEquals(matchingMetrics.size(),  1);
+        assertNull(matchingMetrics.get(0).tags.get("topic"), "Test");
+        assertEquals(matchingMetrics.get(0).tags.get("namespace"), "my-property/use/" + randSeed);
 
+        // Need to filter out Prometheus metrics like the way we're doing it in the Go Functions API...
+        // Maybe there's a workaround for now.
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 2);
-        assertEquals(cm.get(1).value, 2.0);
-        assertNull(cm.get(1).tags.get("topic"));
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        matchingMetrics = cm.stream().filter(t -> t.tags.containsValue("my-property/use/" + randSeed)).collect(Collectors.toList());
+        if(matchingMetrics.size() > 1){
+            System.out.println("matchingMetrics.size() > 1 in testPerNamespaceStats(). Second check. Debug entries: ");
+            matchingMetrics.forEach(t -> t.tags.entrySet().forEach(kv -> System.out.println(kv.getKey() + ":"  + kv.getValue())));
+        }
+        assertEquals(matchingMetrics.size(), 1);
+        assertEquals(matchingMetrics.get(0).value, 2.0);
+        assertNull(matchingMetrics.get(0).tags.get("topic"));
+        assertEquals(matchingMetrics.get(0).tags.get("namespace"), "my-property/use/" + randSeed);
 
         p1.close();
         p2.close();
@@ -264,6 +352,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
 
             Matcher matcher = pattern.matcher(line);
+            if(!matcher.matches()){
+                System.out.println("Failing line is: " + line);
+                System.out.println("Failing pattern is: " + pattern.toString());
+            }
             assertTrue(matcher.matches());
             String name = matcher.group(1);
 

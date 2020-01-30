@@ -489,13 +489,13 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testE2EPulsarFunctionWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         testE2EPulsarFunction(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    @Test(timeOut = 80000)
     public void testE2EPulsarFunctionWithUrl() throws Exception {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar",
                 fileServer.getAddress().getPort());
@@ -720,13 +720,13 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSinkStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    @Test(timeOut = 80000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",
                 fileServer.getAddress().getPort());
@@ -860,20 +860,20 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testPulsarSourceStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    @Test(timeOut = 80000)
     public void testPulsarSourceStatsWithUrl() throws Exception {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar",
                 fileServer.getAddress().getPort());
         testPulsarSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testPulsarFunctionStats() throws Exception {
 
         final String namespacePortion = "io";
@@ -1209,7 +1209,7 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testPulsarFunctionStatus() throws Exception {
 
         final String namespacePortion = "io";
@@ -1319,7 +1319,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testFunctionStopAndRestartApi() throws Exception {
 
         final String namespacePortion = "io";
@@ -1386,7 +1386,7 @@ public class PulsarFunctionE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 40000)
     public void testFunctionAutomaticSubCleanup() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;

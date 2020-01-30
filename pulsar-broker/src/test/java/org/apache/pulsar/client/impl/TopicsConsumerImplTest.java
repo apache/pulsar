@@ -638,7 +638,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     /**
      * Test Listener for github issue #2547
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testMultiTopicsMessageListener() throws Exception {
         String key = "MultiTopicsMessageListenerTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -704,7 +704,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
      * 4. produce message to xx-partition-2 again,  and verify consumer could receive message.
      *
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testTopicAutoUpdatePartitions() throws Exception {
         String key = "TestTopicAutoUpdatePartitions";
         final String subscriptionName = "my-ex-subscription-" + key;

@@ -92,7 +92,7 @@ public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
         // Consumer receives and acks all the messages, though the acks
         // are still cached in client lib
         for (int i = 0; i < 30; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(); // Can't use receive with timeout, if the queue size is 0
             assertEquals(msg.getValue(), "hello-" + i);
             consumer.acknowledge(msg);
         }

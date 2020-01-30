@@ -135,7 +135,7 @@ public class StormExample {
         }
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             LOG.info("Message {} received", new String(msg.getData()));
         }
         cluster.killTopology("test");

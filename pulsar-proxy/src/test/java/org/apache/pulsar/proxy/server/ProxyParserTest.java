@@ -29,6 +29,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
@@ -127,7 +128,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             checkNotNull(msg);
             consumer.acknowledge(msg);
         }
@@ -139,21 +140,33 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         client.close();
     }
 
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testPartitions() throws Exception {
+        String randSeed = randomName(16);
         TenantInfo tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
+        String topicName = "persistent://sample/test/local/partitioned-topic" + randSeed;
+        if(!admin.tenants().getTenants().contains("sample")){
+            admin.tenants().createTenant("sample", tenantInfo);
+        }
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic(topicName, 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-            .topic("persistent://sample/test/local/partitioned-topic")
+            .topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {
@@ -161,14 +174,14 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
 
         client.close();
     }
 
-    @Test
+    @Test(invocationCount = 10)
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -214,7 +227,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    private void testProtocolVersionAdvertisement() throws Exception {
+    public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";
 

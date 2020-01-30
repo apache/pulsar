@@ -83,10 +83,10 @@ import static org.testng.Assert.fail;
 @Slf4j
 public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
-    final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    final Duration TEN_SECONDS = Duration.ofSeconds(10);
+   final Duration ONE_MINUTE = Duration.ofMinutes(1);
+   final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-    final RetryPolicy statusRetryPolicy = new RetryPolicy()
+   final RetryPolicy statusRetryPolicy = new RetryPolicy()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));

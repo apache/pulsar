@@ -140,7 +140,7 @@ public class ServerCnx extends PulsarHandler {
     AuthenticationState originalAuthState;
     private boolean pendingAuthChallengeResponse = false;
 
-    // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
+    // Max number of pending requests per connections. If multiple producers are sharing the same connection, the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
     private final int maxPendingSendRequests;
     private final int resumeReadsThreshold;
@@ -704,6 +704,7 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleSubscribe(final CommandSubscribe subscribe) {
+        log.info("handleSubscribe is getting called on ServerCnx");
         checkArgument(state == State.Connected);
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();

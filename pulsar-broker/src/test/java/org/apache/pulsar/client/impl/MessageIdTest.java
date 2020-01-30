@@ -343,9 +343,9 @@ public class MessageIdTest extends BrokerTestBase {
 
         ((ConsumerImpl<byte[]>) consumer).grabCnx();
         // We should only receive msg1
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-3");
 
     }
@@ -415,9 +415,9 @@ public class MessageIdTest extends BrokerTestBase {
 
         ((ConsumerImpl<byte[]>) consumer).grabCnx();
         // We should only receive msg1
-        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-3");
 
     }

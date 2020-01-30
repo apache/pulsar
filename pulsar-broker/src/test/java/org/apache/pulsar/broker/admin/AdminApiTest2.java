@@ -436,7 +436,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      * @param namespaceName
      * @throws Exception
      */
-    @Test(dataProvider = "namespaceNames", timeOut = 10000)
+    @Test(dataProvider = "namespaceNames", timeOut = 30000)
     public void testResetCursorOnPosition(String namespaceName) throws Exception {
         final String topicName = "persistent://prop-xyz/use/" + namespaceName + "/resetPosition";
         final int totalProducedMessages = 50;
@@ -459,7 +459,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         MessageIdImpl resetMessageId = null;
         int resetPositionId = 10;
         for (int i = 0; i < 20; i++) {
-            message = consumer.receive(1, TimeUnit.SECONDS);
+            message = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(message);
             if (i == resetPositionId) {
                 resetMessageId = (MessageIdImpl) message.getMessageId();
@@ -959,7 +959,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 Collections.singletonList(localCluster));
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testConsumerStatsLastTimestamp() throws PulsarClientException, PulsarAdminException, InterruptedException {
         long timestamp = System.currentTimeMillis();
         final String topicName = "consumer-stats-" + timestamp;

@@ -69,7 +69,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         executor.shutdown();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testRoundRobinProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -95,7 +95,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Message<byte[]> msg;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
@@ -112,7 +112,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testPartitionedTopicNameWithSpecialCharacter() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -130,7 +130,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testCustomPartitionProducer() throws Exception {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         TopicName topicName = null;
@@ -162,7 +162,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
             Set<String> messageSet = Sets.newHashSet();
 
             for (int i = 0; i < MESSAGE_COUNT; i++) {
-                msg = consumer.receive(5, TimeUnit.SECONDS);
+                msg = consumer.receive();
                 Assert.assertNotNull(msg, "Message should not be null");
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
@@ -181,7 +181,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testSinglePartitionProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -207,7 +207,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
 
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = consumer.receive();
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
@@ -225,7 +225,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testKeyBasedProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -253,7 +253,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive();
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
@@ -334,7 +334,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -389,7 +389,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testSillyUser() throws Exception {
 
         int numPartitions = 4;
@@ -433,7 +433,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testDeletePartitionedTopic() throws Exception {
         int numPartitions = 4;
         TopicName topicName = TopicName
@@ -455,7 +455,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testAsyncPartitionedProducerConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -504,7 +504,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testAsyncPartitionedProducerConsumerQueueSizeOne() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -561,7 +561,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testFairDistributionForPartitionConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -748,7 +748,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    @Test(timeOut = 90000)
     public void testAutoUpdatePartitionsForProducerConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection

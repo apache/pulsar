@@ -588,7 +588,7 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         producer.close();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = pulsarConsumer.receive(5, TimeUnit.SECONDS);
             assertEquals(new String(msg.getData()), "hello-" + i);
             pulsarConsumer.acknowledge(msg);
         }
@@ -627,7 +627,7 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         counter.await();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = pulsarConsumer.receive(5, TimeUnit.SECONDS);
             assertEquals(new String(msg.getData()), "hello-" + i);
             pulsarConsumer.acknowledge(msg);
         }
@@ -667,7 +667,7 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
         producer.close();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = pulsarConsumer.receive(5, TimeUnit.SECONDS);
             Foo value = fooSchema.decode(msg.getValue());
             Assert.assertEquals(value.getField1(), "field1");
             Assert.assertEquals(value.getField2(), "field2");

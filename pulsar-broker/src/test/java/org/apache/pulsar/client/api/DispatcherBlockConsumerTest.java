@@ -670,12 +670,12 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * acking a. as consumer is acking not reached maxUnAckPerDispatcher=20 unack msg => consumes all produced msgs
      * 4.Subscription-1 : acks all pending msgs and consume by acking a. broker unblocks all dispatcher and sub-1
      * consumes all messages 5. Subscription-2 : it triggers redelivery and acks all messages so, it consumes all
-     * produced messages
+     * produced messages.
      * </pre>
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test(timeOut = 190000)
     public void testBlockBrokerDispatching() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -743,7 +743,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Message<byte[]> msg = null;
             Set<MessageId> messages1 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub1.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer1Sub1.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages1.add(msg.getMessageId());
                 } else {
@@ -752,7 +752,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 // once consumer receives maxUnAckPerBroker-msgs then sleep to give a chance to scheduler to block the
                 // subscription
                 if (j == maxUnAckPerBroker) {
-                    Thread.sleep(200);
+                    Thread.sleep(1000);
                 }
             }
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
@@ -764,7 +764,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumer2Msgs = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer2Sub1.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumer2Msgs++;
                 } else {
@@ -789,7 +789,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumerSub2.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages2.add(msg.getMessageId());
                 } else {
@@ -806,7 +806,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumedMsgsSub3 = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub3.receive(100, TimeUnit.MILLISECONDS);
+                msg = consumer1Sub3.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     consumedMsgsSub3++;
                     consumer1Sub3.acknowledge(msg);
@@ -822,7 +822,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // sleep so, broker receives all ack back to unblock subscription
             Thread.sleep(1000);
             for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumer1Sub1.receive(1, TimeUnit.SECONDS);
+                msg = consumer1Sub1.receive(5, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages1.add(msg.getMessageId());
                     consumer1Sub1.acknowledge(msg);

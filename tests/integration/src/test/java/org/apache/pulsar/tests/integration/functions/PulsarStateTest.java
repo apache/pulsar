@@ -116,7 +116,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 10, 200);
+            }, 20, 400);
 
             SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
             assertEquals(status.getInstances().size(), 1);
@@ -173,7 +173,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 10, 200);
+            }, 20, 400);
 
             SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
             assertEquals(status.getInstances().size(), 1);

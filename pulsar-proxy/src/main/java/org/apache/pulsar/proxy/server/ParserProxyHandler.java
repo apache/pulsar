@@ -172,24 +172,29 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
         } finally {
 
-            if (cmdBuilder != null) {
-                cmdBuilder.recycle();
-            }
-            if (cmd != null) {
-                cmd.recycle();
-            }
-            buffer.resetReaderIndex();
-            buffer.resetWriterIndex();
+            try{
+                if (cmdBuilder != null) {
+                    cmdBuilder.recycle();
+                }
+                if (cmd != null) {
+                    cmd.recycle();
+                }
+                buffer.resetReaderIndex();
+                buffer.resetWriterIndex();
 
-            // add totalSize to buffer Head
-            ByteBuf totalSizeBuf = Unpooled.buffer(4);
-            totalSizeBuf.writeInt(buffer.readableBytes());
-            CompositeByteBuf compBuf = Unpooled.compositeBuffer();
-            compBuf.addComponents(totalSizeBuf,buffer);
-            compBuf.writerIndex(totalSizeBuf.capacity()+buffer.capacity());
+                // add totalSize to buffer Head
+                ByteBuf totalSizeBuf = Unpooled.buffer(4);
+                totalSizeBuf.writeInt(buffer.readableBytes());
+                CompositeByteBuf compBuf = Unpooled.compositeBuffer();
+                compBuf.addComponents(totalSizeBuf,buffer);
+                compBuf.writerIndex(totalSizeBuf.capacity()+buffer.capacity());
 
-            //next handler
-            ctx.fireChannelRead(compBuf);
+                //next handler
+                ctx.fireChannelRead(compBuf);
+            } catch (Exception e) {
+                log.error("{},{},{}" , e.getMessage() , e.getStackTrace() ,  e.getCause());
+            }
+
         }
     }
 

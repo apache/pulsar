@@ -139,9 +139,11 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
                                             .startMessageIdInclusive().readerName(subscription).create();
+        // If we use MessageId.latest, then publishMessages must occur after we create the reader.
 
+        Assert.assertTrue(reader.hasMessageAvailable());
         while (reader.hasMessageAvailable()) {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         }
@@ -199,7 +201,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
      * 1. publish messages which are 5 hour old
      * 2. publish messages which are 1 hour old
      * 3. Create reader with rollback time 2 hours
-     * 4. Reader should be able to read only messages which are only 2 hours old
+     * 4. Reader should be able to read only messages which are only 2 hours old.
      * </pre>
      * @throws Exception
      */

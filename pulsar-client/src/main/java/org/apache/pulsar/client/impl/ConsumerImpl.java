@@ -547,79 +547,100 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         cnx.registerConsumer(consumerId, this);
 
         log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
-
+        log.info("ConsumerImpl.connectionOpened(..)01");
         long requestId = client.newRequestId();
 
         int currentSize;
         synchronized (this) {
             currentSize = incomingMessages.size();
             startMessageId = clearReceiverQueue();
+            log.info("ConsumerImpl.connectionOpened(..)02");
             if (possibleSendToDeadLetterTopicMessages != null) {
                 possibleSendToDeadLetterTopicMessages.clear();
             }
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
+        log.info("ConsumerImpl.connectionOpened(..)03");
         MessageIdData startMessageIdData;
         if (isDurable) {
             // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
             startMessageIdData = null;
+            log.info("ConsumerImpl.connectionOpened(..)04");
         } else {
             // For non-durable we are going to restart from the next entry
             MessageIdData.Builder builder = MessageIdData.newBuilder();
+            log.info("ConsumerImpl.connectionOpened(..)05");
             builder.setLedgerId(startMessageId.getLedgerId());
             builder.setEntryId(startMessageId.getEntryId());
             if (startMessageId instanceof BatchMessageIdImpl) {
+                log.info("ConsumerImpl.connectionOpened(..)06");
                 builder.setBatchIndex(((BatchMessageIdImpl) startMessageId).getBatchIndex());
             }
 
             startMessageIdData = builder.build();
             builder.recycle();
+            log.info("ConsumerImpl.connectionOpened(..)07");
         }
 
         SchemaInfo si = schema.getSchemaInfo();
         if (si != null && (SchemaType.BYTES == si.getType() || SchemaType.NONE == si.getType())) {
+            log.info("ConsumerImpl.connectionOpened(..)08");
             // don't set schema for Schema.BYTES
             si = null;
         }
         // startMessageRollbackDurationInSec should be consider only once when consumer connects to first time
         long startMessageRollbackDuration = (startMessageRollbackDurationInSec > 0
                 && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
+        log.info("ConsumerImpl.connectionOpened(..)09");
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
         startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy());
+        log.info("ConsumerImpl.connectionOpened(..)10");
         if (startMessageIdData != null) {
+            log.info("ConsumerImpl.connectionOpened(..)25");
             startMessageIdData.recycle();
+            log.info("ConsumerImpl.connectionOpened(..)26");
         }
+        log.info("ConsumerImpl.connectionOpened(..)11");
 
         cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+            log.info("ConsumerImpl.connectionOpened(..)22");
             synchronized (ConsumerImpl.this) {
+                log.info("ConsumerImpl.connectionOpened(..)12");
                 if (changeToReadyState()) {
                     consumerIsReconnectedToBroker(cnx, currentSize);
+                    log.info("ConsumerImpl.connectionOpened(..)13");
                 } else {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
                     // drops the consumer on its side
+                    log.info("ConsumerImpl.connectionOpened(..)14");
                     setState(State.Closed);
                     cnx.removeConsumer(consumerId);
                     cnx.channel().close();
                     return;
                 }
             }
+            log.info("ConsumerImpl.connectionOpened(..)23");
 
             resetBackoff();
+            log.info("ConsumerImpl.connectionOpened(..)24");
 
             boolean firstTimeConnect = subscribeFuture.complete(this);
+            log.info("ConsumerImpl.connectionOpened(..)15");
             // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
             // command to receive messages.
             // For readers too (isDurable==false), the partition idx will be set though we have to
             // send available permits immediately after establishing the reader session
             if (!(firstTimeConnect && hasParentConsumer && isDurable) && conf.getReceiverQueueSize() != 0) {
+                log.info("ConsumerImpl.connectionOpened(..)16");
                 sendFlowPermitsToBroker(cnx, conf.getReceiverQueueSize());
             }
         }).exceptionally((e) -> {
             cnx.removeConsumer(consumerId);
             if (getState() == State.Closing || getState() == State.Closed) {
+                log.info("ConsumerImpl.connectionOpened(..)17");
                 // Consumer was closed while reconnecting, close the connection to make sure the broker
                 // drops the consumer on its side
                 cnx.channel().close();
@@ -631,8 +652,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
+                log.info("ConsumerImpl.connectionOpened(..)18");
             } else if (!subscribeFuture.isDone()) {
                 // unable to create new consumer, fail operation
+                log.info("ConsumerImpl.connectionOpened(..)19");
                 setState(State.Failed);
                 closeConsumerTasks();
                 subscribeFuture.completeExceptionally(
@@ -646,12 +669,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 //  * Regular consumer after topic is manually delete and with
                 //    auto-topic-creation set to false
                 // No more retries are needed in this case.
+                log.info("ConsumerImpl.connectionOpened(..)20");
                 setState(State.Failed);
                 client.cleanupConsumer(this);
                 log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}", topic, subscription, cnx.channel().remoteAddress());
             } else {
                 // consumer was subscribed and connected but we got some error, keep trying
                 reconnectLater(e.getCause());
+                log.info("ConsumerImpl.connectionOpened(..)21");
             }
             return null;
         });

@@ -463,7 +463,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             lastunackedMsg = msg;
         }
@@ -708,7 +708,7 @@ public class BatchMessageTest extends BrokerTestBase {
         for (int i = 0; i < numMsgs; i++) {
             executor.submit(() -> {
                 try {
-                    Message<byte[]> msg = myConsumer.receive(1, TimeUnit.SECONDS);
+                    Message<byte[]> msg = myConsumer.receive(5, TimeUnit.SECONDS);
                     myConsumer.acknowledge(msg);
                 } catch (Exception e) {
                     failed.set(false);

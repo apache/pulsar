@@ -193,7 +193,7 @@ public abstract class TestPulsarConnector {
         public Foo foo;
         public Boo boo;
         public Bar bar;
-        // different namespace with same classname should work though
+        // different namespace with same classname should work though.
         public Foo.Bar foobar;
     }
 

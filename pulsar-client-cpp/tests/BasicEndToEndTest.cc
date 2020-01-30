@@ -748,7 +748,7 @@ TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
 
     for (int i = 0; i < 10; i++) {
         Message m;
-        consumer.receive(m);
+        consumer.receive(m, 9000);
         consumer.acknowledgeCumulative(m);
     }
 
@@ -1990,14 +1990,14 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerPubSub) {
     LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
     for (int i = 0; i < 3 * messageNumber; i++) {
         Message m;
-        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.receive(m, 5000));
         ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
     LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
 
-    // verify no more to receive, because producer4 not match pattern
+    // verify no more to receive because producer4 not match pattern
     Message m;
-    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 5000));
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 
@@ -2085,14 +2085,14 @@ TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
     LOG_INFO("Consuming and acking 300 messages by multiTopicsConsumer");
     for (int i = 0; i < 3 * messageNumber; i++) {
         Message m;
-        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.receive(m, 5000));
         ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
     LOG_INFO("Consumed and acked 300 messages by multiTopicsConsumer");
 
     // verify no more to receive
     Message m;
-    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 5000));
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 
@@ -2230,14 +2230,14 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     LOG_INFO("Consuming and acking 300 messages by pattern topics consumer");
     for (int i = 0; i < 3 * messageNumber; i++) {
         Message m;
-        ASSERT_EQ(ResultOk, consumer.receive(m, 1000));
+        ASSERT_EQ(ResultOk, consumer.receive(m, 5000));
         ASSERT_EQ(ResultOk, consumer.acknowledge(m));
     }
     LOG_INFO("Consumed and acked 300 messages by pattern topics consumer");
 
     // verify no more to receive, because producer4 not match pattern
     Message m;
-    ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+    ASSERT_EQ(ResultTimeout, consumer.receive(m, 5000));
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 

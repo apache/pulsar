@@ -20,6 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
@@ -121,11 +123,15 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        LOG.info("ProxyConnection.channelRegistered(..)01");
         super.channelRegistered(ctx);
+        LOG.info("ProxyConnection.channelRegistered(..)02");
         ProxyService.activeConnections.inc();
         if (ProxyService.activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+            LOG.info("ProxyConnection.channelRegistered(..)03");
             ctx.close();
             ProxyService.rejectedConnections.inc();
+            LOG.info("ProxyConnection.channelRegistered(..)04");
             return;
         }
     }
@@ -138,7 +144,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        LOG.info("ProxyConnection.channelActive(..)01");
         super.channelActive(ctx);
+        LOG.info("ProxyConnection.channelActive(..)02");
         ProxyService.newConnections.inc();
         service.getClientCnxs().add(this);
         LOG.info("[{}] New connection opened", remoteAddress);
@@ -382,6 +390,26 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handleGetSchema(commandGetSchema);
+    }
+
+    @Override
+    protected void handleSubscribe(PulsarApi.CommandSubscribe subscribe) {
+        LOG.info("ERROR: We are calling handleSubscribe(..) on ProxyConnection! This shouldn't happen!");
+        StringWriter sw = new StringWriter();
+        new Throwable("").printStackTrace(new PrintWriter(sw));
+        String stackTrace = sw.toString();
+        LOG.info("Stacktrace is: " + stackTrace);
+        super.handleSubscribe(subscribe);
+    }
+
+    @Override
+    protected void handleProducer(PulsarApi.CommandProducer producer) {
+        LOG.info("ERROR: We are calling handleProducer(..) on ProxyConnection! This shouldn't happen!");
+        StringWriter sw = new StringWriter();
+        new Throwable("").printStackTrace(new PrintWriter(sw));
+        String stackTrace = sw.toString();
+        LOG.info("Stacktrace is: " + stackTrace);
+        super.handleProducer(producer);
     }
 
     /**

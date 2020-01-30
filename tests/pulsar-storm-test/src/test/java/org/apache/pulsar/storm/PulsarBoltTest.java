@@ -154,7 +154,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         Tuple tuple = getMockTuple(msgContent);
         bolt.execute(tuple);
         Assert.assertTrue(mockCollector.acked());
-        Message msg = consumer.receive(5, TimeUnit.SECONDS);
+        Message msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
     }
 

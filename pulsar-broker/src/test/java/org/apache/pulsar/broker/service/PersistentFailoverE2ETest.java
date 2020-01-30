@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.awaitility.Awaitility.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -70,7 +72,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    private static final int CONSUMER_ADD_OR_REMOVE_WAIT_TIME = 100;
+    private static final int CONSUMER_ADD_OR_REMOVE_WAIT_TIME = 500;
 
     private static class TestConsumerStateEventListener implements ConsumerEventListener {
 
@@ -109,18 +111,36 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         assertNull(listener.inActiveQueue.poll());
     }
 
-    private void verifyConsumerActive(TestConsumerStateEventListener listener, int partitionId) throws Exception {
+    private void verifyConsumerActive(int waitTime, TestConsumerStateEventListener listener, int partitionId) throws Exception {
         Integer pid = listener.activeQueue.take();
-        assertNotNull(pid);
-        assertEquals(partitionId, pid.intValue());
-        assertNull(listener.inActiveQueue.poll());
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertNotNull(pid));
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(partitionId, pid.intValue()));
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertNull(listener.inActiveQueue.poll()));
     }
 
-    private void verifyConsumerInactive(TestConsumerStateEventListener listener, int partitionId) throws Exception {
+    private void verifyConsumerInactive(int waitTime, TestConsumerStateEventListener listener, int partitionId) throws Exception {
         Integer pid = listener.inActiveQueue.take();
-        assertNotNull(pid);
-        assertEquals(partitionId, pid.intValue());
-        assertNull(listener.activeQueue.poll());
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertNotNull(pid));
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(partitionId, pid.intValue()));
+        await().atMost(CONSUMER_ADD_OR_REMOVE_WAIT_TIME,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertNull(listener.activeQueue.poll()));
     }
 
     private static class ActiveInactiveListenerEvent implements ConsumerEventListener {
@@ -159,8 +179,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer1 = consumerBulder1.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
                 .subscribe();
-        verifyConsumerActive(listener1, -1);
-        verifyConsumerInactive(listener2, -1);
+        verifyConsumerActive(ASYNC_EVENT_COMPLETION_WAIT, listener1, -1);
+        verifyConsumerInactive(ASYNC_EVENT_COMPLETION_WAIT, listener2, -1);
         listener2.inActiveQueue.clear();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -192,9 +212,13 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // 3. consumer1 should have all the messages while consumer2 should have no messages
         Message<byte[]> msg = null;
-        Assert.assertNull(consumer2.receive(100, TimeUnit.MILLISECONDS));
+        await().atMost(ASYNC_EVENT_COMPLETION_WAIT,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertNull(consumer2.receive(100, TimeUnit.MILLISECONDS)));
+
         for (int i = 0; i < numMsgs; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer1.acknowledge(msg);
@@ -203,8 +227,11 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         rolloverPerIntervalStats();
 
         // 4. messages deleted on individual acks
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
+        PersistentSubscription finalSubRef = subRef;
+        await().atMost(ASYNC_EVENT_COMPLETION_WAIT,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(finalSubRef.getNumberOfEntriesInBacklog(false), 0));
 
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
@@ -215,24 +242,24 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // 5. master consumer failure should resend unacked messages and new messages to another consumer
         for (int i = 0; i < 5; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer1.acknowledge(msg);
         }
         for (int i = 5; i < 10; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
             // do not ack
         }
         consumer1.close();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
 
-        verifyConsumerActive(listener2, -1);
+        verifyConsumerActive(CONSUMER_ADD_OR_REMOVE_WAIT_TIME, listener2, -1);
+
         verifyConsumerNotReceiveAnyStateChanges(listener1);
         for (int i = 5; i < numMsgs; i++) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer2.acknowledge(msg);
@@ -240,8 +267,11 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Assert.assertNull(consumer2.receive(100, TimeUnit.MILLISECONDS));
 
         rolloverPerIntervalStats();
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
+        PersistentSubscription finalSubRef1 = subRef;
+        await().atMost(ASYNC_EVENT_COMPLETION_WAIT,
+                TimeUnit.MILLISECONDS)
+                .untilAsserted(() ->
+                        assertEquals(finalSubRef1.getNumberOfEntriesInBacklog(false), 0));
 
         // 8. unsubscribe not allowed if multiple consumers connected
         try {
@@ -325,7 +355,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Message<byte[]> msg = null;
         Set<Integer> receivedPtns = Sets.newHashSet();
         while (true) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -342,7 +372,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         receivedPtns = Sets.newHashSet();
         while (true) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -369,7 +399,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // add a consumer
         for (int i = 0; i < 20; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             uniqueMessages.add(new String(msg.getData()));
             consumer1.acknowledge(msg);
@@ -380,7 +410,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         int consumer1Messages = 0;
         while (true) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -390,7 +420,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
         int consumer2Messages = 0;
         while (true) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -400,7 +430,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
         int consumer3Messages = 0;
         while (true) {
-            msg = consumer3.receive(1, TimeUnit.SECONDS);
+            msg = consumer3.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -424,7 +454,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // remove a consumer
         for (int i = 0; i < 10; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
+            msg = consumer1.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             uniqueMessages.add(new String(msg.getData()));
             consumer1.acknowledge(msg);
@@ -433,7 +463,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         consumer2Messages = 0;
         while (true) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
@@ -443,7 +473,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
         consumer3Messages = 0;
         while (true) {
-            msg = consumer3.receive(1, TimeUnit.SECONDS);
+            msg = consumer3.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }

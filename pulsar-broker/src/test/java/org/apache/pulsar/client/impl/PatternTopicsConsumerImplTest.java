@@ -809,7 +809,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         producer2.send("msg-2");
 
-        message = consumer.receive();
+        message = consumer.receive(5, TimeUnit.SECONDS);
         assertEquals(message.getValue(), "msg-2");
         consumer.acknowledge(message);
 

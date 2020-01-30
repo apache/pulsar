@@ -96,7 +96,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         }
         Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -130,7 +130,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
             producer.send(message.getBytes());
         }
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
@@ -215,7 +215,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         }
 
         // validate: consumer is able to consume msg and close consumer after reading 1 entry
-        Assert.assertNotNull(consumer.receive(1, TimeUnit.SECONDS));
+        Assert.assertNotNull(consumer.receive(5, TimeUnit.SECONDS)); // Need to replace with await()
         consumer.close();
 
         NavigableMap<Long, LedgerInfo> ledgerInfo = ml.getLedgersInfo();
@@ -249,14 +249,14 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         Message<byte[]> msg = null;
         // start consuming message
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
-        msg = consumer.receive(1, TimeUnit.SECONDS);
+        msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
         consumer.close();
 
         // (4) enable dynamic config to skip non-recoverable data-ledgers
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "true");
 
-        retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 5, 100);
+        retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 15, 300);
 
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
