@@ -404,7 +404,7 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats stats = admin.topics().getStats(sourceTopic);
                 return stats.subscriptions.get(subscriptionName) != null
@@ -423,7 +423,7 @@ public class PulsarFunctionLocalRunTest {
             String data = "my-message-" + i;
             producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
@@ -447,7 +447,7 @@ public class PulsarFunctionLocalRunTest {
         // stop functions
         localRunner.stop();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 return topicStats.subscriptions.get(subscriptionName) != null
@@ -461,7 +461,7 @@ public class PulsarFunctionLocalRunTest {
         assertTrue(topicStats.subscriptions.get(subscriptionName) != null
                 && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
             } catch (PulsarAdminException e) {
@@ -525,7 +525,7 @@ public class PulsarFunctionLocalRunTest {
 
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
             } catch (PulsarAdminException e) {
@@ -533,7 +533,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }, 10, 150);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats sourceStats = admin.topics().getStats(sinkTopic);
                 return sourceStats.publishers.size() == 1
@@ -551,7 +551,7 @@ public class PulsarFunctionLocalRunTest {
         assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
         assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 1)
                         && (admin.topics().getInternalStats(sinkTopic).numberOfEntries > 4);
@@ -563,7 +563,7 @@ public class PulsarFunctionLocalRunTest {
 
         localRunner.stop();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
             } catch (PulsarAdminException e) {
@@ -634,7 +634,7 @@ public class PulsarFunctionLocalRunTest {
 
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
 
@@ -658,7 +658,7 @@ public class PulsarFunctionLocalRunTest {
             String data = "my-message-" + i;
             producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
@@ -670,7 +670,7 @@ public class PulsarFunctionLocalRunTest {
         // stop sink
         localRunner.stop();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats stats = admin.topics().getStats(sourceTopic);
                 return stats.subscriptions.get(subscriptionName) != null

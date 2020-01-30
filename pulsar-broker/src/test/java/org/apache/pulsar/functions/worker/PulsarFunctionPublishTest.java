@@ -298,7 +298,7 @@ public class PulsarFunctionPublishTest {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
             } catch (PulsarAdminException e) {
@@ -313,7 +313,7 @@ public class PulsarFunctionPublishTest {
             String data = "foo";
             producer.newMessage().property(propertyKey, propertyValue).key(String.valueOf(i)).value(data).send();
         }
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0;
@@ -322,7 +322,7 @@ public class PulsarFunctionPublishTest {
             }
         }, 5, 150);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
@@ -347,7 +347,7 @@ public class PulsarFunctionPublishTest {
         // delete functions
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
             } catch (PulsarAdminException e) {

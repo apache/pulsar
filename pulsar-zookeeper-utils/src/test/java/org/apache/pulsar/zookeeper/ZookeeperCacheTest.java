@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
+import static org.awaitility.Awaitility.*;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -40,11 +41,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
@@ -537,7 +534,7 @@ public class ZookeeperCacheTest {
             // Ok
         }
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             return zkCacheService.dataCache.getIfPresent(path) == null;
         }, 5, 1000);
 
@@ -548,13 +545,10 @@ public class ZookeeperCacheTest {
         scheduledExecutor.shutdown();
     }
 
-    private static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+
+    @Test(enabled = false) // Added because TestNG giving: Cannot inject @Test annotated Method [retryStrategically]
+    public static void retryStrategically(Callable<Boolean> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
-            }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
-        }
+        await().atMost(retryCount * intSleepTimeInMillis, TimeUnit.MILLISECONDS).until(predicate);
     }
 }

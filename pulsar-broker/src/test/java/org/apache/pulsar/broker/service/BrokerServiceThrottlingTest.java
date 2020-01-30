@@ -222,7 +222,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         admin.topics().unload(topicName);
 
         // wait strategically for all consumers to reconnect
-        retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
+        retryStrategically(() -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
         for (int i = 0; i < consumers.size(); i++) {

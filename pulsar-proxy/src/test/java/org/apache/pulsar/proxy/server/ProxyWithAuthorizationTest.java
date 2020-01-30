@@ -419,7 +419,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Assert.fail("This test case should not fail");
             }
         }
-        org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically((test) -> {
+        org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically(() -> {
             try {
                 return admin.namespaces().getPermissions(namespaceName).containsKey("Proxy")
                         && admin.namespaces().getPermissions(namespaceName).containsKey("Client");

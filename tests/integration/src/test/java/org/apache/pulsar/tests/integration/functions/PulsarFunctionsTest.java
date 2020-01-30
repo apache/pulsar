@@ -865,7 +865,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
-            retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     return admin.topics().getStats(inputTopicName).subscriptions.size() == 1;
                 } catch (PulsarAdminException e) {

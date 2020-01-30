@@ -723,7 +723,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         subscriber2.close();
 
         // retry strategically until broker clean up closed subscribers and invalidate all cache entries
-        retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
+        retryStrategically(() -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
         assertEquals(entryCache.getSize(), 0);

@@ -358,7 +358,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newEnsembleSize = 5;
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(newEnsembleSize, 3, 3, newThrottleRate));
 
-        retryStrategically((test) -> managedLedger.getConfig().getEnsembleSize() == newEnsembleSize
+        retryStrategically(() -> managedLedger.getConfig().getEnsembleSize() == newEnsembleSize
                 && cursor.getThrottleMarkDelete() != newThrottleRate, 5, 200);
 
         // (1) verify cursor.markDelete has been updated
@@ -763,7 +763,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             .producerName(producerName)
             .create();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             TopicStats stats;
             try {
                 stats = admin.topics().getStats(topic);

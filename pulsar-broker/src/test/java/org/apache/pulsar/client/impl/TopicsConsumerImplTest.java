@@ -794,7 +794,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         topic.get().checkMessageExpiry();
 
-        retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog() == 0, 5, 200);
+        retryStrategically(() -> subscription.getNumberOfEntriesInBacklog() == 0, 5, 200);
 
         assertEquals(subscription.getNumberOfEntriesInBacklog(), 0);
     }

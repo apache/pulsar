@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.awaitility.Awaitility.*;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -31,10 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -296,15 +294,9 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+    public static void retryStrategically(Callable<Boolean> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                return true;
-            }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
-        }
-        return false;
+        await().atMost(retryCount * intSleepTimeInMillis, TimeUnit.MILLISECONDS).until(predicate);
     }
 
     public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

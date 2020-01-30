@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.awaitility.Awaitility.*;
 import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
@@ -102,7 +103,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
+        retryStrategically(() -> cursor.getState().equals("Open"), 5, 100);
 
         // (2) validate cursor ledger is created and znode is present
         long cursorLedgerId = cursor.getCursorLedger();
@@ -137,7 +138,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
         topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
+        retryStrategically(() -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
         Assert.assertNotEquals(newCursorLedgerId, -1);
         Assert.assertNotEquals(cursorLedgerId, newCursorLedgerId);
@@ -256,7 +257,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // (4) enable dynamic config to skip non-recoverable data-ledgers
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "true");
 
-        retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 5, 100);
+        with().pollInSameThread().await().atMost(150 * 100, TimeUnit.MILLISECONDS).until(() -> config.isAutoSkipNonRecoverableData());
 
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
         consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();

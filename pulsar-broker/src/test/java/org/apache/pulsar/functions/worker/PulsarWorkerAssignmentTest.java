@@ -185,7 +185,7 @@ public class PulsarWorkerAssignmentTest {
 
         // (1) Create function with 2 instance
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
                         && admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers
@@ -202,7 +202,7 @@ public class PulsarWorkerAssignmentTest {
         functionConfig.setParallelism(1);
         // try to update function to test: update-function functionality
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
                         && admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers
@@ -243,7 +243,7 @@ public class PulsarWorkerAssignmentTest {
             // don't set any log topic
             admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         }
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
                 return assgn.size() == (totalFunctions * parallelism);
@@ -272,7 +272,7 @@ public class PulsarWorkerAssignmentTest {
             String functionName = baseFunctionName + i;
             admin.functions().deleteFunction(tenant, namespacePortion, functionName);
         }
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 Map<String, Assignment> assgn = runtimeManager.getCurrentAssignments().values().iterator().next();
                 return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);
@@ -291,7 +291,7 @@ public class PulsarWorkerAssignmentTest {
         functionsWorkerService = new WorkerService(workerConfig);
         functionsWorkerService.start(dlUri, new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null);
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 Map<String, Assignment> assgn = runtimeManager2.getCurrentAssignments().values().iterator().next();
                 return assgn.size() == ((totalFunctions - totalDeletedFunction) * parallelism);

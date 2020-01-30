@@ -978,7 +978,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         subscriber2.close();
 
         // retry strategically until broker clean up closed subscribers and invalidate all cache entries
-        retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
+        retryStrategically(() -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
         assertEquals(entryCache.getSize(), 0);
@@ -3104,7 +3104,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer5 = consumerBuilder.consumerName("bbb4").priorityLevel(1).subscribe();
 
         Integer evenDistributionCount = noOfPartitions / 3;
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 Map<String, Integer> subsCount = Maps.newHashMap();
                 admin.topics().getPartitionedStats(topicName, true).partitions.forEach((p, stats) -> {

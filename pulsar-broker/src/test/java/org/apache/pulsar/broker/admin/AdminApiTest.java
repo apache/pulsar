@@ -481,13 +481,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("superUserRoles", configValue);
         String storedValue = admin.brokers().getAllDynamicConfigurations().get("superUserRoles");
         assertEquals(configValue, storedValue);
-        retryStrategically((test) -> pulsar.getConfiguration().getSuperUserRoles().size() == 2, 5, 200);
+        retryStrategically(() -> pulsar.getConfiguration().getSuperUserRoles().size() == 2, 5, 200);
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user1));
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user2));
 
 
         admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName());
-        retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
+        retryStrategically(() -> pulsar.getConfiguration().getLoadManagerClassName()
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
         admin.brokers().deleteDynamicConfiguration("loadManagerClassName");

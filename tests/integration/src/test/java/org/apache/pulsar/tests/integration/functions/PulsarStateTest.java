@@ -109,7 +109,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
-            retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
                     return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWritten > 0;
@@ -166,7 +166,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 producer.send("foo");
             }
 
-            retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
                     return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWrittenToSink > 0;

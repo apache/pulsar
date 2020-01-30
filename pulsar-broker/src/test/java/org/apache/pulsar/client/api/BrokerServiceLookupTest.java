@@ -969,7 +969,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             // (4) Broker-1 will own topic-1
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
-            retryStrategically((test) -> pulsar.getNamespaceService().getOwnedServiceUnits().stream()
+            retryStrategically(() -> pulsar.getNamespaceService().getOwnedServiceUnits().stream()
                     .map(nb -> nb.toString()).collect(Collectors.toSet()).contains(unsplitBundle), 5, 100);
             Set<String> serviceUnits1 = pulsar.getNamespaceService().getOwnedServiceUnits().stream()
                     .map(nb -> nb.toString()).collect(Collectors.toSet());

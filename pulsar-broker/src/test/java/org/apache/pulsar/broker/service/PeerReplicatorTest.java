@@ -171,7 +171,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
         LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return admin1.clusters().getPeerClusterNames(mainClusterName).size() == 1;
             } catch (PulsarAdminException e) {
@@ -230,7 +230,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         NamespaceBundles bundles = pulsar1.getNamespaceService().getNamespaceBundleFactory()
                 .getBundles(NamespaceName.get(namespace1));
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 return !pulsar1.getNamespaceService().isNamespaceBundleOwned(bundle).get();
             } catch (Exception e) {

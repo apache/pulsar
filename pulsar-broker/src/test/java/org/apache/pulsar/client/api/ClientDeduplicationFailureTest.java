@@ -206,7 +206,7 @@ public class ClientDeduplicationFailureTest {
         ProducerThread producerThread = new ProducerThread(producer);
         producerThread.start();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 return topicStats.publishers.size() == 1 && topicStats.publishers.get(0).getProducerName().equals("test-producer-1") && topicStats.storageSize > 0;
@@ -300,7 +300,7 @@ public class ClientDeduplicationFailureTest {
         });
         thread.start();
 
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 boolean c1 =  topicStats!= null
@@ -397,7 +397,7 @@ public class ClientDeduplicationFailureTest {
         }
 
         // check all messages
-        retryStrategically((test) -> msgRecvd.size() >= 20, 5, 200);
+        retryStrategically(() -> msgRecvd.size() >= 20, 5, 200);
 
         assertEquals(msgRecvd.size(), 20);
         for (int i=0; i<10; i++) {

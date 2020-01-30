@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.awaitility.Awaitility.*;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
@@ -52,14 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -2396,7 +2390,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, ctxStr);
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
-        retryStrategically((test) -> responseException1.get() != null, 5, 1000);
+        retryStrategically(() -> responseException1.get() != null, 5, 1000);
         assertNotNull(responseException1.get());
         assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
 
@@ -2419,7 +2413,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }, null);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest.getEntryId(), PositionImpl.earliest.getEntryId(),
                 false, opReadEntry, ctxStr);
-        retryStrategically((test) -> {
+        retryStrategically(() -> {
             return responseException2.get() != null;
         }, 5, 1000);
         assertNotNull(responseException2.get());
@@ -2533,13 +2527,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         field.set(classObj, fieldValue);
     }
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+    public static void retryStrategically(Callable<Boolean> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
-            }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
-        }
+        await().atMost(retryCount * intSleepTimeInMillis, TimeUnit.MILLISECONDS).until(predicate);
     }
 }

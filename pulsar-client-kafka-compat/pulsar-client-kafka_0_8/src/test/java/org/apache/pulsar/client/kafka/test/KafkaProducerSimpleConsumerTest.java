@@ -188,7 +188,7 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
         
         final long expectedReadOffsetPosition = lastOffset;
         
-        retryStrategically((test) -> fetchOffset(consumer, topicPartition, groupId) == expectedReadOffsetPosition, 10, 150);
+        retryStrategically(() -> fetchOffset(consumer, topicPartition, groupId) == expectedReadOffsetPosition, 10, 150);
         
         long offset1 = fetchOffset(consumer, topicPartition, groupId);
         MessageIdImpl actualMsgId = ((MessageIdImpl)MessageIdUtils.getMessageId(offset1));

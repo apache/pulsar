@@ -243,7 +243,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
             monitor.expireMessages(1);
             Position previousPos = previousMarkDelete;
             retryStrategically(
-                    (test) -> c1.getMarkDeletedPosition() != null && !c1.getMarkDeletedPosition().equals(previousPos),
+                    () -> c1.getMarkDeletedPosition() != null && !c1.getMarkDeletedPosition().equals(previousPos),
                     5, 100);
             previousMarkDelete = c1.getMarkDeletedPosition();
         }

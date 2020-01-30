@@ -325,14 +325,14 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            assertTrue(retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
                             && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 5, 150);
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -345,7 +345,7 @@ public class PulsarFunctionE2ESecurityTest {
                     String data = "my-message-" + i;
                     producer.newMessage().property(propertyKey, propertyValue).value(data).send();
                 }
-                retryStrategically((test) -> {
+                retryStrategically(() -> {
                     try {
                         SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                         return subStats.unackedMessages == 0;
@@ -378,13 +378,13 @@ public class PulsarFunctionE2ESecurityTest {
 
                 admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-                assertTrue(retryStrategically((test) -> {
+                retryStrategically(() -> {
                     try {
                         return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150));
+                }, 5, 150);
 
                 // test getFunctionInfo
                 try {
@@ -513,7 +513,7 @@ public class PulsarFunctionE2ESecurityTest {
 
                 admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
 
-                assertTrue(retryStrategically((test) -> {
+                retryStrategically(() -> {
                     try {
                         TopicStats stats = admin1.topics().getStats(sourceTopic);
                         boolean done = stats.subscriptions.size() == 0;
@@ -524,7 +524,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 100, 150));
+                }, 100, 150);
             }
         }
     }
@@ -596,14 +596,14 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            assertTrue(retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
                             && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 5, 150);
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -616,7 +616,7 @@ public class PulsarFunctionE2ESecurityTest {
                     String data = "my-message-" + i;
                     producer.newMessage().property(propertyKey, propertyValue).value(data).send();
                 }
-                retryStrategically((test) -> {
+                retryStrategically(() -> {
                     try {
                         SubscriptionStats subStats = admin1.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                         return subStats.unackedMessages == 0;
@@ -649,13 +649,13 @@ public class PulsarFunctionE2ESecurityTest {
 
             admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-            assertTrue(retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 5, 150);
 
             // test getFunctionInfo
             try {
@@ -785,7 +785,7 @@ public class PulsarFunctionE2ESecurityTest {
 
             admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
 
-            assertTrue(retryStrategically((test) -> {
+            retryStrategically(() -> {
                 try {
                     TopicStats stats = admin1.topics().getStats(sourceTopic);
                     boolean done = stats.subscriptions.size() == 0;
@@ -796,7 +796,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 5, 150);
         }
     }
 }
