@@ -533,18 +533,14 @@ public class PulsarFunctionE2ETest {
 
                 return topicStats.subscriptions.containsKey(subscriptionName)
                         && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
-                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 523;
+                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 523
+                        && topicStats.subscriptions.size() == 1
+                        && topicStats.subscriptions.containsKey(subscriptionName) == true;
 
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-
-        TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertEquals(topicStats.subscriptions.size(), 1);
-        assertTrue(topicStats.subscriptions.containsKey(subscriptionName));
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits, 523);
 
         // validate prometheus metrics empty
         String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
