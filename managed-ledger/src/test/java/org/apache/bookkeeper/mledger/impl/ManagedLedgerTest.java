@@ -2390,9 +2390,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, ctxStr);
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
-        retryStrategically(() -> responseException1.get() != null, 5, 1000);
-        assertNotNull(responseException1.get());
-        assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+        retryStrategically(() -> responseException1.get() != null
+                && responseException1.get().getMessage()
+                .equals(BKException.getMessage(BKException.Code.TimeoutException)), 5, 1000);
 
         // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
