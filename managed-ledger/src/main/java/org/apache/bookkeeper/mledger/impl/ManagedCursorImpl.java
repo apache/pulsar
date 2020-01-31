@@ -1532,9 +1532,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (config.isBatchIndexDeleteEnabled()) {
             if (newPosition.ackSet != null) {
                 batchDeletedIndexes.put(newPosition, newPosition.ackSet);
+                newPosition = ledger.getPreviousPosition(newPosition);
             }
             batchDeletedIndexes.subMap(PositionImpl.earliest, newPosition).clear();
-            newPosition = ledger.getPreviousPosition(newPosition);
         } else if (newPosition.ackSet != null) {
             callback.markDeleteFailed(new ManagedLedgerException("Batch ack set not support"), ctx);
             return;
