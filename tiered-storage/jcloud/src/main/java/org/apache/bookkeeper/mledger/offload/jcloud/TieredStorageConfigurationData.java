@@ -29,6 +29,9 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Properties;
 import lombok.Data;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Configuration for tiered storage.
@@ -116,6 +119,31 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
             }
         });
         return data;
+    }
+
+    public TieredStorageConfigurationData overridePolicies(OffloadPolicies offloadPolicies) {
+        if (offloadPolicies == null) {
+            return this;
+        }
+        if (BlobStoreManagedLedgerOffloader.isGcsDriver(managedLedgerOffloadDriver)) {
+            this.gcsManagedLedgerOffloadBucket = offloadPolicies.getBucket();
+            if (StringUtils.isNotEmpty(offloadPolicies.getRegion())) {
+                this.gcsManagedLedgerOffloadRegion = offloadPolicies.getRegion();
+            }
+            this.gcsManagedLedgerOffloadMaxBlockSizeInBytes = offloadPolicies.getMaxBlockSizeInBytes();
+            this.gcsManagedLedgerOffloadReadBufferSizeInBytes = offloadPolicies.getReadBufferSizeInBytes();
+        } else if (BlobStoreManagedLedgerOffloader.isS3Driver(managedLedgerOffloadDriver)) {
+            this.s3ManagedLedgerOffloadBucket = offloadPolicies.getBucket();
+            if (StringUtils.isNotEmpty(offloadPolicies.getRegion())) {
+                this.s3ManagedLedgerOffloadRegion = offloadPolicies.getRegion();
+            }
+            if (StringUtils.isNotEmpty(offloadPolicies.getEndpoint())) {
+                this.s3ManagedLedgerOffloadServiceEndpoint = offloadPolicies.getEndpoint();
+            }
+            this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = offloadPolicies.getMaxBlockSizeInBytes();
+            this.s3ManagedLedgerOffloadReadBufferSizeInBytes = offloadPolicies.getReadBufferSizeInBytes();
+        }
+        return this;
     }
 
 }

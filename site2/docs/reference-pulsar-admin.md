@@ -876,6 +876,8 @@ Subcommands
 * `clear-offload-deletion-lag`
 * `get-schema-autoupdate-strategy`
 * `set-schema-autoupdate-strategy`
+* `set-offload`
+* `get-offload`
 
 
 ### `list`
@@ -2210,3 +2212,27 @@ Options
 |`-t`, `--type`|The type of the schema (avro or json)||
 
 
+### `get-offload`
+Get the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload tenant/namespace
+```
+
+### `set-offload`
+Set the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload tenant/namespace
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-r`, `--region`|The long term storage region|s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf
+|`-b`, `--bucket`|Bucket to place offloaded ledger into|--
+|`-e`, `--endpoint`|Alternative endpoint to connect to|s3 is s3ManagedLedgerOffloadServiceEndpoint in broker.conf
+|`-mbs`, `--maxBlockSize`|Max block size|64MB
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB

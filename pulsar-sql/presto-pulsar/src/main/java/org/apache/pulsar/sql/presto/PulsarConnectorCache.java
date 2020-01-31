@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Implementation of a cache for the Pulsar connector.
@@ -55,7 +56,8 @@ public class PulsarConnectorCache {
     private final StatsProvider statsProvider;
     private OrderedScheduler offloaderScheduler;
     private Offloaders offloaderManager;
-    private LedgerOffloader offloader;
+    private LedgerOffloader defaultOffloader;
+    private Map<OffloadPolicies, LedgerOffloader> offloaderMap;
 
     private static final String OFFLOADERS_DIRECTOR = "offloadersDirectory";
     private static final String MANAGED_LEDGER_OFFLOAD_DRIVER = "managedLedgerOffloadDriver";
@@ -74,7 +76,7 @@ public class PulsarConnectorCache {
 
         this.statsProvider.start(clientConfiguration);
 
-        this.offloader = initManagedLedgerOffloader(pulsarConnectorConfig);
+        this.defaultOffloader = initManagedLedgerOffloader(pulsarConnectorConfig, null);
     }
 
     public static PulsarConnectorCache getConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
@@ -108,10 +110,17 @@ public class PulsarConnectorCache {
         return new ManagedLedgerFactoryImpl(bkClientConfiguration, managedLedgerFactoryConfig);
     }
 
-    public ManagedLedgerConfig getManagedLedgerConfig() {
-
-        return new ManagedLedgerConfig()
-                .setLedgerOffloader(this.offloader);
+    public ManagedLedgerConfig getManagedLedgerConfig(PulsarConnectorConfig pulsarConnectorConfig,
+                                                      OffloadPolicies offloadPolicies) {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        if (offloadPolicies == null) {
+            managedLedgerConfig.setLedgerOffloader(this.defaultOffloader);
+        } else {
+            LedgerOffloader ledgerOffloader = offloaderMap.computeIfAbsent(offloadPolicies,
+                    op -> initManagedLedgerOffloader(pulsarConnectorConfig, offloadPolicies));
+            managedLedgerConfig.setLedgerOffloader(ledgerOffloader);
+        }
+        return managedLedgerConfig;
     }
 
     private synchronized OrderedScheduler getOffloaderScheduler(PulsarConnectorConfig pulsarConnectorConfig) {
@@ -123,7 +132,7 @@ public class PulsarConnectorCache {
         return this.offloaderScheduler;
     }
 
-    private LedgerOffloader initManagedLedgerOffloader(PulsarConnectorConfig conf) {
+    private LedgerOffloader initManagedLedgerOffloader(PulsarConnectorConfig conf, OffloadPolicies offloadPolicies) {
 
         try {
             if (StringUtils.isNotBlank(conf.getManagedLedgerOffloadDriver())) {
@@ -147,7 +156,8 @@ public class PulsarConnectorCache {
                             LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
-                        getOffloaderScheduler(conf));
+                        getOffloaderScheduler(conf),
+                        offloadPolicies);
                 } catch (IOException ioe) {
                     log.error("Failed to create offloader: ", ioe);
                     throw new RuntimeException(ioe.getMessage(), ioe.getCause());

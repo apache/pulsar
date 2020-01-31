@@ -981,7 +981,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
+            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace));
             policies.ifPresent(p -> {
                     long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
                     if (p.offload_deletion_lag_ms != null) {

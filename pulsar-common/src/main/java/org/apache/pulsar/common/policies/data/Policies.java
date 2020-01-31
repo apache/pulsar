@@ -94,6 +94,9 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
 
+    @SuppressWarnings("checkstyle:MemberName")
+    public OffloadPolicies offload_policies = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -110,7 +113,8 @@ public class Policies {
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
                 schema_compatibility_strategy,
-                is_allow_auto_update_schema);
+                is_allow_auto_update_schema,
+                offload_policies);
     }
 
     @Override
@@ -143,7 +147,8 @@ public class Policies {
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
-                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema;
+                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema
+                    && offload_policies == other.offload_policies;
         }
 
         return false;
@@ -191,6 +196,7 @@ public class Policies {
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
-                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema).toString();
+                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
+                .add("offload_policies", offload_policies).toString();
     }
 }

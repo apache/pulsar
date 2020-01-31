@@ -111,7 +111,8 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(), pulsarConnectorCache.getManagedLedgerConfig(),
+                pulsarConnectorCache.getManagedLedgerFactory(),
+                pulsarConnectorCache.getManagedLedgerConfig(pulsarConnectorConfig, pulsarSplit.getOffloadPolicies()),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
