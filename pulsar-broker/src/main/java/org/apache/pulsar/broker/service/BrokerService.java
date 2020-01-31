@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -53,11 +54,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -216,8 +219,21 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private Channel listenChannel;
     private Channel listenChannelTls;
 
+    private final long maxMessagePublishBufferSize;
+    private final long resumeProducerReadMessagePublishBufferSize;
+    private final AtomicLong currentMessagePublishBufferSize;
+    private volatile boolean isMessagePublishBufferThreshold;
+    @VisibleForTesting
+    int messagePublishBufferThrottleTimes;
+    @VisibleForTesting
+    int messagePublishBufferResumeTimes;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
+        this.maxMessagePublishBufferSize = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
+            pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024 * 1024 : -1;
+        this.resumeProducerReadMessagePublishBufferSize = this.maxMessagePublishBufferSize / 2;
+        this.currentMessagePublishBufferSize = new AtomicLong(0);
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
@@ -2010,5 +2026,50 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } else {
             return Optional.empty();
         }
+    }
+
+    private void enableTopicsAutoRead() {
+        topics.values().forEach(future -> {
+            if (future.isDone() && !future.isCompletedExceptionally()) {
+                try {
+                    future.get().ifPresent(Topic::enableProducerRead);
+                } catch (InterruptedException | ExecutionException e) {
+                   // no-op
+                }
+            }
+        });
+    }
+
+    @VisibleForTesting
+    boolean increasePublishBufferSizeAndCheckStopRead(int msgSize) {
+        if (maxMessagePublishBufferSize < 0) {
+            return false;
+        }
+        if (currentMessagePublishBufferSize.addAndGet(msgSize) >= maxMessagePublishBufferSize &&
+            !isMessagePublishBufferThreshold) {
+            isMessagePublishBufferThreshold = true;
+            messagePublishBufferThrottleTimes++;
+        }
+        return isMessagePublishBufferThreshold;
+    }
+
+    @VisibleForTesting
+    boolean decreasePublishBufferSizeAndCheckResumeRead(int msgSize) {
+        if (maxMessagePublishBufferSize < 0) {
+            return false;
+        }
+        if (currentMessagePublishBufferSize.addAndGet(-msgSize) < resumeProducerReadMessagePublishBufferSize &&
+            isMessagePublishBufferThreshold) {
+            isMessagePublishBufferThreshold = false;
+            messagePublishBufferResumeTimes++;
+            enableTopicsAutoRead();
+            return true;
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    AtomicLong getCurrentMessagePublishBufferSize() {
+        return currentMessagePublishBufferSize;
     }
 }

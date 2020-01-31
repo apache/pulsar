@@ -1154,7 +1154,7 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation(producer);
+        startSendOperation(producer, headersAndPayload.readableBytes());
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
@@ -1677,9 +1677,9 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation(Producer producer) {
+    private void startSendOperation(Producer producer, int msgSize) {
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
+        if (++pendingSendRequest == MaxPendingSendRequests | isPublishRateExceeded | service.increasePublishBufferSizeAndCheckStopRead(msgSize)) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
@@ -1687,8 +1687,8 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    public void completedSendOperation(boolean isNonPersistentTopic) {
-        if (--pendingSendRequest == ResumeReadsThreshold) {
+    void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
+        if (--pendingSendRequest == ResumeReadsThreshold | service.decreasePublishBufferSizeAndCheckResumeRead(msgSize)) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
@@ -1699,7 +1699,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    public void enableCnxAutoRead() {
+    void enableCnxAutoRead() {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
@@ -1724,7 +1724,7 @@ public class ServerCnx extends PulsarHandler {
         return error;
     }
 
-    private final void disableTcpNoDelayIfNeeded(String topic, String producerName) {
+    private void disableTcpNoDelayIfNeeded(String topic, String producerName) {
         if (producerName != null && producerName.startsWith(replicatorPrefix)) {
             // Re-enable nagle algorithm on connections used for replication purposes
             try {

@@ -292,7 +292,8 @@ public abstract class AbstractTopic implements Topic {
     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    protected void enableProducerRead() {
+    @Override
+    public void enableProducerRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
         }
