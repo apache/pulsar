@@ -1069,7 +1069,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{namespace}/offload")
-    @ApiOperation(value = "Get offload config on a namespace.")
+    @ApiOperation(value = "Get offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
