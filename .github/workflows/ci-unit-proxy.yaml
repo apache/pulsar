@@ -52,5 +52,8 @@ jobs:
       - name: run unit tests pulsar proxy
         run: mvn test -DfailIfNoTests=false '-Dtest=!ProxyTest,!ProxyLookupThrottlingTest' -pl pulsar-proxy
 
-      - name: run unit tests pulsar proxy
+      - name: run proxy test
         run: mvn test -DfailIfNoTests=false '-Dtest=ProxyTest,ProxyLookupThrottlingTest' -pl pulsar-proxy
+
+      - name: run proxy lookup throttling test
+        run: mvn test -DfailIfNoTests=false '-Dtest=ProxyLookupThrottlingTest' -pl pulsar-proxy
