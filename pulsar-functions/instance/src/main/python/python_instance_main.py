@@ -161,7 +161,7 @@ def main():
   pulsar_client = pulsar.Client(args.pulsar_serviceurl,
                                 authentication=authentication,
                                 use_tls=use_tls,
-                                tls_trust_cert_path=tls_trust_cert_path,
+                                tls_trust_certs_file_path=tls_trust_cert_path,
                                 tls_allow_insecure_connection=tls_allow_insecure_connection)
 
   state_storage_serviceurl = None
