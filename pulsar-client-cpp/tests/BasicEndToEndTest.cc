@@ -2109,6 +2109,7 @@ TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
     LOG_INFO("created topics consumer on a pattern that match 0 topics");
 
     result = consumer.unsubscribe();
+    LOG_INFO("unsubscribed topics consumer : " << result);
     ASSERT_EQ(ResultOk, result) << "expected " << ResultOk << " but found " << result;
 
     client.shutdown();
