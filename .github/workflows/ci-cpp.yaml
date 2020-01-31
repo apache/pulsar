@@ -35,11 +35,12 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: Check if changes of pull request are only made in docs
+      - name: Check if this pull request only changes documentation
         id:   docs
+        # TODO: move this action to an apache repo
         uses: sijie/pulsar-github-actions/diff-only@master
         with:
-          args: site2 .github
+          args: site2 .github deployment
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
