@@ -188,7 +188,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    // Flaky Test: https://github.com/apache/pulsar/issues/6137
+    // @Test
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
