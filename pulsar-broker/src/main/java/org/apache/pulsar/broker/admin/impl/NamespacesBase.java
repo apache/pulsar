@@ -77,6 +77,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -2186,6 +2187,50 @@ public abstract class NamespacesBase extends AdminResource {
                       clientAppId(), policyName, namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void internalSetOffload(OffloadPolicies offload) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (StringUtils.isEmpty(offload.getBucket())) {
+                log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
+                        clientAppId(), namespaceName);
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "The bucket must be specified for namespace offload.");
+            }
+            policies.offload_policies = offload;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
+                    namespaceName, jsonMapper().writeValueAsString(policies.offload_policies));
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update offload configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update offload configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
+        }
+    }
+
+    protected OffloadPolicies internalGetOffload() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.offload_policies;
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);

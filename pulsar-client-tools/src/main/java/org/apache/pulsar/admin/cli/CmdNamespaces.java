@@ -22,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -41,6 +43,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1287,6 +1290,106 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set the offload policies for a namespace")
+    private class SetOffload extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(
+                names = {"--region", "-r"},
+                description = "The long term storage region, " +
+                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                required = false)
+        private String region;
+
+        @Parameter(
+                names = {"--bucket", "-b"},
+                description = "Bucket to place offloaded ledger into",
+                required = true)
+        private String bucket;
+
+        @Parameter(
+                names = {"--endpoint", "-e"},
+                description = "Alternative endpoint to connect to, " +
+                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                required = false)
+        private String endpoint;
+
+        @Parameter(
+                names = {"--maxBlockSize", "-mbs"},
+                description = "Max block size (eg: 32M, 64M), default is 64MB",
+                required = false)
+        private String maxBlockSizeStr;
+
+        @Parameter(
+                names = {"--readBufferSize", "-rbs"},
+                description = "Read buffer size (eg: 1M, 5M), default is 1MB",
+                required = false)
+        private String readBufferSizeStr;
+
+        private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        }
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            String offloadDriver = admin.brokers().getRuntimeConfigurations().get("managedLedgerOffloadDriver");
+            if (isS3Driver(offloadDriver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                        "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                                + " if s3 offload enabled");
+            }
+
+            long maxBlockSize = 0;
+            if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
+                maxBlockSize = validateSizeString(maxBlockSizeStr);
+            }
+            long readBufferSize = 0;
+            if (StringUtils.isNotEmpty(readBufferSizeStr)) {
+                readBufferSize = validateSizeString(readBufferSizeStr);
+            }
+
+            final int maxBlockSizeInBytes;
+            if (maxBlockSize > 0 && maxBlockSize <= Integer.MAX_VALUE) {
+                maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+            } else {
+                maxBlockSizeInBytes = OffloadPolicies.MAX_BLOCK_SIZE_IN_BYTES;
+            }
+
+            final int readBufferSizeInBytes;
+            if (readBufferSize > 0 && readBufferSize <= Integer.MAX_VALUE) {
+                readBufferSizeInBytes = new Long(readBufferSize).intValue();
+            } else {
+                readBufferSizeInBytes = OffloadPolicies.READ_BUFFER_SIZE_IN_BYTES;
+            }
+
+            admin.namespaces().setOffload(namespace, new OffloadPolicies(
+                    region == null ? "" : region,
+                    bucket,
+                    endpoint == null ? "" : endpoint,
+                    maxBlockSizeInBytes, readBufferSizeInBytes));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the offload policies for a namespace")
+    private class GetOffload extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getOffload(namespace));
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -1389,5 +1492,8 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
+
+        jcommander.addCommand("set-offload", new SetOffload());
+        jcommander.addCommand("get-offload", new GetOffload());
     }
 }

@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -88,6 +89,7 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
@@ -98,6 +100,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -162,7 +165,8 @@ public class PulsarService implements AutoCloseable {
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
     private Offloaders offloaderManager = new Offloaders();
-    private LedgerOffloader offloader;
+    private LedgerOffloader defaultOffloader;
+    private Map<OffloadPolicies, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -398,7 +402,7 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
-            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
+            this.defaultOffloader = createManagedLedgerOffloader(this.getConfiguration(), null);
 
             brokerService.start();
 
@@ -764,11 +768,31 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory;
     }
 
-    public LedgerOffloader getManagedLedgerOffloader() {
-        return offloader;
+    public LedgerOffloader getManagedLedgerOffloaderByPolicies(OffloadPolicies offloadPolicies) {
+        if (offloadPolicies == null) {
+            return getDefaultOffloader();
+        }
+        return ledgerOffloaderMap.computeIfAbsent(offloadPolicies, op -> {
+            try {
+                return createManagedLedgerOffloader(getConfiguration(), offloadPolicies);
+            } catch (PulsarServerException e) {
+                LOG.error("create ledgerOffloader failed for {}", offloadPolicies.toString(), e);
+                return new NullLedgerOffloader();
+            }
+        });
     }
 
-    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
+    public LedgerOffloader getManagedLedgerOffloader(NamespaceName namespaceName) {
+        try {
+            OffloadPolicies offloadPolicies = getAdminClient().namespaces().getOffload(namespaceName.toString());
+            return getManagedLedgerOffloaderByPolicies(offloadPolicies);
+        } catch (Exception e) {
+            LOG.error("Failed to get ledgerOffloader for namespaceName {}", namespaceName, e);
+            return new NullLedgerOffloader();
+        }
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf, OffloadPolicies offloadPolicies)
             throws PulsarServerException {
         try {
             if (StringUtils.isNotBlank(conf.getManagedLedgerOffloadDriver())) {
@@ -785,12 +809,13 @@ public class PulsarService implements AutoCloseable {
                             LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
-                        getOffloaderScheduler(conf));
+                        getOffloaderScheduler(conf),
+                        offloadPolicies);
                 } catch (IOException ioe) {
                     throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                 }
             } else {
-                LOG.info("No ledger offloader configured, using NULL instance");
+                LOG.warn("No ledger offloader configured, using NULL instance");
                 return NullLedgerOffloader.INSTANCE;
             }
         } catch (Throwable t) {
