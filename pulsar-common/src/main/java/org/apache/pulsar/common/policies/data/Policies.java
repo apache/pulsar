@@ -152,7 +152,7 @@ public class Policies {
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
-                    && offload_policies == other.offload_policies;
+                    && Objects.equals(offload_policies, other.offload_policies);
         }
 
         return false;
