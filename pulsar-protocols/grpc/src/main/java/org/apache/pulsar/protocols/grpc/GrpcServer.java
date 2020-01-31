@@ -2,11 +2,11 @@ package org.apache.pulsar.protocols.grpc;
 
 import com.google.protobuf.ByteString;
 import io.grpc.*;
-import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,24 +39,25 @@ public class GrpcServer {
     public void start(BrokerService service) throws IOException {
         // TODO: replace with configurable port
         int port = 50444;
+
+
         server = ServerBuilder.forPort(port)
-                .addService(ServerInterceptors.intercept(
-                    new PulsarGrpcService(service),
-                    Collections.singletonList(new GrpcServerInterceptor())
-                ))
-                .addService(ProtoReflectionService.newInstance())
-                .build()
-                .start();
+            .addService(ServerInterceptors.intercept(
+                new PulsarGrpcService(service, new NioEventLoopGroup()),
+                Collections.singletonList(new GrpcServerInterceptor())
+            ))
+            .build()
+            .start();
         log.info("############# Server started, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-            log.error("############### shutting down gRPC server since JVM is shutting down");
+            System.err.println("############### shutting down gRPC server since JVM is shutting down");
             try {
                 GrpcServer.this.stop();
             } catch (InterruptedException e) {
                 e.printStackTrace(System.err);
             }
-            log.error("############### gRPC server shut down");
+            System.err.println("############### gRPC server shut down");
         }));
     }
 
@@ -67,7 +69,8 @@ public class GrpcServer {
 
     // TO BE REMOVED : For test
     public static void main(String[] args) {
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 50444).usePlaintext().build();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 50444).usePlaintext()
+            .build();
 
         Metadata headers = new Metadata();
         CommandProducer producerParams = CommandProducer.newBuilder()
@@ -79,6 +82,8 @@ public class GrpcServer {
         PulsarGrpcServiceGrpc.PulsarGrpcServiceStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpcServiceGrpc.newStub(channel), headers);
 
         AtomicReference<StreamObserver<BaseCommand>> requestRef = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
         StreamObserver<BaseCommand> responseObserver = new StreamObserver<BaseCommand>() {
             @Override
             public void onNext(BaseCommand cmd) {
@@ -98,6 +103,7 @@ public class GrpcServer {
                             sendReceipt.getMessageId().getLedgerId(),
                             sendReceipt.getMessageId().getEntryId()
                         ));
+                        requestRef.get().onCompleted();
                         break;
                 }
 
@@ -105,31 +111,22 @@ public class GrpcServer {
 
             @Override
             public void onError(Throwable t) {
-
+                latch.countDown();
             }
 
             @Override
             public void onCompleted() {
-
+                latch.countDown();
             }
         };
         StreamObserver<BaseCommand> request = asyncStub.produce(responseObserver);
         requestRef.set(request);
 
         try {
-            Thread.sleep(3000);
+            latch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
-        request.onCompleted();
-
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
     }
 
     private static BaseCommand getSendCommand(String producerName, long sequenceId, String message) {

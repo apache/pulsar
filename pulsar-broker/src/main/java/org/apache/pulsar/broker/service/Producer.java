@@ -204,7 +204,7 @@ public abstract class Producer {
         }
     }
 
-    abstract protected void execute(Runnable runnable);
+    abstract public void execute(Runnable runnable);
 
     abstract protected void sendReceipt(long sequenceId, long highestSequenceId, long ledgerId, long entryId);
 
@@ -238,7 +238,7 @@ public abstract class Producer {
 
     /**
      * Return the sequence id of
-     * @return
+     * @return the sequence id
      */
     public long getLastSequenceId() {
         if (isNonPersistentTopic) {
@@ -349,6 +349,7 @@ public abstract class Producer {
          */
         @Override
         public void run() {
+            log.info("################# response " + Thread.currentThread().getName());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Persisted message. cnx {}, sequenceId {}", producer.topic,
                         producer.producerName, producer.producerId, producer.cnx, sequenceId);

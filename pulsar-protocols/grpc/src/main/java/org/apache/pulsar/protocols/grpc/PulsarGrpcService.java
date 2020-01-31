@@ -1,9 +1,9 @@
 package org.apache.pulsar.protocols.grpc;
 
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.channel.EventLoopGroup;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Producer;
@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,16 +28,17 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
     private static final Logger log = LoggerFactory.getLogger(PulsarGrpcService.class);
 
     private final BrokerService service;
+    private final EventLoopGroup eventLoopGroup;
 
-    public PulsarGrpcService(BrokerService service) {
+    public PulsarGrpcService(BrokerService service, EventLoopGroup eventLoopGroup) {
         this.service = service;
+        this.eventLoopGroup = eventLoopGroup;
     }
 
     @Override
     public StreamObserver<PulsarApi.BaseCommand> produce(StreamObserver<PulsarApi.BaseCommand> responseObserver) {
         PulsarApi.CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
         final String topic = cmdProducer.getTopic();
-        final long producerId = 0L;
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
                 : service.generateUniqueProducerName();
@@ -51,7 +51,9 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         //final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
         InetSocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
-        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, responseObserver);
+        log.info("################# init 2" + Thread.currentThread().getName());
+
+        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, (ServerCallStreamObserver<PulsarApi.BaseCommand>) responseObserver);
 
         // TODO: handle auth
         String authRole = "admin";
@@ -74,8 +76,8 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         Producer producer;
         try {
              producer = service.getOrCreateTopic(topicName.toString()).thenApply((Topic topik) -> {
-                Producer grpcProducer = new GrpcProducer(topik, cnx, producerId, producerName, authRole,
-                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName);
+                Producer grpcProducer = new GrpcProducer(topik, cnx, producerName, authRole,
+                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName, eventLoopGroup.next());
 
                 try {
                     // TODO : check that removeProducer is called even with early client disconnect
@@ -110,35 +112,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
 
                 switch (cmd.getType()) {
                     case SEND:
-                        PulsarApi.CommandSend send = cmd.getSend();
-                        ByteBuffer buffer = send.getHeadersAndPayload().asReadOnlyByteBuffer();
-                        ByteBuf headersAndPayload = Unpooled.wrappedBuffer(buffer);
-
-                        /*if (producer.isNonPersistentTopic()) {
-                            // avoid processing non-persist message if reached max concurrent-message limit
-                            if (nonPersistentPendingMessages > MaxNonPersistentPendingMessages) {
-                                final long producerId = send.getProducerId();
-                                final long sequenceId = send.getSequenceId();
-                                final long highestSequenceId = send.getHighestSequenceId();
-                                service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), SafeRun.safeRun(() -> {
-                                    ctx.writeAndFlush(org.apache.pulsar.common.protocol.Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, -1, -1), ctx.voidPromise());
-                                }));
-                                producer.recordMessageDrop(send.getNumMessages());
-                                return;
-                            } else {
-                                nonPersistentPendingMessages++;
-                            }
-                        }
-
-                        startSendOperation(producer);*/
-
-                        // Persist the message
-                        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
-                            producer.publishMessage(producerId, send.getSequenceId(), send.getHighestSequenceId(),
-                                headersAndPayload, send.getNumMessages());
-                        } else {
-                            producer.publishMessage(producerId, send.getSequenceId(), headersAndPayload, send.getNumMessages());
-                        }
+                        producer.execute(() -> cnx.handleSend(cmd, producer));
                         break;
                 }
             }

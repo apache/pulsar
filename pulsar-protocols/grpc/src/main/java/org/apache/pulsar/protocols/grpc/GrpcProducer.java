@@ -1,23 +1,21 @@
 package org.apache.pulsar.protocols.grpc;
 
+import io.netty.channel.EventLoop;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class GrpcProducer extends Producer {
 
     private final GrpcCnx cnx;
+    private final EventLoop eventLoop;
 
-    // TODO: replace by gRPC executor. Maybe run gRPC service directly from Netty (directExecutor())
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-
-    public GrpcProducer(Topic topic, GrpcCnx cnx, long producerId, String producerName, String appId, boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch, boolean userProvidedProducerName) {
-        super(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
+    public GrpcProducer(Topic topic, GrpcCnx cnx, String producerName, String appId, boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch, boolean userProvidedProducerName, EventLoop eventLoop) {
+        super(topic, cnx, 0L, producerName, appId, isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
         this.cnx = cnx;
+        this.eventLoop = eventLoop;
     }
 
     @Override
@@ -26,8 +24,8 @@ public class GrpcProducer extends Producer {
     }
 
     @Override
-    protected void execute(Runnable runnable) {
-        executorService.execute(runnable);
+    public void execute(Runnable runnable) {
+        eventLoop.execute(runnable);
     }
 
     @Override

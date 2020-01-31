@@ -44,7 +44,7 @@ public class PulsarProducer extends Producer {
     }
 
     @Override
-    protected void execute(Runnable runnable) {
+    public void execute(Runnable runnable) {
         cnx.ctx().channel().eventLoop().execute(runnable);
     }
 
@@ -54,4 +54,5 @@ public class PulsarProducer extends Producer {
                 Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, ledgerId, entryId),
                 cnx.ctx().voidPromise());
     }
+
 }
