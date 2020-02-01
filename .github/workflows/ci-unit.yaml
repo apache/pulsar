@@ -50,7 +50,7 @@ jobs:
         run: mvn clean install -DskipTests
 
       - name: run unit tests
-        run: mvn clean install -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
+        run: mvn test -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
 
       - name: package surefire artifacts
         if: failure()
@@ -59,6 +59,7 @@ jobs:
           mkdir artifacts
           find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
           zip -r artifacts.zip artifacts
+
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
         if: failure()
