@@ -34,16 +34,25 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: checkout
+        uses: actions/checkout@v1
+
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        # TODO: move this action to an apache repo
+        uses: sijie/pulsar-github-actions/diff-only@master
+        with:
+          args: site2 .github deployment
+
       - name: Set up Go 1.12
         uses: actions/setup-go@v1
+        if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: 1.12
         id: go
 
-      - name: checkout
-        uses: actions/checkout@v1
-
       - name: run tests
+        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           go test -v $(go list ./... | grep -v examples)
