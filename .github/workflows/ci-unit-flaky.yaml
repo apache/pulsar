@@ -54,6 +54,7 @@ jobs:
           maven-version: 3.6.1
 
       - name: build the project
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B clean install -DskipTests
 
       - name: run PersistentTransactionBuffer test
