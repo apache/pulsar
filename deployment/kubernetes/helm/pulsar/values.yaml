@@ -348,7 +348,7 @@ dashboard:
 
       ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
       secretName: ""
-    
+
     ## Required if ingress is enabled
     hostname: ""
     path: "/"
@@ -434,10 +434,10 @@ grafana:
     repository: apachepulsar/pulsar-grafana
     tag: latest
     pullPolicy: IfNotPresent
-#  resources:
-#    requests:
-#      memory: 4Gi
-#      cpu: 1
+  resources:
+    requests:
+      memory: 4Gi
+      cpu: 1
   ## Grafana service
   ## templates/grafana-service.yaml
   ##
