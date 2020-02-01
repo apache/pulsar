@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -542,6 +543,10 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for ServiceUnit %s timed out", bundle);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
             log.debug("Failed to find owner for ServiceUnit {}", bundle, iae);
@@ -590,6 +595,10 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for topic %s timed out", topicName);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
             log.debug("Failed to find owner for topic: {}", topicName, iae);
