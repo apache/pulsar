@@ -22,8 +22,6 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - '**.md'
 
 jobs:
 
@@ -33,22 +31,33 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-
       - name: checkout
         uses: actions/checkout@v1
+
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        # TODO: move this action to an apache repo
+        uses: sijie/pulsar-github-actions/diff-only@master
+        with:
+          args: site2 .github deployment
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        if: steps.docs.outputs.changed_only == 'no'
+        with:
+          java-version: 1.8
 
       # license check fails with 3.6.2 so we have to downgrade
       - name: Set up Maven
         uses: aahmed-se/setup-maven@v3
+        if: steps.docs.outputs.changed_only == 'no'
         with:
           maven-version: 3.6.1
 
       - name: build and check license
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -DskipTests license:check install
           
       - name: license check
+        if: steps.docs.outputs.changed_only == 'no'
         run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
