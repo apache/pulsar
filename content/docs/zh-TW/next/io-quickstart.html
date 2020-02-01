@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to connect Pulsar to database · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="How to connect Pulsar to database · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to connect Pulsar to database · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="本教學提供了一個如何無需寫程式就能夠將資料從 Pulsar 搬移出來實作範例。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="How to connect Pulsar to database · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="本教學提供了一個如何無需寫程式就能夠將資料從 Pulsar 搬移出來實作範例。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,82 +74,82 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to connect Pulsar to database</h1></header><article><div><span><p>This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.</p>
-<p>It is helpful to review the <a href="/docs/zh-TW/next/io-overview">concepts</a> for Pulsar I/O with running the steps in this guide to gain a deeper understanding.</p>
-<p>At the end of this tutorial, you are able to:</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to connect Pulsar to database</h1></header><article><div><span><p>本教學提供了一個如何無需寫程式就能夠將資料從 Pulsar 搬移出來實作範例。</p>
+<p>通過練習本教程中的步驟，對於深入了解 <a href="/docs/zh-TW/next/io-overview">Pulsar I/O 的概念</a>很有幫助。</p>
+<p>在本教程的最後，你可以：</p>
 <ul>
-<li><p><a href="#Connect-Pulsar-to-Cassandra">Connect Pulsar to Cassandra</a></p></li>
-<li><p><a href="#Connect-Pulsar-to-MySQL">Connect Pulsar to MySQL</a></p></li>
+<li><p><a href="#Connect-Pulsar-to-Cassandra">將 Pulsar 連接到 Cassandra</a></p></li>
+<li><p><a href="#Connect-Pulsar-to-MySQL">將 Pulsar 連接到 MySQL</a></p></li>
 </ul>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>These instructions assume you are running Pulsar in <a href="/docs/zh-TW/next/standalone">standalone mode</a>. However, all the commands used in this tutorial can be used in a multi-nodes Pulsar cluster without any changes.</p></li>
-<li><p>All the instructions are assumed to run at the root directory of a Pulsar binary distribution.</p></li>
+<li><p>這些說明假設你以 <a href="/docs/zh-TW/next/standalone">standalone mode</a> 運行 Pulsar。 但是，所有   本教程中使用的命令都可以在多節點 Pulsar 集群中使用，而無需進行任何更改。</p></li>
+<li><p>同時也假設所有指令都在 Pulsar binary 發行版的根目錄中運行。</p></li>
 </ul>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="install-pulsar-and-built-in-connector"></a><a href="#install-pulsar-and-built-in-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar and built-in connector</h2>
-<p>Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.</p>
-<p>For more information about <strong>how to install a standalone Pulsar and built-in connectors</strong>, see <a href="/docs/zh-TW/next/standalone/#installing-pulsar">here</a>.</p>
-<h2><a class="anchor" aria-hidden="true" id="start-pulsar-standalone"></a><a href="#start-pulsar-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Pulsar standalone</h2>
+<h2><a class="anchor" aria-hidden="true" id="安裝-pulsar-built-in-connectors。"></a><a href="#安裝-pulsar-built-in-connectors。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安裝 Pulsar built-in connectors。</h2>
+<p>在將 Pulsar 連接到資料庫之前，你需要安裝 Pulsar 和所需的內建連接器。</p>
+<p>有關<strong>如何安裝單機版的 Pulsar 和內建連接器</strong>的更多訊息，請參見 <a href="/docs/zh-TW/next/standalone/#installing-pulsar">here</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="啟動-pulsar-單機模式"></a><a href="#啟動-pulsar-單機模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟動 Pulsar 單機模式</h2>
 <ol>
-<li><p>Start Pulsar locally.</p>
+<li><p>在本地運行Pulsar.</p>
 <pre><code class="hljs css language-bash">bin/pulsar standalone
 </code></pre>
-<p>All the components of a Pulsar service are start in order.</p>
-<p>You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.</p></li>
-<li><p>Check Pulsar binary protocol port.</p>
+<p>Pulsar 服務的所有組件均按順序啟動。</p>
+<p>你可以 curl 這些 pulsar 服務端點，以確保 Pulsar 服務正常運行。</p></li>
+<li><p>檢查 Pulsar 二進制協議端口。</p>
 <pre><code class="hljs css language-bash">telnet localhost 6650
 </code></pre></li>
-<li><p>Check Pulsar Function cluster.</p>
+<li><p>檢查 Pulsar Function 集群。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/worker/cluster
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs css language-json">[{<span class="hljs-attr">"workerId"</span>:<span class="hljs-string">"c-standalone-fw-localhost-6750"</span>,<span class="hljs-attr">"workerHostname"</span>:<span class="hljs-string">"localhost"</span>,<span class="hljs-attr">"port"</span>:<span class="hljs-number">6750</span>}]
 </code></pre></li>
-<li><p>Make sure a public tenant and a default namespace exist.</p>
+<li><p>確保 <code>public</code> 租戶和 <code>default</code> 命名空間是存在的。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/namespaces/public
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs css language-json">[<span class="hljs-string">"public/default"</span>,<span class="hljs-string">"public/functions"</span>]
 </code></pre></li>
-<li><p>All built-in connectors should be listed as available.</p>
+<li><p>所有內建連接器都應列出來並標示為可用。</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/connectors
 </code></pre>
-<p><strong>Example outoupt</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs css language-json">[{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"aerospike"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Aerospike database sink"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.aerospike.AerospikeStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"cassandra"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Writes data into Cassandra"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.cassandra.CassandraStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kafka"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kafka source and sink connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSource"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaBytesSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kinesis"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kinesis sink connector"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kinesis.KinesisSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"rabbitmq"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"RabbitMQ source connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.rabbitmq.RabbitMQSource"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"twitter"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Ingest data from Twitter firehose"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.twitter.TwitterFireHose"</span>}]
 </code></pre>
-<p>If an error occurs when starting Pulsar service, you may see an exception at the terminal running <code>pulsar/standalone</code>, or you can navigate to the <code>logs</code> directory under the Pulsar directory to view the logs.</p></li>
+<p>如果啟動 Pulsar 服務時發生錯誤，則可能會在運行 <code>pulsar/standalone</code> 的終端上看到異常， 或者你可以切換到 Pulsar 目錄下的 <code>logs</code> 目錄下去查看日誌。</p></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-cassandra"></a><a href="#connect-pulsar-to-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to Cassandra</h2>
-<p>This section demonstrates how to connector Pulsar to Cassandra.</p>
+<h2><a class="anchor" aria-hidden="true" id="將-pulsar-連接到-cassandra"></a><a href="#將-pulsar-連接到-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>將 Pulsar 連接到 Cassandra</h2>
+<p>本節示範如何將 Pulsar 連接到 Cassandra。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>Make sure you have Docker installed. If you do not have one, see <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>.</p></li>
-<li><p>The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see <a href="/docs/zh-TW/next/io-cassandra-sink">Cassandra sink connector</a>.</p></li>
+<li><p>確保已安裝好 Docker。如果沒有，請參閱 <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>。</p></li>
+<li><p>Cassandra sink 連接器從 Pulsar topic 讀取信息，並將信息寫入到 Cassandra 資料表。有關更多訊息，請參見 <a href="/docs/zh-TW/next/io-cassandra-sink">Cassandra sink connector</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="setup-a-cassandra-cluster"></a><a href="#setup-a-cassandra-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup a Cassandra cluster</h3>
-<p>This example uses <code>cassandra</code> Docker image to start a single-node Cassandra cluster in Docker.</p>
+<h3><a class="anchor" aria-hidden="true" id="設置-cassandra-集群"></a><a href="#設置-cassandra-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>設置 Cassandra 集群</h3>
+<p>本範例使用 <code>cassandra</code> Docker 鏡像在 Docker 中啟動單節點 Cassandra 集群。</p>
 <ol>
-<li><p>Start a Cassandra cluster.</p>
+<li><p>啟動一個 Cassandra 集群.</p>
 <pre><code class="hljs css language-bash">docker run -d --rm --name=cassandra -p 9042:9042 cassandra
 </code></pre>
 <blockquote>
-<p><strong>Note</strong></p>
-<p>Before moving to the next steps, make sure the Cassandra cluster is running.</p>
+<p><strong>注意</strong></p>
+<p>在進行下一步之前，請確保 Cassandra 集群正在運行。</p>
 </blockquote></li>
-<li><p>Make sure the Docker process is running.</p>
+<li><p>確保 Docker 進程正在運行。</p>
 <pre><code class="hljs css language-bash">docker ps
 </code></pre></li>
-<li><p>Check the Cassandra logs to make sure the Cassandra process is running as expected.</p>
+<li><p>檢查 Cassandra 日誌以確保 Cassandra 進程按預期地在運行。</p>
 <pre><code class="hljs css language-bash">docker logs cassandra
 </code></pre></li>
-<li><p>Check the status of the Cassandra cluster.</p>
+<li><p>檢查 Cassandra 集群的狀態。</p>
 <pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> cassandra nodetool status
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs"> Datacenter: datacenter1
  =======================
  Status=Up/Down
@@ -157,27 +157,27 @@
  --  Address     Load       Tokens       Owns (effective)  Host ID                               Rack
  UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
 </code></pre></li>
-<li><p>Use <code>cqlsh</code> to connect to the Cassandra cluster.</p>
+<li><p>使用 <code>cqlsh</code> 連接到 Cassandra 集群。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
 Connected to Test Cluster at localhost:9042.
 [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
 Use HELP <span class="hljs-keyword">for</span> <span class="hljs-built_in">help</span>.
 cqlsh&gt;
 </code></pre></li>
-<li><p>Create a keyspace <code>pulsar_test_keyspace</code>.</p>
+<li><p>創建一個 keyspace <code>pulsar_test_keyspace</code>。</p>
 <pre><code class="hljs css language-bash">cqlsh&gt; CREATE KEYSPACE pulsar_test_keyspace WITH replication = {<span class="hljs-string">'class'</span>:<span class="hljs-string">'SimpleStrategy'</span>, <span class="hljs-string">'replication_factor'</span>:1};
 </code></pre></li>
-<li><p>Create a table <code>pulsar_test_table</code>.</p>
+<li><p>創建一個表 <code>pulsar_test_table</code>。</p>
 <pre><code class="hljs css language-bash">cqlsh&gt; USE pulsar_test_keyspace;
 cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY KEY, col text);
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="configure-a-cassandra-sink"></a><a href="#configure-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a Cassandra sink</h3>
-<p>Now that we have a Cassandra cluster running locally.</p>
-<p>In this section, you need to configure a Cassandra sink connector.</p>
-<p>To run a Cassandra sink connector, you need to prepare a configuration file including the information that Pulsar connector runtime needs to know.</p>
-<p>For example, how Pulsar connector can find the Cassandra cluster, what is the keyspace and the table that Pulsar connector uses for writing Pulsar messages to, and so on.</p>
-<p>You can create a configuration file through one of the following methods.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-cassandra-sink"></a><a href="#配置-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Cassandra sink</h3>
+<p>現在我們有了一個在本地運行的 Cassandra 集群。</p>
+<p>在此部分中，你需要配置 Cassandra sink 連接器。</p>
+<p>要運行 Cassandra sink 連接器，需要準備一個配置文件，其中包括 Pulsar 連接器運行時需要知道的資訊。</p>
+<p>例如，Pulsar 連接器如何找到 Cassandra 集群，Pulsar 連接器用於向其寫入 Pulsar 信息的 keyspace 和 table 名稱等等。</p>
+<p>可以通過以下方法之一來創建配置文件。</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
@@ -197,10 +197,10 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     <span class="hljs-attr">columnName:</span> <span class="hljs-string">"col"</span>
 </code></pre></li>
 </ul>
-<p>For more information, see <a href="/docs/zh-TW/next/io-cassandra-sink">Cassandra sink connector</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="create-a-cassandra-sink"></a><a href="#create-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a Cassandra sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to create a sink connector and perform other operations on them.</p>
-<p>Run the following command to create a Cassandra sink connector with sink type <em>cassandra</em> and the config file <em>examples/cassandra-sink.yml</em> created previously.</p>
+<p>有關更多訊息，請參見 <a href="/docs/zh-TW/next/io-cassandra-sink"> Cassandra sink 連接器</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="創建-cassandra-sink"></a><a href="#創建-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>創建 Cassandra sink</h3>
+<p>你可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 創建 sink 連接器並對其執行其它操作。</p>
+<p>運行以下命令來創建一個接收器類型為 <em>cassandra</em> 的 Cassandra sink 連接器，並使用前一步驟創建的配置文件 <em>examples/cassandra-sink.yml</em>。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks create \
     --tenant public \
     --namespace default \
@@ -209,18 +209,18 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
     --sink-config-file examples/cassandra-sink.yml \
     --inputs test_cassandra
 </code></pre>
-<p>Once the command is executed, Pulsar creates the sink connector <em>cassandra-test-sink</em>.</p>
-<p>This sink connector runs as a Pulsar Function and writes the messages produced in the topic <em>test_cassandra</em> to the Cassandra table <em>pulsar_test_table</em>.</p>
-<h3><a class="anchor" aria-hidden="true" id="inspect-a-cassandra-sink"></a><a href="#inspect-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect a Cassandra sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to monitor a connector and perform other operations on it.</p>
+<p>執行命令後，Pulsar 將創建 sink 連接器 <em>cassandra-test-sink</em>。</p>
+<p>該 sink 連接器將以 Pulsar Function 的型式來運行，並將在 topic: <em>test_cassandra</em> 中的信息數據寫入 Cassandra 資料表 <em>pulsar_test_table</em>。</p>
+<h3><a class="anchor" aria-hidden="true" id="檢查-cassandra-sink"></a><a href="#檢查-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>檢查 Cassandra sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 來對連接器進行監控及對其執行其它操作。</p>
 <ul>
-<li><p>Get the information of a Cassandra sink.</p>
+<li><p>獲取 Cassandra sink 的相關資訊。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks get \
   --tenant public \
   --namespace default \
   --name cassandra-test-sink
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs css language-json">{
 <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
 <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -245,13 +245,13 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 <span class="hljs-attr">"archive"</span>: <span class="hljs-string">"builtin://cassandra"</span>
 }
 </code></pre></li>
-<li><p>Check the status of a Cassandra sink.</p>
+<li><p>檢查 Cassandra sink 的狀態。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin sinks status \
   --tenant public \
   --namespace default \
   --name cassandra-test-sink
 </code></pre>
-<p><strong>Example output</strong></p>
+<p><strong>範例輸出</strong></p>
 <pre><code class="hljs css language-json">{
 <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
 <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
@@ -274,84 +274,100 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 }
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="verify-a-cassandra-sink"></a><a href="#verify-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Verify a Cassandra sink</h3>
+<h3><a class="anchor" aria-hidden="true" id="驗證-cassandra-sink-的功能"></a><a href="#驗證-cassandra-sink-的功能" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>驗證 Cassandra sink 的功能</h3>
 <ol>
-<li><p>Produce some messages to the input topic of the Cassandra sink <em>test_cassandra</em>.</p>
+<li><p>產生一些信息到 Cassandra sink 連接器: *test_cassandra&lt;/ em&gt; 的輸入 topic。</p></p>
 <pre><code class="hljs css language-bash"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> {0..9}; <span class="hljs-keyword">do</span> bin/pulsar-client produce -m <span class="hljs-string">"key-<span class="hljs-variable">$i</span>"</span> -n 1 test_cassandra; <span class="hljs-keyword">done</span>
-</code></pre></li>
-<li><p>Inspect the status of the Cassandra sink <em>test_cassandra</em>.</p>
-<pre><code class="hljs css language-bash">bin/pulsar-admin sinks status \
-    --tenant public \
-    --namespace default \
-    --name cassandra-test-sink
-</code></pre>
-<p>You can see 10 messages are processed by the Cassandra sink <em>test_cassandra</em>.</p>
-<p><strong>Example output</strong></p>
-<pre><code class="hljs css language-json">{
-  <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
-  <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
-  <span class="hljs-attr">"instances"</span> : [ {
-    <span class="hljs-attr">"instanceId"</span> : <span class="hljs-number">0</span>,
-    <span class="hljs-attr">"status"</span> : {
-      <span class="hljs-attr">"running"</span> : <span class="hljs-literal">true</span>,
-      <span class="hljs-attr">"error"</span> : <span class="hljs-string">""</span>,
-      <span class="hljs-attr">"numRestarts"</span> : <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"numReadFromPulsar"</span> : <span class="hljs-number">10</span>,
-      <span class="hljs-attr">"numSystemExceptions"</span> : <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"latestSystemExceptions"</span> : [ ],
-      <span class="hljs-attr">"numSinkExceptions"</span> : <span class="hljs-number">0</span>,
-      <span class="hljs-attr">"latestSinkExceptions"</span> : [ ],
-      <span class="hljs-attr">"numWrittenToSink"</span> : <span class="hljs-number">10</span>,
-      <span class="hljs-attr">"lastReceivedTime"</span> : <span class="hljs-number">1551685489136</span>,
-      <span class="hljs-attr">"workerId"</span> : <span class="hljs-string">"c-standalone-fw-localhost-8080"</span>
-    }
-  } ]
-}
-</code></pre></li>
-<li><p>Use <code>cqlsh</code> to connect to the Cassandra cluster.</p>
-<pre><code class="hljs css language-bash">docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
-</code></pre></li>
-<li><p>Check the data of the Cassandra table <em>pulsar_test_table</em>.</p>
-<pre><code class="hljs css language-bash">cqlsh&gt; use pulsar_test_keyspace;
-cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
+```&lt;/li&gt; 
 
-key    | col
---------+--------
- key-5 |  key-5
- key-0 |  key-0
- key-9 |  key-9
- key-2 |  key-2
- key-1 |  key-1
- key-3 |  key-3
- key-6 |  key-6
- key-7 |  key-7
- key-4 |  key-4
- key-8 |  key-8
-</code></pre></li>
-</ol>
-<h3><a class="anchor" aria-hidden="true" id="delete-a-cassandra-sink"></a><a href="#delete-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a Cassandra Sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to delete a connector and perform other operations on it.</p>
-<pre><code class="hljs css language-bash">bin/pulsar-admin sinks delete \
+* 檢查 Cassandra sink 連接器: *test_cassandra* 的狀態。
+    
+    ```bash
+    bin/pulsar-admin sinks status \
+        --tenant public \
+        --namespace default \
+        --name cassandra-test-sink
+    ```
+    
+    你會看到 Cassandra sink 連接器: * test_cassandra* 處理了 10 條信息。
+    
+    **範例輸出**
+    
+    ```json
+    {
+      <span class="hljs-string">"numInstances"</span> : 1,
+      <span class="hljs-string">"numRunning"</span> : 1,
+      <span class="hljs-string">"instances"</span> : [ {
+        <span class="hljs-string">"instanceId"</span> : 0,
+        <span class="hljs-string">"status"</span> : {
+          <span class="hljs-string">"running"</span> : <span class="hljs-literal">true</span>,
+          <span class="hljs-string">"error"</span> : <span class="hljs-string">""</span>,
+          <span class="hljs-string">"numRestarts"</span> : 0,
+          <span class="hljs-string">"numReadFromPulsar"</span> : 10,
+          <span class="hljs-string">"numSystemExceptions"</span> : 0,
+          <span class="hljs-string">"latestSystemExceptions"</span> : [ ],
+          <span class="hljs-string">"numSinkExceptions"</span> : 0,
+          <span class="hljs-string">"latestSinkExceptions"</span> : [ ],
+          <span class="hljs-string">"numWrittenToSink"</span> : 10,
+          <span class="hljs-string">"lastReceivedTime"</span> : 1551685489136,
+          <span class="hljs-string">"workerId"</span> : <span class="hljs-string">"c-standalone-fw-localhost-8080"</span>
+        }
+      } ]
+    }
+    ```
+
+* 使用 `cqlsh` 連接到 Cassandra 集群。
+    
+    ```bash
+    docker <span class="hljs-built_in">exec</span> -ti cassandra cqlsh localhost
+    ```
+
+* 檢查 Cassandra 資料表: *pulsar_test_table* 裡頭的數據。
+    
+    ```bash
+    cqlsh&gt; use pulsar_test_keyspace;
+    cqlsh:pulsar_test_keyspace&gt; select * from pulsar_test_table;
+    
+    key    | col
+    --------+--------
+     key-5 |  key-5
+     key-0 |  key-0
+     key-9 |  key-9
+     key-2 |  key-2
+     key-1 |  key-1
+     key-3 |  key-3
+     key-6 |  key-6
+     key-7 |  key-7
+     key-4 |  key-4
+     key-8 |  key-8
+    ```&lt;/ol&gt; 
+
+<span class="hljs-comment">### 刪除 Cassandra Sink</span>
+
+可以使用 [Connector Admin CLI](/docs/zh-TW/next/io-cli) 刪除連接器並對其執行其它操作。
+
+```bash
+bin/pulsar-admin sinks delete \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-mysql"></a><a href="#connect-pulsar-to-mysql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to MySQL</h2>
-<p>This section demonstrates how to connector Pulsar to MySQL.</p>
+<h2><a class="anchor" aria-hidden="true" id="將-pulsar-連接到-mysql"></a><a href="#將-pulsar-連接到-mysql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>將 Pulsar 連接到 MySQL</h2>
+<p>本節示範如何將 Pulsar 連接到 MySQL。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>Make sure you have Docker installed. If you do not have one, see <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>.</p></li>
-<li><p>The JDBC sink connector pulls messages from Pulsar topics and persists the messages to MySQL or SQlite. For more information, see <a href="/docs/zh-TW/next/io-jdbc-sink">JDBC sink connector</a>.</p></li>
+<li><p>確保已安裝好 Docker。如果沒有，請參閱 <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>。</p></li>
+<li><p>JDBC sink 連接器從 Pulsar topic 讀取信息，並將信息寫入到 MySQL 或 SQlite。有關更多訊息，請參見 <a href="/docs/zh-TW/next/io-jdbc-sink">JDBC sink connector</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="setup-a-mysql-cluster"></a><a href="#setup-a-mysql-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup a MySQL cluster</h3>
-<p>This example uses the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.</p>
+<h3><a class="anchor" aria-hidden="true" id="設置一個-mysql-集群"></a><a href="#設置一個-mysql-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>設置一個 MySQL 集群</h3>
+<p>本範例使用 MySQL 5.7 docker 鏡像在 Docker 中啟動單節點 MySQL 集群。</p>
 <ol>
-<li><p>Pull the MySQL 5.7 image from Docker.</p>
+<li><p>從 Docker Hub 拉取 MySQL 5.7 鏡像檔。</p>
 <pre><code class="hljs css language-bash">$ docker pull mysql:5.7
 </code></pre></li>
-<li><p>Start MySQL.</p>
+<li><p>啟動 MySQL。</p>
 <pre><code class="hljs css language-bash">$ docker run -d -it --rm \
 --name pulsar-mysql \
 -p 3306:3306 \
@@ -360,33 +376,33 @@ key    | col
 -e MYSQL_PASSWORD=mysqlpw \
 mysql:5.7
 </code></pre>
-<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>This example</th></tr>
+<tr><th>旗標</th><th>說明</th><th>本範例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-d</code></td><td>To start a container in detached mode.</td><td>/</td></tr>
-<tr><td><code>-it</code></td><td>Keep STDIN open even if not attached and allocate a terminal.</td><td>/</td></tr>
-<tr><td><code>--rm</code></td><td>Remove the container automatically when it exits.</td><td>/</td></tr>
-<tr><td><code>-name</code></td><td>Assign a name to the container.</td><td>This example specifies <em>pulsar-mysql</em> for the container.</td></tr>
-<tr><td><code>-p</code></td><td>Publish the port of the container to the host.</td><td>This example publishes the port <em>3306</em> of the container to the host.</td></tr>
-<tr><td><code>-e</code></td><td>Set environment variables.</td><td>This example sets the following variables:</td></tr>
+<tr><td><code>-d</code></td><td>以分離模式啟動容器。</td><td>/</td></tr>
+<tr><td><code>-it</code></td><td>保持打開 STDIN 狀態，並分配一個互動終端。</td><td>/</td></tr>
+<tr><td><code>--rm</code></td><td>退出容器時自動將其消滅移除。</td><td>/</td></tr>
+<tr><td><code>-name</code></td><td>為容器分配一個名稱。</td><td>此範例指定容器名稱為: <em>pulsar-mysql</em>。</td></tr>
+<tr><td><code>-p</code></td><td>將容器的端口對應到主機端口。</td><td>本範例將容器的端口 <em>3306</em> 對應到主機端口 <em>3306</em>。</td></tr>
+<tr><td><code>-e</code></td><td>設定環境變數</td><td>此範例設置以下變數：</td></tr>
 </tbody>
 </table>
 <ul>
-<li>The password for the root user is <em>jdbc</em>.</li>
-<li>The name for the normal user is <em>mysqluser</em>.</li>
-<li>The password for the normal user is <em>mysqlpw</em>. |</li>
+<li>根用戶的密碼為 <em>jdbc</em>。</li>
+<li>普通用戶的名稱為 <em>mysqluser</em>。</li>
+<li>普通用戶的密碼為 <em>mysqlpw</em>。 |</li>
 </ul>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-4"></a><a href="#tip-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about Docker commands, see <a href="https://docs.docker.com/engine/reference/commandline/run/">Docker CLI</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-4"></a><a href="#提示-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>有關 Docker 命令的更多訊息，請參見 <a href="https://docs.docker.com/engine/reference/commandline/run/">Docker CLI</a>。</p>
 </blockquote></li>
-<li><p>Check if MySQL has been started successfully.</p>
+<li><p>檢查 MySQL 是否已成功啟動。</p>
 <pre><code class="hljs css language-bash">$ docker logs -f pulsar-mysql
 </code></pre>
-<p>MySQL has been started successfully if the following message appears.</p>
+<p>如果出現以下訊息，則 MySQL 已成功啟動。</p>
 <pre><code class="hljs css language-text">2019-05-11T10:40:58.709964Z 0 [Note] Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
 2019-05-11T10:40:58.710155Z 0 [Warning] CA certificate ca.pem is self signed.
 2019-05-11T10:40:58.711921Z 0 [Note] Server hostname (bind-address): '*'; port: 3306
@@ -398,11 +414,11 @@ mysql:5.7
 2019-05-11T10:40:58.724200Z 0 [Note] mysqld: ready for connections.
 Version: '5.7.26'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server (GPL)
 </code></pre></li>
-<li><p>Access to MySQL.</p>
+<li><p>訪問 MySQL。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-mysql /bin/bash
 mysql -h localhost -uroot -pjdbc 
 </code></pre></li>
-<li><p>Create a MySQL table <em>pulsar_mysql_jdbc_sink</em>.</p>
+<li><p>創建一個 MySQL 資料表: <em>pulsar_mysql_jdbc_sink</em>。</p>
 <pre><code class="hljs css language-bash">$ create database pulsar_mysql_jdbc_sink;
 
 $ use pulsar_mysql_jdbc_sink;
@@ -416,22 +432,22 @@ primary key (id)
 engine=innodb;
 </code></pre></li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="configure-a-jdbc-sink"></a><a href="#configure-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure a JDBC sink</h3>
-<p>Now that we have a MySQL running locally.</p>
-<p>In this section, you need to configure a JDBC sink connector.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置-jdbc-sink"></a><a href="#配置-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 JDBC sink</h3>
+<p>現在，我們有一個在本地運行的 MySQL。</p>
+<p>在此部分中，你需要配置 jdbc sink 連接器。</p>
 <ol>
-<li><p>Add a configuration file.</p>
-<p>To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that Pulsar connector runtime needs to know.</p>
-<p>For example, how Pulsar connector can find the MySQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.</p>
-<p>Create a <em>pulsar-mysql-jdbc-sink.yaml</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
+<li><p>添加一個配置文件。</p>
+<p>要運行 JDBC sink 連接器，需要準備一個 YAML 配置文件，其中包括P ulsar 連接器運行時需要知道的資訊。</p>
+<p>例如，Pulsar 連接器如何找到 MySQL 群集，JDBC URL 是什麼以及 Pulsar連接器用於向其寫入信息數據的資料表。</p>
+<p>創建一個 <em>pulsar-mysql-jdbc-sink.yaml</em> 文件，將以下內容複製到該文件中，然後將該文件放置在 <code>pulsar/connectors</code> 文件夾中。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
   <span class="hljs-attr">userName:</span> <span class="hljs-string">"root"</span>
   <span class="hljs-attr">password:</span> <span class="hljs-string">"jdbc"</span>
   <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink"</span>
   <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_mysql_jdbc_sink"</span>
 </code></pre></li>
-<li><p>Create a schema.</p>
-<p>Create a <em>avro-schema</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
+<li><p>創建一個 schema</p>
+<p>創建一個 <em>avro-schema</em> 文件，將以下內容複製到該文件中，然後將該文件放置在 <code>pulsar/connectors</code> 文件夾中。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"type"</span>: <span class="hljs-string">"AVRO"</span>,
   <span class="hljs-attr">"schema"</span>: <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,
@@ -439,82 +455,91 @@ engine=innodb;
 }
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-5"></a><a href="#tip-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about AVRO, see <a href="https://avro.apache.org/docs/1.9.1/">Apache Avro</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-5"></a><a href="#提示-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>有關 AVRO 的更多訊息，請參見 <a href="https://avro.apache.org/docs/1.9.1/">Apache Avro</a>。</p>
 </blockquote></li>
-<li><p>Upload a schema to a topic.</p>
-<p>This example uploads the <em>avro-schema</em> schema to the <em>pulsar-mysql-jdbc-sink-topic</em> topic.</p>
+<li><p>將 schema 上傳到 Pulsar topic。</p>
+<p>本範例將 schema: <em>avro-schema</em> 上傳到 topic: <em>pulsar-mysql-jdbc-sink-topic</em>。</p></p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas upload pulsar-mysql-jdbc-sink-topic -f ./connectors/avro-schema
-</code></pre></li>
-<li><p>Check if the schema has been uploaded successfully.</p>
-<pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas get pulsar-mysql-jdbc-sink-topic
-</code></pre>
-<p>The schema has been uploaded successfully if the following message appears.</p>
-<pre><code class="hljs css language-json">{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"pulsar-mysql-jdbc-sink-topic"</span>,<span class="hljs-attr">"schema"</span>:<span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,<span class="hljs-attr">"type"</span>:<span class="hljs-string">"AVRO"</span>,<span class="hljs-attr">"properties"</span>:{}}
-</code></pre></li>
-</ol>
-<h3><a class="anchor" aria-hidden="true" id="create-a-jdbc-sink"></a><a href="#create-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to create a sink connector and perform other operations on it.</p>
-<p>This example creates a sink connector and specifies the desired information.</p>
-<pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
+```&lt;/li&gt; 
+
+* 檢查 schema 是否已成功上傳。
+    
+    ```bash
+    $ bin/pulsar-admin schemas get pulsar-mysql-jdbc-sink-topic
+    ```
+    
+    如果出現以下訊息，則說明 schema 已成功上傳。
+    
+    ```json
+    {<span class="hljs-string">"name"</span>:<span class="hljs-string">"pulsar-mysql-jdbc-sink-topic"</span>,<span class="hljs-string">"schema"</span>:<span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,<span class="hljs-string">"type"</span>:<span class="hljs-string">"AVRO"</span>,<span class="hljs-string">"properties"</span>:{}}
+    ```&lt;/ol&gt; 
+
+<span class="hljs-comment">### 創建一個 JDBC sink</span>
+
+你可以使用 [Connector Admin CLI](/docs/zh-TW/next/io-cli) 創建 sink 連接器並對其執行其它操作。
+
+本範例創建一個 sink 連接器並指定所需的訊息。
+
+```bash
+$ bin/pulsar-admin sinks create \
 --archive ./connectors/pulsar-io-jdbc-2.5.0.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
 --name pulsar-mysql-jdbc-sink \
 --sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
 --parallelism 1
 </code></pre>
-<p>Once the command is executed, Pulsar creates a sink connector <em>pulsar-mysql-jdbc-sink</em>.</p>
-<p>This sink connector runs as a Pulsar Function and writes the messages produced in the topic <em>pulsar-mysql-jdbc-sink-topic</em> to the MySQL table <em>pulsar_mysql_jdbc_sink</em>.</p>
-<h4><a class="anchor" aria-hidden="true" id="tip-6"></a><a href="#tip-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>執行命令後，Pulsar 將創建一個 sink 連接器 <em>pulsar-mysql-jdbc-sink</em>。</p>
+<p>該 sink 連接器將以 Pulsar Function 型式來運行，並將在 topic:<em>pulsar-mysql-jdbc-sink-topic</em> 中的信息數據寫入 MySQL 資料表: <em>pulsar_mysql_jdbc_sink</em>。</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-6"></a><a href="#提示-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>This example</th></tr>
+<tr><th>旗標</th><th>說明</th><th>本範例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.5.0.nar</em></td></tr>
-<tr><td><code>--inputs</code></td><td>The input topic(s) of the sink.</td></tr>
+<tr><td><code>--archive</code></td><td>sink 的nar 檔路徑。</td><td><em>pulsar-io-jdbc-2.5.0.nar</em></td></tr>
+<tr><td><code>--inputs</code></td><td>Pulsar Function 的一個或多個輸入 topic（可以使用逗號分隔來指定多個 topic）。</td><td></td></tr>
+<tr><td><code>--name</code></td><td>sink 連結器的名稱。</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>
+<tr><td><code>--sink-config-file</code></td><td>指定配置 Pulsar Function 的 YAML 設定檔路徑。</td><td><em>pulsar-mysql-jdbc-sink.yaml</em></td></tr>
+<tr><td><code>--parallelism</code></td><td>sink 的並行度因子。</td></tr>
 </tbody>
 </table>
-<p>Multiple topics can be specified as a comma-separated list. |                                         |
-| <code>--name</code>             | The name of the sink.                                                                             | <em>pulsar-mysql-jdbc-sink</em>                |
-| <code>--sink-config-file</code> | The path to a YAML config file specifying the configuration of the sink.                          | <em>pulsar-mysql-jdbc-sink.yaml</em>           |
-| <code>--parallelism</code>      | The parallelism factor of the sink.</p>
-<p>For example, the number of sink instances to run.       | <em>1</em>                                     |</p>
+<p>例如，要運行的 sink 連結器實例數。 | <em>1</em>                                     |</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-7"></a><a href="#tip-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks create options</code>, see <a href="/docs/zh-TW/next/io-cli#sinks">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-7"></a><a href="#提示-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks create</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli#sinks">here</a>。</p>
 </blockquote>
-<p>The sink has been created successfully if the following message appears.</p>
+<p>如果出現以下訊息，則說明 sink 連結器創建成功。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Created successfully"</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="inspect-a-jdbc-sink"></a><a href="#inspect-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to monitor a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="驗證-jdbc-sink"></a><a href="#驗證-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>驗證 JDBC sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 來對連接器進行監控及對其執行其它操作。</p>
 <ul>
-<li><p>List all running JDBC sink(s).</p>
+<li><p>列出所有正在運行的 JDBC sink。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks list \
 --tenant public \
 --namespace default
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-8"></a><a href="#tip-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks list options</code>, see <a href="/docs/zh-TW/next/io-cli/#list-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-8"></a><a href="#提示-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks list</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#list-1">here</a>。</p>
 </blockquote>
-<p>The result shows that only the <em>mysql-jdbc-sink</em> sink is running.</p>
+<p>結果顯示，只有 <em>mysql-jdbc-sink</em> sink 正在運行。</p>
 <pre><code class="hljs css language-json">[
 <span class="hljs-string">"pulsar-mysql-jdbc-sink"</span>
 ]
 </code></pre></li>
-<li><p>Get the information of a JDBC sink.</p>
+<li><p>獲取 jdbc sink 的相關資訊。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-9"></a><a href="#tip-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks get options</code>, see <a href="/docs/zh-TW/next/io-cli/#get-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-9"></a><a href="#提示-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks get</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#get-1">here</a>。</p>
 </blockquote>
-<p>The result shows the information of the sink connector, including tenant, namespace, topic and so on.</p>
+<p>結果顯示 sink 連接器的訊息，包括租戶、命名空間、主題等。</p>
 <pre><code class="hljs css language-json">{
 <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
 <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -537,17 +562,17 @@ engine=innodb;
 <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>
 }
 </code></pre></li>
-<li><p>Get the status of a JDBC sink</p>
+<li><p>獲取 JDBC sink 的狀態。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks status \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-10"></a><a href="#tip-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks status options</code>, see <a href="/docs/zh-TW/next/io-cli/#status-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-10"></a><a href="#提示-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks status</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#status-1">here</a>。</p>
 </blockquote>
-<p>The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.</p>
+<p>結果顯示 sink 連接器的當前狀態，包括實例數、運行狀態、工作程序 ID 等。</p>
 <pre><code class="hljs css language-json">{
 <span class="hljs-attr">"numInstances"</span> : <span class="hljs-number">1</span>,
 <span class="hljs-attr">"numRunning"</span> : <span class="hljs-number">1</span>,
@@ -570,8 +595,8 @@ engine=innodb;
 }
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="stop-a-jdbc-sink"></a><a href="#stop-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Stop a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to stop a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="停止-jdbc-sink"></a><a href="#停止-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>停止 JDBC sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 來停上一個連接器及對其執行其它操作。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks stop \
 --tenant public \
 --namespace default \
@@ -579,14 +604,14 @@ engine=innodb;
 --instance-id 0
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-11"></a><a href="#tip-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks stop options</code>, see <a href="/docs/zh-TW/next/io-cli/#stop-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-11"></a><a href="#提示-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks stop</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#stop-1">here</a>。</p>
 </blockquote>
-<p>The sink instance has been stopped successfully if the following message disappears.</p>
+<p>如果出現以下訊息，則說明 sink 連接器停止成功。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Stopped successfully"</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="restart-a-jdbc-sink"></a><a href="#restart-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Restart a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to restart a connector and perform other operations on it.</p>
+<h3><a class="anchor" aria-hidden="true" id="重新啟動-jdbc-sink"></a><a href="#重新啟動-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重新啟動 JDBC sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 來重新啟動一個連接器及對其執行其它操作。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks restart \
 --tenant public \
 --namespace default \
@@ -594,41 +619,41 @@ engine=innodb;
 --instance-id 0
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-12"></a><a href="#tip-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks restart options</code>, see <a href="/docs/zh-TW/next/io-cli/#restart-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-12"></a><a href="#提示-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks restart</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#restart-1">here</a>。</p>
 </blockquote>
-<p>The sink instance has been started successfully if the following message disappears.</p>
+<p>如果出現以下訊息，則說明 sink 連接器啟動成功。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Started successfully"</span>
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-13"></a><a href="#tip-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="提示-13"></a><a href="#提示-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
-<li><p>Optionally, you can run a standalone sink connector using <code>pulsar-admin sinks localrun options</code>.</p>
-<p>Note that <code>pulsar-admin sinks localrun options</code> <strong>runs a sink connector locally</strong>, while <code>pulsar-admin sinks start options</code> <strong>starts a sink connector in a cluster</strong>.</p></li>
-<li><p>For more information about <code>pulsar-admin sinks localrun options</code>, see <a href="/docs/zh-TW/next/io-cli#localrun-1">here</a>.</p></li>
+<li><p>（可選）你可以使用 <code>pulsar-admin sinks localrun</code> 來運行 standalone sink 連接器。</p>
+<p>請注意，<code>pulsar-admin sinks localrun options</code> <strong>在本地運行 sink 連接器</strong>，而 <code>pulsar-admin sinks start</code> ** 在以集群中運行 sink 連接器**。</p></li>
+<li><p>了解更多關於 <code>pulsar-admin sinks localrun</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli#localrun-1">here</a>。</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="update-a-jdbc-sink"></a><a href="#update-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Update a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to update a connector and perform other operations on it.</p>
-<p>This example updates the parallelism of the <em>pulsar-mysql-jdbc-sink</em> sink connector to 2.</p>
+<h3><a class="anchor" aria-hidden="true" id="更新一個-jdbc-sink"></a><a href="#更新一個-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新一個 JDBC sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 來更新一個連接器並對其執行其它操作。</p>
+<p>此範例將 <em>pulsar-mysql-jdbc-sink</em> 連接器的並行度更新為 2。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks update \
 --name pulsar-mysql-jdbc-sink \
 --parallelism 2
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-14"></a><a href="#tip-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks update options</code>, see <a href="/docs/zh-TW/next/io-cli/#update-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-14"></a><a href="#提示-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks update</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#update-1">here</a>。</p>
 </blockquote>
-<p>The sink connector has been updated successfully if the following message disappears.</p>
+<p>如果出現以下訊息，則說明 sink 連接器更新成功。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"Updated successfully"</span>
 </code></pre>
-<p>This example double-checks the information.</p>
+<p>本範例再次檢查 sink 連接器的訊息。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 </code></pre>
-<p>The result shows that the parallelism is 2.</p>
+<p>結果表明 sink connector 的並行度為 2。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
@@ -651,33 +676,35 @@ engine=innodb;
   <span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span>
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="delete-a-jdbc-sink"></a><a href="#delete-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Delete a JDBC sink</h3>
-<p>You can use the <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> to delete a connector and perform other operations on it.</p>
-<p>This example deletes the <em>pulsar-mysql-jdbc-sink</em> sink connector.</p>
+<h3><a class="anchor" aria-hidden="true" id="移除一個-jdbc-sink"></a><a href="#移除一個-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>移除一個 JDBC sink</h3>
+<p>可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 刪除連接器並對其執行其它操作。</p>
+<p>此範例將移除 <em>pulsar-mysql-jdbc-sink</em> 連接器。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks delete \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-15"></a><a href="#tip-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about <code>pulsar-admin sinks delete options</code>, see <a href="/docs/zh-TW/next/io-cli/#delete-1">here</a>.</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-15"></a><a href="#提示-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>了解更多關於 <code>pulsar-admin sinks delete</code> 的訊息，參閱 <a href="/docs/zh-TW/next/io-cli/#delete-1">here</a>。</p>
 </blockquote>
-<p>The sink connector has been deleted successfully if the following message appears.</p>
+<p>如果出現以下訊息，則說明 sink 連接器刪除成功。</p>
 <pre><code class="hljs css language-text">"Deleted successfully"
 </code></pre>
-<p>This example double-checks the status of the sink connector.</p>
+<p>本範例再次檢查 sink 連接器的訊息。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 </code></pre>
-<p>The results shows that the sink connector does not exist.</p>
+<p>結果表明 sink connector 不存在。</p>
 <pre><code class="hljs css language-text">HTTP 404 Not Found
 
 Reason: Sink pulsar-mysql-jdbc-sink doesn't exist
-</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/io-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/next/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install-pulsar-and-built-in-connector">Install Pulsar and built-in connector</a></li><li><a href="#start-pulsar-standalone">Start Pulsar standalone</a></li><li><a href="#connect-pulsar-to-cassandra">Connect Pulsar to Cassandra</a><ul class="toc-headings"><li><a href="#setup-a-cassandra-cluster">Setup a Cassandra cluster</a></li><li><a href="#configure-a-cassandra-sink">Configure a Cassandra sink</a></li><li><a href="#create-a-cassandra-sink">Create a Cassandra sink</a></li><li><a href="#inspect-a-cassandra-sink">Inspect a Cassandra sink</a></li><li><a href="#verify-a-cassandra-sink">Verify a Cassandra sink</a></li><li><a href="#delete-a-cassandra-sink">Delete a Cassandra Sink</a></li></ul></li><li><a href="#connect-pulsar-to-mysql">Connect Pulsar to MySQL</a><ul class="toc-headings"><li><a href="#setup-a-mysql-cluster">Setup a MySQL cluster</a></li><li><a href="#configure-a-jdbc-sink">Configure a JDBC sink</a></li><li><a href="#create-a-jdbc-sink">Create a JDBC sink</a></li><li><a href="#inspect-a-jdbc-sink">Inspect a JDBC sink</a></li><li><a href="#stop-a-jdbc-sink">Stop a JDBC sink</a></li><li><a href="#restart-a-jdbc-sink">Restart a JDBC sink</a></li><li><a href="#update-a-jdbc-sink">Update a JDBC sink</a></li><li><a href="#delete-a-jdbc-sink">Delete a JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</code></pre></li>
+</ol></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/io-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/next/io-use"><span>Use</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安裝-pulsar-built-in-connectors。">安裝 Pulsar built-in connectors。</a></li><li><a href="#啟動-pulsar-單機模式">啟動 Pulsar 單機模式</a></li><li><a href="#將-pulsar-連接到-cassandra">將 Pulsar 連接到 Cassandra</a><ul class="toc-headings"><li><a href="#設置-cassandra-集群">設置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#創建-cassandra-sink">創建 Cassandra sink</a></li><li><a href="#檢查-cassandra-sink">檢查 Cassandra sink</a></li><li><a href="#驗證-cassandra-sink-的功能">驗證 Cassandra sink 的功能</a></li></ul></li><li><a href="#將-pulsar-連接到-mysql">將 Pulsar 連接到 MySQL</a><ul class="toc-headings"><li><a href="#設置一個-mysql-集群">設置一個 MySQL 集群</a></li><li><a href="#配置-jdbc-sink">配置 JDBC sink</a></li><li><a href="#驗證-jdbc-sink">驗證 JDBC sink</a></li><li><a href="#停止-jdbc-sink">停止 JDBC sink</a></li><li><a href="#重新啟動-jdbc-sink">重新啟動 JDBC sink</a></li><li><a href="#更新一個-jdbc-sink">更新一個 JDBC sink</a></li><li><a href="#移除一個-jdbc-sink">移除一個 JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

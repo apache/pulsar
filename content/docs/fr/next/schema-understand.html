@@ -191,7 +191,7 @@
 producer.newMessage().value(<span class="hljs-string">"Hello Pulsar!"</span>).send();
 </code></pre></li>
 <li><p>Create a consumer with a string schema and receive messages.</p>
-<pre><code class="hljs css language-java">Consumer&lt;String&gt; consumer = client.newConsumer(Schema.STRING).create();
+<pre><code class="hljs css language-java">Consumer&lt;String&gt; consumer = client.newConsumer(Schema.STRING).subscribe();
 consumer.receive();
 </code></pre></li>
 </ol>
@@ -300,7 +300,7 @@ KeyValue&lt;Integer, String&gt; kv = msg.getValue();
 producer.newMessage().value(User.builder().userName(<span class="hljs-string">"pulsar-user"</span>).userId(<span class="hljs-number">1L</span>).build()).send();
 </code></pre></li>
 <li><p>Create a consumer with a <code>struct</code> schema and receive messages</p>
-<pre><code class="hljs css language-java">Consumer&lt;User&gt; consumer = client.newConsumer(Schema.AVRO(User<span class="hljs-class">.<span class="hljs-keyword">class</span>)).<span class="hljs-title">create</span>()</span>;
+<pre><code class="hljs css language-java">Consumer&lt;User&gt; consumer = client.newConsumer(Schema.AVRO(User<span class="hljs-class">.<span class="hljs-keyword">class</span>)).<span class="hljs-title">subscribe</span>()</span>;
 User user = consumer.receive();
 </code></pre></li>
 </ol>
