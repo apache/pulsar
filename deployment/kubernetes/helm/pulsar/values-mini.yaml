@@ -50,7 +50,7 @@ extra:
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
   # Configure Kubernetes runtime for Functions
-  functionsAsPods: yes
+  functionsAsPods: no
 
 ## Which pulsar image to use
 image:
