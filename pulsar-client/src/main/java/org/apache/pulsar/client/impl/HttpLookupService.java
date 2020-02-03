@@ -24,6 +24,7 @@ import io.netty.channel.EventLoopGroup;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -46,15 +47,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.yahoo.sketches.Util.bytesToLong;
-
-class HttpLookupService implements LookupService {
+public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
 
     private static final String BasePathV1 = "lookup/v2/destination/";
     private static final String BasePathV2 = "lookup/v2/topic/";
+    private static final ByteBuffer schemaVersionConvertBuffer = ByteBuffer.allocate(8);
 
     public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
@@ -174,6 +174,13 @@ class HttpLookupService implements LookupService {
     @Override
     public void close() throws Exception {
         httpClient.close();
+    }
+
+    private long bytesToLong(byte[] bytes) {
+        schemaVersionConvertBuffer.clear();
+        schemaVersionConvertBuffer.put(bytes, 0, bytes.length);
+        schemaVersionConvertBuffer.flip();
+        return schemaVersionConvertBuffer.getLong();
     }
 
     private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
