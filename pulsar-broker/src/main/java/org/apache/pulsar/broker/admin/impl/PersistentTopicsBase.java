@@ -655,14 +655,6 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-//    protected void internalUnloadTopic(boolean authoritative) {
-//        log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-//        if (topicName.isGlobal()) {
-//            validateGlobalNamespaceOwnership(namespaceName);
-//        }
-//        unloadTopic(topicName, authoritative);
-//    }
-
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
         if (topicName.isGlobal()) {
@@ -689,12 +681,11 @@ public class PersistentTopicsBase extends AdminResource {
                     Throwable t = exception.getCause();
                     if (t instanceof NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, t.getMessage()));
-                        return null;
                     } else {
                         log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
                         asyncResponse.resume(new RestException(exception));
-                        return null;
                     }
+                    return null;
                 }
 
                 asyncResponse.resume(Response.noContent().build());

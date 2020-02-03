@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -297,23 +296,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 3) create partitioned topic and unload
         response = mock(AsyncResponse.class);
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionTopicName, 6);
-        persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
-        errCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
-        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
-                Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errCaptor.getValue().getMessage(), "Topic partitions were not yet created");
-
-        // 4) create topic partitions
-        response = mock(AsyncResponse.class);
-        persistentTopics.createSubscription(response, testTenant, testNamespace, partitionTopicName, "test", true,
-                (MessageIdImpl) MessageId.latest, false);
-        responseCaptor = ArgumentCaptor.forClass(Response.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
-        // 5) unload partitioned topic
-        response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
