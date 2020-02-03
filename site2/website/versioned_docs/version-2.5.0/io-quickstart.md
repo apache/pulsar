@@ -26,7 +26,7 @@ At the end of this tutorial, you are able to:
 
 Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.
 
-For more information about **how to install a standalone Pulsar and built-in connectors**, see [here](standalone/#installing-pulsar).
+For more information about **how to install a standalone Pulsar and built-in connectors**, see [here](getting-started-standalone.md/#installing-pulsar).
 
 ## Start Pulsar standalone 
 

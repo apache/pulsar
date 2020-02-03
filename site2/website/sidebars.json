@@ -15,8 +15,7 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-tiered-storage",
-      "concepts-schema-registry"
+      "concepts-tiered-storage"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -130,7 +129,6 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
-      "reference-connector-admin",
       "reference-configuration",
       "reference-metrics"
     ]

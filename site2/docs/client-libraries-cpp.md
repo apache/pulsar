@@ -8,6 +8,8 @@ sidebar_label: C++
 
 Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
+
 ## Linux
 
 > Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.
