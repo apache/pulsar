@@ -798,6 +798,54 @@ public class Namespaces extends NamespacesBase {
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerConsumer")
+    @ApiOperation(value = "Get maxUnackedMessagesPerConsumer config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public int getMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetMaxUnackedMessagesPerConsumer();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerConsumer")
+    @ApiOperation(value = " Set maxConsumersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxUnackedMessagesPerConsumer value is not valid") })
+    public void setMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                        int maxUnackedMessagesPerConsumer) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxUnackedMessagesPerConsumer(maxUnackedMessagesPerConsumer);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerSubscription")
+    @ApiOperation(value = "Get maxUnackedMessagesPerSubscription config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public int getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetMaxUnackedMessagesPerSubscription();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerSubscription")
+    @ApiOperation(value = " Set maxUnackedMessagesPerSubscription configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxUnackedMessagesPerSubscription value is not valid") })
+    public void setMaxUnackedMessagesPerSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                               int maxUnackedMessagesPerSubscription) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxUnackedMessagesPerSubscription(maxUnackedMessagesPerSubscription);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/antiAffinity")
     @ApiOperation(value = "Set anti-affinity group for a namespace")
