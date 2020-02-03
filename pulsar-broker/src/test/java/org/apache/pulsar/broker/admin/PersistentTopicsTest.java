@@ -313,9 +313,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace,"non-existent-topic", true);
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
     }
 
     @Test

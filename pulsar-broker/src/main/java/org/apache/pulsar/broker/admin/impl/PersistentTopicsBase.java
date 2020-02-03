@@ -692,7 +692,7 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         } else {
-            validateSuperUserAccess();
+            validateAdminAccessForTenant(topicName.getTenant());
             validateTopicOwnership(topicName, authoritative);
 
             Topic topic = getTopicReference(topicName);
