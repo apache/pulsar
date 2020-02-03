@@ -49,6 +49,8 @@ extra:
   bastion: yes
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
+  # Configure Kubernetes runtime for Functions
+  functionsAsPods: yes
 
 ## Which pulsar image to use
 image:

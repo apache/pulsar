@@ -23,19 +23,19 @@ kind: ClusterRole
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.functions.component }}"
 rules:
-  - apiGroups: [""]
-    resources:
-      - services
-      - configmaps
-      - pods
-    verbs:
-      - '*'
-  - apiGroups:
-      - apps
-    resources:
-      - statefulsets
-    verbs:
-      - '*'
+- apiGroups: [""]
+  resources:
+  - services
+  - configmaps
+  - pods
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - '*'
 ---
 
 apiVersion: v1
@@ -54,7 +54,7 @@ roleRef:
   kind: ClusterRole
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.functions.component }}"
 subjects:
-  - kind: ServiceAccount
-    name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.functions.component }}"
-    namespace: {{ .Values.namespace }}
+- kind: ServiceAccount
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.functions.component }}"
+  namespace: {{ .Values.namespace }}
   {{- end }}
