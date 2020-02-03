@@ -706,7 +706,7 @@ public class PersistentTopicsBase extends AdminResource {
 
             Topic topic = getTopicReference(topicName);
             try {
-                topic.close().get();
+                topic.close(false).get();
                 asyncResponse.resume(Response.noContent().build());
                 log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
             } catch (Exception e) {
