@@ -647,8 +647,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
-        // don't block dispatching if maxUnackedMessages = 0
         int maxUnackedMessages = topic.maxUnackedMessagesOnSubscription;
+        if (maxUnackedMessages == -1) {
+            maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
+                    .getMaxUnackedMessagesPerSubscription();
+        }
+        // don't block dispatching if maxUnackedMessages = 0
         if (maxUnackedMessages <= 0) {
             return;
         }
