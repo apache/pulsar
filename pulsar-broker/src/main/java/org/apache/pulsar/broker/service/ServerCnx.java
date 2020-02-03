@@ -527,18 +527,18 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void refreshAuthenticationCredentials() {
-        if (getState() != State.Connected || !isActive) {
+        AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
+
+        if (authState == null) {
+            // Authentication is disabled or there's no local state to refresh
+            return;
+        } else if (getState() != State.Connected || !isActive) {
             // Connection is either still being established or already closed.
             return;
-        }
-
-        AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
-        if (authState != null && !authState.isExpired()) {
+        } else if (authState != null && !authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
             return;
-        }
-
-        if (originalPrincipal != null && originalAuthState == null) {
+        } else if (originalPrincipal != null && originalAuthState == null) {
             log.info(
                     "[{}] Cannot revalidate user credential when using proxy and not forwarding the credentials. Closing connection",
                     remoteAddress);
