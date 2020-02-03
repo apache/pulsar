@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -276,18 +277,63 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnloadTopic() {
         final String topicName = "standard-topic-to-be-unload";
+        final String partitionTopicName = "partition-topic-to-be-unload";
+
+        // 1) not exist topic
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, "topic-not-exist", true);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+
+        // 2) create non partitioned topic and unload
+        response = mock(AsyncResponse.class);
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
-        persistentTopics.unloadTopic(testTenant, testNamespace, topicName, true);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 3) create partitioned topic and unload
+        response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionTopicName, 6);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertEquals(errCaptor.getValue().getMessage(), "Topic partitions were not yet created");
+
+        // 4) create topic partitions
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, partitionTopicName, "test", true,
+                (MessageIdImpl) MessageId.latest, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 5) unload partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 6) delete partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, partitionTopicName, true, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test(expectedExceptions = RestException.class)
+    @Test
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
-        try {
-            persistentTopics.unloadTopic(testTenant, testNamespace,"non-existent-topic", true);
-        } catch (RestException e) {
-            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
-            throw e;
-        }
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace,"non-existent-topic", true);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
     }
 
     @Test

@@ -655,12 +655,65 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalUnloadTopic(boolean authoritative) {
+//    protected void internalUnloadTopic(boolean authoritative) {
+//        log.info("[{}] Unloading topic {}", clientAppId(), topicName);
+//        if (topicName.isGlobal()) {
+//            validateGlobalNamespaceOwnership(namespaceName);
+//        }
+//        unloadTopic(topicName, authoritative);
+//    }
+
+    protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        unloadTopic(topicName, authoritative);
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        if (partitionMetadata.partitions > 0) {
+            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                TopicName topicNamePartition = topicName.getPartition(i);
+                try {
+                    futures.add(pulsar().getAdminClient().topics().unloadAsync(topicNamePartition.toString()));
+                } catch (Exception e) {
+                    log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
+                    asyncResponse.resume(new RestException(e));
+                    return;
+                }
+            }
+
+            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                if (exception != null) {
+                    Throwable t = exception.getCause();
+                    if (t instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, t.getMessage()));
+                        return null;
+                    } else {
+                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
+                        asyncResponse.resume(new RestException(exception));
+                        return null;
+                    }
+                }
+
+                asyncResponse.resume(Response.noContent().build());
+                return null;
+            });
+        } else {
+            validateSuperUserAccess();
+            validateTopicOwnership(topicName, authoritative);
+
+            Topic topic = getTopicReference(topicName);
+            try {
+                topic.close().get();
+                asyncResponse.resume(Response.noContent().build());
+                log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
+                asyncResponse.resume(new RestException(e));
+            }
+        }
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force) {
