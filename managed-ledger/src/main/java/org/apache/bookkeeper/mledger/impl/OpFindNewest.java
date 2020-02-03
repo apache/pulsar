@@ -67,7 +67,10 @@ class OpFindNewest implements ReadEntryCallback {
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
-                callback.findEntryComplete(startPosition, OpFindNewest.this.ctx);
+                // If no entry is found that matches the condition, it is expected to pass null to the callback.
+                // Otherwise, a message before the expiration date will be deleted due to message TTL.
+                // cf. https://github.com/apache/pulsar/issues/5579
+                callback.findEntryComplete(null, OpFindNewest.this.ctx);
                 return;
             } else {
                 lastMatchedPosition = position;
