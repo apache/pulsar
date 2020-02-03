@@ -1937,22 +1937,6 @@ public class PersistentTopicsBase extends AdminResource {
         return result;
     }
 
-    protected void unloadTopic(TopicName topicName, boolean authoritative) {
-        validateSuperUserAccess();
-        validateTopicOwnership(topicName, authoritative);
-        try {
-            Topic topic = getTopicReference(topicName);
-            topic.close(false).get();
-            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-        } catch (NullPointerException e) {
-            log.error("[{}] topic {} not found", clientAppId(), topicName);
-            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
-            throw new RestException(e);
-        }
-    }
-
     // as described at : (PR: #836) CPP-client old client lib should not be allowed to connect on partitioned-topic.
     // So, all requests from old-cpp-client (< v1.21) must be rejected.
     // Pulsar client-java lib always passes user-agent as X-Java-$version.
