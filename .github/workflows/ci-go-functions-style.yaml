@@ -64,5 +64,5 @@ jobs:
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          cd pulsar-function-go
-          ./bin/golangci-lint run -c ./core/golangci.yml ./core/pf
+          cd pulsar-function-go/core
+          ./bin/golangci-lint run -c ./golangci.yml ./pf

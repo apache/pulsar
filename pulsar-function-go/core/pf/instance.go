@@ -52,11 +52,6 @@ func newGoInstance() *goInstance {
 	goInstance.properties = make(map[string]string)
 	return goInstance
 }
-func (gi *goInstance) getProperties() {
-	gi.properties["application"] = "pulsar-function"
-	gi.properties["id"] = gi.context.GetFuncFQFN()
-	gi.properties["instance_id"] = gi.context.GetFuncID()
-}
 
 func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {
 	log.Info("Starting processSpawnerHealthCheckTimer")

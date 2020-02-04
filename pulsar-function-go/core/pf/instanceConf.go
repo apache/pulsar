@@ -22,6 +22,7 @@ package pf
 import (
 	"fmt"
 	"time"
+
 	"github.com/apache/pulsar/pulsar-function-go/core/conf"
 	pb "github.com/apache/pulsar/pulsar-function-go/core/pb"
 )
