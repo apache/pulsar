@@ -210,6 +210,10 @@ admin.persistentTopics().unload(topic);
 <li><p><strong>msgBacklog</strong>: Number of messages in the subscription backlog</p></li>
 <li><p><strong>type</strong>: This subscription type</p></li>
 <li><p><strong>msgRateExpired</strong>: The rate at which messages were discarded instead of dispatched from this subscription due to TTL</p></li>
+<li><p><strong>lastExpireTimestamp</strong>: The last message expire execution timestamp</p></li>
+<li><p><strong>lastConsumedFlowTimestamp</strong>: The last flow command received timestamp</p></li>
+<li><p><strong>lastConsumedTimestamp</strong>: The latest timestamp of all the consumed timestamp of the consumers</p></li>
+<li><p><strong>lastAckedTimestamp</strong>: The latest timestamp of all the acked timestamp of the consumers</p></li>
 <li><p><strong>consumers</strong>: The list of connected consumers for this subscription</p>
 <pre><code class="hljs">  -   **msgRateOut**: Total rate of messages delivered to the consumer (msg/s)
   
@@ -222,6 +226,10 @@ admin.persistentTopics().unload(topic);
   -   **unackedMessages**: Number of unacknowledged messages for the consumer
   
   -   **blockedConsumerOnUnackedMsgs**: Flag to verify if the consumer is blocked due to reaching threshold of unacked messages
+  
+  -   **lastConsumedTimestamp**: The timestamp of the consumer last consume a message
+  
+  -   **lastAckedTimestamp**: The timestamp of the consumer last ack a message
 </code></pre></li>
 </ul></li>
 </ul></li>

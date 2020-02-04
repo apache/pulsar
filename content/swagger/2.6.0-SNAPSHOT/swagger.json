@@ -2292,6 +2292,144 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/maxUnackedMessagesPerConsumer" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get maxUnackedMessagesPerConsumer config on a namespace.",
+        "description" : "",
+        "operationId" : "getMaxUnackedMessagesPerConsumer",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : " Set maxConsumersPerTopic configuration on a namespace.",
+        "description" : "",
+        "operationId" : "setMaxUnackedMessagesPerConsumer",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "maxUnackedMessagesPerConsumer value is not valid"
+          }
+        }
+      }
+    },
+    "/namespaces/{tenant}/{namespace}/maxUnackedMessagesPerSubscription" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get maxUnackedMessagesPerSubscription config on a namespace.",
+        "description" : "",
+        "operationId" : "getMaxUnackedmessagesPerSubscription",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : " Set maxUnackedMessagesPerSubscription configuration on a namespace.",
+        "description" : "",
+        "operationId" : "setMaxUnackedMessagesPerSubscription",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "maxUnackedMessagesPerSubscription value is not valid"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/messageTTL" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -8833,6 +8971,14 @@
         "blockedConsumerOnUnackedMsgs" : {
           "type" : "boolean"
         },
+        "lastAckedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastConsumedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "metadata" : {
           "type" : "object",
           "additionalProperties" : {
@@ -9211,32 +9357,21 @@
           "type" : "number",
           "format" : "double"
         },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9246,6 +9381,17 @@
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -9521,6 +9667,18 @@
           "format" : "double"
         },
         "lastExpireTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastConsumedFlowTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastConsumedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastAckedTimestamp" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -9886,6 +10044,14 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "max_unacked_messages_per_consumer" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "max_unacked_messages_per_subscription" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "compaction_threshold" : {
           "type" : "integer",
           "format" : "int64"
@@ -10237,11 +10403,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
@@ -10329,6 +10495,18 @@
           "format" : "double"
         },
         "lastExpireTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastConsumedFlowTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastConsumedTimestamp" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastAckedTimestamp" : {
           "type" : "integer",
           "format" : "int64"
         },
