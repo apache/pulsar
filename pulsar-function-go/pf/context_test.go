@@ -32,8 +32,10 @@ func TestContext(t *testing.T) {
 	fc := NewFuncContext()
 	ctx = NewContext(ctx, fc)
 	if resfc, ok := FromContext(ctx); ok {
+		assert.Equal(t, []string{"persistent://public/default/topic-01"}, resfc.GetInputTopics())
 		assert.Equal(t, "1.0.0", resfc.GetFuncVersion())
 		assert.Equal(t, "pulsar-function", resfc.GetFuncID())
 		assert.Equal(t, "go-function", resfc.GetFuncName())
+		assert.Equal(t, "persistent://public/default/topic-02", resfc.GetOutputTopic())
 	}
 }
