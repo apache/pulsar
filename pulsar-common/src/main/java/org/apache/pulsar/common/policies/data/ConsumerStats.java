@@ -59,6 +59,9 @@ public class ConsumerStats {
     private int clientVersionOffset = -1;
     private int clientVersionLength;
 
+    public long lastAckedTimestamp;
+    public long lastConsumedTimestamp;
+
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
 
