@@ -54,5 +54,5 @@ jobs:
       - name: run tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          cd pulsar-function-go
+          cd pulsar-function-go/core
           go test -v $(go list ./... | grep -v examples)
