@@ -454,6 +454,14 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
         }
 
+        if (policies.max_unacked_messages_per_consumer == -1) {
+            policies.max_unacked_messages_per_consumer = config.getMaxUnackedMessagesPerConsumer();
+        }
+
+        if (policies.max_unacked_messages_per_subscription == -1) {
+            policies.max_unacked_messages_per_subscription = config.getMaxUnackedMessagesPerSubscription();
+        }
+
         final String cluster = config.getClusterName();
         // attach default dispatch rate polices
         if (policies.topicDispatchRate.isEmpty()) {

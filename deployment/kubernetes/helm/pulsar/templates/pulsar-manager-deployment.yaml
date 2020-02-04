@@ -60,9 +60,9 @@ spec:
         - name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}"
           image: "{{ .Values.pulsar_manager.image.repository }}:{{ .Values.pulsar_manager.image.tag }}"
           imagePullPolicy: {{ .Values.pulsar_manager.image.pullPolicy }}
-        {{- if .Values.grafana.resources }}
+        {{- if .Values.pulsar_manager.resources }}
           resources:
-{{ toYaml .Values.pulsar_manager.resources | indent 10 }}
+{{ toYaml .Values.pulsar_manager.resources | indent 12 }}
         {{- end }}
           ports:
           - containerPort: 9527
