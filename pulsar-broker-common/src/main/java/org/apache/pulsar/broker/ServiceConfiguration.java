@@ -339,15 +339,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
     @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "Enable message deduplication across all producers.\n\n"
-                    + "This can be overridden per-namespace. If enabled, brokers will reject"
-                    + " messages with sequence ids that were already stored in the topic,"
-                    + " regardless of which producer sent the message. Default is false"
-    )
-    private boolean brokerDeduplicationAcrossProducersEnabled = false;
-
-    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")

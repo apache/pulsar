@@ -91,7 +91,6 @@ public class MessageDeduplication {
         }
     }
 
-    public static final String ALL_PRODUCERS = "__all";
 
     private volatile Status status;
 
@@ -119,8 +118,6 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
-    private final boolean deduplicationAcrossProducersEnabled;
-
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
         this.topic = topic;
@@ -130,7 +127,6 @@ public class MessageDeduplication {
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
-        this.deduplicationAcrossProducersEnabled = pulsar.getConfiguration().isBrokerDeduplicationAcrossProducersEnabled();
     }
 
     private CompletableFuture<Void> recoverSequenceIdsMap() {
@@ -302,9 +298,6 @@ public class MessageDeduplication {
             headersAndPayload.readerIndex(readerIndex);
             md.recycle();
         }
-        if (deduplicationAcrossProducersEnabled) {
-            producerName = ALL_PRODUCERS;
-        }
 
         // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
         // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
@@ -348,9 +341,6 @@ public class MessageDeduplication {
             producerName = publishContext.getOriginalProducerName();
             sequenceId = publishContext.getOriginalSequenceId();
             highestSequenceId = publishContext.getOriginalHighestSequenceId();
-        }
-        if (deduplicationAcrossProducersEnabled) {
-            producerName = ALL_PRODUCERS;
         }
 
         highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
