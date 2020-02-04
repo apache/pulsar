@@ -54,7 +54,6 @@ public class HttpLookupService implements LookupService {
 
     private static final String BasePathV1 = "lookup/v2/destination/";
     private static final String BasePathV2 = "lookup/v2/topic/";
-    private static final ByteBuffer schemaVersionConvertBuffer = ByteBuffer.allocate(8);
 
     public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
@@ -152,7 +151,7 @@ public class HttpLookupService implements LookupService {
         if (version != null) {
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
-                    bytesToLong(version));
+                    ByteBuffer.wrap(version).getLong());
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
@@ -174,13 +173,6 @@ public class HttpLookupService implements LookupService {
     @Override
     public void close() throws Exception {
         httpClient.close();
-    }
-
-    private long bytesToLong(byte[] bytes) {
-        schemaVersionConvertBuffer.clear();
-        schemaVersionConvertBuffer.put(bytes, 0, bytes.length);
-        schemaVersionConvertBuffer.flip();
-        return schemaVersionConvertBuffer.getLong();
     }
 
     private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
