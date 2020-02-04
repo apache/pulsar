@@ -34,4 +34,5 @@ jobs:
         env:
           PR_CONTENT: ${{ github.event.pull_request }}
         run: |
+          echo "Test"
           echo $PR_CONTENT 
