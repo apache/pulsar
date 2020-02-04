@@ -65,4 +65,4 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go/core
-          ./bin/golangci-lint run -c ./golangci.yml ./pf
+          ../bin/golangci-lint run -c ./golangci.yml ./pf
