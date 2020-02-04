@@ -58,8 +58,8 @@ jobs:
       - name: Build
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          cd pulsar-function-go
-          go build ./core/pf
+          cd pulsar-function-go/core
+          go build ./...
 
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'
