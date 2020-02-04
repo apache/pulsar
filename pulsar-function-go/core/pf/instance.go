@@ -178,7 +178,7 @@ func (gi *goInstance) setupProducer() (err error) {
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
-			// set send timeout to be infinity to prevent potential deadlock with consumer
+			// Set send timeout to be infinity to prevent potential deadlock with consumer
 			// that might happen when consumer is blocked due to unacked messages
 		})
 		if err != nil {
