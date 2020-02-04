@@ -181,6 +181,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
+    public volatile int maxUnackedMessagesOnSubscription = -1;
+
     private static class TopicStatsHelper {
         public double averageMsgSize;
         public double aggMsgRateIn;
@@ -252,6 +254,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
             schemaValidationEnforced = policies.schema_validation_enforced;
+
+            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
@@ -583,7 +588,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : getNonDurableSubscription(subscriptionName, startMessageId, startMessageRollbackDurationSec);
 
         int maxUnackedMessages = isDurable
-                ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer()
+                ? maxUnackedMessagesOnConsumer
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
@@ -626,6 +631,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return future;
+    }
+
+    private int unackedMessagesExceededOnSubscription(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > -1 ?
+                data.max_unacked_messages_per_subscription :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
+
+        return maxUnackedMessages;
+    }
+
+    private int unackedMessagesExceededOnConsumer(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1 ?
+                data.max_unacked_messages_per_consumer :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+
+        return maxUnackedMessages;
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -1741,6 +1762,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
+
+        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();

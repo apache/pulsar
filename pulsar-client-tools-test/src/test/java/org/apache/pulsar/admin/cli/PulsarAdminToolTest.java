@@ -439,6 +439,18 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
 
+        namespaces.run(split("get-max-unacked-messages-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxUnackedMessagesPerSubscription("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-unacked-messages-per-subscription myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxUnackedMessagesPerSubscription("myprop/clust/ns1", 3);
+
+        namespaces.run(split("get-max-unacked-messages-per-consumer myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-unacked-messages-per-consumer myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxUnackedMessagesPerConsumer("myprop/clust/ns1", 3);
+
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(admin);
