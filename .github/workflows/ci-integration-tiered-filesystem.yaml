@@ -39,7 +39,7 @@ jobs:
         # TODO: move this action to an apache repo
         uses: sijie/pulsar-github-actions/diff-only@master
         with:
-          args: site2 .github deployment
+          args: site2 .github deployment .asf.yaml
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
