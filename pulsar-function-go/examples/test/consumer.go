@@ -58,4 +58,3 @@ func main() {
 		consumer.Ack(msg)
 	}
 }
-

@@ -69,8 +69,9 @@ type Conf struct {
 	Ram  int64   `json:"ram" yaml:"ram"`
 	Disk int64   `json:"disk" yaml:"disk"`
 	//retryDetails config
-	MaxMessageRetries int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
-	DeadLetterTopic   string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
+	MaxMessageRetries           int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
+	DeadLetterTopic             string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
+	ExpectedHealthCheckInterval int32  `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
 }
 
 var (
@@ -121,7 +122,7 @@ func (c *Conf) GetConf() *Conf {
 
 func init() {
 	var defaultPath string
-	if err := os.Chdir("../"); err == nil{
+	if err := os.Chdir("../"); err == nil {
 		defaultPath = ConfigPath
 	}
 	log.Infof("The default config file path is: %s", defaultPath)
