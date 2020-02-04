@@ -6,6 +6,8 @@ sidebar_label: Node.js
 
 The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
 
+All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
+
 ## Installation
 
 You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
