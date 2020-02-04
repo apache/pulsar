@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: Action Runner
+name: Phrase Trigger
 on:
   issue_comment:
     types: [created]
@@ -30,9 +30,6 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Get PR details
-        env:
-          PR_CONTENT: ${{ github.event.pull_request }}
-        run: |
-          echo "Test"
-          echo $PR_CONTENT 
+      - name: Trigger actions
+        id:   phrase-trigger
+        uses: sijie/pulsar-github-actions/trigger-phrase@master
