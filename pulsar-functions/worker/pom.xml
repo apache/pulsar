@@ -149,7 +149,7 @@
 
   <build>
     <plugins>
-      <!-- this task will copy nar files to resources for the test to work -->
+      <!-- this task will copy nar files and config files to resources for the test to work -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -167,6 +167,13 @@
                 <echo>copy test source package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy file="${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-twitter.nar"/>
+                <echo>copy test config files</echo>
+                <mkdir dir="${basedir}/src/test/resources"/>
+                <copy todir="${basedir}/src/test/resources/">
+                  <fileset dir="${basedir}/../src/test/resources/">
+                    <include name="*.yml"/>
+                  </fileset>
+                </copy>
               </tasks>
             </configuration>
           </execution>
