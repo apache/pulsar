@@ -30,6 +30,8 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: checkout
+        uses: actions/checkout@v1
       - name: Trigger actions
         id:   phrase-trigger
         uses: sijie/pulsar-github-actions/trigger-phrase@master
