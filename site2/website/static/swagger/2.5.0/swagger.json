@@ -5774,8 +5774,8 @@
     "/persistent/{tenant}/{namespace}/{topic}" : {
       "put" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Create a non-partitioned topic.",
-        "description" : "This is the only REST endpoint from which non-partitioned topics could be created.",
+        "summary" : "Create a partitioned topic.",
+        "description" : "This is the only REST endpoint from which partitioned topics could be created.",
         "operationId" : "createNonPartitionedTopic",
         "produces" : [ "application/json" ],
         "parameters" : [ {
