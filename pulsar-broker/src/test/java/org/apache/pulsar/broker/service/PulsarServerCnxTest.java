@@ -122,7 +122,7 @@ import org.testng.annotations.Test;
  */
 @Test
 @SuppressWarnings("unchecked")
-public class ServerCnxTest {
+public class PulsarServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
     private PulsarServerCnx serverCnx;

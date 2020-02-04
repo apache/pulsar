@@ -456,14 +456,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
                                       MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
+        return newSend(producerId, sequenceId, numMessages, 0, 0, checksumType, messageMetadata, payload);
     }
 
-    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
               ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessages, 0, 0,
                 checksumType, messageMetadata, payload);
     }
 

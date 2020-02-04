@@ -1,52 +1,108 @@
 package org.apache.pulsar.protocols.grpc;
 
 import com.google.protobuf.ByteString;
+import io.netty.buffer.ByteBuf;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.protocols.grpc.PulsarApi.*;
+
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 
 public class Commands {
 
-    public static PulsarApi.BaseCommand newProducerSuccess(String producerName, long lastSequenceId,
+    public static BaseCommand newProducerSuccess(String producerName, long lastSequenceId,
                                                            SchemaVersion schemaVersion) {
-        PulsarApi.CommandProducerSuccess.Builder producerSuccessBuilder = PulsarApi.CommandProducerSuccess.newBuilder();
+        CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
-        PulsarApi.CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
-        return PulsarApi.BaseCommand.newBuilder()
-            .setType(PulsarApi.BaseCommand.Type.PRODUCER_SUCCESS)
+        CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
+        return BaseCommand.newBuilder()
+            .setType(BaseCommand.Type.PRODUCER_SUCCESS)
             .setProducerSuccess(producerSuccess)
             .build();
     }
 
-    public static PulsarApi.BaseCommand newSendError(long sequenceId, PulsarApi.ServerError error, String errorMsg) {
-        PulsarApi.CommandSendError.Builder sendErrorBuilder = PulsarApi.CommandSendError.newBuilder();
+    public static CommandSend newSend(long sequenceId, int numMessages, ChecksumType checksumType,
+                                      MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(sequenceId, numMessages, 0, 0, checksumType, messageMetadata, payload);
+    }
+
+    public static CommandSend newSend(long lowestSequenceId, long highestSequenceId, int numMessages,
+                                      ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(lowestSequenceId, highestSequenceId, numMessages, 0, 0,
+            checksumType, messageMetadata, payload);
+    }
+
+    public static CommandSend newSend(long sequenceId, int numMessages,
+                                      long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+                                      MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setSequenceId(sequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(checksumType, messageData, payload);
+        ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
+        sendBuilder.setHeadersAndPayload(headersAndPayload);
+
+        return sendBuilder.build();
+    }
+
+    public static CommandSend newSend(long lowestSequenceId, long highestSequenceId, int numMessages,
+                                      long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+                                      MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(checksumType, messageData, payload);
+        ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
+        sendBuilder.setHeadersAndPayload(headersAndPayload);
+
+        return sendBuilder.build();
+    }
+
+    public static BaseCommand newSendError(long sequenceId, ServerError error, String errorMsg) {
+        CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
         sendErrorBuilder.setSequenceId(sequenceId);
         sendErrorBuilder.setError(error);
         sendErrorBuilder.setMessage(errorMsg);
-        PulsarApi.CommandSendError sendError = sendErrorBuilder.build();
-        return PulsarApi.BaseCommand.newBuilder()
-            .setType(PulsarApi.BaseCommand.Type.SEND_ERROR)
+        CommandSendError sendError = sendErrorBuilder.build();
+        return BaseCommand.newBuilder()
+            .setType(BaseCommand.Type.SEND_ERROR)
             .setSendError(sendError)
             .build();
     }
 
-    public static PulsarApi.BaseCommand newSendReceipt(long sequenceId, long highestId, long ledgerId, long entryId) {
-        PulsarApi.CommandSendReceipt.Builder sendReceiptBuilder = PulsarApi.CommandSendReceipt.newBuilder();
+    public static BaseCommand newSendReceipt(long sequenceId, long highestId, long ledgerId, long entryId) {
+        CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setSequenceId(sequenceId);
         sendReceiptBuilder.setHighestSequenceId(highestId);
-        PulsarApi.MessageIdData.Builder messageIdBuilder = PulsarApi.MessageIdData.newBuilder();
+        MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
-        PulsarApi.MessageIdData messageId = messageIdBuilder.build();
+        MessageIdData messageId = messageIdBuilder.build();
         sendReceiptBuilder.setMessageId(messageId);
-        PulsarApi.CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
-        return PulsarApi.BaseCommand.newBuilder()
-            .setType(PulsarApi.BaseCommand.Type.SEND_RECEIPT)
+        CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
+        return BaseCommand.newBuilder()
+            .setType(BaseCommand.Type.SEND_RECEIPT)
             .setSendReceipt(sendReceipt)
             .build();
     }
-
-
-
-
 }

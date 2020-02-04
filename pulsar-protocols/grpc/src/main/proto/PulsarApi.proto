@@ -85,58 +85,6 @@ enum CompressionType {
     SNAPPY   = 4;
 }
 
-message MessageMetadata {
-    required string producer_name   = 1;
-    required uint64 sequence_id     = 2;
-    required uint64 publish_time    = 3;
-    repeated KeyValue properties    = 4;
-
-    // Property set on replicated message,
-    // includes the source cluster name
-    optional string replicated_from = 5;
-    //key to decide partition for the msg
-    optional string partition_key   = 6;
-    // Override namespace's replication
-    repeated string replicate_to    = 7;
-    optional CompressionType compression = 8 [default = NONE];
-    optional uint32 uncompressed_size = 9 [default = 0];
-    // Removed below checksum field from Metadata as
-    // it should be part of send-command which keeps checksum of header + payload
-    //optional sfixed64 checksum = 10;
-    // differentiate single and batch message metadata
-    optional int32 num_messages_in_batch = 11 [default = 1];
-
-    // the timestamp that this event occurs. it is typically set by applications.
-    // if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
-    optional uint64 event_time = 12 [default = 0];
-    // Contains encryption key name, encrypted key and metadata to describe the key
-    repeated EncryptionKeys encryption_keys = 13;
-    // Algorithm used to encrypt data key
-    optional string encryption_algo = 14;
-    // Additional parameters required by encryption
-    optional bytes encryption_param = 15;
-    optional bytes schema_version = 16;
-
-    optional bool partition_key_b64_encoded = 17 [ default = false ];
-    // Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
-    optional bytes ordering_key = 18;
-    
-    // Mark the message to be delivered at or after the specified timestamp
-    optional int64 deliver_at_time = 19;
-
-    // Identify whether a message is a "marker" message used for
-    // internal metadata instead of application published data.
-    // Markers will generally not be propagated back to clients
-    optional int32 marker_type = 20;
-
-    // transaction related message info
-    optional uint64 txnid_least_bits = 22 [default = 0];
-    optional uint64 txnid_most_bits = 23 [default = 0];
-
-    /// Add highest sequence id to support batch message with external sequence id
-    optional uint64 highest_sequence_id = 24 [default = 0];
-}
-
 message SingleMessageMetadata {
     repeated KeyValue properties    = 1;
     optional string partition_key   = 2;

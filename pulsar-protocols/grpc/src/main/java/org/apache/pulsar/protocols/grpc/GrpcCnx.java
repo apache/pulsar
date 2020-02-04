@@ -139,7 +139,6 @@ public class GrpcCnx implements ServerCnx {
         } else {
             producer.publishMessage(producer.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
         }
-
         onMessageHandled();
     }
 

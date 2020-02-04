@@ -13,7 +13,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +50,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         // TODO: handle schema
         //final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
-        InetSocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
+        SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         log.info("################# init 2" + Thread.currentThread().getName());
 
         GrpcCnx cnx = new GrpcCnx(service, remoteAddress, (ServerCallStreamObserver<PulsarApi.BaseCommand>) responseObserver);

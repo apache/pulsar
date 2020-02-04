@@ -1,6 +1,5 @@
 package org.apache.pulsar.protocols.grpc;
 
-import com.google.protobuf.ByteString;
 import io.grpc.*;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
@@ -8,10 +7,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.protocols.grpc.PulsarApi.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +21,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_METADATA_KEY;
 
 // TODO: Message metadata is internal to Pulsar so must be removed from gRPC
@@ -135,15 +130,11 @@ public class GrpcServer {
             .setSequenceId(sequenceId)
             .setPublishTime(Instant.now().toEpochMilli())
             .build();
+
+
         byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
         ByteBuf payload = Unpooled.wrappedBuffer(bytes);
-        ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, payload);
-        ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
-
-        CommandSend send = CommandSend.newBuilder()
-            .setSequenceId(sequenceId)
-            .setHeadersAndPayload(headersAndPayload)
-            .build();
+        CommandSend send = Commands.newSend(sequenceId, 1, ChecksumType.Crc32c, metadata, payload);
 
         return BaseCommand.newBuilder()
             .setType(BaseCommand.Type.SEND)
@@ -151,54 +142,4 @@ public class GrpcServer {
             .build();
     }
 
-    public static ByteBuf serializeMetadataAndPayload(Commands.ChecksumType checksumType, MessageMetadata msgMetadata, ByteBuf payload) {
-        // / Wire format
-        // [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
-        final short magicCrc32c = 0x0e01;
-        final int checksumSize = 4;
-        int msgMetadataSize = msgMetadata.getSerializedSize();
-        int payloadSize = payload.readableBytes();
-        int magicAndChecksumLength = Commands.ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
-        boolean includeChecksum = magicAndChecksumLength > 0;
-        int headerContentSize = magicAndChecksumLength + 4 + msgMetadataSize; // magicLength +
-        // checksumSize + msgMetadataLength +
-        // msgMetadataSize
-        int checksumReaderIndex = -1;
-        int totalSize = headerContentSize + payloadSize;
-
-        ByteBuf metadataAndPayload = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
-        try {
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
-
-            //Create checksum placeholder
-            if (includeChecksum) {
-                metadataAndPayload.writeShort(magicCrc32c);
-                checksumReaderIndex = metadataAndPayload.writerIndex();
-                metadataAndPayload.writerIndex(metadataAndPayload.writerIndex()
-                    + checksumSize); //skip 4 bytes of checksum
-            }
-
-            // Write metadata
-            metadataAndPayload.writeInt(msgMetadataSize);
-            msgMetadata.writeTo(outStream);
-            outStream.recycle();
-        } catch (IOException e) {
-            // This is in-memory serialization, should not fail
-            throw new RuntimeException(e);
-        }
-
-        // write checksum at created checksum-placeholder
-        if (includeChecksum) {
-            metadataAndPayload.markReaderIndex();
-            metadataAndPayload.readerIndex(checksumReaderIndex + checksumSize);
-            int metadataChecksum = computeChecksum(metadataAndPayload);
-            int computedChecksum = resumeChecksum(metadataChecksum, payload);
-            // set computed checksum
-            metadataAndPayload.setInt(checksumReaderIndex, computedChecksum);
-            metadataAndPayload.resetReaderIndex();
-        }
-        metadataAndPayload.writeBytes(payload);
-
-        return metadataAndPayload;
-    }
 }

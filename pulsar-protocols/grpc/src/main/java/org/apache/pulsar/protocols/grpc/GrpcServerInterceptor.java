@@ -3,7 +3,6 @@ package org.apache.pulsar.protocols.grpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.*;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -26,9 +25,7 @@ public class GrpcServerInterceptor implements ServerInterceptor {
         }
 
         SocketAddress socketAddress = serverCall.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
-        if(socketAddress instanceof InetSocketAddress) {
-            ctx = ctx.withValue(REMOTE_ADDRESS_CTX_KEY, (InetSocketAddress)socketAddress);
-        }
+        ctx = ctx.withValue(REMOTE_ADDRESS_CTX_KEY, socketAddress);
 
         return Contexts.interceptCall(ctx, serverCall, metadata, serverCallHandler);
     }
