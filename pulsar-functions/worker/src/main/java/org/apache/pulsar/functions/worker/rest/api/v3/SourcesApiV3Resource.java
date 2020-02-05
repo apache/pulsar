@@ -141,7 +141,7 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 400, message = "Invalid request"),
-                @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The source doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
