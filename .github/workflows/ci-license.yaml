@@ -41,7 +41,7 @@ jobs:
 
       # license check fails with 3.6.2 so we have to downgrade
       - name: Set up Maven
-        uses: aahmed-se/setup-maven@v3
+        uses: apache/pulsar-test-infra/setup-maven@master
         with:
           maven-version: 3.6.1
 

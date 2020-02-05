@@ -39,8 +39,7 @@ jobs:
 
       - name: Check if this pull request only changes documentation
         id:   docs
-        # TODO: move this action to an apache repo
-        uses: sijie/pulsar-github-actions/diff-only@master
+        uses: apache/pulsar-test-infra/diff-only@master
         with:
           args: site2 .github deployment .asf.yaml
 
