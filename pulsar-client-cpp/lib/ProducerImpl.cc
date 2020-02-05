@@ -68,7 +68,7 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
         producerStatsBasePtr_ = std::make_shared<ProducerStatsImpl>(
-            producerStr_, executor_->createDeadlineTimer(), statsIntervalInSeconds);
+            producerStr_, executor_, statsIntervalInSeconds);
     } else {
         producerStatsBasePtr_ = std::make_shared<ProducerStatsDisabled>();
     }
