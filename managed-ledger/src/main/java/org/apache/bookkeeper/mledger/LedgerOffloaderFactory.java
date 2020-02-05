@@ -44,17 +44,15 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
     /**
      * Create a ledger offloader with the provided configuration, user-metadata and scheduler.
      *
-     * @param properties service configuration
+     * @param offloadPolicies offload policies
      * @param userMetadata user metadata
      * @param scheduler scheduler
-     * @param overrideOffloadPolicies offloadPolicies for override
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
-    T create(Properties properties,
+    T create(OffloadPolicies offloadPolicies,
              Map<String, String> userMetadata,
-             OrderedScheduler scheduler,
-             OffloadPolicies overrideOffloadPolicies)
+             OrderedScheduler scheduler)
         throws IOException;
 
 }

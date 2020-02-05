@@ -34,9 +34,8 @@ public class FileSystemLedgerOffloaderFactory implements LedgerOffloaderFactory<
     }
 
     @Override
-    public FileSystemManagedLedgerOffloader create(Properties properties, Map<String, String> userMetadata, OrderedScheduler scheduler,
-                                                   OffloadPolicies overrideOffloadPolicies) throws IOException {
-        FileSystemConfigurationData data = FileSystemConfigurationData.create(properties);
-        return FileSystemManagedLedgerOffloader.create(data, scheduler);
+    public FileSystemManagedLedgerOffloader create(OffloadPolicies offloadPolicies,
+               Map<String, String> userMetadata, OrderedScheduler scheduler) throws IOException {
+        return FileSystemManagedLedgerOffloader.create(offloadPolicies, scheduler);
     }
 }

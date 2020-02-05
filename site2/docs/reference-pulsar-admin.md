@@ -2265,8 +2265,9 @@ $ pulsar-admin namespaces set-offload tenant/namespace
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-r`, `--region`|The long term storage region|s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf
-|`-b`, `--bucket`|Bucket to place offloaded ledger into|--
-|`-e`, `--endpoint`|Alternative endpoint to connect to|s3 is s3ManagedLedgerOffloadServiceEndpoint in broker.conf
-|`-mbs`, `--maxBlockSize`|Max block size|64MB
-|`-rbs`, `--readBufferSize`|Read buffer size|1MB
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-mbs`, `--maxBlockSize`|Max block size|64MB|
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB|

@@ -2198,7 +2198,14 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (StringUtils.isEmpty(offload.getBucket())) {
+            if (StringUtils.isEmpty(offload.getManagedLedgerOffloadDriver())) {
+                log.warn("[{}] Failed to update offload configuration for namespace {}: driver must be specified",
+                        clientAppId(), namespaceName);
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "The driver must be specified for namespace offload.");
+            }
+            if (StringUtils.isEmpty(offload.getS3ManagedLedgerOffloadBucket())
+                    && StringUtils.isEmpty(offload.getGcsManagedLedgerOffloadBucket())) {
                 log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
                         clientAppId(), namespaceName);
                 throw new RestException(Status.PRECONDITION_FAILED,

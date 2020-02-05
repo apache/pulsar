@@ -35,7 +35,6 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1658,9 +1657,9 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Set the offload configuration for all the topics on a namespace.
+     * Set the offload configuration for all the topics in a namespace.
      * <p/>
-     * Set the offload configuration on a namespace. This operation requires Pulsar super-user access.
+     * Set the offload configuration in a namespace. This operation requires Pulsar super-user access.
      * <p/>
      * Request parameter example:
      * <p/>

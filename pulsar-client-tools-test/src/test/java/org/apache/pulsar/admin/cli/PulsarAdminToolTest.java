@@ -489,10 +489,10 @@ public class PulsarAdminToolTest {
         namespaces.run(split("clear-offload-deletion-lag myprop/clust/ns1"));
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
-        namespaces.run(split("set-offload myprop/clust/ns1 -r test-region -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M"));
+        namespaces.run(split("set-offload myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M"));
         verify(mockNamespaces).setOffload("myprop/clust/ns1",
-                new OffloadPolicies("test-region", "test-bucket", "http://test.endpoint",
-                        32 * 1024 * 1024, 5 * 1024 * 1024));
+                OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
+                        "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024));
 
         namespaces.run(split("get-offload myprop/clust/ns1"));
         verify(mockNamespaces).getOffload("myprop/clust/ns1");

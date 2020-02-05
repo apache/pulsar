@@ -72,8 +72,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         when(offloader.getOffloadDriverName()).thenReturn("mock");
 
-        doReturn(offloader).when(pulsar).getManagedLedgerOffloaderByPolicies(any());
-        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any());
+        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any(), any());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         doReturn(promise).when(offloader).offload(any(), any(), any());
@@ -144,11 +143,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testOffloadPolicies() throws Exception {
         String namespaceName = "prop-xyz/ns1";
-        String endpoint = "test-endpoint";
+        String driver = "aws-s3";
         String region = "test-region";
         String bucket = "test-bucket";
+        String endpoint = "test-endpoint";
 
-        OffloadPolicies offload1 = new OffloadPolicies(endpoint, region, bucket);
+        OffloadPolicies offload1 = OffloadPolicies.create(
+                driver, region, bucket, endpoint, 100, 100);
         admin.namespaces().setOffload(namespaceName, offload1);
         OffloadPolicies offload2 = admin.namespaces().getOffload(namespaceName);
         Assert.assertEquals(offload1, offload2);

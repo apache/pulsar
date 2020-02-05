@@ -44,7 +44,6 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1297,6 +1296,13 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(
+                names = {"--driver", "-d"},
+                description = "Driver to use to offload old data to long term storage, " +
+                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                required = true)
+        private String driver;
+
+        @Parameter(
                 names = {"--region", "-r"},
                 description = "The long term storage region, " +
                         "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
@@ -1330,6 +1336,10 @@ public class CmdNamespaces extends CmdBase {
 
         private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
+        public boolean driverSupported(String driver) {
+            return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
         public boolean isS3Driver(String driver) {
             if (StringUtils.isEmpty(driver)) {
                 return false;
@@ -1337,45 +1347,57 @@ public class CmdNamespaces extends CmdBase {
             return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
         }
 
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " is not be negative or 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
+            }
+            return true;
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
 
-            String offloadDriver = admin.brokers().getRuntimeConfigurations().get("managedLedgerOffloadDriver");
-            if (isS3Driver(offloadDriver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+            if (!driverSupported(driver)) {
+                throw new ParameterException(
+                        "No offloader found for driver '" + driver + "'." + " Please make sure " +
+                                "you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
+            }
+
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
                 throw new ParameterException(
                         "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
                                 + " if s3 offload enabled");
             }
 
-            long maxBlockSize = 0;
+            int maxBlockSizeInBytes = OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
             if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
-                maxBlockSize = validateSizeString(maxBlockSizeStr);
-            }
-            long readBufferSize = 0;
-            if (StringUtils.isNotEmpty(readBufferSizeStr)) {
-                readBufferSize = validateSizeString(readBufferSizeStr);
-            }
-
-            final int maxBlockSizeInBytes;
-            if (maxBlockSize > 0 && maxBlockSize <= Integer.MAX_VALUE) {
-                maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
-            } else {
-                maxBlockSizeInBytes = OffloadPolicies.MAX_BLOCK_SIZE_IN_BYTES;
+                long maxBlockSize = validateSizeString(maxBlockSizeStr);
+                if (positiveCheck("MaxBlockSize", maxBlockSize)
+                        && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
+                    maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+                }
             }
 
-            final int readBufferSizeInBytes;
-            if (readBufferSize > 0 && readBufferSize <= Integer.MAX_VALUE) {
-                readBufferSizeInBytes = new Long(readBufferSize).intValue();
-            } else {
-                readBufferSizeInBytes = OffloadPolicies.READ_BUFFER_SIZE_IN_BYTES;
+            int readBufferSizeInBytes = OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(readBufferSizeStr) ) {
+                long readBufferSize = validateSizeString(readBufferSizeStr);
+                if (positiveCheck("ReadBufferSize", readBufferSize)
+                        && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
+                    readBufferSizeInBytes = new Long(readBufferSize).intValue();
+                }
             }
 
-            admin.namespaces().setOffload(namespace, new OffloadPolicies(
-                    region == null ? "" : region,
-                    bucket,
-                    endpoint == null ? "" : endpoint,
-                    maxBlockSizeInBytes, readBufferSizeInBytes));
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    maxBlockSizeInBytes, readBufferSizeInBytes);
+            admin.namespaces().setOffload(namespace, offloadPolicies);
         }
     }
 
