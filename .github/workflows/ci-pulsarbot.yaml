@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: Phrase Trigger
+name: Pulsar Bot
 on:
   issue_comment:
     types: [created]
@@ -32,6 +32,6 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v1
-      - name: Trigger actions
-        id:   phrase-trigger
-        uses: sijie/pulsar-github-actions/trigger-phrase@master
+      - name: Execute pulsarbot command
+        id:   pulsarbot
+        uses: apache/pulsar-test-infra/pulsarbot@master
