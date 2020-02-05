@@ -12,7 +12,7 @@ sidebar_label: Overview
 
 
 ## Goals
-With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/)). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:
+With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://heron.incubator.apache.org/), [Apache Flink](https://flink.apache.org/)). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:
 
 * Developer productivity (language-native vs Pulsar Functions SDK functions)
 * Easy troubleshooting
