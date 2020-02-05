@@ -1659,7 +1659,7 @@ public interface Namespaces {
     /**
      * Set the offload configuration for all the topics in a namespace.
      * <p/>
-     * Set the offload configuration in a namespace. This operation requires Pulsar super-user access.
+     * Set the offload configuration in a namespace. This operation requires pulsar tenant access.
      * <p/>
      * Request parameter example:
      * <p/>
@@ -1690,7 +1690,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setOffload(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+    void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
 
     /**
      * Get the offload configuration for a namespace.
@@ -1723,6 +1723,6 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    OffloadPolicies getOffload(String namespace) throws PulsarAdminException;
+    OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException;
 
 }

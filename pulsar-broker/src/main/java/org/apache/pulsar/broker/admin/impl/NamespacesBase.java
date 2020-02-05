@@ -2189,29 +2189,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffload(OffloadPolicies offload) {
+    protected void internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
+        validateOffloadPolicies(offloadPolicies);
 
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (StringUtils.isEmpty(offload.getManagedLedgerOffloadDriver())) {
-                log.warn("[{}] Failed to update offload configuration for namespace {}: driver must be specified",
-                        clientAppId(), namespaceName);
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "The driver must be specified for namespace offload.");
-            }
-            if (StringUtils.isEmpty(offload.getS3ManagedLedgerOffloadBucket())
-                    && StringUtils.isEmpty(offload.getGcsManagedLedgerOffloadBucket())) {
-                log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
-                        clientAppId(), namespaceName);
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "The bucket must be specified for namespace offload.");
-            }
-            policies.offload_policies = offload;
+            policies.offload_policies = offloadPolicies;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
@@ -2233,7 +2221,29 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected OffloadPolicies internalGetOffload() {
+    private void validateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        if (offloadPolicies == null) {
+            log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The offloadPolicies must be specified for namespace offload.");
+        }
+        if (!offloadPolicies.driverSupported()) {
+            log.warn("[{}] Failed to update offload configuration for namespace {}: " +
+                            "driver is not supported, support value: {}",
+                    clientAppId(), namespaceName, OffloadPolicies.getSupportedDriverNames());
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
+        }
+        if (!offloadPolicies.bucketValid()) {
+            log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "The bucket must be specified for namespace offload.");
+        }
+    }
+
+    protected OffloadPolicies internalGetOffloadPolicies() {
         validateAdminAccessForTenant(namespaceName.getTenant());
 
         Policies policies = getNamespacePolicies(namespaceName);

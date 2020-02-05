@@ -1078,29 +1078,29 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/offload")
+    @Path("/{tenant}/{namespace}/offloadPolicies")
     @ApiOperation(value = " Set offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Bucket must be specified") })
-    public void setOffload(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                            OffloadPolicies offload) {
         validateNamespaceName(tenant, namespace);
-        internalSetOffload(offload);
+        internalSetOffloadPolicies(offload);
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/offload")
+    @Path("/{tenant}/{namespace}/offloadPolicies")
     @ApiOperation(value = "Get offload configuration on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public OffloadPolicies getOffload(@PathParam("tenant") String tenant,
+    public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetOffload();
+        return internalGetOffloadPolicies();
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Properties;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
@@ -101,6 +102,49 @@ public class OffloadPolicies {
             }
         });
         return data;
+    }
+
+    public boolean driverSupported() {
+        return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(this.managedLedgerOffloadDriver));
+    }
+
+    public static String getSupportedDriverNames() {
+        return StringUtils.join(DRIVER_NAMES, ",");
+    }
+
+    public boolean isS3Driver() {
+        if (managedLedgerOffloadDriver == null) {
+            return false;
+        }
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[0]) || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[1]);
+    }
+
+    public boolean isGcsDriver() {
+        if (managedLedgerOffloadDriver == null) {
+            return false;
+        }
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[2]);
+    }
+
+    public boolean isFileSystemDriver() {
+        if (managedLedgerOffloadDriver == null) {
+            return false;
+        }
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[3]);
+    }
+
+    public boolean bucketValid() {
+        if (managedLedgerOffloadDriver == null) {
+            return false;
+        }
+        if (isS3Driver()) {
+            return StringUtils.isNotEmpty(s3ManagedLedgerOffloadBucket);
+        } else if (isGcsDriver()) {
+            return StringUtils.isNotEmpty(gcsManagedLedgerOffloadBucket);
+        } else if (isFileSystemDriver()) {
+            return true;
+        }
+        return false;
     }
 
     @Override

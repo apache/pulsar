@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -1291,7 +1290,7 @@ public class CmdNamespaces extends CmdBase {
     }
 
     @Parameters(commandDescription = "Set the offload policies for a namespace")
-    private class SetOffload extends CliCommand {
+    private class SetOffloadPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
@@ -1397,19 +1396,19 @@ public class CmdNamespaces extends CmdBase {
 
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
                     maxBlockSizeInBytes, readBufferSizeInBytes);
-            admin.namespaces().setOffload(namespace, offloadPolicies);
+            admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }
 
     @Parameters(commandDescription = "Get the offload policies for a namespace")
-    private class GetOffload extends CliCommand {
+    private class GetOffloadPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(admin.namespaces().getOffload(namespace));
+            print(admin.namespaces().getOffloadPolicies(namespace));
         }
     }
 
@@ -1516,7 +1515,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
-        jcommander.addCommand("set-offload", new SetOffload());
-        jcommander.addCommand("get-offload", new GetOffload());
+        jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
+        jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
     }
 }

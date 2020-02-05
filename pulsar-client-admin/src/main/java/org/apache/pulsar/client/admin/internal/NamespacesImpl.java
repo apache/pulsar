@@ -1031,10 +1031,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setOffload(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "offload");
+            WebTarget path = namespacePath(ns, "offloadPolicies");
             request(path).post(Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -1042,10 +1042,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public OffloadPolicies getOffload(String namespace) throws PulsarAdminException {
+    public OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "offload");
+            WebTarget path = namespacePath(ns, "offloadPolicies");
             return request(path).get(OffloadPolicies.class);
         } catch (Exception e) {
             throw getApiException(e);

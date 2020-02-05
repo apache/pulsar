@@ -878,8 +878,8 @@ Subcommands
 * `clear-offload-deletion-lag`
 * `get-schema-autoupdate-strategy`
 * `set-schema-autoupdate-strategy`
-* `set-offload`
-* `get-offload`
+* `set-offload-policies`
+* `get-offload-policies`
 
 
 ### `list`
@@ -2246,20 +2246,20 @@ Options
 |`-t`, `--type`|The type of the schema (avro or json)||
 
 
-### `get-offload`
+### `get-offload-policies`
 Get the offload policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-offload tenant/namespace
+$ pulsar-admin namespaces get-offload-policies tenant/namespace
 ```
 
-### `set-offload`
+### `set-offload-policies`
 Set the offload policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-offload tenant/namespace
+$ pulsar-admin namespaces set-offload-policies tenant/namespace
 ```
 
 Options
