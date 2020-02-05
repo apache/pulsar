@@ -1426,6 +1426,9 @@ public abstract class ComponentImpl {
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic name is not provided");
+        }
     }
 
     private void throwStateStoreUnvailableResponse() {
