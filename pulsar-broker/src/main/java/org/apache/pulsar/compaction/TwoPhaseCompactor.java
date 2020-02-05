@@ -249,28 +249,38 @@ public class TwoPhaseCompactor extends Compactor {
                         }
                     }
 
-                    messageToAdd.ifPresent((toAdd) -> {
-                            try {
-                                outstanding.acquire();
-                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, toAdd)
+                    if (messageToAdd.isPresent()) {
+                        try {
+                            outstanding.acquire();
+                            CompletableFuture<Void> addFuture = addToCompactedLedger(lh, messageToAdd.get())
                                     .whenComplete((res, exception2) -> {
-                                            outstanding.release();
-                                            if (exception2 != null) {
-                                                promise.completeExceptionally(exception2);
-                                            }
-                                        });
-                                if (to.equals(id)) {
-                                    addFuture.whenComplete((res, exception2) -> {
-                                            if (exception2 == null) {
-                                                promise.complete(null);
-                                            }
-                                        });
-                                }
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                promise.completeExceptionally(ie);
+                                        outstanding.release();
+                                        if (exception2 != null) {
+                                            promise.completeExceptionally(exception2);
+                                        }
+                                    });
+                            if (to.equals(id)) {
+                                addFuture.whenComplete((res, exception2) -> {
+                                    if (exception2 == null) {
+                                        promise.complete(null);
+                                    }
+                                });
                             }
-                        });
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            promise.completeExceptionally(ie);
+                        }
+                    } else if (to.equals(id)) {
+                        try {
+                            // make sure all inflight writes have finished
+                            outstanding.acquire(MAX_OUTSTANDING);
+                            promise.complete(null);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            promise.completeExceptionally(e);
+                        }
+                        return;
+                    }
                     phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
                 }, scheduler);
     }
