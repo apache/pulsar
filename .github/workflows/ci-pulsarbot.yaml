@@ -34,4 +34,6 @@ jobs:
         uses: actions/checkout@v1
       - name: Execute pulsarbot command
         id:   pulsarbot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master
