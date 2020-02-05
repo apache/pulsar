@@ -72,8 +72,16 @@ public class TwoPhaseCompactor extends Compactor {
 
     @Override
     protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
-        return phaseOne(reader).thenCompose(
-                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+        return reader.hasMessageAvailableAsync()
+                .thenCompose(available -> {
+                    if (available) {
+                        return phaseOne(reader).thenCompose(
+                                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+                    } else {
+                        log.info("Skip compaction of the empty topic {}", reader.getTopic());
+                        return CompletableFuture.completedFuture(-1L);
+                    }
+                });
     }
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {

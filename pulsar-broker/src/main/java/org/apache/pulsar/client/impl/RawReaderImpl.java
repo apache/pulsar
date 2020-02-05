@@ -68,6 +68,11 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return consumer.hasMessageAvailableAsync();
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         return consumer.seekAsync(messageId);
     }
