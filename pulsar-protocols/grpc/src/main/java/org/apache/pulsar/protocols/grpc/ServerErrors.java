@@ -1,7 +1,9 @@
 package org.apache.pulsar.protocols.grpc;
 
-import com.google.rpc.ErrorDetailsProto;
+import io.grpc.Metadata;
 import org.apache.pulsar.protocols.grpc.api.ServerError;
+
+import static org.apache.pulsar.protocols.grpc.Constants.ERROR_CODE_METADATA_KEY;
 
 public class ServerErrors {
 
@@ -53,5 +55,15 @@ public class ServerErrors {
             default:
                 return ServerError.UnknownError;
         }
+    }
+
+    public static Metadata newErrorMetadata(ServerError error) {
+        Metadata metadata  = new Metadata();
+        metadata.put(ERROR_CODE_METADATA_KEY, String.valueOf(error.getNumber()));
+        return metadata;
+    }
+
+    public static Metadata newErrorMetadata(org.apache.pulsar.common.api.proto.PulsarApi.ServerError error) {
+        return newErrorMetadata(convert(error));
     }
 }

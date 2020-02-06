@@ -1,6 +1,7 @@
 package org.apache.pulsar.protocols.grpc;
 
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
@@ -10,10 +11,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.protocols.grpc.api.CommandProducer;
-import org.apache.pulsar.protocols.grpc.api.CommandSend;
-import org.apache.pulsar.protocols.grpc.api.PulsarGrpc;
-import org.apache.pulsar.protocols.grpc.api.SendResult;
+import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_CTX_KEY;
 import static org.apache.pulsar.protocols.grpc.Constants.REMOTE_ADDRESS_CTX_KEY;
+import static org.apache.pulsar.protocols.grpc.ServerErrors.newErrorMetadata;
 
 public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
@@ -66,12 +65,12 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, e);
             }
-
-            // TODO: add InvalidTopicName code in error metadata so that it's passed to the client
-            throw Status.INVALID_ARGUMENT
+            StatusRuntimeException statusException = Status.INVALID_ARGUMENT
                 .withDescription("Invalid topic name: " + e.getMessage())
                 .withCause(e)
-                .asRuntimeException();
+                .asRuntimeException(newErrorMetadata(ServerError.InvalidTopicName));
+            responseObserver.onError(statusException);
+            throw statusException;
         }
 
         Producer producer;
@@ -100,11 +99,11 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 // Do not print stack traces for expected exceptions
                 log.error("[{}] Failed to create topic {}", remoteAddress, topicName, e);
             }
-            // TODO: add BrokerServiceException code in error metadata so that it's passed to the client
+
             throw Status.FAILED_PRECONDITION
-                .withDescription(e.getMessage())
-                .withCause(e)
-                .asRuntimeException();
+                .withDescription(cause.getMessage())
+                .withCause(cause)
+                .asRuntimeException(newErrorMetadata(BrokerServiceException.getClientErrorCode(cause)));
         }
 
         return new StreamObserver<CommandSend>() {
@@ -123,6 +122,25 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 producer.close(true);
             }
         };
+    }
+
+    private static class NoOpStreamObserver<T> implements StreamObserver<T> {
+
+        @Override
+        public void onNext(T value) {
+            // NoOp
+        }
+
+
+        @Override
+        public void onError(Throwable t) {
+            // NoOp
+        }
+
+        @Override
+        public void onCompleted() {
+            // NoOp
+        }
     }
 
 }

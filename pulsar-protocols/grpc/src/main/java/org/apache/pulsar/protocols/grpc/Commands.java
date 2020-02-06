@@ -5,8 +5,14 @@ import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.protocols.grpc.api.*;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static com.google.protobuf.ByteString.copyFrom;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 
 public class Commands {
@@ -16,7 +22,7 @@ public class Commands {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
-        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        producerSuccessBuilder.setSchemaVersion(copyFrom(schemaVersion.bytes()));
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         return SendResult.newBuilder()
             .setProducerSuccess(producerSuccess)
@@ -49,7 +55,7 @@ public class Commands {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
         ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(checksumType, messageData, payload);
-        ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
+        ByteString headersAndPayload = copyFrom(headersAndPayloadByteBuf.nioBuffer());
         sendBuilder.setHeadersAndPayload(headersAndPayload);
 
         return sendBuilder.build();
@@ -71,7 +77,7 @@ public class Commands {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
         ByteBuf headersAndPayloadByteBuf = serializeMetadataAndPayload(checksumType, messageData, payload);
-        ByteString headersAndPayload = ByteString.copyFrom(headersAndPayloadByteBuf.nioBuffer());
+        ByteString headersAndPayload = copyFrom(headersAndPayloadByteBuf.nioBuffer());
         sendBuilder.setHeadersAndPayload(headersAndPayload);
 
         return sendBuilder.build();
@@ -102,4 +108,60 @@ public class Commands {
             .setSendReceipt(sendReceipt)
             .build();
     }
+
+    public static CommandProducer newProducer(String topic, String producerName,
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName) {
+        CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
+        producerBuilder.setTopic(topic);
+        producerBuilder.setEpoch(epoch);
+        if (producerName != null) {
+            producerBuilder.setProducerName(producerName);
+        }
+        producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
+        producerBuilder.setEncrypted(encrypted);
+
+        producerBuilder.putAllMetadata(metadata);
+
+        if (null != schemaInfo) {
+            producerBuilder.setSchema(getSchema(schemaInfo));
+        }
+
+        return producerBuilder.build();
+    }
+
+    public static CommandProducer newProducer(String topic, String producerName,
+                                      Map<String, String> metadata) {
+        return newProducer(topic, producerName, false, metadata);
+    }
+
+    public static CommandProducer newProducer(String topic, String producerName,
+                                      boolean encrypted, Map<String, String> metadata) {
+        return newProducer(topic, producerName, encrypted, metadata, null, 0, false);
+    }
+
+    private static Schema getSchema(SchemaInfo schemaInfo) {
+        Schema.Builder builder = Schema.newBuilder()
+            .setName(schemaInfo.getName())
+            .setSchemaData(copyFrom(schemaInfo.getSchema()))
+            .setType(getSchemaType(schemaInfo.getType()))
+            .addAllProperties(
+                schemaInfo.getProperties().entrySet().stream().map(entry ->
+                    KeyValue.newBuilder()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue())
+                        .build()
+                ).collect(Collectors.toList())
+            );
+        return builder.build();
+    }
+
+    private static Schema.Type getSchemaType(SchemaType type) {
+        if (type.getValue() < 0) {
+            return Schema.Type.None;
+        } else {
+            return Schema.Type.forNumber(type.getValue());
+        }
+    }
+
 }

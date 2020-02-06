@@ -1,10 +1,7 @@
 package org.apache.pulsar.protocols.grpc;
 
 import com.google.common.util.concurrent.MoreExecutors;
-import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
+import io.grpc.*;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.MetadataUtils;
@@ -29,10 +26,7 @@ import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
-import org.apache.pulsar.protocols.grpc.api.CommandProducer;
-import org.apache.pulsar.protocols.grpc.api.CommandSend;
-import org.apache.pulsar.protocols.grpc.api.PulsarGrpc;
-import org.apache.pulsar.protocols.grpc.api.SendResult;
+import org.apache.pulsar.protocols.grpc.api.*;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -52,10 +46,11 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
+import static org.apache.pulsar.protocols.grpc.Constants.ERROR_CODE_METADATA_KEY;
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_METADATA_KEY;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 @Test
 public class PulsarGrpcServiceTest {
@@ -160,21 +155,17 @@ public class PulsarGrpcServiceTest {
 
     @Test(timeOut = 30000)
     public void testSendCommand() throws Exception {
-        QueueStreamObserver<SendResult> observer = QueueStreamObserver.create();
-
         Metadata headers = new Metadata();
-        CommandProducer producerParams = CommandProducer.newBuilder()
-            .setTopic(successTopicName)
-            .setProducerName("prod-name")
-            .build();
+        CommandProducer producerParams = Commands.newProducer(successTopicName,"prod-name", Collections.emptyMap());
         headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
 
         PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
 
+        QueueStreamObserver<SendResult> observer = QueueStreamObserver.create();
         StreamObserver<CommandSend> request = producerStub.produce(observer);
-        SendResult producerSuccess = observer.take();
+        SendResult result = observer.take();
 
-        assertTrue(producerSuccess.hasProducerSuccess());
+        assertTrue(result.hasProducerSuccess());
 
         // test SEND success
         PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
@@ -189,6 +180,46 @@ public class PulsarGrpcServiceTest {
         request.onNext(clientCommand);
         SendResult sendReceipt = observer.take();
         assertTrue(sendReceipt.hasSendReceipt());
+
+        request.onCompleted();
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnProducer() throws Exception {
+        String invalidTopicName = "xx/ass/aa/aaa";
+
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(invalidTopicName, "prod-name", Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        CompletableFuture<Throwable> error = new CompletableFuture<>();
+
+        StreamObserver<SendResult> observer = new StreamObserver<SendResult>() {
+            @Override
+            public void onNext(SendResult value) {
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                error.complete(t);
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        };
+
+        StreamObserver<CommandSend> request = producerStub.produce(observer);
+        Throwable t = error.get();
+        assertTrue(t instanceof StatusRuntimeException);
+        assertEquals(((StatusRuntimeException) t).getStatus().getCode(), Status.INVALID_ARGUMENT.getCode());
+        Metadata metadata = ((StatusRuntimeException) t).getTrailers();
+        assertNotNull(metadata);
+        assertEquals(metadata.get(ERROR_CODE_METADATA_KEY), String.valueOf(ServerError.InvalidTopicName.getNumber()));
+
+        request.onCompleted();
     }
 
     private static class QueueStreamObserver<T> implements StreamObserver<T> {
@@ -219,8 +250,6 @@ public class PulsarGrpcServiceTest {
             return queue.take();
         }
     }
-
-
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
