@@ -661,50 +661,61 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-            for (int i = 0; i < partitionMetadata.partitions; i++) {
-                TopicName topicNamePartition = topicName.getPartition(i);
-                try {
-                    futures.add(pulsar().getAdminClient().topics().unloadAsync(topicNamePartition.toString()));
-                } catch (Exception e) {
-                    log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
-                    asyncResponse.resume(new RestException(e));
-                    return;
-                }
-            }
-
-            FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                if (exception != null) {
-                    Throwable t = exception.getCause();
-                    if (t instanceof NotFoundException) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, t.getMessage()));
+        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .whenComplete((metadata, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName);
+                        asyncResponse.resume(new RestException(ex));
                     } else {
-                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
-                        asyncResponse.resume(new RestException(exception));
+                        if (metadata.partitions > 0) {
+                            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                            for (int i = 0; i < metadata.partitions; i++) {
+                                TopicName topicNamePartition = topicName.getPartition(i);
+                                try {
+                                    futures.add(pulsar().getAdminClient().topics().unloadAsync(topicNamePartition.toString()));
+                                } catch (Exception e) {
+                                    log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
+                                    asyncResponse.resume(new RestException(e));
+                                    return;
+                                }
+                            }
+
+                            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                                if (exception != null) {
+                                    Throwable t = exception.getCause();
+                                    if (t instanceof NotFoundException) {
+                                        asyncResponse.resume(new RestException(Status.NOT_FOUND, t.getMessage()));
+                                    } else {
+                                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
+                                        asyncResponse.resume(new RestException(exception));
+                                    }
+                                    return null;
+                                }
+
+                                asyncResponse.resume(Response.noContent().build());
+                                return null;
+                            });
+                        } else {
+                            validateAdminAccessForTenant(topicName.getTenant());
+                            validateTopicOwnership(topicName, authoritative);
+
+                            Topic topic = getTopicReference(topicName);
+                            try {
+                                topic.close(false).get();
+                                asyncResponse.resume(Response.noContent().build());
+                                log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                            } catch (Exception e) {
+                                log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
+                                asyncResponse.resume(new RestException(e));
+                            }
+                        }
                     }
+                }).exceptionally(t -> {
+                    Throwable th = t.getCause();
+                    asyncResponse.resume(new RestException(th));
                     return null;
-                }
-
-                asyncResponse.resume(Response.noContent().build());
-                return null;
-            });
-        } else {
-            validateAdminAccessForTenant(topicName.getTenant());
-            validateTopicOwnership(topicName, authoritative);
-
-            Topic topic = getTopicReference(topicName);
-            try {
-                topic.close(false).get();
-                asyncResponse.resume(Response.noContent().build());
-                log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
-                asyncResponse.resume(new RestException(e));
-            }
-        }
+        });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force) {
