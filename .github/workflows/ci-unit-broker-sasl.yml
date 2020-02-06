@@ -59,3 +59,18 @@ jobs:
       - name: run unit tests pulsar auth sasl
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn test -DfailIfNoTests=false -pl pulsar-broker-auth-sasl
+
+      - name: package surefire artifacts
+        if: failure()
+        run: |
+          rm -rf artifacts
+          mkdir artifacts
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
+          zip -r artifacts.zip artifacts
+
+      - uses: actions/upload-artifact@master
+        name: upload surefire-artifacts
+        if: failure()
+        with:
+          name: surefire-artifacts
+          path: artifacts.zip
