@@ -169,7 +169,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private SimpleResourceAllocationPolicies policies;
 
     // Pulsar service used to initialize this.
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
 
     // Executor service used to regularly update broker data.
     private final ScheduledExecutorService scheduler;
@@ -634,7 +634,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 || !pulsar.getLeaderElectionService().isLeader()) {
             return;
         }
-        final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
             final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
@@ -646,9 +645,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                             .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                         continue;
                     }
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
-                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                            unloadSplitBundles);
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName,
+                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled());
+                    internalSplitNamespaceBundle(namespaceName, bundleRange);
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
@@ -663,6 +662,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         }
 
+    }
+
+    protected void internalSplitNamespaceBundle(String namespaceName, String bundleRange) throws PulsarServerException, PulsarAdminException {
+        pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
+            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), false);
     }
 
     /**

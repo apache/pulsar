@@ -110,7 +110,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, false);
 
         try {
             result.get();
@@ -190,7 +190,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, false);
         try {
             result.get();
         } catch (Exception e) {
@@ -383,7 +383,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, false);
 
         try {
             result.get();
@@ -448,7 +448,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
-        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false, false);
         try {
             result1.get();
         } catch (Exception e) {
@@ -467,7 +467,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         });
 
-        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true);
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true, false);
         try {
             result2.get();
         } catch (Exception e) {
@@ -483,7 +483,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2);
+        return utilityFactory.splitBundles(targetBundle, 2, null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);

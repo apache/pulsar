@@ -774,7 +774,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload) {
+    protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload, boolean balanceTopicCount) {
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
 
         validateSuperUserAccess();
@@ -793,7 +793,7 @@ public abstract class NamespacesBase extends AdminResource {
                 authoritative, true);
 
         try {
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload).get();
+            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload, balanceTopicCount).get();
             log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
         } catch (IllegalArgumentException e) {
             log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,

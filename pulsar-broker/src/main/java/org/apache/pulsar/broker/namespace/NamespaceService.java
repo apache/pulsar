@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -636,128 +637,152 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload)
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload, boolean balanceTopicCount)
         throws Exception {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
 
-        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture);
+        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, balanceTopicCount);
 
         return unloadFuture;
+    }
+
+    CompletableFuture<Long> getSplitKeyForBalanceTopicCountAsync(NamespaceBundle bundle, boolean balanceTopicCount) {
+        if (!balanceTopicCount) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
+                List<Long> topicNameHashList = new ArrayList<>(topics.size());
+                for (String topic : topics) {
+                    topicNameHashList.add(bundle.getNamespaceBundleFactory().getLongHashCode(topic));
+                }
+                Collections.sort(topicNameHashList);
+                long splitStart = topicNameHashList.get(Math.max((topicNameHashList.size() / 2) - 1, 0));
+                long splitEnd = topicNameHashList.get(topicNameHashList.size() / 2);
+                long splitMiddle = splitStart + (splitEnd - splitStart) / 2;
+                return CompletableFuture.completedFuture(splitMiddle);
+            });
+        }
     }
 
     void splitAndOwnBundleOnceAndRetry(NamespaceBundle bundle,
                                        boolean unload,
                                        AtomicInteger counter,
-                                       CompletableFuture<Void> unloadFuture) {
-        CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
+                                       CompletableFuture<Void> unloadFuture,
+                                       boolean balanceTopicCount) {
+        getSplitKeyForBalanceTopicCountAsync(bundle, balanceTopicCount).whenComplete((splitKey, ex) -> {
+            CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
+            if (ex == null) {
+                final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
+                    2 /* by default split into 2 */, splitKey);
 
-        final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
-            2 /* by default split into 2 */);
-
-        // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
-        if (splittedBundles != null) {
-            checkNotNull(splittedBundles.getLeft());
-            checkNotNull(splittedBundles.getRight());
-            checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
-            NamespaceName nsname = bundle.getNamespaceObject();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
-                    nsname.toString(), bundle.getBundleRange(), counter.get(),
-                    splittedBundles != null ? splittedBundles.getRight().get(0).getBundleRange() : "null splittedBundles",
-                    splittedBundles != null ? splittedBundles.getRight().get(1).getBundleRange() : "null splittedBundles");
-            }
-            try {
-                // take ownership of newly split bundles
-                for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                    checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
-                }
-                updateNamespaceBundles(nsname, splittedBundles.getLeft(),
-                    (rc, path, zkCtx, stat) ->  {
-                        if (rc == Code.OK.intValue()) {
-                            // invalidate cache as zookeeper has new split
-                            // namespace bundle
-                            bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
-
-                            updateFuture.complete(splittedBundles.getRight());
-                        } else if (rc == Code.BADVERSION.intValue()) {
-                            KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
-                            String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
-                                    "due to %s, counter: %d",
-                                nsname.toString(), bundle.getBundleRange(),
-                                keeperException.getMessage(), counter.get());
-                            LOG.warn(msg);
-                            updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
-                        } else {
-                            String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
-                                nsname.toString(), bundle.getBundleRange(),
-                                KeeperException.create(KeeperException.Code.get(rc)).getMessage());
-                            LOG.warn(msg);
-                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
+                if (splittedBundles != null) {
+                    checkNotNull(splittedBundles.getLeft());
+                    checkNotNull(splittedBundles.getRight());
+                    checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
+                    NamespaceName nsname = bundle.getNamespaceObject();
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                            nsname.toString(), bundle.getBundleRange(), counter.get(),
+                            splittedBundles != null ? splittedBundles.getRight().get(0).getBundleRange() : "null splittedBundles",
+                            splittedBundles != null ? splittedBundles.getRight().get(1).getBundleRange() : "null splittedBundles");
+                    }
+                    try {
+                        // take ownership of newly split bundles
+                        for (NamespaceBundle sBundle : splittedBundles.getRight()) {
+                            checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
                         }
-                    });
-            } catch (Exception e) {
-                String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
-                    nsname.toString(), e.getMessage());
-                LOG.warn(msg, e);
-                updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-            }
-        } else {
-            String msg = format("bundle %s not found under namespace", bundle.toString());
-            LOG.warn(msg);
-            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-        }
+                        updateNamespaceBundles(nsname, splittedBundles.getLeft(),
+                            (rc, path, zkCtx, stat) ->  {
+                                if (rc == Code.OK.intValue()) {
+                                    // invalidate cache as zookeeper has new split
+                                    // namespace bundle
+                                    bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
 
-        // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
-        // Else retry splitAndOwnBundleOnceAndRetry.
-        updateFuture.whenCompleteAsync((r, t)-> {
-            if (t != null) {
-                // retry several times on BadVersion
-                if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
-                    pulsar.getOrderedExecutor()
-                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
+                                    updateFuture.complete(splittedBundles.getRight());
+                                } else if (rc == Code.BADVERSION.intValue()) {
+                                    KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
+                                    String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
+                                            "due to %s, counter: %d",
+                                        nsname.toString(), bundle.getBundleRange(),
+                                        keeperException.getMessage(), counter.get());
+                                    LOG.warn(msg);
+                                    updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
+                                } else {
+                                    String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
+                                        nsname.toString(), bundle.getBundleRange(),
+                                        KeeperException.create(KeeperException.Code.get(rc)).getMessage());
+                                    LOG.warn(msg);
+                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                                }
+                            });
+                    } catch (Exception e) {
+                        String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
+                            nsname.toString(), e.getMessage());
+                        LOG.warn(msg, e);
+                        updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                    }
                 } else {
-                    // Retry enough, or meet other exception
-                    String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
-                        bundle.toString(), counter.get(), t.getMessage());
-                    LOG.warn(msg2);
-                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                    String msg = format("bundle %s not found under namespace", bundle.toString());
+                    LOG.warn(msg);
+                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                }
+            } else {
+                updateFuture.completeExceptionally(ex);
+            }
+
+            // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
+            // Else retry splitAndOwnBundleOnceAndRetry.
+            updateFuture.whenCompleteAsync((r, t)-> {
+                if (t != null) {
+                    // retry several times on BadVersion
+                    if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
+                        pulsar.getOrderedExecutor()
+                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, balanceTopicCount));
+                    } else {
+                        // Retry enough, or meet other exception
+                        String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
+                            bundle.toString(), counter.get(), t.getMessage());
+                        LOG.warn(msg2);
+                        unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                    }
+                    return;
+                }
+
+                // success updateNamespaceBundles
+                try {
+                    // disable old bundle in memory
+                    getOwnershipCache().updateBundleState(bundle, false);
+
+                    // update bundled_topic cache for load-report-generation
+                    pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
+                    loadManager.get().setLoadReportForceUpdateFlag();
+
+                    if (unload) {
+                        // unload new split bundles
+                        r.forEach(splitBundle -> {
+                            try {
+                                unloadNamespaceBundle(splitBundle);
+                            } catch (Exception e) {
+                                LOG.warn("Failed to unload split bundle {}", splitBundle, e);
+                                throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+                            }
+                        });
+                    }
+
+                    unloadFuture.complete(null);
+                } catch (Exception e) {
+                    String msg1 = format(
+                        "failed to disable bundle %s under namespace [%s] with error %s",
+                        bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
+                    LOG.warn(msg1, e);
+                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                 }
                 return;
-            }
-
-            // success updateNamespaceBundles
-            try {
-                // disable old bundle in memory
-                getOwnershipCache().updateBundleState(bundle, false);
-
-                // update bundled_topic cache for load-report-generation
-                pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                loadManager.get().setLoadReportForceUpdateFlag();
-
-                if (unload) {
-                    // unload new split bundles
-                    r.forEach(splitBundle -> {
-                        try {
-                            unloadNamespaceBundle(splitBundle);
-                        } catch (Exception e) {
-                            LOG.warn("Failed to unload split bundle {}", splitBundle, e);
-                            throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
-                        }
-                    });
-                }
-
-                unloadFuture.complete(null);
-            } catch (Exception e) {
-                String msg1 = format(
-                    "failed to disable bundle %s under namespace [%s] with error %s",
-                    bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
-                LOG.warn(msg1, e);
-                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
-            }
-            return;
-        }, pulsar.getOrderedExecutor());
+            }, pulsar.getOrderedExecutor());
+        });
     }
 
     /**

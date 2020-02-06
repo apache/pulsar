@@ -513,10 +513,14 @@ public class CmdNamespaces extends CmdBase {
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
 
+        @Parameter(names = { "--balance-topic-count",
+                "-btc" }, description = "Balance topic count for split bundles", required = false)
+        private boolean balanceTopicCount;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload);
+            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload, balanceTopicCount);
         }
     }
 

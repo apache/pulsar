@@ -446,7 +446,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload) {
         validateNamespaceName(property, cluster, namespace);
-        internalSplitNamespaceBundle(bundleRange, authoritative, unload);
+        internalSplitNamespaceBundle(bundleRange, authoritative, unload, false);
     }
 
     @POST
