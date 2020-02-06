@@ -5,21 +5,20 @@ import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.protocols.grpc.PulsarApi.*;
+import org.apache.pulsar.protocols.grpc.api.*;
 
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 
 public class Commands {
 
-    public static BaseCommand newProducerSuccess(String producerName, long lastSequenceId,
-                                                           SchemaVersion schemaVersion) {
+    public static SendResult newProducerSuccess(String producerName, long lastSequenceId,
+                                                SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
-        return BaseCommand.newBuilder()
-            .setType(BaseCommand.Type.PRODUCER_SUCCESS)
+        return SendResult.newBuilder()
             .setProducerSuccess(producerSuccess)
             .build();
     }
@@ -78,19 +77,18 @@ public class Commands {
         return sendBuilder.build();
     }
 
-    public static BaseCommand newSendError(long sequenceId, ServerError error, String errorMsg) {
+    public static SendResult newSendError(long sequenceId, ServerError error, String errorMsg) {
         CommandSendError.Builder sendErrorBuilder = CommandSendError.newBuilder();
         sendErrorBuilder.setSequenceId(sequenceId);
         sendErrorBuilder.setError(error);
         sendErrorBuilder.setMessage(errorMsg);
         CommandSendError sendError = sendErrorBuilder.build();
-        return BaseCommand.newBuilder()
-            .setType(BaseCommand.Type.SEND_ERROR)
+        return SendResult.newBuilder()
             .setSendError(sendError)
             .build();
     }
 
-    public static BaseCommand newSendReceipt(long sequenceId, long highestId, long ledgerId, long entryId) {
+    public static SendResult newSendReceipt(long sequenceId, long highestId, long ledgerId, long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setSequenceId(sequenceId);
         sendReceiptBuilder.setHighestSequenceId(highestId);
@@ -100,8 +98,7 @@ public class Commands {
         MessageIdData messageId = messageIdBuilder.build();
         sendReceiptBuilder.setMessageId(messageId);
         CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
-        return BaseCommand.newBuilder()
-            .setType(BaseCommand.Type.SEND_RECEIPT)
+        return SendResult.newBuilder()
             .setSendReceipt(sendReceipt)
             .build();
     }

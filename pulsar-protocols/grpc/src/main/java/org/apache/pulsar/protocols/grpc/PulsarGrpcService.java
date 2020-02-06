@@ -10,20 +10,21 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.protocols.grpc.api.CommandProducer;
+import org.apache.pulsar.protocols.grpc.api.CommandSend;
+import org.apache.pulsar.protocols.grpc.api.PulsarGrpc;
+import org.apache.pulsar.protocols.grpc.api.SendResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_CTX_KEY;
 import static org.apache.pulsar.protocols.grpc.Constants.REMOTE_ADDRESS_CTX_KEY;
 
-public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceImplBase {
+public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarGrpcService.class);
 
@@ -36,8 +37,8 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
     }
 
     @Override
-    public StreamObserver<PulsarApi.BaseCommand> produce(StreamObserver<PulsarApi.BaseCommand> responseObserver) {
-        PulsarApi.CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
+    public StreamObserver<CommandSend> produce(StreamObserver<SendResult> responseObserver) {
+        CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
         final String topic = cmdProducer.getTopic();
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
@@ -45,7 +46,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         final long epoch = cmdProducer.getEpoch();
         final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
-        final Map<String, String> metadata = metadataFromCommand(cmdProducer);
+        final Map<String, String> metadata = cmdProducer.getMetadataMap();
 
         // TODO: handle schema
         //final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
@@ -53,7 +54,7 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         log.info("################# init 2" + Thread.currentThread().getName());
 
-        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, (ServerCallStreamObserver<PulsarApi.BaseCommand>) responseObserver);
+        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, (ServerCallStreamObserver<SendResult>) responseObserver);
 
         // TODO: handle auth
         String authRole = "admin";
@@ -106,15 +107,10 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
                 .asRuntimeException();
         }
 
-        return new StreamObserver<PulsarApi.BaseCommand>() {
+        return new StreamObserver<CommandSend>() {
             @Override
-            public void onNext(PulsarApi.BaseCommand cmd) {
-
-                switch (cmd.getType()) {
-                    case SEND:
-                        producer.execute(() -> cnx.handleSend(cmd, producer));
-                        break;
-                }
+            public void onNext(CommandSend cmd) {
+                producer.execute(() -> cnx.handleSend(cmd, producer));
             }
 
             @Override
@@ -128,16 +124,5 @@ public class PulsarGrpcService extends PulsarGrpcServiceGrpc.PulsarGrpcServiceIm
             }
         };
     }
-
-    private Map<String, String> metadataFromCommand(PulsarApi.CommandProducer cmdProducer) {
-        List<PulsarApi.KeyValue> keyValues = cmdProducer.getMetadataList();
-        if (keyValues == null || keyValues.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        return keyValues.stream()
-            .collect(Collectors.toMap(PulsarApi.KeyValue::getKey, PulsarApi.KeyValue::getValue));
-    }
-
 
 }

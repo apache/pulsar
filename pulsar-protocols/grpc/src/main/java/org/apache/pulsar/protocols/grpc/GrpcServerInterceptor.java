@@ -2,6 +2,7 @@ package org.apache.pulsar.protocols.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.*;
+import org.apache.pulsar.protocols.grpc.api.CommandProducer;
 
 import java.net.SocketAddress;
 
@@ -16,7 +17,7 @@ public class GrpcServerInterceptor implements ServerInterceptor {
 
         if (metadata.containsKey(PRODUCER_PARAMS_METADATA_KEY)) {
             try {
-                PulsarApi.CommandProducer params = PulsarApi.CommandProducer.parseFrom(metadata.get(PRODUCER_PARAMS_METADATA_KEY));
+                CommandProducer params = CommandProducer.parseFrom(metadata.get(PRODUCER_PARAMS_METADATA_KEY));
                 checkArgument(!params.getTopic().isEmpty(), "Empty topic name");
                 ctx = ctx.withValue(PRODUCER_PARAMS_CTX_KEY, params);
             } catch (InvalidProtocolBufferException | IllegalArgumentException e) {

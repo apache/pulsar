@@ -1,54 +1,57 @@
 package org.apache.pulsar.protocols.grpc;
 
+import com.google.rpc.ErrorDetailsProto;
+import org.apache.pulsar.protocols.grpc.api.ServerError;
+
 public class ServerErrors {
 
-    public static PulsarApi.ServerError convert(org.apache.pulsar.common.api.proto.PulsarApi.ServerError serverError) {
+    public static ServerError convert(org.apache.pulsar.common.api.proto.PulsarApi.ServerError serverError) {
         switch(serverError) {
             case MetadataError:
-                return PulsarApi.ServerError.MetadataError;
+                return ServerError.MetadataError;
             case PersistenceError:
-                return PulsarApi.ServerError.PersistenceError;
+                return ServerError.PersistenceError;
             case AuthenticationError:
-                return PulsarApi.ServerError.AuthenticationError;
+                return ServerError.AuthenticationError;
             case AuthorizationError:
-                return PulsarApi.ServerError.AuthorizationError;
+                return ServerError.AuthorizationError;
             case ConsumerBusy:
-                return PulsarApi.ServerError.ConsumerBusy;
+                return ServerError.ConsumerBusy;
             case ServiceNotReady:
-                return PulsarApi.ServerError.ServiceNotReady;
+                return ServerError.ServiceNotReady;
             case ProducerBlockedQuotaExceededError:
-                return PulsarApi.ServerError.ProducerBlockedQuotaExceededError;
+                return ServerError.ProducerBlockedQuotaExceededError;
             case ProducerBlockedQuotaExceededException:
-                return PulsarApi.ServerError.ProducerBlockedQuotaExceededException;
+                return ServerError.ProducerBlockedQuotaExceededException;
             case ChecksumError:
-                return PulsarApi.ServerError.ChecksumError;
+                return ServerError.ChecksumError;
             case UnsupportedVersionError:
-                return PulsarApi.ServerError.UnsupportedVersionError;
+                return ServerError.UnsupportedVersionError;
             case TopicNotFound:
-                return PulsarApi.ServerError.TopicNotFound;
+                return ServerError.TopicNotFound;
             case SubscriptionNotFound:
-                return PulsarApi.ServerError.SubscriptionNotFound;
+                return ServerError.SubscriptionNotFound;
             case ConsumerNotFound:
-                return PulsarApi.ServerError.ConsumerNotFound;
+                return ServerError.ConsumerNotFound;
             case TooManyRequests:
-                return PulsarApi.ServerError.TooManyRequests;
+                return ServerError.TooManyRequests;
             case TopicTerminatedError:
-                return PulsarApi.ServerError.TopicTerminatedError;
+                return ServerError.TopicTerminatedError;
             case ProducerBusy:
-                return PulsarApi.ServerError.ProducerBusy;
+                return ServerError.ProducerBusy;
             case InvalidTopicName:
-                return PulsarApi.ServerError.InvalidTopicName;
+                return ServerError.InvalidTopicName;
             case IncompatibleSchema:
-                return PulsarApi.ServerError.IncompatibleSchema;
+                return ServerError.IncompatibleSchema;
             case ConsumerAssignError:
-                return PulsarApi.ServerError.ConsumerAssignError;
+                return ServerError.ConsumerAssignError;
             case TransactionCoordinatorNotFound:
-                return PulsarApi.ServerError.TransactionCoordinatorNotFound;
+                return ServerError.TransactionCoordinatorNotFound;
             case InvalidTxnStatus:
-                return PulsarApi.ServerError.InvalidTxnStatus;
+                return ServerError.InvalidTxnStatus;
             case UnknownError:
             default:
-                return PulsarApi.ServerError.UnknownError;
+                return ServerError.UnknownError;
         }
     }
 }

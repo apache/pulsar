@@ -9,7 +9,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
-import org.apache.pulsar.protocols.grpc.PulsarApi.*;
+import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,18 +74,17 @@ public class GrpcServer {
             .build();
         headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
 
-        PulsarGrpcServiceGrpc.PulsarGrpcServiceStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpcServiceGrpc.newStub(channel), headers);
+        PulsarGrpc.PulsarStub asyncStub = MetadataUtils.attachHeaders(PulsarGrpc.newStub(channel), headers);
 
-        AtomicReference<StreamObserver<BaseCommand>> requestRef = new AtomicReference<>();
+        AtomicReference<StreamObserver<CommandSend>> requestRef = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
 
-        StreamObserver<BaseCommand> responseObserver = new StreamObserver<BaseCommand>() {
+        StreamObserver<SendResult> responseObserver = new StreamObserver<SendResult>() {
             @Override
-            public void onNext(BaseCommand cmd) {
-                BaseCommand.Type type = cmd.getType();
-                switch(type) {
+            public void onNext(SendResult sendResult) {
+                switch(sendResult.getSendResultOneofCase()) {
                     case PRODUCER_SUCCESS:
-                        CommandProducerSuccess producerSuccess = cmd.getProducerSuccess();
+                        CommandProducerSuccess producerSuccess = sendResult.getProducerSuccess();
                         requestRef.get().onNext(getSendCommand(
                             producerSuccess.getProducerName(),
                             producerSuccess.getLastSequenceId() +1,
@@ -93,7 +92,7 @@ public class GrpcServer {
                         ));
                         break;
                     case SEND_RECEIPT:
-                        CommandSendReceipt sendReceipt = cmd.getSendReceipt();
+                        CommandSendReceipt sendReceipt = sendResult.getSendReceipt();
                         System.out.println(String.format("LedgerId: %s, EntryId: %s",
                             sendReceipt.getMessageId().getLedgerId(),
                             sendReceipt.getMessageId().getEntryId()
@@ -114,7 +113,7 @@ public class GrpcServer {
                 latch.countDown();
             }
         };
-        StreamObserver<BaseCommand> request = asyncStub.produce(responseObserver);
+        StreamObserver<CommandSend> request = asyncStub.produce(responseObserver);
         requestRef.set(request);
 
         try {
@@ -124,22 +123,16 @@ public class GrpcServer {
         }
     }
 
-    private static BaseCommand getSendCommand(String producerName, long sequenceId, String message) {
+    private static CommandSend getSendCommand(String producerName, long sequenceId, String message) {
         MessageMetadata metadata = MessageMetadata.newBuilder()
             .setProducerName(producerName)
             .setSequenceId(sequenceId)
             .setPublishTime(Instant.now().toEpochMilli())
             .build();
 
-
         byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
         ByteBuf payload = Unpooled.wrappedBuffer(bytes);
-        CommandSend send = Commands.newSend(sequenceId, 1, ChecksumType.Crc32c, metadata, payload);
-
-        return BaseCommand.newBuilder()
-            .setType(BaseCommand.Type.SEND)
-            .setSend(send)
-            .build();
+        return Commands.newSend(sequenceId, 1, ChecksumType.Crc32c, metadata, payload);
     }
 
 }

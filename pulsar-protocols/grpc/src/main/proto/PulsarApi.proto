@@ -18,9 +18,15 @@
  */
 syntax = "proto2";
 
-package pulsar.proto;
-option java_package = "org.apache.pulsar.protocols.grpc";
+package pulsar.protocols.grpc;
+option java_package = "org.apache.pulsar.protocols.grpc.api";
+option java_multiple_files = true;
 // option optimize_for = LITE_RUNTIME;
+
+service Pulsar {
+    rpc produce(stream CommandSend) returns (stream SendResult) {}
+    // rpc consume(stream pulsar.protocols.grpc.BaseCommand) returns (stream pulsar.protocols.grpc.BaseCommand) {}
+}
 
 message Schema {
     enum Type {
@@ -343,31 +349,28 @@ message CommandLookupTopicResponse {
 /// Create a new Producer on a topic, assigning the given producer_id,
 /// all messages sent with this producer_id will be persisted on the topic
 message CommandProducer {
-    required string topic         = 1;
-    // required uint64 producer_id   = 2;
-    // required uint64 request_id    = 3;
+    required string topic                     = 1;
 
     /// If a producer name is specified, the name will be used,
     /// otherwise the broker will generate a unique name
-    optional string producer_name = 4;
+    optional string producer_name             = 2;
 
-    optional bool encrypted       = 5 [default = false];
+    optional bool encrypted                   = 3 [default = false];
 
     /// Add optional metadata key=value to this producer
-    repeated KeyValue metadata    = 6;
+    map<string, string> metadata              = 4;
 
-    optional Schema schema = 7;
+    optional Schema schema                    = 5;
 
     // If producer reconnect to broker, the epoch of this producer will +1
-    optional uint64 epoch = 8 [default = 0];
+    optional uint64 epoch                     = 6 [default = 0];
 
     // Indicate the name of the producer is generated or user provided
     // Use default true here is in order to be forward compatible with the client
-    optional bool user_provided_producer_name = 9 [default = true];
+    optional bool user_provided_producer_name = 7 [default = true];
 }
 
 message CommandSend {
-    // required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     optional int32 num_messages = 3 [default = 1];
     optional uint64 txnid_least_bits = 4 [default = 0];
@@ -381,17 +384,24 @@ message CommandSend {
 }
 
 message CommandSendReceipt {
-    // required uint64 producer_id = 1;
-    required uint64 sequence_id = 2;
-    optional MessageIdData message_id = 3;
-    optional uint64 highest_sequence_id = 4 [default = 0];
+    required uint64 sequence_id         = 1;
+    optional MessageIdData message_id   = 2;
+    optional uint64 highest_sequence_id = 3 [default = 0];
 }
 
 message CommandSendError {
-    // required uint64 producer_id = 1;
-    required uint64 sequence_id = 2;
-    required ServerError error  = 3;
-    required string message     = 4;
+    required uint64 sequence_id = 1;
+    required ServerError error  = 2;
+    required string message     = 3;
+}
+
+message SendResult {
+    oneof send_result_oneof {
+        CommandProducerSuccess producer_success = 1;
+        CommandSendReceipt send_receipt         = 2;
+        CommandSendError send_error             = 3;
+    }
+
 }
 
 message CommandMessage {
@@ -493,7 +503,6 @@ message CommandSuccess {
     optional Schema schema = 2;
 }
 
-/// Response from CommandProducer
 message CommandProducerSuccess {
     // required uint64 request_id    = 1;
     required string producer_name = 2;

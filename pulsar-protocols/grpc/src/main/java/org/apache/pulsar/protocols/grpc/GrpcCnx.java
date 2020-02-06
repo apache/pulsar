@@ -9,6 +9,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.protocols.grpc.api.CommandSend;
+import org.apache.pulsar.protocols.grpc.api.SendResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +23,7 @@ public class GrpcCnx implements ServerCnx {
 
     private final BrokerService service;
     private final SocketAddress remoteAddress;
-    private final ServerCallStreamObserver<PulsarApi.BaseCommand> responseObserver;
+    private final ServerCallStreamObserver<SendResult> responseObserver;
 
     // Max number of pending requests per produce RPC
     private static final int MaxPendingSendRequests = 1000;
@@ -33,7 +35,7 @@ public class GrpcCnx implements ServerCnx {
     private volatile boolean autoReadDisabledRateLimiting = false;
     private final AutoReadAwareOnReadyHandler onReadyHandler = new AutoReadAwareOnReadyHandler();
 
-    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, ServerCallStreamObserver<PulsarApi.BaseCommand> responseObserver) {
+    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, ServerCallStreamObserver<SendResult> responseObserver) {
         this.service = service;
         this.remoteAddress = remoteAddress;
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
@@ -105,12 +107,11 @@ public class GrpcCnx implements ServerCnx {
     public void disableCnxAutoRead() {
     }
 
-    public StreamObserver<PulsarApi.BaseCommand> getResponseObserver() {
+    public StreamObserver<SendResult> getResponseObserver() {
         return responseObserver;
     }
 
-    public void handleSend(PulsarApi.BaseCommand cmd, Producer producer) {
-        PulsarApi.CommandSend send = cmd.getSend();
+    public void handleSend(CommandSend send, Producer producer) {
         ByteBuffer buffer = send.getHeadersAndPayload().asReadOnlyByteBuffer();
         ByteBuf headersAndPayload = Unpooled.wrappedBuffer(buffer);
 
