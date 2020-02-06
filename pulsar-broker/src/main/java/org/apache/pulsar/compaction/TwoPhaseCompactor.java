@@ -241,11 +241,6 @@ public class TwoPhaseCompactor extends Compactor {
                             messageToAdd = Optional.of(m);
                         } else {
                             m.close();
-                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
-                            // present under latestForKey. Complete the compaction.
-                            if (to.equals(id)) {
-                                promise.complete(null);
-                            }
                         }
                     }
 
@@ -271,6 +266,8 @@ public class TwoPhaseCompactor extends Compactor {
                             promise.completeExceptionally(ie);
                         }
                     } else if (to.equals(id)) {
+                        // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
+                        // present under latestForKey. Complete the compaction.
                         try {
                             // make sure all inflight writes have finished
                             outstanding.acquire(MAX_OUTSTANDING);
