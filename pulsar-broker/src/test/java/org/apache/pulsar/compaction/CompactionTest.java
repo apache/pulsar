@@ -1298,7 +1298,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("2").value("".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        Long r = compactor.compact(topic).get();
+        compactor.compact(topic).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
