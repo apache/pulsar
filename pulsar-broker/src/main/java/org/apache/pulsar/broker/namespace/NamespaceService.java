@@ -653,6 +653,9 @@ public class NamespaceService {
             return CompletableFuture.completedFuture(null);
         } else {
             return getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
+                if (topics == null || topics.size() <= 1) {
+                    return CompletableFuture.completedFuture(null);
+                }
                 List<Long> topicNameHashList = new ArrayList<>(topics.size());
                 for (String topic : topics) {
                     topicNameHashList.add(bundle.getNamespaceBundleFactory().getLongHashCode(topic));
