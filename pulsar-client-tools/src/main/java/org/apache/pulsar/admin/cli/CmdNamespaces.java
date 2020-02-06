@@ -1366,8 +1366,8 @@ public class CmdNamespaces extends CmdBase {
 
             if (!driverSupported(driver)) {
                 throw new ParameterException(
-                        "No offloader found for driver '" + driver + "'." + " Please make sure " +
-                                "you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
+                        "The driver " + driver + " is not supported, " +
+                                "(Possible values: S3, aws-s3, google-cloud-storage).");
             }
 
             if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {

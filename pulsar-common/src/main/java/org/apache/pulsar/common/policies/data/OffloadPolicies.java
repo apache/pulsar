@@ -116,7 +116,8 @@ public class OffloadPolicies {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[0]) || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[0])
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES[1]);
     }
 
     public boolean isGcsDriver() {
