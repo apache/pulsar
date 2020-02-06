@@ -56,6 +56,18 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B install -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -Pdocker -DskipTests
 
+      - name: clean docker container
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker system prune -f
+
+      - name: remove docker node image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
+
+      - name: remove docker builder and microsoft image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
+
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DredirectTestOutputToFile=false
