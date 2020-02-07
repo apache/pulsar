@@ -87,6 +87,12 @@
             <artifactId>presto-spi</artifactId>
             <version>${presto.version}</version>
             <scope>provided</scope>
+            <exclusions>
+              <exclusion>
+                <groupId>org.openjdk.jol</groupId>
+                <artifactId>jol-core</artifactId>
+              </exclusion>
+            </exclusions>
         </dependency>
 
     </dependencies>
