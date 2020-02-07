@@ -42,7 +42,7 @@ public class GrpcHandler implements ProtocolHandler {
     @Override
     public void initialize(ServiceConfiguration conf) {
         log.info("####################### initialize");
-        grpcServer = new GrpcServer();
+        grpcServer = new GrpcServer(conf);
     }
 
     /**

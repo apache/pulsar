@@ -134,7 +134,7 @@ public class PulsarGrpcServiceTest {
         server = InProcessServerBuilder.forName(serverName)
             .directExecutor()
             .addService(ServerInterceptors.intercept(
-                new PulsarGrpcService(brokerService, new NioEventLoopGroup()),
+                new PulsarGrpcService(brokerService, svcConfig, new NioEventLoopGroup()),
                 Collections.singletonList(new GrpcServerInterceptor())
             ))
             .build();

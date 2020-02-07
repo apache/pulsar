@@ -51,7 +51,7 @@ message Schema {
     required string name = 1;
     required bytes schema_data = 3;
     required Type type = 4;
-    repeated KeyValue properties = 5;
+    map<string, string> properties = 5;
 
 }
 

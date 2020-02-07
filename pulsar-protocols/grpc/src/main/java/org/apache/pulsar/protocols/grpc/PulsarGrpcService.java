@@ -1,17 +1,20 @@
 package org.apache.pulsar.protocols.grpc;
 
+import com.google.common.base.Strings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
@@ -20,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_CTX_KEY;
 import static org.apache.pulsar.protocols.grpc.Constants.REMOTE_ADDRESS_CTX_KEY;
@@ -31,10 +33,13 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
     private final BrokerService service;
     private final EventLoopGroup eventLoopGroup;
+    private final boolean schemaValidationEnforced;
+    private String originalPrincipal = null;
 
-    public PulsarGrpcService(BrokerService service, EventLoopGroup eventLoopGroup) {
+    public PulsarGrpcService(BrokerService service, ServiceConfiguration configuration, EventLoopGroup eventLoopGroup) {
         this.service = service;
         this.eventLoopGroup = eventLoopGroup;
+        this.schemaValidationEnforced = configuration.isSchemaValidationEnforced();
     }
 
     @Override
@@ -50,7 +55,7 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         final Map<String, String> metadata = cmdProducer.getMetadataMap();
 
         // TODO: handle schema
-        //final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+        final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         log.info("################# init 2" + Thread.currentThread().getName());
@@ -98,24 +103,36 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 responseObserver.onError(statusException);
             }
 
-            Producer producer = new GrpcProducer(topik, cnx, producerName, authRole,
-                isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName, eventLoopGroup.next());
+            CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topik, schema, remoteAddress);
 
-            try {
-                // TODO : check that removeProducer is called even with early client disconnect
-                topik.addProducer(producer);
-                log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                producerFuture.complete(producer);
-                responseObserver.onNext(Commands.newProducerSuccess(producerName,
-                    producer.getLastSequenceId(), producer.getSchemaVersion()));
-            } catch (BrokerServiceException ise) {
-                log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
-                    ise.getMessage());
-                StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, ise,
-                    ServerErrors.convert(BrokerServiceException.getClientErrorCode(ise)));
+            schemaVersionFuture.exceptionally(exception -> {
+                StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT, exception,
+                    ServerErrors.convert(BrokerServiceException.getClientErrorCode(exception)));
                 responseObserver.onError(statusException);
-                producerFuture.completeExceptionally(ise);
-            }
+                return null;
+            });
+
+            schemaVersionFuture.thenAccept(schemaVersion -> {
+
+                Producer producer = new GrpcProducer(topik, cnx, producerName, authRole,
+                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName, eventLoopGroup.next());
+
+                try {
+                    // TODO : check that removeProducer is called even with early client disconnect
+                    topik.addProducer(producer);
+                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    producerFuture.complete(producer);
+                    responseObserver.onNext(Commands.newProducerSuccess(producerName,
+                        producer.getLastSequenceId(), producer.getSchemaVersion()));
+                } catch (BrokerServiceException ise) {
+                    log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
+                        ise.getMessage());
+                    StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, ise,
+                        ServerErrors.convert(BrokerServiceException.getClientErrorCode(ise)));
+                    responseObserver.onError(statusException);
+                    producerFuture.completeExceptionally(ise);
+                }
+            });
         }).exceptionally(exception -> {
             Throwable cause = exception.getCause();
             if (!(cause instanceof BrokerServiceException.ServiceUnitNotReadyException)) {
@@ -152,6 +169,36 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 closeProduce(producerFuture, remoteAddress);
             }
         };
+    }
+
+    private SchemaData getSchema(Schema protocolSchema) {
+        return SchemaData.builder()
+            .data(protocolSchema.getSchemaData().toByteArray())
+            .isDeleted(false)
+            .timestamp(System.currentTimeMillis())
+            .user(Strings.nullToEmpty(originalPrincipal))
+            .type(Commands.getSchemaType(protocolSchema.getType()))
+            .props(protocolSchema.getPropertiesMap())
+            .build();
+    }
+
+    private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema, SocketAddress remoteAddress) {
+        if (schema != null) {
+            return topic.addSchema(schema);
+        } else {
+            return topic.hasSchema().thenCompose((hasSchema) -> {
+                log.info("[{}] {} configured with schema {}",
+                    remoteAddress, topic.getName(), hasSchema);
+                CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
+                if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
+                    result.completeExceptionally(new IncompatibleSchemaException(
+                        "Producers cannot connect or send message without a schema to topics with a schema"));
+                } else {
+                    result.complete(SchemaVersion.Empty);
+                }
+                return result;
+            });
+        }
     }
 
     private void closeProduce(CompletableFuture<Producer> producerFuture, SocketAddress remoteAddress) {

@@ -162,22 +162,24 @@ public class Commands {
             .setName(schemaInfo.getName())
             .setSchemaData(copyFrom(schemaInfo.getSchema()))
             .setType(getSchemaType(schemaInfo.getType()))
-            .addAllProperties(
-                schemaInfo.getProperties().entrySet().stream().map(entry ->
-                    KeyValue.newBuilder()
-                        .setKey(entry.getKey())
-                        .setValue(entry.getValue())
-                        .build()
-                ).collect(Collectors.toList())
-            );
+            .putAllProperties(schemaInfo.getProperties());
         return builder.build();
     }
 
-    private static Schema.Type getSchemaType(SchemaType type) {
+    public static Schema.Type getSchemaType(SchemaType type) {
         if (type.getValue() < 0) {
             return Schema.Type.None;
         } else {
             return Schema.Type.forNumber(type.getValue());
+        }
+    }
+
+    public static SchemaType getSchemaType(Schema.Type type) {
+        if (type.getNumber() < 0) {
+            // this is unexpected
+            return SchemaType.NONE;
+        } else {
+            return SchemaType.valueOf(type.getNumber());
         }
     }
 

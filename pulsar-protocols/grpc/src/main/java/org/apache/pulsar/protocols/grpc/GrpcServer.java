@@ -6,6 +6,7 @@ import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -29,7 +30,13 @@ public class GrpcServer {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
+    private final ServiceConfiguration configuration;
     private Server server;
+
+    public GrpcServer(ServiceConfiguration configuration) {
+        this.configuration = configuration;
+    }
+
 
     public void start(BrokerService service) throws IOException {
         // TODO: replace with configurable port
@@ -38,7 +45,7 @@ public class GrpcServer {
 
         server = ServerBuilder.forPort(port)
             .addService(ServerInterceptors.intercept(
-                new PulsarGrpcService(service, new NioEventLoopGroup()),
+                new PulsarGrpcService(service, configuration, new NioEventLoopGroup()),
                 Collections.singletonList(new GrpcServerInterceptor())
             ))
             .build()
