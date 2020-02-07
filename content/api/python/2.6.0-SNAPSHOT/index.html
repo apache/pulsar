@@ -1308,7 +1308,6 @@ To install the Python bindings:
 
     client.close()
 """
-import logging
 
 import _pulsar
 
@@ -1546,7 +1545,6 @@ class Client:
                  message_listener_threads=1,
                  concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
-                 logger=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
@@ -1580,8 +1578,6 @@ class Client:
           to prevent overload on the broker.
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
-        * `logger`:
-          Set a Python logger for this Pulsar client.
         * `use_tls`:
           Configure whether to use TLS encryption on the connection. This setting
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
@@ -1604,7 +1600,6 @@ class Client:
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
         _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
-        _check_type_or_none(logging.Logger, logger, 'logger')
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
@@ -1619,8 +1614,6 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        if logger:
-            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
@@ -2795,7 +2788,6 @@ producers and consumers.</p></div>
                  message_listener_threads=1,
                  concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
-                 logger=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
@@ -2829,8 +2821,6 @@ producers and consumers.</p></div>
           to prevent overload on the broker.
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
-        * `logger`:
-          Set a Python logger for this Pulsar client.
         * `use_tls`:
           Configure whether to use TLS encryption on the connection. This setting
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
@@ -2853,7 +2843,6 @@ producers and consumers.</p></div>
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
         _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
-        _check_type_or_none(logging.Logger, logger, 'logger')
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
@@ -2868,8 +2857,6 @@ producers and consumers.</p></div>
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        if logger:
-            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
@@ -3249,7 +3236,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.__init__">
-    <p>def <span class="ident">__init__</span>(</p><p>self, service_url, authentication=None, operation_timeout_seconds=30, io_threads=1, message_listener_threads=1, concurrent_lookup_requests=50000, log_conf_file_path=None, logger=None, use_tls=False, tls_trust_certs_file_path=None, tls_allow_insecure_connection=False, tls_validate_hostname=False)</p>
+    <p>def <span class="ident">__init__</span>(</p><p>self, service_url, authentication=None, operation_timeout_seconds=30, io_threads=1, message_listener_threads=1, concurrent_lookup_requests=50000, log_conf_file_path=None, use_tls=False, tls_trust_certs_file_path=None, tls_allow_insecure_connection=False, tls_validate_hostname=False)</p>
     </div>
     
 
@@ -3281,8 +3268,6 @@ producers and consumers.</p></div>
   to prevent overload on the broker.</li>
 <li><code>log_conf_file_path</code>:
   Initialize log4cxx from a configuration file.</li>
-<li><code>logger</code>:
-  Set a Python logger for this Pulsar client.</li>
 <li><code>use_tls</code>:
   Configure whether to use TLS encryption on the connection. This setting
   is deprecated. TLS will be automatically enabled if the <code>serviceUrl</code> is
@@ -3308,7 +3293,6 @@ producers and consumers.</p></div>
              message_listener_threads=1,
              concurrent_lookup_requests=50000,
              log_conf_file_path=None,
-             logger=None,
              use_tls=False,
              tls_trust_certs_file_path=None,
              tls_allow_insecure_connection=False,
@@ -3338,8 +3322,6 @@ producers and consumers.</p></div>
       to prevent overload on the broker.
     * `log_conf_file_path`:
       Initialize log4cxx from a configuration file.
-    * `logger`:
-      Set a Python logger for this Pulsar client.
     * `use_tls`:
       Configure whether to use TLS encryption on the connection. This setting
       is deprecated. TLS will be automatically enabled if the `serviceUrl` is
@@ -3362,7 +3344,6 @@ producers and consumers.</p></div>
     _check_type(int, message_listener_threads, 'message_listener_threads')
     _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
     _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
-    _check_type_or_none(logging.Logger, logger, 'logger')
     _check_type(bool, use_tls, 'use_tls')
     _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
     _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
@@ -3376,8 +3357,6 @@ producers and consumers.</p></div>
     conf.concurrent_lookup_requests(concurrent_lookup_requests)
     if log_conf_file_path:
         conf.log_conf_file_path(log_conf_file_path)
-    if logger:
-        conf.set_logger(logger)
     if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
         conf.use_tls(True)
     if tls_trust_certs_file_path:
@@ -3421,7 +3400,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fe69ae06fd0&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f8b2cda5b10&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
     </div>
     
 
@@ -3594,7 +3573,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fe690fde0d0&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f8b23653c50&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -3773,7 +3752,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fe690fd2f50&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f8b23653ad0&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
     </div>
     
 

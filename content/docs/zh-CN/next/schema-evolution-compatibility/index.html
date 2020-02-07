@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema evolution and compatibility · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Schema evolution and compatibility · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Schema 进化和兼容 · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Schema 进化和兼容 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/schema-evolution-compatibility">English</a></li><li><a href="/docs/ja/next/schema-evolution-compatibility">日本語</a></li><li><a href="/docs/fr/next/schema-evolution-compatibility">Français</a></li><li><a href="/docs/zh-TW/next/schema-evolution-compatibility">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/schema-evolution-compatibility">English</a></li><li><a href="/docs/ja/next/schema-evolution-compatibility">日本語</a></li><li><a href="/docs/fr/next/schema-evolution-compatibility">Français</a></li><li><a href="/docs/zh-TW/next/schema-evolution-compatibility">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -18,7 +18,8 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Schema</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-understand">Understand schema</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/next/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Schema</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/pulsar-2.0">Pulsar-2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone">在本地运行Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/standalone-docker">在 Docker 中运行 Pulsar</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries">与客户端库一起使用 Pulsar</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-messaging">消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-clients">客户端</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-replication">基于地理位置的备份</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multi-tenancy">多租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-authentication">认证和授权</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-topic-compaction">消息压缩</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-understand">了解 Schema</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/next/schema-evolution-compatibility">Schema 进化和兼容</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-manage">管理 Schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-debug">调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-connectors">内置连接器</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cdc">CDC 连接器</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-rest-api">REST API</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal">裸机</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">裸机多集群部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-geo">跨地域复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-load-balance">负载均衡</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-upgrade">升级</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-transport">使用TLS进行传输加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-authentication">使用TLS进行认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-extending">Extending</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-node">Node.js
+</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-clusters">集群</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-tenants">租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-namespaces">命名空间</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-persistent-topics">持久topic</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-non-persistent-topics">非持久topic</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-non-partitioned-topics">非分区主题</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-schemas">Schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-kafka">Kafka 客户端封装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-non-persistent">非持久化消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-partitioned">分区主题</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-retention-expiry">消息保留和到期</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-message-queue">消息队列</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-cpp">编译Pulsar C++ 客户端</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-terminology">术语</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
             var coll = document.getElementsByClassName('collapsible');
             var checkActiveCategory = true;
             for (var i = 0; i < coll.length; i++) {
@@ -74,11 +75,11 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema evolution and compatibility</h1></header><article><div><span><p>通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema 进化和兼容</h1></header><article><div><span><p>通常情况下，Schema 在很长时间内不会保持不变。 相反，它们会不断更新变化，以满足新的需求。</p>
 <p>本章将探讨 Pulsar Schema 如何演变以及 Pulsar Schema 的兼容性检查战略。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema-进化"></a><a href="#schema-进化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 进化</h2>
-<p>Pulsar schema is defined in a data structure called <code>SchemaInfo</code>.</p>
-<p>Each <code>SchemaInfo</code> stored with a topic has a version. 版本用于管理主题内发生的 schema 更改。</p>
+<p>在 <code>SchemaInfo</code> 的数据结构中定义了 Pulsar schema 。</p>
+<p>每个存储主题的 <code>SchemaInfo</code> 有一个版本。 版本用于管理主题内发生的 schema 更改。</p>
 <p>使用 <code>SchemaInfo</code> 生成的消息已标记为架构版本。 当消息被 Pulsar 客户端消耗时， Pulsar 客户端可以使用 schema 的版本检索对应的 <code>SchemaInfo</code> 并使用正确的 schema 信息来反序列化数据。</p>
 <h3><a class="anchor" aria-hidden="true" id="什么是-schema-进化？"></a><a href="#什么是-schema-进化？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>什么是 Schema 进化？</h3>
 <p>Schemas 存储属性和类型的详细信息。 为了满足新的业务要求，你需要随着时间的推移不可避免地更新方案，这个方案被称为 <strong>schema evolution</strong>。</p>
@@ -145,10 +146,10 @@
 <p>所有更改已禁用</p>
 </td> 
 <td> 
-<p>None</p>
+<p>无</p>
 </td> 
 <td> 
-<p>None</p>
+<p>无</p>
 </td> 
 </tr>
 <tr>
@@ -180,12 +181,12 @@
 </td> 
 <td> 
 <ul>
-<li><p>Add optional fields</p></li>
-<li><p>Delete fields</p></li>
+<li><p>添加可选字段</p></li>
+<li><p>删除字段</p></li>
 </ul>
 </td> 
 <td> 
-<p>All previous versions</p>
+<p>所有之前的版本</p>
 </td> 
 <td> 
 <p>Consumers</p>
@@ -205,7 +206,7 @@
 </ul>
 </td> 
 <td> 
-<p>Latest version</p>
+<p>最新版本</p>
 </td> 
 <td> 
 <p>Producers</p>
@@ -220,12 +221,12 @@
 </td> 
 <td> 
 <ul>
-<li><p>Add fields</p></li>
-<li><p>Delete optional fields</p></li>
+<li><p>添加字段</p></li>
+<li><p>删除可选字段</p></li>
 </ul>
 </td> 
 <td> 
-<p>All previous versions</p>
+<p>所有之前的版本</p>
 </td> 
 <td> 
 <p>Producers</p>
@@ -244,10 +245,10 @@
 </ul>
 </td> 
 <td> 
-<p>Latest version</p>
+<p>最新版本</p>
 </td> 
 <td> 
-<p>Any order</p>
+<p>任何请求</p>
 </td> 
 </tr>
 <tr>
@@ -259,14 +260,14 @@
 </td> 
 <td> 
 <ul>
-<li>Modify optional fields</li>
+<li>修改可选字段</li>
 </ul>
 </td> 
 <td> 
-<p>All previous versions</p>
+<p>所有之前的版本</p>
 </td> 
 <td> 
-<p>Any order</p>
+<p>任何请求</p>
 </td> 
 </tr>
 </table>
@@ -274,10 +275,10 @@
 <table style="table">
 <tr>
 <th>
-<p>Compatibility check strategy</p>
+<p>兼容性检查策略</p>
 </th>
 <th>
-<p>Definition</p>
+<p>定义</p>
 </th>
 <th>
 <p>Note</p>
@@ -288,10 +289,10 @@
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
 <td> 
-<p>Disable schema compatibility check.</p>
+<p>禁用 schema 兼容性检查。</p>
 </td> 
 <td> 
-<p>None</p>
+<p>无</p>
 </td> 
 </tr>
 <tr>
@@ -328,10 +329,10 @@
 </ul></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="backward-和-backward_transitive"></a><a href="#backward-和-backward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BACKWARD 和 BACKWARD_TRANSITIVE</h3>
-<p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
+<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>Compatibility check strategy</th><th>Definition</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
@@ -343,15 +344,15 @@
 <li><p>示例 1</p>
 <p>删除字段。</p>
 <p>为处理没有一个字段的事件而构建的消费者，可以处理使用包含该字段的旧方案编写的事件。 而消费者会忽略这个领域。</p></li>
-<li><p>Example 2</p>
+<li><p>示例 2</p>
 <p>你想将所有 Pulsar 数据加载到 Hive 数据仓库中，并对数据运行 SQL 查询。</p>
 <p>即使数据被更改，相同的 SQL 查询也必须继续工作。 为了能够使用它，你可以使用 <code>BACKWARD</code> 策略进化方案。</p></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="forward-and-forward_transitive"></a><a href="#forward-and-forward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FORWARD and FORWARD_TRANSITIVE</h3>
-<p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
+<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>Compatibility check strategy</th><th>Definition</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
@@ -360,23 +361,23 @@
 <p><code>FORWARD</code> | 消费者使用 <strong>前一个 schema</strong> 可以处理生产者使用新 schema 编写的数据。 即使他们可能无法充分利用新模式的全部能力。 | 使用schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。 | <code>FORWARD_TRANSITIVE</code> | 消费者使用 <strong>之前的所有 schemas</strong> 可以处理生产者使用新 scheme 编写的数据。 | 使用schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
 <h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
-<li><p>Example 1</p>
+<li><p>示例 1</p>
 <p>添加字段。</p>
 <p>在大多数数据格式中，即使消费者收到含有新字段的新事件，他们也可以继续处理没有新字段的事件。</p></li>
-<li><p>Example 2</p>
+<li><p>示例 2</p>
 <p>如果一个消费者有一个应用程序逻辑与一个完整版本的架构， 当 schema升级时，应用程序逻辑可能无法立即更新。</p>
 <p>在这种情况下，你需要将一个新 schema 的数据投射到应用程序理解的旧 schema 上。</p>
 <p>因此， 你可以使用 <code>FORWARD</code> 策略来进化 schemas 以确保旧 schema 能够处理使用新schema 编码的数据。</p></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="full-and-full_transitive"></a><a href="#full-and-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL and FULL_TRANSITIVE</h3>
-<p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
+<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
 <table style="table">
   <tr>
 <th>
-<p>Compatibility check strategy</p>
+<p>兼容性检查策略</p>
 </th>
 <th>
-<p>Definition</p>
+<p>定义</p>
 </th>
 <th>
 <p>Description</p>
@@ -396,14 +397,14 @@
 <p>使用新模式的消费者可以处理生产者使用最后一个模式编写的数据。</p>
 </td> 
 <td> 
-<p>Consumers using the schema V3 can process data written by producers using the schema V3 or V2.</p>
+<p>使用 schema V3 的消费者可以处理生产者使用 schema V3 或 V2 编写的数据。</p>
 <p>和</p>
 <p>使用schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
 <ul>
-<li><p>For Avro and JSON, the default schema compatibility check strategy is <code>FULL</code>.</p></li>
-<li><p>For all schema types except Avro and JSON, the default schema compatibility check strategy is <code>ALWAYS_INCOMPATIBLE</code>.</p></li>
+<li><p>对于Avro 和 JSON 来说，默认架构兼容性检查策略是 `FULL'。</p></li>
+<li><p>对于除 Avro 和 JSON 以外的所有类型的架构，默认架构兼容性检查策略是 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
 </ul>
 </td>
 </tr>
@@ -415,12 +416,12 @@
 <p>新的方案是可以后退的，是与所有先前注册的方案兼容的。</p>
 </td> 
 <td> 
-<p>Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.</p>
+<p>使用 schema V3 的消费者可以处理生产者使用 schema V3、V2 或 V1 编写的数据。</p>
 <p>和</p>
 <p>使用 schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
-<p>None</p>
+<p>无</p>
 </td>
   </tr>
 </table>
@@ -442,7 +443,7 @@
 <table style="table">
   <tr>
     <th>
-      Compatibility check strategy
+      兼容性检查策略
     </th>
 <pre><code class="hljs">&lt;th&gt;
   检查原理
@@ -486,7 +487,7 @@
 <p><code>FORWARD</code></p>
 </td> 
 <td> 
-<p>Can read the last schema</p>
+<p>可读取上一个 schema</p>
 </td> 
 </tr>
 <tr>
@@ -494,7 +495,7 @@
 <p><code>FORWARD_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>Can read the last schema</p>
+<p>可读取上一个 schema</p>
 </td> 
 </tr>
 <tr>
@@ -502,7 +503,7 @@
 <p><code>FULL</code></p>
 </td> 
 <td> 
-<p>Can read the last schema</p>
+<p>可读取上一个 schema</p>
 </td> 
 </tr>
 <tr>
@@ -510,7 +511,7 @@
 <p><code>FULL_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>Can read all schemas</p>
+<p>可以读取所有 schemas</p>
 </td> 
 </tr>
 </table>
@@ -520,10 +521,10 @@
 <table style="table">
 <tr>
 <th>
-<p>Compatibility check strategy</p>
+<p>兼容性检查策略</p>
 </th>
 <th>
-<p>Upgrade first</p>
+<p>提前升级</p>
 </th>
 <th>
 <p>Description</p>
@@ -534,7 +535,7 @@
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
 <td> 
-<p>Any order</p>
+<p>任何请求</p>
 </td> 
 <td> 
 <p>The compatibility check is disabled.</p>
@@ -546,7 +547,7 @@
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
 </td> 
 <td> 
-<p>None</p>
+<p>无</p>
 </td> 
 <td> 
 <p>The schema evolution is disabled.</p>
@@ -590,13 +591,13 @@
 </ul>
 </td> 
 <td> 
-<p>Any order</p>
+<p>任何请求</p>
 </td> 
 <td> 
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
 </td>  </tr>
-</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何演变？">Pulsar schema 应如何演变？</a></li><li><a href="#pulsar-是如何支撑-schema-进化的？">Pulsar 是如何支撑 Schema 进化的？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何演变？">Pulsar schema 应如何演变？</a></li><li><a href="#pulsar-是如何支撑-schema-进化的？">Pulsar 是如何支撑 Schema 进化的？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
