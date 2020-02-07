@@ -41,6 +41,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -1031,10 +1033,12 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionWithUrl() {
+    public void testUpdateFunctionWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath();
         String filePackageUrl = "file://" + fileLocation;
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1447,7 +1451,9 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testDownloadFunctionFile() throws Exception {
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath();
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
         StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file://" + fileLocation, null).getEntity();
@@ -1461,10 +1467,12 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionFileUrlWithValidSinkClass() {
+    public void testRegisterFunctionFileUrlWithValidSinkClass() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath();
         String filePackageUrl = "file://" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -1492,14 +1500,16 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionWithConflictingFields() {
+    public void testRegisterFunctionWithConflictingFields() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
         String actualName = "DIFFERENT_NAME";
         this.namespaceList.add(actualTenant + "/" + actualNamespace);
 
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath();
         String filePackageUrl = "file://" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
