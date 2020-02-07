@@ -249,7 +249,7 @@ public class NamespaceBundlesTest {
     }
 
     @Test
-    public void testSplitBundleByFixKey() throws Exception {
+    public void testSplitBundleByFixBoundary() throws Exception {
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundleToSplit = bundles.getBundles().get(0);
@@ -265,10 +265,10 @@ public class NamespaceBundlesTest {
             //No-op
         }
 
-        Long fixKey = bundleToSplit.getLowerEndpoint() + 10;
-        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundleToSplit, 0, fixKey);
+        Long fixBoundary = bundleToSplit.getLowerEndpoint() + 10;
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundleToSplit, 0, fixBoundary);
         assertEquals(splitBundles.getRight().get(0).getLowerEndpoint(), bundleToSplit.getLowerEndpoint());
-        assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(), bundleToSplit.getLowerEndpoint() + fixKey);
+        assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(), bundleToSplit.getLowerEndpoint() + fixBoundary);
     }
 
     private void validateSplitBundlesRange(NamespaceBundle fullBundle, List<NamespaceBundle> splitBundles) {

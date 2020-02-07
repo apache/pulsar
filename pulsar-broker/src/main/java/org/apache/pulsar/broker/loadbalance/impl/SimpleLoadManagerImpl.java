@@ -1478,8 +1478,10 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         if (bundlesToBeSplit.size() > 0) {
             for (String bundleName : bundlesToBeSplit) {
                 try {
-                    internalSplitNamespaceBundle(LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
-                        LoadManagerShared.getBundleRangeFromBundleName(bundleName));
+                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(
+                        LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
+                        LoadManagerShared.getBundleRangeFromBundleName(bundleName),
+                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), null);
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);
@@ -1487,11 +1489,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             this.setLoadReportForceUpdateFlag();
         }
-    }
-
-    protected void internalSplitNamespaceBundle(String namespaceName, String bundleRange) throws PulsarServerException, PulsarAdminException {
-        pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), false);
     }
 
     @Override

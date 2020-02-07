@@ -634,6 +634,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 || !pulsar.getLeaderElectionService().isLeader()) {
             return;
         }
+        final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
             final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
@@ -645,9 +646,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                             .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                         continue;
                     }
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName,
-                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled());
-                    internalSplitNamespaceBundle(namespaceName, bundleRange);
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
+                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
+                        unloadSplitBundles, null);
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
@@ -662,11 +663,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         }
 
-    }
-
-    protected void internalSplitNamespaceBundle(String namespaceName, String bundleRange) throws PulsarServerException, PulsarAdminException {
-        pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), false);
     }
 
     /**

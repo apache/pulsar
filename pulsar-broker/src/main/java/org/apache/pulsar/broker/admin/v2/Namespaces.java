@@ -351,9 +351,9 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
-            @QueryParam("balanceTopicCount") @DefaultValue("false") boolean balanceTopicCount) {
+            @QueryParam("splitAlgorithmName") String splitAlgorithmName) {
         validateNamespaceName(tenant, namespace);
-        internalSplitNamespaceBundle(bundleRange, authoritative, unload, balanceTopicCount);
+        internalSplitNamespaceBundle(bundleRange, authoritative, unload, splitAlgorithmName);
     }
 
     @POST

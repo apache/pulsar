@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -637,48 +638,26 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload, boolean balanceTopicCount)
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload, NamespaceBundleSplitAlgorithm splitAlgorithm)
         throws Exception {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
-
-        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, balanceTopicCount);
+        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm);
 
         return unloadFuture;
-    }
-
-    CompletableFuture<Long> getSplitKeyForBalanceTopicCountAsync(NamespaceBundle bundle, boolean balanceTopicCount) {
-        if (!balanceTopicCount) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
-                if (topics == null || topics.size() <= 1) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                List<Long> topicNameHashList = new ArrayList<>(topics.size());
-                for (String topic : topics) {
-                    topicNameHashList.add(bundle.getNamespaceBundleFactory().getLongHashCode(topic));
-                }
-                Collections.sort(topicNameHashList);
-                long splitStart = topicNameHashList.get(Math.max((topicNameHashList.size() / 2) - 1, 0));
-                long splitEnd = topicNameHashList.get(topicNameHashList.size() / 2);
-                long splitMiddle = splitStart + (splitEnd - splitStart) / 2;
-                return CompletableFuture.completedFuture(splitMiddle);
-            });
-        }
     }
 
     void splitAndOwnBundleOnceAndRetry(NamespaceBundle bundle,
                                        boolean unload,
                                        AtomicInteger counter,
                                        CompletableFuture<Void> unloadFuture,
-                                       boolean balanceTopicCount) {
-        getSplitKeyForBalanceTopicCountAsync(bundle, balanceTopicCount).whenComplete((splitKey, ex) -> {
+                                       NamespaceBundleSplitAlgorithm splitAlgorithm) {
+        splitAlgorithm.getSplitBoundary(this, bundle).whenComplete((splitBoundary, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
                 final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
-                    2 /* by default split into 2 */, splitKey);
+                    2 /* by default split into 2 */, splitBoundary);
 
                 // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
                 if (splittedBundles != null) {
@@ -743,7 +722,7 @@ public class NamespaceService {
                     // retry several times on BadVersion
                     if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
                         pulsar.getOrderedExecutor()
-                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, balanceTopicCount));
+                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm));
                     } else {
                         // Retry enough, or meet other exception
                         String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",

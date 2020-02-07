@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.impl;
+package org.apache.pulsar.common.naming;
 
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
-public class BalanceTopicCountModularLoadManager extends ModularLoadManagerImpl {
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * This algorithm divides the bundle into two parts with the same hash range size.
+ */
+public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
 
     @Override
-    protected void internalSplitNamespaceBundle(String namespaceName, String bundleRange) throws PulsarServerException, PulsarAdminException {
-        pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), true);
+    public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
+        return CompletableFuture.completedFuture(bundle.getLowerEndpoint() +
+            (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
     }
 }
