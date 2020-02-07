@@ -1,7 +1,11 @@
 package org.apache.pulsar.protocols.grpc;
 
 import com.google.protobuf.ByteString;
+import io.grpc.Metadata;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.netty.buffer.ByteBuf;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -14,8 +18,21 @@ import java.util.stream.Collectors;
 
 import static com.google.protobuf.ByteString.copyFrom;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.apache.pulsar.protocols.grpc.Constants.ERROR_CODE_METADATA_KEY;
 
 public class Commands {
+
+    public static StatusRuntimeException newStatusException(Status status, String message, Throwable exception, ServerError code) {
+        Metadata metadata  = new Metadata();
+        metadata.put(ERROR_CODE_METADATA_KEY, String.valueOf(code.getNumber()));
+        return status.withDescription(message)
+            .withCause(exception)
+            .asRuntimeException(metadata);
+    }
+
+    public static StatusRuntimeException newStatusException(Status status, Throwable exception, ServerError code) {
+        return newStatusException(status, exception.getMessage(), exception, code);
+    }
 
     public static SendResult newProducerSuccess(String producerName, long lastSequenceId,
                                                 SchemaVersion schemaVersion) {

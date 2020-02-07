@@ -504,19 +504,17 @@ message CommandSuccess {
 }
 
 message CommandProducerSuccess {
-    // required uint64 request_id    = 1;
-    required string producer_name = 2;
+    required string producer_name    = 1;
 
     // The last sequence id that was stored by this producer in the previous session
     // This will only be meaningful if deduplication has been enabled.
-    optional int64  last_sequence_id = 3 [default = -1];
-    optional bytes schema_version = 4;
+    optional int64  last_sequence_id = 2 [default = -1];
+    optional bytes schema_version    = 3;
 }
 
 message CommandError {
-    required uint64 request_id  = 1;
-    required ServerError error = 2;
-    required string message    = 3;
+    required ServerError error = 1;
+    required string message    = 2;
 }
 
 // Commands to probe the state of connection.

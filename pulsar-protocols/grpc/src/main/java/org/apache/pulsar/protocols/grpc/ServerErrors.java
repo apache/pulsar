@@ -56,14 +56,4 @@ public class ServerErrors {
                 return ServerError.UnknownError;
         }
     }
-
-    public static Metadata newErrorMetadata(ServerError error) {
-        Metadata metadata  = new Metadata();
-        metadata.put(ERROR_CODE_METADATA_KEY, String.valueOf(error.getNumber()));
-        return metadata;
-    }
-
-    public static Metadata newErrorMetadata(org.apache.pulsar.common.api.proto.PulsarApi.ServerError error) {
-        return newErrorMetadata(convert(error));
-    }
 }
