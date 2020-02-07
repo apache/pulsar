@@ -92,4 +92,93 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertEquals(producer.getConnectionHandler().getEpoch(), 1);
         Assert.assertTrue(producer.isConnected());
     }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testParallelProducersGeneratedNameFails(TopicDomain domain) {
+        try {
+            pulsarClient.newProducer()
+                    .topic("testParallelProducersGeneratedNameFails")
+                    .groupMode(ProducerGroupMode.Parallel)
+                    .create();
+            Assert.fail("previous statement should have failed");
+        } catch (PulsarClientException e) {
+            // ok here
+            String msg = e.getMessage();
+            Assert.assertTrue(msg.endsWith("producerName must be specified in non-exclusive group modes"), msg);
+        }
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testParallelProducers(TopicDomain domain) throws PulsarClientException {
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducers").toString())
+                .producerName("p-name-1")
+                .groupMode(ProducerGroupMode.Parallel)
+                .create();
+
+        Assert.assertNotNull(producer1);
+
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic("testParallelProducers")
+                .producerName("p-name-1")
+                .groupMode(ProducerGroupMode.Parallel)
+                .create();
+
+        Assert.assertNotNull(producer2);
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testParallelProducerCannotJoinExclusiveGroup(TopicDomain domain) throws PulsarClientException {
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducerCannotJoinExclusiveGroup").toString())
+                .producerName("p-name-1")
+                .create();
+
+        Assert.assertNotNull(producer1);
+
+        try {
+            pulsarClient.newProducer()
+                    .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducerCannotJoinExclusiveGroup").toString())
+                    .producerName("p-name-1")
+                    .groupMode(ProducerGroupMode.Parallel)
+                    .create();
+            Assert.fail("previous statement should have failed");
+        } catch (PulsarClientException e) {
+            // ok here
+            String msg = e.getMessage();
+            Assert.assertTrue(msg.endsWith("Exclusive Producer with name 'p-name-1' is already connected to topic"), msg);
+        }
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testExclusiveProducerEvictsParallelGroup(TopicDomain domain) throws PulsarClientException {
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducerCannotJoinExclusiveGroup").toString())
+                .producerName("p-name-1")
+                .groupMode(ProducerGroupMode.Parallel)
+                .create();
+
+        Assert.assertNotNull(producer1);
+
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducerCannotJoinExclusiveGroup").toString())
+                .producerName("p-name-1")
+                .groupMode(ProducerGroupMode.Parallel)
+                .create();
+
+        Assert.assertNotNull(producer2);
+
+        Assert.assertTrue(producer1.isConnected());
+        Assert.assertTrue(producer2.isConnected());
+
+        Producer<byte[]> producer3 = pulsarClient.newProducer()
+                .topic(TopicName.get(domain.value(), "public", "default", "testParallelProducerCannotJoinExclusiveGroup").toString())
+                .producerName("p-name-1")
+                .create();
+
+        Assert.assertNotNull(producer3);
+
+        producer3.send("my-message".getBytes());
+    }
+
 }

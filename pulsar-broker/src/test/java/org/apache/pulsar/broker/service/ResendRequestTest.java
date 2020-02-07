@@ -77,7 +77,7 @@ public class ResendRequestTest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -165,7 +165,7 @@ public class ResendRequestTest extends BrokerTestBase {
             .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName)
@@ -252,7 +252,7 @@ public class ResendRequestTest extends BrokerTestBase {
             .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
@@ -372,7 +372,7 @@ public class ResendRequestTest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -672,7 +672,7 @@ public class ResendRequestTest extends BrokerTestBase {
             .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)

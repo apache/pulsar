@@ -490,4 +490,14 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @since 2.5.0
      */
     ProducerBuilder<T> enableMultiSchema(boolean multiSchema);
+
+    /**
+     * Controls the behavior when multiple producers with the same producerName connect to the same topic.
+     * <i>default: Exclusive</i>
+     *
+     * @see ProducerGroupMode
+     * @param groupMode the producer group mode for this producer
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> groupMode(ProducerGroupMode groupMode);
 }

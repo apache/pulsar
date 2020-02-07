@@ -93,7 +93,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
             200);
         Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int total = 200;
@@ -157,7 +157,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
             200);
         Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int total = 100;
@@ -232,7 +232,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int total = 100;
@@ -309,7 +309,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int numMessage = 20;
@@ -406,7 +406,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
         Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int numMessage = 40;
@@ -462,7 +462,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
                 int id = index.incrementAndGet();
                 ProducerImpl<byte[]> iProducer = producers.get(id);
                 PersistentTopic iTopic = topics.get(id);
-                Producer iProd = iTopic.getProducers().values().iterator().next();
+                Producer iProd = iTopic.getProducers().findFirst().get();
                 // reset counter
                 iProd.updateRates();
 

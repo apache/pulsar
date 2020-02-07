@@ -14507,6 +14507,10 @@ public final class PulsarApi {
     // optional bool user_provided_producer_name = 9 [default = true];
     boolean hasUserProvidedProducerName();
     boolean getUserProvidedProducerName();
+    
+    // optional .pulsar.proto.CommandProducer.GroupMode group_mode = 10 [default = Exclusive];
+    boolean hasGroupMode();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode getGroupMode();
   }
   public static final class CommandProducer extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -14540,6 +14544,47 @@ public final class PulsarApi {
     
     public CommandProducer getDefaultInstanceForType() {
       return defaultInstance;
+    }
+    
+    public enum GroupMode
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+      Exclusive(0, 0),
+      Parallel(1, 1),
+      ;
+      
+      public static final int Exclusive_VALUE = 0;
+      public static final int Parallel_VALUE = 1;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static GroupMode valueOf(int value) {
+        switch (value) {
+          case 0: return Exclusive;
+          case 1: return Parallel;
+          default: return null;
+        }
+      }
+      
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<GroupMode>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<GroupMode>
+          internalValueMap =
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<GroupMode>() {
+              public GroupMode findValueByNumber(int number) {
+                return GroupMode.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private GroupMode(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandProducer.GroupMode)
     }
     
     private int bitField0_;
@@ -14688,6 +14733,16 @@ public final class PulsarApi {
       return userProvidedProducerName_;
     }
     
+    // optional .pulsar.proto.CommandProducer.GroupMode group_mode = 10 [default = Exclusive];
+    public static final int GROUP_MODE_FIELD_NUMBER = 10;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode groupMode_;
+    public boolean hasGroupMode() {
+      return ((bitField0_ & 0x00000100) == 0x00000100);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode getGroupMode() {
+      return groupMode_;
+    }
+    
     private void initFields() {
       topic_ = "";
       producerId_ = 0L;
@@ -14698,6 +14753,7 @@ public final class PulsarApi {
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       epoch_ = 0L;
       userProvidedProducerName_ = true;
+      groupMode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode.Exclusive;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -14767,6 +14823,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         output.writeBool(9, userProvidedProducerName_);
       }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        output.writeEnum(10, groupMode_.getNumber());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -14810,6 +14869,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(9, userProvidedProducerName_);
+      }
+      if (((bitField0_ & 0x00000100) == 0x00000100)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeEnumSize(10, groupMode_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -14942,6 +15005,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000080);
         userProvidedProducerName_ = true;
         bitField0_ = (bitField0_ & ~0x00000100);
+        groupMode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode.Exclusive;
+        bitField0_ = (bitField0_ & ~0x00000200);
         return this;
       }
       
@@ -15012,6 +15077,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000080;
         }
         result.userProvidedProducerName_ = userProvidedProducerName_;
+        if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
+          to_bitField0_ |= 0x00000100;
+        }
+        result.groupMode_ = groupMode_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -15051,6 +15120,9 @@ public final class PulsarApi {
         }
         if (other.hasUserProvidedProducerName()) {
           setUserProvidedProducerName(other.getUserProvidedProducerName());
+        }
+        if (other.hasGroupMode()) {
+          setGroupMode(other.getGroupMode());
         }
         return this;
       }
@@ -15154,6 +15226,15 @@ public final class PulsarApi {
             case 72: {
               bitField0_ |= 0x00000100;
               userProvidedProducerName_ = input.readBool();
+              break;
+            }
+            case 80: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode value = org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000200;
+                groupMode_ = value;
+              }
               break;
             }
           }
@@ -15467,6 +15548,30 @@ public final class PulsarApi {
       public Builder clearUserProvidedProducerName() {
         bitField0_ = (bitField0_ & ~0x00000100);
         userProvidedProducerName_ = true;
+        
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandProducer.GroupMode group_mode = 10 [default = Exclusive];
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode groupMode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode.Exclusive;
+      public boolean hasGroupMode() {
+        return ((bitField0_ & 0x00000200) == 0x00000200);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode getGroupMode() {
+        return groupMode_;
+      }
+      public Builder setGroupMode(org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000200;
+        groupMode_ = value;
+        
+        return this;
+      }
+      public Builder clearGroupMode() {
+        bitField0_ = (bitField0_ & ~0x00000200);
+        groupMode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.GroupMode.Exclusive;
         
         return this;
       }

@@ -93,6 +93,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -356,9 +357,9 @@ public class PersistentTopicTest {
         String role = "appid1";
         // 1. simple add producer
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
+                role, false, null, SchemaVersion.Latest, 0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
         topic.addProducer(producer);
-        assertEquals(topic.getProducers().size(), 1);
+        assertEquals(topic.getProducers().count(), 1);
 
         // 2. duplicate add
         try {
@@ -367,12 +368,12 @@ public class PersistentTopicTest {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.NamingException);
         }
-        assertEquals(topic.getProducers().size(), 1);
+        assertEquals(topic.getProducers().count(), 1);
 
         // 3. add producer for a different topic
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
         Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest,0, false);
+                role, false, null, SchemaVersion.Latest,0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
         try {
             topic.addProducer(failProducer);
             fail("should have failed");
@@ -382,7 +383,7 @@ public class PersistentTopicTest {
 
         // 4. simple remove producer
         topic.removeProducer(producer);
-        assertEquals(topic.getProducers().size(), 0);
+        assertEquals(topic.getProducers().count(), 0);
 
         // 5. duplicate remove
         topic.removeProducer(producer); /* noop */
@@ -393,9 +394,9 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true);
+                role, false, null, SchemaVersion.Latest, 0, true, PulsarApi.CommandProducer.GroupMode.Exclusive);
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, true);
+                role, false, null, SchemaVersion.Latest, 0, true, PulsarApi.CommandProducer.GroupMode.Exclusive);
         try {
             topic.addProducer(producer1);
             topic.addProducer(producer2);
@@ -404,10 +405,10 @@ public class PersistentTopicTest {
             // OK
         }
 
-        Assert.assertEquals(topic.getProducers().size(), 1);
+        Assert.assertEquals(topic.getProducers().count(), 1);
 
         Producer producer3 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 1, false);
+                role, false, null, SchemaVersion.Latest, 1, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
 
         try {
             topic.addProducer(producer3);
@@ -416,44 +417,44 @@ public class PersistentTopicTest {
             // OK
         }
 
-        Assert.assertEquals(topic.getProducers().size(), 1);
+        Assert.assertEquals(topic.getProducers().count(), 1);
 
         topic.removeProducer(producer1);
-        Assert.assertEquals(topic.getProducers().size(), 0);
+        Assert.assertEquals(topic.getProducers().count(), 0);
 
         Producer producer4 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 2, false);
+                role, false, null, SchemaVersion.Latest, 2, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
 
         topic.addProducer(producer3);
         topic.addProducer(producer4);
 
-        Assert.assertEquals(topic.getProducers().size(), 1);
+        Assert.assertEquals(topic.getProducers().count(), 1);
 
-        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+        topic.getProducers().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
 
         topic.removeProducer(producer4);
-        Assert.assertEquals(topic.getProducers().size(), 0);
+        Assert.assertEquals(topic.getProducers().count(), 0);
 
         Producer producer5 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 1, false);
+                role, false, null, SchemaVersion.Latest, 1, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
 
         topic.addProducer(producer5);
-        Assert.assertEquals(topic.getProducers().size(), 1);
+        Assert.assertEquals(topic.getProducers().count(), 1);
 
         Producer producer6 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 2, false);
+                role, false, null, SchemaVersion.Latest, 2, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
 
         topic.addProducer(producer6);
-        Assert.assertEquals(topic.getProducers().size(), 1);
+        Assert.assertEquals(topic.getProducers().count(), 1);
 
-        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+        topic.getProducers().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
 
         Producer producer7 = new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
-                role, false, null, SchemaVersion.Latest, 3, true);
+                role, false, null, SchemaVersion.Latest, 3, true, PulsarApi.CommandProducer.GroupMode.Exclusive);
 
         topic.addProducer(producer7);
-        Assert.assertEquals(topic.getProducers().size(), 1);
-        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 3));
+        Assert.assertEquals(topic.getProducers().count(), 1);
+        topic.getProducers().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 3));
     }
 
     public void testMaxProducers() throws Exception {
@@ -461,20 +462,20 @@ public class PersistentTopicTest {
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
-                false, null, SchemaVersion.Latest,0, false);
+                false, null, SchemaVersion.Latest,0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
         topic.addProducer(producer);
-        assertEquals(topic.getProducers().size(), 1);
+        assertEquals(topic.getProducers().count(), 1);
 
         // 2. add producer2
         Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
-                false, null, SchemaVersion.Latest,0, false);
+                false, null, SchemaVersion.Latest,0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
         topic.addProducer(producer2);
-        assertEquals(topic.getProducers().size(), 2);
+        assertEquals(topic.getProducers().count(), 2);
 
         // 3. add producer3 but reached maxProducersPerTopic
         try {
             Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
-                    false, null, SchemaVersion.Latest,0, false);
+                    false, null, SchemaVersion.Latest,0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
             topic.addProducer(producer3);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -871,7 +872,7 @@ public class PersistentTopicTest {
         // 2. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
+                role, false, null, SchemaVersion.Latest, 0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
         topic.addProducer(producer);
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -1030,7 +1031,7 @@ public class PersistentTopicTest {
             String role = "appid1";
             Thread.sleep(10); /* delay to ensure that the delete gets executed first */
             Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                    role, false, null, SchemaVersion.Latest, 0, false);
+                    role, false, null, SchemaVersion.Latest, 0, false, PulsarApi.CommandProducer.GroupMode.Exclusive);
             topic.addProducer(producer);
             fail("Should have failed");
         } catch (BrokerServiceException e) {

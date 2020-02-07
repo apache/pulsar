@@ -185,9 +185,8 @@ public class BacklogQuotaManager {
      */
     private void disconnectProducers(PersistentTopic persistentTopic) {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        Map<String, Producer> producers = persistentTopic.getProducers();
 
-        producers.values().forEach(producer -> {
+        persistentTopic.getProducers().forEach(producer -> {
             log.info("Producer [{}] has exceeded backlog quota on topic [{}]. Disconnecting producer",
                     producer.getProducerName(), persistentTopic.getName());
             futures.add(producer.disconnect());

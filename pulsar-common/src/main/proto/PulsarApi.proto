@@ -395,6 +395,12 @@ message CommandLookupTopicResponse {
 /// Create a new Producer on a topic, assigning the given producer_id,
 /// all messages sent with this producer_id will be persisted on the topic
 message CommandProducer {
+    // Controls the behavior when multiple producers with the same producerName connect to a topic
+    enum GroupMode {
+        Exclusive = 0; // only one producer can be active at any one point in time
+        Parallel  = 1; // multiple producers can be active and producing in parallel
+        // TODO: Failover  = 2; // concurrently connecting producer will be blocked until the active producer fails
+    }
     required string topic         = 1;
     required uint64 producer_id   = 2;
     required uint64 request_id    = 3;
@@ -416,6 +422,8 @@ message CommandProducer {
     // Indicate the name of the producer is generated or user provided
     // Use default true here is in order to be forward compatible with the client
     optional bool user_provided_producer_name = 9 [default = true];
+
+    optional GroupMode group_mode = 10 [default = Exclusive];
 }
 
 message CommandSend {

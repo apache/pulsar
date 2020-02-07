@@ -318,7 +318,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder1 = pulsarClient.newConsumer().topic(topicName)
@@ -389,7 +389,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)

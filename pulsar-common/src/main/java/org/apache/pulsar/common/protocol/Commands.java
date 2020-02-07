@@ -684,7 +684,8 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false);
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false,
+                CommandProducer.GroupMode.Exclusive);
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -724,7 +725,7 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
           boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-          long epoch, boolean userProvidedProducerName) {
+          long epoch, boolean userProvidedProducerName, CommandProducer.GroupMode groupMode) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -735,6 +736,7 @@ public class Commands {
         }
         producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
         producerBuilder.setEncrypted(encrypted);
+        producerBuilder.setGroupMode(groupMode);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 

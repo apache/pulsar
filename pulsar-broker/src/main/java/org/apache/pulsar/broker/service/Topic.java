@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -116,7 +117,7 @@ public interface Topic {
 
     CompletableFuture<Void> delete();
 
-    Map<String, Producer> getProducers();
+    Stream<Producer> getProducers();
 
     String getName();
 

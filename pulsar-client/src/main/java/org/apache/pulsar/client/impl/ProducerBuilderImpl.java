@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.ProducerGroupMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -288,6 +289,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> enableMultiSchema(boolean multiSchema) {
         conf.setMultiSchema(multiSchema);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> groupMode(ProducerGroupMode groupMode) {
+        conf.setGroupMode(groupMode);
         return this;
     }
 

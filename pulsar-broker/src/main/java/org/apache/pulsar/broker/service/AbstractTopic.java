@@ -18,23 +18,27 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.google.common.base.MoreObjects;
-import java.util.Map;
-import java.util.Objects;
+
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Stream;
+
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -52,7 +56,7 @@ public abstract class AbstractTopic implements Topic {
     protected final String topic;
 
     // Producers currently connected to this topic
-    protected final ConcurrentHashMap<String, Producer> producers;
+    protected final ConcurrentHashMap<String, Set<Producer>> producerGroups;
 
     protected final BrokerService brokerService;
 
@@ -88,7 +92,7 @@ public abstract class AbstractTopic implements Topic {
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
-        this.producers = new ConcurrentHashMap<>();
+        this.producerGroups = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.lastActive = System.nanoTime();
@@ -117,21 +121,38 @@ public abstract class AbstractTopic implements Topic {
         final int maxProducers = policies.max_producers_per_topic > 0 ?
                 policies.max_producers_per_topic :
                 brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
-        if (maxProducers > 0 && maxProducers <= producers.size()) {
-            return true;
+        return maxProducers > 0 && maxProducers <= getProducers().count();
+    }
+
+    @Override
+    public void removeProducer(Producer producer) {
+        checkArgument(producer.getTopic() == this);
+
+        boolean[] removed = { false };
+        producerGroups.computeIfPresent(producer.getProducerName(), (s, producerSet) -> {
+            if (producerSet instanceof HashSet) { // a non-exclusive producer group
+                if (producerSet.remove(producer)) {
+                    removed[0] = true;
+                    if (producerSet.size() == 0)
+                        return null;
+                }
+                return producerSet;
+            } else { // an exclusive producer "group"
+                if (producerSet.contains(producer)) {
+                    removed[0] = true;
+                    return null;
+                } else {
+                    return producerSet;
+                }
+            }
+        });
+        if (removed[0]) {
+            handleProducerRemoved(producer);
         }
-        return false;
     }
 
     protected boolean hasLocalProducers() {
-        AtomicBoolean foundLocal = new AtomicBoolean(false);
-        producers.values().forEach(producer -> {
-            if (!producer.isRemote()) {
-                foundLocal.set(true);
-            }
-        });
-
-        return foundLocal.get();
+        return getProducers().anyMatch(producer -> !producer.isRemote());
     }
 
     @Override
@@ -140,8 +161,8 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public Map<String, Producer> getProducers() {
-        return producers;
+    public Stream<Producer> getProducers() {
+        return producerGroups.values().stream().flatMap(Collection::stream);
     }
 
 
@@ -291,8 +312,8 @@ public abstract class AbstractTopic implements Topic {
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
     protected void enableProducerRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+        if (producerGroups != null) {
+            getProducers().forEach(producer -> producer.getCnx().enableCnxAutoRead());
         }
     }
 
@@ -313,32 +334,61 @@ public abstract class AbstractTopic implements Topic {
             log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
         }
 
-        Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
-        if (existProducer != null) {
-            tryOverwriteOldProducer(existProducer, producer);
-        }
-    }
-
-    private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
-            throws BrokerServiceException {
-        boolean canOverwrite = false;
-        if (oldProducer.equals(newProducer) && !isUserProvidedProducerName(oldProducer)
-                && !isUserProvidedProducerName(newProducer) && newProducer.getEpoch() > oldProducer.getEpoch()) {
-            oldProducer.close(false);
-            canOverwrite = true;
-        }
-        if (canOverwrite) {
-            if(!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
-                // Met concurrent update, throw exception here so that client can try reconnect later.
-                throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
-                        + "' replace concurrency error");
+        // the following the variables are used to get state out the compute function
+        // (we want to get out of producers.compute as quickly as possible so as not to block other concurrent actions)
+        BrokerServiceException[] bse = {null};
+        Collection<Producer> oldProducers = new LinkedList<>();
+        boolean parallelGroupMode = producer.getGroupMode() == PulsarApi.CommandProducer.GroupMode.Parallel;
+        producerGroups.compute(producer.getProducerName(), (s, producerSet) -> {
+            if (producerSet == null) { // no producer under that name and topic connected yet
+                if (parallelGroupMode) {
+                    Set<Producer> identityHashSet = Sets.newIdentityHashSet();
+                    identityHashSet.add(producer);
+                    return identityHashSet;
+                } else {
+                   return Collections.singleton(producer); // in reality a "set" that can contain only one element is enough here
+                }
             } else {
-                handleProducerRemoved(oldProducer);
+                Producer existingProducer = producerSet.iterator().next();
+                boolean existingProducerIsExclusive =
+                        existingProducer.getGroupMode() == PulsarApi.CommandProducer.GroupMode.Exclusive;
+                if (existingProducerIsExclusive) { // an exclusive producer is already connected under that producerName
+                    if (parallelGroupMode) {
+                        bse[0] = new BrokerServiceException.NamingException(
+                                "Exclusive Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+                        return producerSet;
+                    } else {
+                        if (!isUserProvidedProducerName(existingProducer) && !isUserProvidedProducerName(producer)
+                                && producer.getEpoch() > existingProducer.getEpoch()) {
+                            oldProducers.add(existingProducer);
+                            return Collections.singleton(producer);
+                        } else {
+                            bse[0] = new BrokerServiceException.NamingException(
+                                    "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+                            return producerSet;
+                        }
+                    }
+                } else { // a non-exclusive producer is already connected under that producerName
+                    if (parallelGroupMode) {
+                        if (!producerSet.add(producer)) {
+                            bse[0] = new BrokerServiceException.NamingException(
+                                    "Non-exclusive producer with name '" + producer.getProducerName() + "' and address '" +
+                                            producer.getCnx().clientAddress() + "' is already connected to topic");
+                        }
+                        return producerSet;
+                    } else {
+                        oldProducers.addAll(producerSet);
+                        return Collections.singleton(producer);
+                    }
+                }
             }
-        } else {
-            throw new BrokerServiceException.NamingException(
-                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
+        });
+        for (Producer oldProducer : oldProducers) {
+            oldProducer.close(false);
+            handleProducerRemoved(oldProducer);
         }
+        if (bse[0] != null)
+            throw bse[0];
     }
 
     private boolean isUserProvidedProducerName(Producer producer){

@@ -825,6 +825,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+        final CommandProducer.GroupMode groupMode = cmdProducer.getGroupMode();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -942,10 +943,11 @@ public class ServerCnx extends PulsarHandler {
                             });
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
-                                Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
-
                                 try {
+                                    Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
+                                            isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName,
+                                            groupMode);
+
                                     topic.addProducer(producer);
 
                                     if (isActive()) {

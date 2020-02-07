@@ -412,7 +412,7 @@ public class ServerCnxTest {
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // test PRODUCER error case
         clientCommand = Commands.newProducer(failTopicName, 2, 2,
@@ -423,7 +423,7 @@ public class ServerCnxTest {
         assertFalse(pulsar.getBrokerService().getTopicReference(failTopicName).isPresent());
 
         channel.finish();
-        assertEquals(topicRef.getProducers().size(), 0);
+        assertEquals(topicRef.getProducers().count(), 0);
     }
 
     @Test(timeOut = 5000)
@@ -492,10 +492,10 @@ public class ServerCnxTest {
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         channel.finish();
-        assertEquals(topicRef.getProducers().size(), 0);
+        assertEquals(topicRef.getProducers().count(), 0);
     }
 
     @Test(timeOut = 30000)
@@ -584,7 +584,7 @@ public class ServerCnxTest {
 
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
         channel.finish();
 
         // Test consumer creation
@@ -1299,7 +1299,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandProducerSuccess.class);
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         channel.finish();
     }
@@ -1329,7 +1329,7 @@ public class ServerCnxTest {
         assertEquals(errorResponse.getError(), ServerError.MetadataError);
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 0);
+        assertEquals(topicRef.getProducers().count(), 0);
 
         channel.finish();
     }

@@ -22,16 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -128,6 +123,20 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     abstract void triggerFlush();
+
+    protected PulsarApi.CommandProducer.GroupMode getGroupMode() {
+        ProducerGroupMode type = conf.getGroupMode();
+        switch (type) {
+            case Exclusive:
+                return PulsarApi.CommandProducer.GroupMode.Exclusive;
+
+            case Parallel:
+                return PulsarApi.CommandProducer.GroupMode.Parallel;
+        }
+
+        // Should not happen since we cover all cases above
+        return null;
+    }
 
     @Override
     public void close() throws PulsarClientException {

@@ -84,7 +84,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
 
         Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
-        Producer prod = topic.getProducers().values().iterator().next();
+        Producer prod = topic.getProducers().findFirst().get();
         // reset counter
         prod.updateRates();
         int total = 100;

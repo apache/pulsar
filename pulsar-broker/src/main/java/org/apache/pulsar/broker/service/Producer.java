@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -63,6 +64,7 @@ public class Producer {
     private final String producerName;
     private final long epoch;
     private final boolean userProvidedProducerName;
+    private final PulsarApi.CommandProducer.GroupMode groupMode;
     private final long producerId;
     private final String appId;
     private Rate msgIn;
@@ -88,13 +90,17 @@ public class Producer {
     private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean userProvidedProducerName) {
+                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+                    boolean userProvidedProducerName, PulsarApi.CommandProducer.GroupMode groupMode)
+            throws BrokerServiceException {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
         this.producerName = checkNotNull(producerName);
         this.userProvidedProducerName = userProvidedProducerName;
+        this.groupMode = groupMode;
+        if (groupMode != PulsarApi.CommandProducer.GroupMode.Exclusive && !userProvidedProducerName)
+            throw new BrokerServiceException.NotAllowedException("producerName must be specified in non-exclusive group modes");
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
@@ -275,6 +281,10 @@ public class Producer {
 
     public ServerCnx getCnx() {
         return this.cnx;
+    }
+
+    public PulsarApi.CommandProducer.GroupMode getGroupMode() {
+        return groupMode;
     }
 
     private static final class MessagePublishContext implements PublishContext, Runnable {

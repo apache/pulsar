@@ -112,7 +112,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. producer publish messages
         for (int i = 0; i < 10; i++) {
@@ -121,13 +121,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        assertTrue(topicRef.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topicRef.getProducers().findFirst().get().getStats().msgRateIn > 0.0);
 
         // 3. producer disconnect
         producer.close();
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(topicRef.getProducers().size(), 0);
+        assertEquals(topicRef.getProducers().count(), 0);
     }
 
     @Test
@@ -404,7 +404,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. verify there are no pending publish acks once the producer close
         // is completed on client
-        assertEquals(topicRef.getProducers().values().iterator().next().getPendingPublishAcks(), 0);
+        assertEquals(topicRef.getProducers().findFirst().get().getPendingPublishAcks(), 0);
 
         // safety latch in case of failure,
         // wait for the spawned thread to complete
@@ -1034,7 +1034,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topicRef.getManagedLedger();
         long ledgerId = managedLedger.getLedgersInfoAsList().get(0).getLedgerId();
@@ -1232,7 +1232,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
 
         // 2. producer publish messages
         for (int i = 0; i < 10; i++) {
@@ -1500,6 +1500,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             fail("Should have thrown ProducerBusyException");
         } catch (ProducerBusyException e) {
             // Expected
+            System.out.println("busy " + e);
         }
 
         p1.close();

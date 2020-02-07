@@ -65,7 +65,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
         assertEquals(topicRef.getSubscriptions().size(), 1);
 
         List<MessageId> messageIds = new ArrayList<>();
@@ -122,7 +122,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
-        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getProducers().count(), 1);
         assertEquals(topicRef.getSubscriptions().size(), 1);
         PersistentSubscription sub = topicRef.getSubscription("my-subscription");
 
@@ -162,7 +162,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
                     .getTopicReference(topicName + TopicName.PARTITIONED_TOPIC_SUFFIX + i).get();
             assertNotNull(topicRef);
-            assertEquals(topicRef.getProducers().size(), 1);
+            assertEquals(topicRef.getProducers().count(), 1);
             assertEquals(topicRef.getSubscriptions().size(), 1);
             PersistentSubscription sub = topicRef.getSubscription("my-subscription");
             assertNotNull(sub);

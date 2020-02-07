@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerGroupMode;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
@@ -91,6 +92,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean autoUpdatePartitions = true;
 
     private boolean multiSchema = true;
+
+    private ProducerGroupMode groupMode = ProducerGroupMode.Exclusive;
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
