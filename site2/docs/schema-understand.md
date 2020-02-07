@@ -179,7 +179,7 @@ This example demonstrates how to use a string schema.
 2. Create a consumer with a string schema and receive messages.  
 
     ```java
-    Consumer<String> consumer = client.newConsumer(Schema.STRING).create();
+    Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
     consumer.receive();
     ```
 
@@ -322,7 +322,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 3. Create a consumer with a `struct` schema and receive messages
 
     ```java
-    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).create();
+    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
     User user = consumer.receive();
     ```
 

@@ -869,6 +869,10 @@ Subcommands
 * `set-max-consumers-per-topic`
 * `get-max-consumers-per-subscription`
 * `set-max-consumers-per-subscription`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
 * `get-compaction-threshold`
 * `set-compaction-threshold`
 * `get-offload-threshold`
@@ -1447,6 +1451,50 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--max-consumers-per-subscription`|maxConsumersPerSubscription for a namespace|0|
+
+### `get-max-unacked-messages-per-subscription`
+Get maxUnackedMessagesPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-unacked-messages-per-subscription tenant/namespace
+```
+
+### `set-max-unacked-messages-per-subscription`
+Set maxUnackedMessagesPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-unacked-messages-per-subscription tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-unacked-messages-per-subscription`|maxUnackedMessagesPerSubscription for a namespace|-1|
+
+### `get-max-unacked-messages-per-consumer`
+Get maxUnackedMessagesPerConsumer for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-unacked-messages-per-consumer tenant/namespace
+```
+
+### `set-max-unacked-messages-per-consumer`
+Set maxUnackedMessagesPerConsumer for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-unacked-messages-per-consumer tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-unacked-messages-per-consumer`|maxUnackedMessagesPerConsumer for a namespace|-1|
 
 
 ### `get-compaction-threshold`

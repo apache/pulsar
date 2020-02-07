@@ -11,7 +11,7 @@ sidebar_label: Pulsar configuration
 </style>
 
 
-Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
+Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
