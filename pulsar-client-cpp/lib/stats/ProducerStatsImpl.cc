@@ -41,13 +41,14 @@ std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
     return os.str();
 }
 
-ProducerStatsImpl::ProducerStatsImpl(std::string producerStr, DeadlineTimerPtr timer,
+ProducerStatsImpl::ProducerStatsImpl(std::string producerStr, ExecutorServicePtr executor,
                                      unsigned int statsIntervalInSeconds)
     : numMsgsSent_(0),
       numBytesSent_(0),
       totalMsgsSent_(0),
       totalBytesSent_(0),
-      timer_(timer),
+      executor_(executor),
+      timer_(executor->createDeadlineTimer()),
       producerStr_(producerStr),
       statsIntervalInSeconds_(statsIntervalInSeconds),
       mutex_(),
