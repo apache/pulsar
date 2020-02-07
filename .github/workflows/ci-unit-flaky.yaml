@@ -36,10 +36,9 @@ jobs:
 
       - name: Check if this pull request only changes documentation
         id:   docs
-        # TODO: move this action to an apache repo
-        uses: sijie/pulsar-github-actions/diff-only@master
+        uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment
+          args: site2 .github deployment .asf.yaml
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
@@ -48,30 +47,38 @@ jobs:
           java-version: 1.8
 
       - name: Set up Maven
-        uses: aahmed-se/setup-maven@v3
+        uses: apache/pulsar-test-infra/setup-maven@master
         if: steps.docs.outputs.changed_only == 'no'
         with:
           maven-version: 3.6.1
 
+      - name: build the project
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B clean install -DskipTests
+
       - name: run PersistentTransactionBuffer test
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PersistentTransactionBufferTest -DfailIfNoTests=false
+        run: mvn -B -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PersistentTransactionBufferTest -DfailIfNoTests=false -fn
 
       - name: run ServerCnx test
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=ServerCnxTest -DfailIfNoTests=false
+        run: mvn -B -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=ServerCnxTest -DfailIfNoTests=false -fn
 
       - name: run MessagePublishThrottling test
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -am -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=MessagePublishThrottlingTest -DfailIfNoTests=false
+        run: mvn -B -pl pulsar-broker -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=MessagePublishThrottlingTest -DfailIfNoTests=false -fn
 
       - name: run PrimitiveSchema test
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -am -pl pulsar-client -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PrimitiveSchemaTest -DfailIfNoTests=false
+        run: mvn -B -pl pulsar-client -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=PrimitiveSchemaTest -DfailIfNoTests=false -fn
+
+      - name: run BlobStoreManagedLedgerOffloaderTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -pl tiered-storage/jcloud -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install -Dtest=BlobStoreManagedLedgerOffloaderTest -DfailIfNoTests=false -fn
 
       - name: run unit tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR clean install '-Dtest=PulsarFunctionE2ESecurityTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false
+        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR test '-Dtest=PulsarFunctionE2ESecurityTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false -fn
 
       - name: package surefire artifacts
         if: failure()
