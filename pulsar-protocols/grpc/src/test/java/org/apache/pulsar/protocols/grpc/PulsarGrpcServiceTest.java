@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.protocols.grpc.api.*;
@@ -161,9 +162,9 @@ public class PulsarGrpcServiceTest {
 
         PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
 
-        QueueStreamObserver<SendResult> observer = QueueStreamObserver.create();
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
         StreamObserver<CommandSend> request = producerStub.produce(observer);
-        SendResult result = observer.take();
+        SendResult result = observer.takeOneMessage();
 
         assertTrue(result.hasProducerSuccess());
 
@@ -178,7 +179,7 @@ public class PulsarGrpcServiceTest {
         CommandSend clientCommand = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
 
         request.onNext(clientCommand);
-        SendResult sendReceipt = observer.take();
+        SendResult sendReceipt = observer.takeOneMessage();
         assertTrue(sendReceipt.hasSendReceipt());
 
         request.onCompleted();
@@ -194,43 +195,73 @@ public class PulsarGrpcServiceTest {
 
         PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
 
-        CompletableFuture<Throwable> error = new CompletableFuture<>();
-
-        StreamObserver<SendResult> observer = new StreamObserver<SendResult>() {
-            @Override
-            public void onNext(SendResult value) {
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                error.complete(t);
-            }
-
-            @Override
-            public void onCompleted() {
-            }
-        };
+        TestStreamObserver<SendResult> observer = new TestStreamObserver<>();
 
         StreamObserver<CommandSend> request = producerStub.produce(observer);
-        Throwable t = error.get();
-        assertTrue(t instanceof StatusRuntimeException);
-        assertEquals(((StatusRuntimeException) t).getStatus().getCode(), Status.INVALID_ARGUMENT.getCode());
-        Metadata metadata = ((StatusRuntimeException) t).getTrailers();
-        assertNotNull(metadata);
-        assertEquals(metadata.get(ERROR_CODE_METADATA_KEY), String.valueOf(ServerError.InvalidTopicName.getNumber()));
+        Throwable t = observer.waitForError();
+        assertErrorIsStatusExceptionWithServerError(t, Status.INVALID_ARGUMENT, ServerError.InvalidTopicName);
 
         request.onCompleted();
     }
 
-    private static class QueueStreamObserver<T> implements StreamObserver<T> {
+    @Test(timeOut = 30000)
+    public void testProducerOnNotOwnedTopic() throws Exception {
+        // Force the case where the broker doesn't own any topic
+        doReturn(false).when(namespaceService).isServiceUnitActive(any(TopicName.class));
 
-        public static <T> QueueStreamObserver<T> create() {
-            return new QueueStreamObserver<T>();
+        // test PRODUCER failure case
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(nonOwnedTopicName, "prod-name", Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = new TestStreamObserver<>();
+
+        StreamObserver<CommandSend> request = producerStub.produce(observer);
+        Throwable t = observer.waitForError();
+        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ServiceNotReady);
+
+        assertFalse(pulsar.getBrokerService().getTopicReference(nonOwnedTopicName).isPresent());
+
+        request.onCompleted();
+    }
+
+    @Test(timeOut = 30000)
+    public void testUseSameProducerName() throws Exception {
+        String producerName = "my-producer";
+        // Create producer first time
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(successTopicName, producerName, Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        assertTrue(observer.takeOneMessage().hasProducerSuccess());
+
+        // Create producer second time
+        TestStreamObserver<SendResult> observer2 = new TestStreamObserver<>();
+        StreamObserver<CommandSend> produce2 = producerStub.produce(observer2);
+
+        Throwable t = observer2.waitForError();
+        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ProducerBusy);
+
+        produce.onCompleted();
+        produce2.onCompleted();
+    }
+
+    private static class TestStreamObserver<T> implements StreamObserver<T> {
+
+        public static <T> TestStreamObserver<T> create() {
+            return new TestStreamObserver<T>();
         }
 
         private LinkedBlockingQueue<T> queue = new LinkedBlockingQueue<>();
+        private CompletableFuture<Throwable> error = new CompletableFuture<>();
 
-        private QueueStreamObserver() {
+        private TestStreamObserver() {
         }
 
         @Override
@@ -240,15 +271,29 @@ public class PulsarGrpcServiceTest {
 
         @Override
         public void onError(Throwable t) {
+            error.complete(t);
         }
 
         @Override
         public void onCompleted() {
         }
 
-        public T take() throws InterruptedException {
+        public T takeOneMessage() throws InterruptedException {
             return queue.take();
         }
+
+        public Throwable waitForError() throws ExecutionException, InterruptedException {
+            return error.get();
+        }
+    }
+
+    private static void assertErrorIsStatusExceptionWithServerError(Throwable actualException, Status expectedStatus, ServerError expectedCode) {
+        Status actualStatus = Status.fromThrowable(actualException);
+        assertEquals(actualStatus.getCode(), expectedStatus.getCode());
+
+        Metadata actualMetadata = Status.trailersFromThrowable(actualException);
+        assertNotNull(actualMetadata);
+        assertEquals(actualMetadata.get(ERROR_CODE_METADATA_KEY), String.valueOf(expectedCode.getNumber()));
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {

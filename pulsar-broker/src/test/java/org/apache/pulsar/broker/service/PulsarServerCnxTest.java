@@ -1417,7 +1417,7 @@ public class PulsarServerCnxTest {
     }
 
     protected void setChannelConnected() throws Exception {
-        Field channelState = ServerCnx.class.getDeclaredField("state");
+        Field channelState = PulsarServerCnx.class.getDeclaredField("state");
         channelState.setAccessible(true);
         channelState.set(serverCnx, State.Connected);
     }

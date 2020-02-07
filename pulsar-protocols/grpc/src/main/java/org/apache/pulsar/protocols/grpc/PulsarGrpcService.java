@@ -70,7 +70,7 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 .withCause(e)
                 .asRuntimeException(newErrorMetadata(ServerError.InvalidTopicName));
             responseObserver.onError(statusException);
-            throw statusException;
+            return NoOpStreamObserver.create();
         }
 
         Producer producer;
@@ -100,10 +100,12 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                 log.error("[{}] Failed to create topic {}", remoteAddress, topicName, e);
             }
 
-            throw Status.FAILED_PRECONDITION
+            StatusRuntimeException statusException = Status.FAILED_PRECONDITION
                 .withDescription(cause.getMessage())
                 .withCause(cause)
                 .asRuntimeException(newErrorMetadata(BrokerServiceException.getClientErrorCode(cause)));
+            responseObserver.onError(statusException);
+            return NoOpStreamObserver.create();
         }
 
         return new StreamObserver<CommandSend>() {
@@ -125,6 +127,13 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
     }
 
     private static class NoOpStreamObserver<T> implements StreamObserver<T> {
+
+        public static <T> NoOpStreamObserver<T> create() {
+            return new NoOpStreamObserver<T>();
+        }
+
+        private NoOpStreamObserver() {
+        }
 
         @Override
         public void onNext(T value) {
