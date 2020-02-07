@@ -48,6 +48,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -315,12 +316,41 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void subscribe(Pattern pattern, ConsumerRebalanceListener callback) {
-        throw new UnsupportedOperationException("Cannot subscribe with topic name pattern");
+        ConsumerBuilder<byte[]> consumerBuilder = PulsarConsumerKafkaConfig.getConsumerBuilder(client, properties);
+        consumerBuilder.subscriptionType(SubscriptionType.Failover);
+        consumerBuilder.messageListener(this);
+        consumerBuilder.subscriptionName(groupId);
+        consumerBuilder.topicsPattern(pattern);
+        if (callback != null) {
+            consumerBuilder.consumerEventListener(new ConsumerEventListener() {
+                @Override
+                public void becameActive(org.apache.pulsar.client.api.Consumer<?> consumer, int partitionId) {
+                    callback.onPartitionsAssigned(Collections.singletonList(new TopicPartition(consumer.getTopic(), partitionId)));
+                }
+
+                @Override
+                public void becameInactive(org.apache.pulsar.client.api.Consumer<?> consumer, int partitionId) {
+                    callback.onPartitionsRevoked(Collections.singletonList(new TopicPartition(consumer.getTopic(), partitionId)));
+                }
+            });
+        }
+
+        try {
+            org.apache.pulsar.client.api.Consumer<byte[]> consumer = consumerBuilder.subscribe();
+            // using pattern as a fake topic name
+            TopicPartition tp = new TopicPartition(TopicName.get(pattern.pattern()).getPartitionedTopicName(), 0);
+            org.apache.pulsar.client.api.Consumer<byte[]> oldConsumer = consumers.put(tp, consumer);
+            if (oldConsumer != null) {
+                oldConsumer.unsubscribe();
+            }
+        } catch (PulsarClientException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void subscribe(Pattern pattern) {
-        throw new UnsupportedOperationException("Cannot subscribe with topic name pattern");
+        subscribe(pattern, null);
     }
 
     @Override

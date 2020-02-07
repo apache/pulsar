@@ -20,6 +20,7 @@ package org.apache.kafka.clients.consumer;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,6 +46,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.annotation.InterfaceStability;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -282,8 +284,37 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
-    public void subscribe(Pattern pattern, ConsumerRebalanceListener consumerRebalanceListener) {
-        throw new UnsupportedOperationException("Cannot subscribe with topic name pattern");
+    public void subscribe(Pattern pattern, ConsumerRebalanceListener callback) {
+        ConsumerBuilder<byte[]> consumerBuilder = PulsarConsumerKafkaConfig.getConsumerBuilder(client, properties);
+        consumerBuilder.subscriptionType(SubscriptionType.Failover);
+        consumerBuilder.messageListener(this);
+        consumerBuilder.subscriptionName(groupId);
+        consumerBuilder.topicsPattern(pattern);
+        if (callback != null) {
+            consumerBuilder.consumerEventListener(new ConsumerEventListener() {
+                @Override
+                public void becameActive(org.apache.pulsar.client.api.Consumer<?> consumer, int partitionId) {
+                    callback.onPartitionsAssigned(Collections.singletonList(new TopicPartition(consumer.getTopic(), partitionId)));
+                }
+
+                @Override
+                public void becameInactive(org.apache.pulsar.client.api.Consumer<?> consumer, int partitionId) {
+                    callback.onPartitionsRevoked(Collections.singletonList(new TopicPartition(consumer.getTopic(), partitionId)));
+                }
+            });
+        }
+
+        try {
+            org.apache.pulsar.client.api.Consumer<byte[]> consumer = consumerBuilder.subscribe();
+            // using pattern as a fake topic name
+            TopicPartition tp = new TopicPartition(TopicName.get(pattern.pattern()).getPartitionedTopicName(), 0);
+            org.apache.pulsar.client.api.Consumer<byte[]> oldConsumer = consumers.put(tp, consumer);
+            if (oldConsumer != null) {
+                oldConsumer.unsubscribe();
+            }
+        } catch (PulsarClientException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
