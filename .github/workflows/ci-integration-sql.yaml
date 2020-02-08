@@ -50,6 +50,14 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: docker images
 
+      - name: remove docker node image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
+
+      - name: remove docker builder and microsoft image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
+
       - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
@@ -65,14 +73,6 @@ jobs:
       - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
-
-      - name: remove docker node image
-        if: steps.docs.outputs.changed_only == 'no'
-        run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
-
-      - name: remove docker builder and microsoft image
-        if: steps.docs.outputs.changed_only == 'no'
-        run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
 
       - name: Delete docker standalone
         if: steps.docs.outputs.changed_only == 'no'
