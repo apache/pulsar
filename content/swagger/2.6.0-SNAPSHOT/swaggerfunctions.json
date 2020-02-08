@@ -1351,6 +1351,30 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
         "replicated" : {
           "type" : "boolean"
         },
@@ -1362,17 +1386,16 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
+        "topicName" : {
+          "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "replicatedFrom" : {
+          "type" : "string"
         },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "producerName" : {
+          "type" : "string"
         },
-        "orderingKey" : {
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1382,29 +1405,6 @@
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "data" : {
           "type" : "array",
