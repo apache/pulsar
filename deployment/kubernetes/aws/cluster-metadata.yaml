@@ -17,36 +17,26 @@
 # under the License.
 #
 
-name: CI - Misc
-on:
-  pull_request:
-    branches:
-      - master
-
-jobs:
-
-  license-check:
-    name: License check
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v1
-
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-
-      # license check fails with 3.6.2 so we have to downgrade
-      - name: Set up Maven
-        uses: apache/pulsar-test-infra/setup-maven@master
-        with:
-          maven-version: 3.6.1
-
-      - name: build and check license
-        run: mvn -B -ntp -DskipTests license:check install
-          
-      - name: license check
-        run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pulsar-cluster-metadata-init
+  labels:
+    app: pulsar
+    component: broker
+spec:
+  template:
+    spec:
+      containers:
+        - name: pulsar-cluster-metadata-init-container
+          image: apachepulsar/pulsar:latest
+          command: ["sh", "-c"]
+          args:
+            - >
+              bin/pulsar initialize-cluster-metadata \
+                --cluster us-east \
+                --zookeeper zookeeper \
+                --configuration-store zookeeper \
+                --web-service-url http://broker:8080/ \
+                --broker-service-url pulsar://broker:6650/ || true;
+      restartPolicy: Never

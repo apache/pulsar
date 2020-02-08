@@ -70,7 +70,7 @@ zookeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -140,7 +140,7 @@ bookkeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -212,7 +212,7 @@ broker:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -257,7 +257,7 @@ proxy:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -299,7 +299,7 @@ autoRecovery:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -321,7 +321,7 @@ dashboard:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-dashboard
@@ -347,7 +347,7 @@ dashboard:
 
       ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
       secretName: ""
-    
+
     ## Required if ingress is enabled
     hostname: ""
     path: "/"
@@ -363,7 +363,7 @@ bastion:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -384,7 +384,7 @@ prometheus:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: prom/prometheus
@@ -393,7 +393,7 @@ prometheus:
     resources:
       requests:
         memory: 64Mi
-        cpu: 0.1  
+        cpu: 0.1
   volumes:
     data:
       name: data
@@ -427,7 +427,7 @@ grafana:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-grafana
@@ -462,7 +462,7 @@ pulsar_manager:
   # nodeSelector:
   # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-manager
@@ -484,4 +484,3 @@ pulsar_manager:
   admin:
     user: pulsar
     password: pulsar
-
