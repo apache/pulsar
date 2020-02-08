@@ -115,6 +115,7 @@ spec:
         - >
           bin/apply-config-from-env.py conf/bookkeeper.conf &&
           bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/apply-config-from-env.py conf/bkenv.sh &&
           bin/pulsar bookie
         ports:
         - name: client
