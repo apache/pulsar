@@ -1654,7 +1654,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("not-expired".getBytes(Encoding));
         ledger.addEntry("not-expired".getBytes(Encoding));
 
-        assertEquals(c1.readPosition,
+        assertNull(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
     }
 
@@ -2117,7 +2117,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
-        Position firstPosition = ledger.addEntry(getEntryPublishTime("retained1"));
+        ledger.addEntry(getEntryPublishTime("retained1"));
         // space apart message publish times
         Thread.sleep(100);
         ledger.addEntry(getEntryPublishTime("retained2"));
@@ -2146,7 +2146,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(found.getEntryId(), expectedEntryId);
 
         found = (PositionImpl) findPositionFromAllEntries(c1, 0);
-        assertEquals(found, firstPosition);
+        assertNull(found);
     }
 
     @Test(timeOut = 20000)
