@@ -358,9 +358,10 @@ The Apache Software License, Version 2.0
     - io.netty-netty-resolver-4.1.43.Final.jar
     - io.netty-netty-resolver-dns-4.1.43.Final.jar
     - io.netty-netty-transport-4.1.43.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar
     - io.netty-netty-transport-native-epoll-4.1.43.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.43.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.43.Final-linux-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.26.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
