@@ -1084,11 +1084,17 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 412, message = "Bucket must be specified") })
+            @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid") })
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                           OffloadPolicies offload) {
-        validateNamespaceName(tenant, namespace);
-        internalSetOffloadPolicies(offload);
+                           OffloadPolicies offload, @Suspended final AsyncResponse asyncResponse) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSetOffloadPolicies(asyncResponse, offload);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
