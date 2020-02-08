@@ -61,6 +61,15 @@ public class SubscriptionStats {
     /** Last message expire execution timestamp. */
     public long lastExpireTimestamp;
 
+    /** Last received consume flow command timestamp. */
+    public long lastConsumedFlowTimestamp;
+
+    /** Last consume message timestamp. */
+    public long lastConsumedTimestamp;
+
+    /** Last acked message timestamp. */
+    public long lastAckedTimestamp;
+
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStats> consumers;
 
