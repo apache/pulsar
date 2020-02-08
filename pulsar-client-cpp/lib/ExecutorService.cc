@@ -26,20 +26,20 @@ namespace pulsar {
 
 ExecutorService::ExecutorService()
     : io_service_(new boost::asio::io_service()),
-        work_(new BackgroundWork(*io_service_)),
-        worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
+      work_(new BackgroundWork(*io_service_)),
+      worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
 
 ExecutorService::~ExecutorService() { close(); }
 
-void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) {
-    io_service_->run();
-}
+void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) { io_service_->run(); }
 
 /*
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
  *  @ returns shared_ptr to this socket
  */
-SocketPtr ExecutorService::createSocket() { return SocketPtr(new boost::asio::ip::tcp::socket(*io_service_)); }
+SocketPtr ExecutorService::createSocket() {
+    return SocketPtr(new boost::asio::ip::tcp::socket(*io_service_));
+}
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
     return std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
