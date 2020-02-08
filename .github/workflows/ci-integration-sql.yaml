@@ -50,7 +50,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: docker images
 
-      - name: get docker images
+      - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
 
@@ -62,7 +62,27 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: docker images
 
-      - name: get docker images
+      - name: get space size
+        if: steps.docs.outputs.changed_only == 'no'
+        run: df -h
+
+      - name: Delete docker standalone
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f apachepulsar/pulsar-standalone
+
+      - name: Delete docker pulsar grafana
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f apachepulsar/pulsar-grafana
+
+      - name: Delete docker pulsar grafana
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f apachepulsar/pulsar-dashboard
+
+      - name: Delete docker pulsar grafana
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker rmi -f apachepulsar/pulsar-build
+
+      - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
 
