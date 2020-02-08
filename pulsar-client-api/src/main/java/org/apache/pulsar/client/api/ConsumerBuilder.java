@@ -374,6 +374,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
+
+    /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     *
+     * @param interval
+     *            the amount of delay between checks for
+     *            new topics matching pattern set with {@link #topicsPattern(String)}
+     * @param unit
+     *            the unit of the topics auto discovery period
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit);
+
+
     /**
      * <b>Shared subscription</b>
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
