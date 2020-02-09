@@ -46,10 +46,6 @@ jobs:
         with:
           java-version: 1.8
 
-      - name: get docker images
-        if: steps.docs.outputs.changed_only == 'no'
-        run: docker images
-
       - name: remove docker node image
         if: steps.docs.outputs.changed_only == 'no'
         run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
