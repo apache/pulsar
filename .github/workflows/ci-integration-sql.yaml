@@ -62,9 +62,17 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
 
-      - name: build artifacts and docker image
+      - name: build artifacts and docker pulsar latest image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B install -am -Pdocker -DskipTests
+        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests
+
+      - name: build artifacts and docker pulsar all image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f docker/pulsar-all/pom.xml  install -am -Pdocker -DskipTests
+
+      - name: build artifacts and docker pulsar latest test image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: get docker images
         if: steps.docs.outputs.changed_only == 'no'
@@ -73,22 +81,6 @@ jobs:
       - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
         run: df -h
-
-#      - name: Delete docker standalone
-#        if: steps.docs.outputs.changed_only == 'no'
-#        run: docker rmi -f apachepulsar/pulsar-standalone
-#
-#      - name: Delete docker pulsar grafana
-#        if: steps.docs.outputs.changed_only == 'no'
-#        run: docker rmi -f apachepulsar/pulsar-grafana
-#
-#      - name: Delete docker pulsar grafana
-#        if: steps.docs.outputs.changed_only == 'no'
-#        run: docker rmi -f apachepulsar/pulsar-dashboard
-#
-#      - name: Delete docker pulsar grafana
-#        if: steps.docs.outputs.changed_only == 'no'
-#        run: docker rmi -f apachepulsar/pulsar-build
 
       - name: get space size
         if: steps.docs.outputs.changed_only == 'no'
