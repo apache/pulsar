@@ -2287,23 +2287,23 @@ public abstract class NamespacesBase extends AdminResource {
                         if (rc == KeeperException.Code.OK.intValue()) {
                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
                         } else {
-                            asyncResponse.resume(KeeperException
-                                    .create(KeeperException.Code.get(rc), "failed to create update partitions"));
+                            String errorMsg = String.format(
+                                    "[%s] Failed to update offload configuration for namespace %s",
+                                    clientAppId(), namespaceName);
+                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                log.warn("{} : does not exist", errorMsg);
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                log.warn("{} : concurrent modification", errorMsg);
+                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            } else {
+                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                            }
                         }
                     }, null);
             log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, jsonMapper().writeValueAsString(policies.offload_policies));
             asyncResponse.resume(Response.noContent().build());
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: concurrent modification",
-                    clientAppId(), namespaceName);
-            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
-        } catch (RestException pfe) {
-            asyncResponse.resume(pfe);
         } catch (Exception e) {
             log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
                     e);
