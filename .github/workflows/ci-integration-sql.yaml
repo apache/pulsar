@@ -58,10 +58,6 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
 
-      - name: get space size
-        if: steps.docs.outputs.changed_only == 'no'
-        run: df -h
-
       - name: run install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
@@ -69,18 +65,6 @@ jobs:
       - name: build artifacts and docker pulsar latest test image
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
-
-      - name: get docker images
-        if: steps.docs.outputs.changed_only == 'no'
-        run: docker images
-
-      - name: get space size
-        if: steps.docs.outputs.changed_only == 'no'
-        run: df -h
-
-      - name: get space size
-        if: steps.docs.outputs.changed_only == 'no'
-        run: df -h
 
       - name: clean docker container
         if: steps.docs.outputs.changed_only == 'no'
