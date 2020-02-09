@@ -28,7 +28,7 @@ const createVariableInjectionPlugin = variables => {
       } else if (keyparts[0] == 'source') {
           return renderUrl(initializedPlugin, sourceApiUrl + "#", keyparts);
       } else if (keyparts[0] == 'sink') {
-          return renderUrl(initializedPlugin, sinkApiUrl + "#", keyparts);
+        return renderUrl(initializedPlugin, sinkApiUrl + "#", keyparts);
       } else {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
@@ -105,6 +105,7 @@ const siteConfig = {
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Clients'},
     {href: '#restapis', label: 'REST APIs'},
+    {href: '#cli', label: 'Cli'},
     {blog: true, label: 'Blog'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},

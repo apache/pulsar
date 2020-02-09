@@ -62,6 +62,7 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -375,6 +376,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
 
+        namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
+        verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1", new DelayedDeliveryPolicies(1000, true));
+
+        namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
+        verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
+
         namespaces.run(split("clear-backlog myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBacklog("myprop/clust/ns1");
 
@@ -431,6 +438,18 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
+
+        namespaces.run(split("get-max-unacked-messages-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxUnackedMessagesPerSubscription("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-unacked-messages-per-subscription myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxUnackedMessagesPerSubscription("myprop/clust/ns1", 3);
+
+        namespaces.run(split("get-max-unacked-messages-per-consumer myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-unacked-messages-per-consumer myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxUnackedMessagesPerConsumer("myprop/clust/ns1", 3);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);

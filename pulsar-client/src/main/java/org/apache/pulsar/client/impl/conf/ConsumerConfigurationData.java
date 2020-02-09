@@ -92,7 +92,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private int patternAutoDiscoveryPeriod = 1;
+    private int patternAutoDiscoveryPeriod = 60;
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 

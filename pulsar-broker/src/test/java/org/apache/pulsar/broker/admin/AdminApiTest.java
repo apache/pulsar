@@ -580,7 +580,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
         // update configuration
         admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
-        // Now, znode is created: updateConfigurationAndregisterListeners and check if configuration updated
+        // Now, znode is created: updateConfigurationAndRegisterListeners and check if configuration updated
         assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
     }
 
@@ -663,6 +663,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
+        policies.max_unacked_messages_per_subscription = 200000;
+        policies.max_unacked_messages_per_consumer = 50000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.namespace_auth);
@@ -815,9 +817,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 4);
 
-        // check if the virtual topic doesn't get created
         List<String> topics = admin.topics().getList("prop-xyz/ns1");
-        assertEquals(topics.size(), 0);
+        assertEquals(topics.size(), 4);
 
         assertEquals(admin.topics().getPartitionedTopicMetadata("persistent://prop-xyz/ns1/ds2").partitions,
                 0);
@@ -829,15 +830,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedStats(partitionedTopicName, false).partitions.size(),
                 0);
 
-        try {
-            admin.topics().getSubscriptions(partitionedTopicName);
-            fail("should have failed");
-        } catch (PulsarAdminException e) {
-            // ok
-            assertEquals(e.getStatusCode(), Status.NOT_FOUND.getStatusCode());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
+        assertEquals(subscriptions.size(), 0);
 
         // create consumer and subscription
         PulsarClient client = PulsarClient.builder()

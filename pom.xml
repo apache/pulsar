@@ -195,7 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>0.10.0.Final</debezium.version>
+    <debezium.version>1.0.0.Final</debezium.version>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
@@ -473,12 +473,26 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.netty</groupId>
         <artifactId>netty-transport-native-epoll</artifactId>
         <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
       </dependency>
 
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-transport-native-unix-common</artifactId>
         <version>${netty.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-unix-common</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
       </dependency>
 
       <!-- `netty-codec-http2` is a dependency of grpc, set the version to
@@ -1685,6 +1699,10 @@ flexible messaging model and an intuitive client API.</description>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
       <url>https://yahoo.bintray.com/maven</url>
+    </repository>
+    <repository>
+      <id>spring-plugins-release</id>
+      <url>https://repo.spring.io/plugins-release/</url>
     </repository>
   </repositories>
 </project>

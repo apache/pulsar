@@ -38,6 +38,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -45,6 +46,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -112,6 +114,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
@@ -2487,6 +2490,41 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(addSuccess.get());
 
         setFieldValue(ManagedLedgerImpl.class, ledger, "currentLedger", null);
+    }
+
+    @Test
+    public void avoidUseSameOpAddEntryBetweenDifferentLedger() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, zkc, config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+
+        List<OpAddEntry> oldOps = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            OpAddEntry op = OpAddEntry.create(ledger, ByteBufAllocator.DEFAULT.buffer(128), null, null);
+            if (i > 4) {
+                op.setLedger(mock(LedgerHandle.class));
+            }
+            oldOps.add(op);
+            ledger.pendingAddEntries.add(op);
+        }
+
+        ledger.updateLedgersIdsComplete(mock(Stat.class));
+        for (int i = 0; i < 10; i++) {
+            OpAddEntry oldOp = oldOps.get(i);
+            if (i > 4) {
+                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.CLOSED);
+            } else {
+                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.INITIATED);
+            }
+            OpAddEntry newOp = ledger.pendingAddEntries.poll();
+            Assert.assertEquals(newOp.getState(), OpAddEntry.State.INITIATED);
+            if (i > 4) {
+                Assert.assertNotSame(oldOp, newOp);
+            } else {
+                Assert.assertSame(oldOp, newOp);
+            }
+        }
     }
 
     private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

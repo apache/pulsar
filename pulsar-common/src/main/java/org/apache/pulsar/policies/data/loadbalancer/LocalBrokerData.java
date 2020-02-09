@@ -205,6 +205,13 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
                 bandwidthOut.percentUsage()) / 100;
     }
 
+    public String printResourceUsage() {
+        return String.format(
+                "cpu: %.2f%%, memory: %.2f%%, directMemory: %.2f%%, bandwidthIn: %.2f%%, bandwidthOut: %.2f%%",
+                cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+                bandwidthOut.percentUsage());
+    }
+
     private static float max(float...args) {
         float max = Float.NEGATIVE_INFINITY;
 
