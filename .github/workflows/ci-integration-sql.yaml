@@ -46,20 +46,6 @@ jobs:
         with:
           java-version: 1.8
 
-      - name: Set up Maven
-        uses: aahmed-se/setup-maven@v3
-        if: steps.docs.outputs.changed_only == 'no'
-        with:
-          maven-version: 3.6.1
-
-      - name: build artifacts and docker image
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B install -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -Pdocker -DskipTests
-
-      - name: clean docker container
-        if: steps.docs.outputs.changed_only == 'no'
-        run: docker system prune -f
-
       - name: remove docker node image
         if: steps.docs.outputs.changed_only == 'no'
         run: docker rmi -f node:10 && docker rmi -f node:12 && docker rmi -f buildpack-deps:stretch
@@ -67,6 +53,18 @@ jobs:
       - name: remove docker builder and microsoft image
         if: steps.docs.outputs.changed_only == 'no'
         run: docker rmi -f jekyll/builder:latest && docker rmi -f mcr.microsoft.com/azure-pipelines/node8-typescript:latest
+
+      - name: run install by skip tests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn clean install -DskipTests
+
+      - name: build artifacts and docker pulsar latest test image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+
+      - name: clean docker container
+        if: steps.docs.outputs.changed_only == 'no'
+        run: docker system prune -f
 
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
