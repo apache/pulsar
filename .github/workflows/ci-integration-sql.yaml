@@ -66,14 +66,6 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
 
-      - name: build artifacts and docker pulsar image
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
-
-      - name: build artifacts and docker pulsar all image
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f docker/pulsar-all/pom.xml  install -am -Pdocker -DskipTests
-
       - name: build artifacts and docker pulsar latest test image
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
