@@ -37,13 +37,13 @@ COPY --from=dashboard /pulsar/conf/* /pulsar/conf/
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update
-RUN apt-get -y install python2.7 python-pip postgresql-9.6 sudo nginx supervisor libpq-dev
+RUN apt-get -y install python2.7 python-pip postgresql sudo nginx supervisor libpq-dev
 
 # Python dependencies
 RUN pip2 install -r /pulsar/django/requirements.txt 
 
 # Postgres configuration
-COPY --from=dashboard /etc/postgresql/9.6/main/postgresql.conf /etc/postgresql/9.6/main/postgresql.conf
+COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
 
 # Configure supervisor
 COPY --from=dashboard /etc/supervisor/conf.d/supervisor-app.conf /etc/supervisor/conf.d/supervisor-app.conf
