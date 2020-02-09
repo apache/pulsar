@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
@@ -42,6 +42,8 @@ import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
+import org.apache.pulsar.transaction.coordinator.timeout.MLTransactionTimeoutTrackerFactory;
+import org.apache.pulsar.transaction.coordinator.timeout.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 import org.slf4j.Logger;
@@ -51,23 +53,26 @@ import org.slf4j.LoggerFactory;
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
-public class ManagedLedgerTransactionMetadataStore
+public class MLTransactionMetadataStore
         extends TransactionMetadataStoreState implements TransactionMetadataStore {
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStore.class);
+    private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
     private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
-    private final ManagedLedgerTransactionLogImpl transactionLog;
+    private final MLTransactionLogImpl transactionLog;
     private static final long TC_ID_NOT_USED = -1L;
     private final ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
+    private final TransactionTimeoutTracker transactionTimeoutTracker;
 
-    public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
-                                                 ManagedLedgerFactory managedLedgerFactory) throws Exception {
+    public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
+                                      MLTransactionLogImpl mlTransactionLog,
+                                      MLTransactionTimeoutTrackerFactory mlTransactionTimeoutTrackerFactory) {
         super(State.None);
         this.tcID = tcID;
-        this.transactionLog =
-                new ManagedLedgerTransactionLogImpl(tcID.getId(), managedLedgerFactory);
+        this.transactionLog = mlTransactionLog;
+        this.transactionTimeoutTracker = mlTransactionTimeoutTrackerFactory.newTracker(this);
+
         if (!changeToInitializingState()) {
             log.error("Managed ledger transaction metadata store change state error when init it");
             return;
@@ -95,6 +100,8 @@ public class ManagedLedgerTransactionMetadataStore
                                 sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
                             }
                             txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                            transactionTimeoutTracker
+                                    .addTransaction(sequenceId.get(), transactionMetadataEntry.getTimeoutMs());
                             break;
                         case ADD_PARTITION:
                             txnMetaMap.get(txnID)
@@ -140,6 +147,7 @@ public class ManagedLedgerTransactionMetadataStore
                     new CoordinatorException
                             .TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
         }
+
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.incrementAndGet();
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
@@ -158,6 +166,8 @@ public class ManagedLedgerTransactionMetadataStore
                 .whenComplete((v, e) -> {
                     if (e == null) {
                         txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                        transactionTimeoutTracker
+                                .addTransaction(leastSigBits, timeOut);
                         completableFuture.complete(txnID);
                     } else {
                         completableFuture.completeExceptionally(e);
@@ -281,9 +291,15 @@ public class ManagedLedgerTransactionMetadataStore
     }
 
     @Override
+    public TransactionCoordinatorID getTransactionCoordinatorID() {
+        return tcID;
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return transactionLog.closeAsync().thenCompose(v -> {
             txnMetaMap.clear();
+            transactionTimeoutTracker.close();
             if (!this.changeToCloseState()) {
                 return FutureUtil.failedFuture(
                         new IllegalStateException("Managed ledger transaction metadata store state to close error!"));
@@ -311,6 +327,11 @@ public class ManagedLedgerTransactionMetadataStore
             subscription.recycle();
         }
         return txnSubscriptions;
+    }
+
+    @VisibleForTesting
+    public ConcurrentMap<TxnID, TxnMeta> getTxnMetaMap() {
+        return txnMetaMap;
     }
 }
 

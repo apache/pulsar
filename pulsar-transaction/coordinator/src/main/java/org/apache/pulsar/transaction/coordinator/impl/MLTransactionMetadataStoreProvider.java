@@ -25,15 +25,19 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.timeout.MLTransactionTimeoutTrackerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
-public class ManagedLedgerTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
+public class MLTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionMetadataStoreProvider.class);
+    private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStoreProvider.class);
+
+    private final MLTransactionTimeoutTrackerFactory mlTransactionTimeoutTrackerFactory =
+            new MLTransactionTimeoutTrackerFactory();
 
     @Override
     public CompletableFuture<TransactionMetadataStore>
@@ -41,9 +45,11 @@ public class ManagedLedgerTransactionMetadataStoreProvider implements Transactio
         TransactionMetadataStore transactionMetadataStore;
         try {
             transactionMetadataStore =
-                    new ManagedLedgerTransactionMetadataStore(transactionCoordinatorId, managedLedgerFactory);
+                    new MLTransactionMetadataStore(transactionCoordinatorId,
+                            new MLTransactionLogImpl(transactionCoordinatorId, managedLedgerFactory),
+                            mlTransactionTimeoutTrackerFactory);
         } catch (Exception e) {
-            log.error("ManagedLedgerTransactionMetadataStore init fail", e);
+            log.error("MLTransactionMetadataStore init fail", e);
             return FutureUtil.failedFuture(e);
         }
         return CompletableFuture.completedFuture(transactionMetadataStore);

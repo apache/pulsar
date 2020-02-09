@@ -38,6 +38,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLog;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 
@@ -46,9 +47,9 @@ import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ManagedLedgerTransactionLogImpl implements TransactionLog {
+public class MLTransactionLogImpl implements TransactionLog {
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionLogImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(MLTransactionLogImpl.class);
 
     private final ManagedLedger managedLedger;
 
@@ -62,9 +63,9 @@ class ManagedLedgerTransactionLogImpl implements TransactionLog {
 
     private final long tcId;
 
-    ManagedLedgerTransactionLogImpl(long tcID,
-                                    ManagedLedgerFactory managedLedgerFactory) throws Exception {
-        this.tcId = tcID;
+    public MLTransactionLogImpl(TransactionCoordinatorID tcID,
+                                ManagedLedgerFactory managedLedgerFactory) throws Exception {
+        this.tcId = tcID.getId();
         this.managedLedger = managedLedgerFactory.open(TRANSACTION_LOG_PREFIX + tcID);
         this.readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(TRANSACTION_LOG_PREFIX + tcID,
                 PositionImpl.earliest, new ManagedLedgerConfig());

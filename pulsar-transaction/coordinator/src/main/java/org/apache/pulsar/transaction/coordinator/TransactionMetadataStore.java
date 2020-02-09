@@ -97,6 +97,12 @@ public interface TransactionMetadataStore {
         TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
+     * Get the transaction coordinator id.
+     * @return transaction coordinator id
+     */
+    TransactionCoordinatorID getTransactionCoordinatorID();
+
+    /**
      * Close the transaction metadata store.
      *
      * @return a future represents the result of this operation

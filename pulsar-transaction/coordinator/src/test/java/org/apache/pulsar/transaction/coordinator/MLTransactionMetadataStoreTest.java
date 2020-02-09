@@ -23,7 +23,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.transaction.coordinator.impl.ManagedLedgerTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.timeout.MLTransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,9 +33,9 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
+public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
 
-    public ManagedLedgerTransactionMetadataStoreTest() {
+    public MLTransactionMetadataStoreTest() {
         super(3);
     }
 
@@ -42,8 +44,11 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
-        ManagedLedgerTransactionMetadataStore transactionMetadataStore =
-                new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new MLTransactionTimeoutTrackerFactory());
 
         while (true) {
             if (transactionMetadataStore.checkIfReady()) {
@@ -88,8 +93,11 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
-        ManagedLedgerTransactionMetadataStore transactionMetadataStore =
-                new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new MLTransactionTimeoutTrackerFactory());
 
         while (true) {
             if (transactionMetadataStore.checkIfReady()) {
@@ -123,8 +131,12 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
                 transactionMetadataStore.updateTxnStatusAsync(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
                 transactionMetadataStore.updateTxnStatusAsync(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
                 transactionMetadataStore.closeAsync();
-                ManagedLedgerTransactionMetadataStore transactionMetadataStoreTest =
-                        new ManagedLedgerTransactionMetadataStore(new TransactionCoordinatorID(1), factory);
+
+                MLTransactionMetadataStore transactionMetadataStoreTest =
+                        new MLTransactionMetadataStore(transactionCoordinatorID,
+
+                                new MLTransactionLogImpl(transactionCoordinatorID, factory),
+                                new MLTransactionTimeoutTrackerFactory());
 
                 while (true) {
                     if (transactionMetadataStoreTest.checkIfReady()) {
