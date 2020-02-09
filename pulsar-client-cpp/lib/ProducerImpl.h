@@ -101,8 +101,6 @@ class ProducerImpl : public HandlerBase,
     virtual void flushAsync(FlushCallback callback);
 
    protected:
-    ProducerStatsBasePtr producerStatsBasePtr_;
-
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 
     void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
@@ -172,6 +170,11 @@ class ProducerImpl : public HandlerBase,
     DeadlineTimerPtr dataKeyGenTImer_;
     uint32_t dataKeyGenIntervalSec_;
     std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
+
+   protected:
+    // the producerStatsBasePtr_ must be declared after the ExecutorService to ensure it is destroyed
+    // before the service. This is because its destructor interacts with the executor service
+    ProducerStatsBasePtr producerStatsBasePtr_;
 };
 
 struct ProducerImplCmp {
