@@ -74,10 +74,16 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     private Set<String> publishMessages(String topic, int count) throws Exception {
+        return publishMessages(topic, count, false);
+    }
+
+    private Set<String> publishMessages(String topic, int count, boolean batching) throws Exception {
         Set<String> keys = new HashSet<>();
 
         try (Producer<byte[]> producer = pulsarClient.newProducer()
-            .enableBatching(false)
+            .enableBatching(batching)
+            // easier to create enough batches with a small batch size
+            .batchingMaxMessages(10)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .maxPendingMessages(count)
             .topic(topic)
@@ -230,6 +236,34 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertEquals(timeouts, 1);
+        Assert.assertEquals(keys.size(), numMessages);
+    }
+
+    @Test
+    public void testFlowControlBatch() throws Exception {
+        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+
+        publishMessages(topic, numMessages, true);
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        Set<String> keys = new HashSet<>();
+
+        while (true) {
+            try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
+                Assert.assertTrue(RawBatchConverter.isReadableBatch(m));
+                List<ImmutablePair<MessageId, String>> batchKeys = RawBatchConverter.extractIdsAndKeys(m);
+                // Assert each key is unique
+                for (ImmutablePair<MessageId, String> pair : batchKeys) {
+                    String key = pair.right;
+                    Assert.assertTrue(
+                            keys.add(key),
+                            "Received duplicated key '" + key + "' : already received keys = " + keys);
+                }
+            } catch (TimeoutException te) {
+                break;
+            }
+        }
         Assert.assertEquals(keys.size(), numMessages);
     }
 

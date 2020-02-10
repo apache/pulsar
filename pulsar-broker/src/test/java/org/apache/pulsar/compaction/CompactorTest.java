@@ -207,7 +207,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
     }
 
-    @Test(expectedExceptions = ExecutionException.class)
+    @Test
     public void testCompactEmptyTopic() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
