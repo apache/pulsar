@@ -38,6 +38,7 @@
 #include <functional>
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 DECLARE_LOG_OBJECT()
 
@@ -608,6 +609,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1161,6 +1163,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1212,6 +1215,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
