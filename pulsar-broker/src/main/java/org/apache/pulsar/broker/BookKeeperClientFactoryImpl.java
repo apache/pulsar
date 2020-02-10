@@ -115,6 +115,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
+        bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
 
         return bkConf;
     }
