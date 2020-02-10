@@ -1142,7 +1142,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         increaseAvailablePermits(currentCnx, 1);
     }
 
-    private void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
+    protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
 
         while (available >= receiverQueueRefillThreshold && !paused) {

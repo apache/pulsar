@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class CompactionTest extends MockedPulsarServiceBaseTest {
@@ -1250,11 +1251,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
-    public void testCompactionWithLastDeletedKey() throws Exception {
+    @DataProvider(name = "lastDeletedBatching")
+    public static Object[][] lastDeletedBatching() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testCompactionWithLastDeletedKey(boolean batching) throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -1277,11 +1283,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
-    public void testEmptyCompactionLedger() throws Exception {
+    @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
+    public void testEmptyCompactionLedger(boolean batching) throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
