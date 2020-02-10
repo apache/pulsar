@@ -458,6 +458,9 @@
               "$ref" : "#/definitions/SourceStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this source"
+          },
           "500" : {
             "description" : "Internal Server Error"
           },
@@ -547,6 +550,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this source"
+          },
           "400" : {
             "description" : "Invalid request"
           },
@@ -656,6 +662,9 @@
             "schema" : {
               "$ref" : "#/definitions/SourceInstanceStatusData"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this source"
           },
           "500" : {
             "description" : "Internal Server Error"

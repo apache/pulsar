@@ -443,6 +443,9 @@
               "$ref" : "#/definitions/SinkStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this sink"
+          },
           "400" : {
             "description" : "Invalid get status request"
           },
@@ -538,6 +541,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this sink"
+          },
           "400" : {
             "description" : "Invalid restart request"
           },
@@ -647,6 +653,9 @@
             "schema" : {
               "$ref" : "#/definitions/SinkInstanceStatusData"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this sink"
           },
           "400" : {
             "description" : "The Pulsar Sink instance does not exist"

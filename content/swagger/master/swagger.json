@@ -501,6 +501,9 @@
               }
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the cluster"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -533,6 +536,9 @@
                 "type" : "string"
               }
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve this cluster"
           },
           "401" : {
             "description" : "Authentication required"
@@ -1260,6 +1266,9 @@
               "$ref" : "#/definitions/BookieAffinityGroupData"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -1428,6 +1437,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -2868,6 +2880,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3500,6 +3515,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3583,6 +3601,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3626,6 +3647,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3671,6 +3695,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3717,6 +3744,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           }
@@ -3754,6 +3784,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           }
@@ -3995,6 +4028,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -4055,6 +4091,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -4115,6 +4154,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -4231,6 +4273,9 @@
               "$ref" : "#/definitions/LongRunningProcessStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -4287,6 +4332,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -4341,6 +4389,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
@@ -4450,6 +4501,9 @@
               "$ref" : "#/definitions/PersistentTopicInternalStats"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to manage resources on this tenant"
           },
@@ -4507,6 +4561,9 @@
             "schema" : {
               "$ref" : "#/definitions/MessageId"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
@@ -4572,6 +4629,9 @@
               "$ref" : "#/definitions/OffloadProcessStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -4628,6 +4688,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -4696,6 +4759,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -4764,6 +4830,9 @@
               "$ref" : "#/definitions/PartitionedTopicMetadata"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to manage resources on this tenant"
           },
@@ -4826,6 +4895,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
@@ -4885,6 +4957,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to manage resources on this tenant"
           },
@@ -4948,6 +5023,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5068,6 +5146,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5120,6 +5201,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5177,6 +5261,9 @@
             "schema" : {
               "$ref" : "#/definitions/TopicStats"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
             "description" : "Don't have permission to manage resources on this tenant"
@@ -5236,6 +5323,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5305,6 +5395,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5374,6 +5467,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5446,6 +5542,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5517,6 +5616,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5589,6 +5691,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5650,6 +5755,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5721,6 +5829,9 @@
           "type" : "boolean"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5776,6 +5887,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -5837,6 +5951,9 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -5895,6 +6012,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "This operation requires super-user access"
           },
@@ -6046,6 +6166,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -6106,6 +6229,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -6166,6 +6292,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -6282,6 +6411,9 @@
               "$ref" : "#/definitions/LongRunningProcessStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -6338,6 +6470,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -6392,6 +6527,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
@@ -6501,6 +6639,9 @@
               "$ref" : "#/definitions/PersistentTopicInternalStats"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -6561,6 +6702,9 @@
             "schema" : {
               "$ref" : "#/definitions/MessageId"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
@@ -6626,6 +6770,9 @@
               "$ref" : "#/definitions/OffloadProcessStatus"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -6682,6 +6829,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -6750,6 +6900,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -6818,6 +6971,9 @@
               "$ref" : "#/definitions/PartitionedTopicMetadata"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -6880,6 +7036,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
           },
@@ -6939,6 +7098,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7002,6 +7164,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7122,6 +7287,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7174,6 +7342,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7231,6 +7402,9 @@
             "schema" : {
               "$ref" : "#/definitions/TopicStats"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
@@ -7293,6 +7467,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7362,6 +7539,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7431,6 +7611,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7503,6 +7686,9 @@
           }
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7574,6 +7760,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7646,6 +7835,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7707,6 +7899,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7778,6 +7973,9 @@
           "type" : "boolean"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -7833,6 +8031,9 @@
           "default" : false
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant"
           },
@@ -7893,6 +8094,9 @@
             "schema" : {
               "$ref" : "#/definitions/MessageId"
             }
+          },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
           },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
@@ -8055,6 +8259,9 @@
               "$ref" : "#/definitions/ResourceQuota"
             }
           },
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -8087,6 +8294,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -8119,6 +8329,9 @@
           "type" : "string"
         } ],
         "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -8985,10 +9198,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -9357,28 +9570,19 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -9392,6 +9596,15 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -9559,13 +9772,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -9966,6 +10179,12 @@
             "$ref" : "#/definitions/BacklogQuota"
           }
         },
+        "clusterDispatchRate" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
+        },
         "topicDispatchRate" : {
           "type" : "object",
           "additionalProperties" : {
@@ -10295,13 +10514,13 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
