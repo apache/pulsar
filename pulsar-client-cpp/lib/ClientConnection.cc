@@ -289,9 +289,8 @@ void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerSta
     DeadlineTimerPtr timer = consumerStatsRequestTimer_;
     if (timer) {
         timer->expires_from_now(operationsTimeout_);
-        timer->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout,
-                                                         shared_from_this(), std::placeholders::_1,
-                                                         consumerStatsRequests));
+        timer->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout, shared_from_this(),
+                                    std::placeholders::_1, consumerStatsRequests));
     }
 
     lock.unlock();
