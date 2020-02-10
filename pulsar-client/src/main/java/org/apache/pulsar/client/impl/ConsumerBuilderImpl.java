@@ -29,7 +29,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -37,6 +40,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -51,6 +55,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 
+@Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private final PulsarClientImpl client;
@@ -104,6 +109,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("Subscription name must be set on the consumer builder"));
         }
+
+        if (conf.getKeySharedPolicy() != null && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
+        }
+
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
                 client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
@@ -267,7 +278,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
         checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
-        conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
+        patternAutoDiscoveryPeriod(periodInMinutes, TimeUnit.MINUTES);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit) {
+        checkArgument(interval >= 0, "interval needs to be >= 0");
+        int intervalSeconds = (int) unit.toSeconds(interval);
+        conf.setPatternAutoDiscoveryPeriod(intervalSeconds);
         return this;
     }
 
@@ -316,12 +335,29 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-    public ConsumerConfigurationData<T> getConf() {
-        return conf;
+    @Override
+
+    public ConsumerBuilder<T> startMessageIdInclusive() {
+        conf.setResetIncludeHead(true);
+        return this;
     }
-    
+
+    public ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy) {
+        checkArgument(batchReceivePolicy != null, "batchReceivePolicy must not be null.");
+        batchReceivePolicy.verify();
+        conf.setBatchReceivePolicy(batchReceivePolicy);
+        return this;
+    }
+
     @Override
     public String toString() {
         return conf != null ? conf.toString() : null;
+    }
+
+    @Override
+    public ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy) {
+        keySharedPolicy.validate();
+        conf.setKeySharedPolicy(keySharedPolicy);
+        return this;
     }
 }

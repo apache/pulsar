@@ -561,7 +561,7 @@ public abstract class TestPulsarConnector {
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
                         topicsToSchemas.get(topicName.getSchemaName()).getType(),
                         0, topicsToNumEntries.get(topicName.getSchemaName()),
-                        0, 0, TupleDomain.all(), new HashMap<>()));
+                        0, 0, TupleDomain.all(), new HashMap<>(), null));
                 }
             }
 

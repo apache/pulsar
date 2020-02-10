@@ -39,6 +39,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -252,7 +253,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema1, version(0));
     }
 
-
     @Test
     public void trimDeletedSchemaAndGetListTest() throws Exception {
         List<SchemaAndMetadata> list = new ArrayList<>();
@@ -293,18 +293,18 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     public void checkIsCompatible() throws Exception {
         String schemaJson1 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
         SchemaData schemaData1 = getSchemaData(schemaJson1);
 
         String schemaJson2 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                         "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
         SchemaData schemaData2 = getSchemaData(schemaJson2);
 
         String schemaJson3 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                         "{\"name\":\"field2\",\"type\":\"string\"}]}";
         SchemaData schemaData3 = getSchemaData(schemaJson3);
 

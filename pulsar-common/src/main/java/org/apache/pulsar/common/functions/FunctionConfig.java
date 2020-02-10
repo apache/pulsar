@@ -26,20 +26,12 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * Configuration of Pulsar Function.
  */
-@Getter
-@Setter
 @Data
-@EqualsAndHashCode
-@ToString
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -116,4 +108,8 @@ public class FunctionConfig {
     private String go;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
+    // This is an arbitrary string that can be interpreted by the function runtime
+    // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
+    // interface
+    private String customRuntimeOptions;
 }

@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
@@ -39,12 +38,11 @@ public class ZookeeperClientFactoryImplTest {
 
     private ZookeeperServerTest localZkS;
     private ZooKeeper localZkc;
-    private final int LOCAL_ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final long ZOOKEEPER_SESSION_TIMEOUT_MILLIS = 5000;
 
     @BeforeMethod
     void setup() throws Exception {
-        localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
+        localZkS = new ZookeeperServerTest(0);
         localZkS.start();
     }
 
@@ -56,7 +54,7 @@ public class ZookeeperClientFactoryImplTest {
     @Test
     void testZKCreationRW() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperClientFactoryImpl();
-        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
+        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(), SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
         assertTrue(localZkc.getState().isConnected());
@@ -67,7 +65,7 @@ public class ZookeeperClientFactoryImplTest {
     @Test
     void testZKCreationRO() throws Exception {
         ZooKeeperClientFactory zkf = new ZookeeperClientFactoryImpl();
-        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT,
+        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(),
                 SessionType.AllowReadOnly, (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
         assertTrue(localZkc.getState().isConnected());

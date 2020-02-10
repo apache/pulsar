@@ -61,6 +61,8 @@ class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>
     LatencyAccumulator totalLatencyAccumulator_;
 
     std::string producerStr_;
+
+    ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
     std::mutex mutex_;
     unsigned int statsIntervalInSeconds_;
@@ -72,7 +74,7 @@ class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>
     static std::string latencyToString(const LatencyAccumulator&);
 
    public:
-    ProducerStatsImpl(std::string, DeadlineTimerPtr, unsigned int);
+    ProducerStatsImpl(std::string, ExecutorServicePtr, unsigned int);
 
     ProducerStatsImpl(const ProducerStatsImpl& stats);
 

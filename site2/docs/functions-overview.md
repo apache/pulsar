@@ -12,7 +12,7 @@ sidebar_label: Overview
 
 
 ## Goals
-With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/)). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:
+With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://heron.incubator.apache.org/), [Apache Flink](https://flink.apache.org/)). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:
 
 * Developer productivity (language-native vs Pulsar Functions SDK functions)
 * Easy troubleshooting
@@ -53,7 +53,7 @@ If you implement the classic word count example using Pulsar Functions, it looks
 
 ![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
-To write the function in Java with [Pulsar Functions SDK for Java](functions-develop#available-apis), you can write the function as follows.
+To write the function in Java with [Pulsar Functions SDK for Java](functions-develop.md#available-apis), you can write the function as follows.
 
 ```java
 package org.example.functions;
@@ -108,10 +108,10 @@ class RoutingFunction(Function):
         self.vegetables_topic = "persistent://public/default/vegetables"
 
     def is_fruit(item):
-        return item in ["apple", "orange", "pear", "other fruits..."]
+        return item in [b"apple", b"orange", b"pear", b"other fruits..."]
 
     def is_vegetable(item):
-        return item in ["carrot", "lettuce", "radish", "other vegetables..."]
+        return item in [b"carrot", b"lettuce", b"radish", b"other vegetables..."]
 
     def process(self, item, context):
         if self.is_fruit(item):
@@ -121,6 +121,18 @@ class RoutingFunction(Function):
         else:
             warning = "The item {0} is neither a fruit nor a vegetable".format(item)
             context.get_logger().warn(warning)
+```
+
+If this code is stored in `~/router.py`, then you can deploy it in your Pulsar cluster using the [command line](functions-deploy.md#command-line-interface) as follows.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --py ~/router.py \
+  --classname router.RoutingFunction \
+  --tenant public \
+  --namespace default \
+  --name route-fruit-veg \
+  --inputs persistent://public/default/basket-items
 ```
 
 ### Functions, messages and message types
@@ -152,21 +164,7 @@ Delivery semantics | Description
 
 
 ### Apply processing guarantees to a function
-You can set the processing guarantees for a Pulsar Function when you create the Function. The [`pulsar-function create`](reference-pulsar-admin.md#create-1) command applies effectively-once guarantees to the Function.
-
-```bash
-$ bin/pulsar-admin functions create \
-  --processing-guarantees EFFECTIVELY_ONCE \
-  # Other function configs
-```
-
-The available options are:
-
-* `ATMOST_ONCE`
-* `ATLEAST_ONCE`
-* `EFFECTIVELY_ONCE`
-
-The following command runs a function in the cluster mode with effectively-once guarantees applied.
+You can set the processing guarantees for a Pulsar Function when you create the Function. The following [`pulsar-function create`](reference-pulsar-admin.md#create-1) command creates a function with effectively-once guarantees applied.
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -174,6 +172,12 @@ $ bin/pulsar-admin functions create \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
+
+The available options for `--processing-guarantees` are:
+
+* `ATMOST_ONCE`
+* `ATLEAST_ONCE`
+* `EFFECTIVELY_ONCE`
 
 > By default, Pulsar Functions provide at-least-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees` flag, the function provides at-least-once guarantees.
 

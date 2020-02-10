@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
@@ -32,49 +33,49 @@ public abstract class BaseAvroSchemaCompatibilityTest {
 
     private static final String schemaJson1 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData1 = getSchemaData(schemaJson1);
 
     private static final String schemaJson2 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                     "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
     private static final SchemaData schemaData2 = getSchemaData(schemaJson2);
 
     private static final String schemaJson3 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org" +
-                    ".apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheckTest$\"," +
+                    ".apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheckTest\"," +
                     "\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},{\"name\":\"field2\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private static final String schemaJson4 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1_v2\",\"type\":\"string\"," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1_v2\",\"type\":\"string\"," +
                     "\"aliases\":[\"field1\"]}]}";
     private static final SchemaData schemaData4 = getSchemaData(schemaJson4);
 
     private static final String schemaJson5 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
                     "\"string\"]}]}";
     private static final SchemaData schemaData5 = getSchemaData(schemaJson5);
 
     private static final String schemaJson6 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
                     "\"string\",\"int\"]}]}";
     private static final SchemaData schemaData6 = getSchemaData(schemaJson6);
 
     private static final String schemaJson7 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                     "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"},{\"name\":\"field3\"," +
                     "\"type\":\"string\",\"default\":\"bar\"}]}";
     private static final SchemaData schemaData7 = getSchemaData(schemaJson7);
 
     private static final String schemaJson8 =
             "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
                     "{\"name\":\"field2\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData8 = getSchemaData(schemaJson8);
 
@@ -95,10 +96,10 @@ public abstract class BaseAvroSchemaCompatibilityTest {
         Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3,
                                                                  SchemaCompatibilityStrategy.BACKWARD),
                 "adding a field without default is NOT backwards compatible");
-        // Modifying a field name is not backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4,
-                                                                 SchemaCompatibilityStrategy.BACKWARD),
-                "Modifying a field name is not backwards compatible");
+        // Modifying a field name with an alias is backwards compatible
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4,
+                                                                SchemaCompatibilityStrategy.BACKWARD),
+                "Modifying a field name with an alias is backwards compatible");
         // evolving field to a union is backwards compatible
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData5,
                                                                 SchemaCompatibilityStrategy.BACKWARD),

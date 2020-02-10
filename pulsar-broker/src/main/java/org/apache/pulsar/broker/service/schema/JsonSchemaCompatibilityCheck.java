@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -48,7 +49,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
                 super.checkCompatible(from, to, strategy);
             } else if (isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
-                // allow old schema format for backwards compatiblity
+                // allow old schema format for backwards compatibility
             } else {
                 // unknown schema format
                 throw new IncompatibleSchemaException("Unknown schema format");
@@ -98,6 +99,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
         try {
 
             Schema.Parser fromParser = new Schema.Parser();
+            fromParser.setValidateDefaults(false);
             Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
         } catch (SchemaParseException e) {

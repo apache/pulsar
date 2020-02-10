@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -206,7 +207,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
-          ProducerInterceptors<T> interceptors) {
+          ProducerInterceptors interceptors) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -230,6 +231,9 @@ public class PulsarClientImpl implements PulsarClient {
 
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
+            if (autoProduceBytesSchema.schemaInitialized()) {
+                return createProducerAsync(topic, conf, schema, interceptors);
+            }
             return lookup.getSchema(TopicName.get(conf.getTopicName()))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent()) {
@@ -248,7 +252,7 @@ public class PulsarClientImpl implements PulsarClient {
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
                                                                    ProducerConfigurationData conf,
                                                                    Schema<T> schema,
-                                                                   ProducerInterceptors<T> interceptors) {
+                                                                   ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
@@ -551,7 +555,11 @@ public class PulsarClientImpl implements PulsarClient {
             consumersToClose.forEach(c -> futures.add(c.closeAsync()));
         }
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
+        // Need to run the shutdown sequence in a separate thread to prevent deadlocks
+        // If there are consumers or producers that need to be shutdown we cannot use the same thread
+        // to shutdown the EventLoopGroup as well as that would be trying to shutdown itself thus a deadlock
+        // would happen
+        FutureUtil.waitForAll(futures).thenRun(() -> new Thread(() -> {
             // All producers & consumers are now closed, we can stop the client safely
             try {
                 shutdown();
@@ -560,7 +568,7 @@ public class PulsarClientImpl implements PulsarClient {
             } catch (PulsarClientException e) {
                 closeFuture.completeExceptionally(e);
             }
-        }).exceptionally(exception -> {
+        }, "pulsar-client-shutdown-thread").start()).exceptionally(exception -> {
             closeFuture.completeExceptionally(exception);
             return null;
         });
@@ -644,15 +652,44 @@ public class PulsarClientImpl implements PulsarClient {
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
 
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture;
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         try {
             TopicName topicName = TopicName.get(topic);
-            metadataFuture = lookup.getPartitionedTopicMetadata(topicName);
+            AtomicLong opTimeoutMs = new AtomicLong(conf.getOperationTimeoutMs());
+            Backoff backoff = new BackoffBuilder()
+                    .setInitialTime(100, TimeUnit.MILLISECONDS)
+                    .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                    .setMax(0, TimeUnit.MILLISECONDS)
+                    .create();
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
         return metadataFuture;
+    }
+
+    private void getPartitionedTopicMetadata(TopicName topicName,
+                                             Backoff backoff,
+                                             AtomicLong remainingTime,
+                                             CompletableFuture<PartitionedTopicMetadata> future) {
+        lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
+            boolean isLookupThrottling = e.getCause() instanceof PulsarClientException.TooManyRequestsException;
+            if (nextDelay <= 0 || isLookupThrottling) {
+                future.completeExceptionally(e);
+                return null;
+            }
+
+            ((ScheduledExecutorService) externalExecutorProvider.getExecutor()).schedule(() -> {
+                log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- Will try again in {} ms",
+                    topicName, nextDelay);
+                remainingTime.addAndGet(-nextDelay);
+                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future);
+            }, nextDelay, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     @Override

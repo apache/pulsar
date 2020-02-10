@@ -27,6 +27,7 @@ import io.debezium.document.DocumentReader;
 import io.debezium.relational.history.AbstractDatabaseHistory;
 import io.debezium.relational.history.DatabaseHistory;
 import io.debezium.relational.history.DatabaseHistoryException;
+import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
 import java.io.IOException;
@@ -82,8 +83,12 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
 
 
     @Override
-    public void configure(Configuration config, HistoryRecordComparator comparator) {
-        super.configure(config, comparator);
+    public void configure(
+            Configuration config,
+            HistoryRecordComparator comparator,
+            DatabaseHistoryListener listener,
+            boolean useCatalogBeforeSchema) {
+        super.configure(config, comparator, listener, useCatalogBeforeSchema);
         if (!config.validateAndRecord(ALL_FIELDS, logger::error)) {
             throw new IllegalArgumentException("Error configuring an instance of "
                 + getClass().getSimpleName() + "; check the logs for details");

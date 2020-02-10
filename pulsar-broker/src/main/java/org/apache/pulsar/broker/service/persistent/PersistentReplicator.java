@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -377,10 +378,10 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         @Override
         public void sendComplete(Exception exception) {
-            if (exception != null) {
+            if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}][{} -> {}] Error producing on remote broker", replicator.topicName,
                         replicator.localCluster, replicator.remoteCluster, exception);
-                // cursor shoud be rewinded since it was incremented when readMoreEntries
+                // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
             } else {
                 if (log.isDebugEnabled()) {

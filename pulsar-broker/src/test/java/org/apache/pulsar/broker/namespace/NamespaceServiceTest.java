@@ -277,7 +277,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 result.completeExceptionally(new RuntimeException("first time failed"));
                 return result;
             }
-        }).when(spyTopic).close();
+        }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
         try {
             pulsar.getNamespaceService().unloadNamespaceBundle(bundle);
@@ -316,7 +316,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
                 return new CompletableFuture<Void>();
             }
-        }).when(spyTopic).close();
+        }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
@@ -359,7 +359,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 CreateMode.EPHEMERAL);
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
 
-        // update to new load mananger
+        // update to new load manager
         LoadManager oldLoadManager = pulsar.getLoadManager()
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();

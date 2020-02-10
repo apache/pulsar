@@ -29,6 +29,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -72,6 +73,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -98,6 +100,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -123,6 +126,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -148,6 +152,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
@@ -189,8 +194,8 @@ public class NonPersistentTopics extends PersistentTopics {
                     topicName.getEncodedLocalName());
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+            // Sync data to all quorums and the observers
+            zkSync(path);
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
@@ -205,6 +210,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "This operation requires super-user access"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -292,7 +298,12 @@ public class NonPersistentTopics extends PersistentTopics {
                     return null;
                 }
             }
-            asyncResponse.resume(topics);
+
+            final List<String> nonPersistentTopics =
+                topics.stream()
+                      .filter(name -> !TopicName.get(name).isPersistent())
+                      .collect(Collectors.toList());
+            asyncResponse.resume(nonPersistentTopics);
             return null;
         });
     }

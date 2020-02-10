@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -38,16 +40,11 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.management.OperatingSystemMXBean;
 
 /**
  * Class that will return the broker host usage.
- *
- *
  */
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
-    // The interval for host usage check command
-    private final int hostUsageCheckIntervalMin;
     private long lastCollection;
     private double lastTotalNicUsageTx;
     private double lastTotalNicUsageRx;
@@ -60,12 +57,21 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private static final Logger LOG = LoggerFactory.getLogger(LinuxBrokerHostUsageImpl.class);
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
-        this.hostUsageCheckIntervalMin = pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes();
+        this(
+            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+            pulsar.getLoadManagerExecutor()
+        );
+    }
+
+    public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
+                                    Optional<Double> overrideBrokerNicSpeedGbps,
+                                    ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
-        this.overrideBrokerNicSpeedGbps = pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps();
-        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
+        this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
+        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -74,7 +80,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return usage;
     }
 
-    private void calculateBrokerHostUsage() {
+    @Override
+    public void calculateBrokerHostUsage() {
         List<String> nics = getNics();
         double totalNicLimit = getTotalNicLimitKbps(nics);
         double totalNicUsageTx = getTotalNicUsageTxKb(nics);

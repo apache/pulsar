@@ -19,8 +19,6 @@
 package org.apache.pulsar.io.hbase.sink;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
@@ -66,8 +64,6 @@ public class HbaseGenericRecordSinkTest {
      * A Simple class to test hbase class
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         private String rowKey;
         private String name;

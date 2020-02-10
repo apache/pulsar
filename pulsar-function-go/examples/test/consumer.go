@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -58,4 +58,3 @@ func main() {
 		consumer.Ack(msg)
 	}
 }
-

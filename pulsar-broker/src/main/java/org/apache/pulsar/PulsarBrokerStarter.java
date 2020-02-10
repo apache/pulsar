@@ -161,15 +161,6 @@ public class PulsarBrokerStarter {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
                 // worker talks to local broker
-                boolean useTls = workerConfig.isUseTls();
-                String pulsarServiceUrl = useTls
-                        ? PulsarService.brokerUrlTls(brokerConfig)
-                        : PulsarService.brokerUrl(brokerConfig);
-                String webServiceUrl = useTls
-                        ? PulsarService.webAddressTls(brokerConfig)
-                        : PulsarService.webAddress(brokerConfig);
-                workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
-                workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
@@ -188,7 +179,6 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setUseTls(useTls);
                 workerConfig.setTlsHostnameVerificationEnable(false);
 
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());

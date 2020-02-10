@@ -42,7 +42,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size --", MESSAGE_SIZE);
 
-        internalSetUpForClient(true, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
+        internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
@@ -78,7 +78,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
-        internalSetUpForClient(false, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
+        internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -88,7 +88,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         }
 
         // Test 2 - Using TLS on binary protocol - sending certs
-        internalSetUpForClient(true, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
+        internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -106,7 +106,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
-        internalSetUpForClient(false, "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS);
+        internalSetUpForClient(false, pulsar.getWebServiceAddressTls());
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -116,7 +116,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         }
 
         // Test 2 - Using TLS on https - sending certs
-        internalSetUpForClient(true, "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS);
+        internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();

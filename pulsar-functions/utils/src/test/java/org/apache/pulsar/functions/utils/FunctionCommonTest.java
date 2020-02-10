@@ -57,7 +57,7 @@ public class FunctionCommonTest {
     @Test
     public void testValidateHttpFileUrl() throws Exception {
 
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
+        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         FunctionCommon.extractClassLoader(jarHttpUrl);
 
         jarHttpUrl = "http://_invalidurl_.com";
@@ -72,7 +72,7 @@ public class FunctionCommonTest {
 
     @Test
     public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
+        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionCommonTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         FunctionCommon.downloadFromHttpUrl(jarHttpUrl, pkgFile);

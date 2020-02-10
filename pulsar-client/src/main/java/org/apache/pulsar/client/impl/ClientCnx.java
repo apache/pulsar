@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -81,6 +83,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -106,9 +109,12 @@ public class ClientCnx extends PulsarHandler {
 
     private final ConcurrentLongHashMap<CompletableFuture<CommandGetSchemaResponse>> pendingGetSchemaRequests = new ConcurrentLongHashMap<>(
             16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<CommandGetOrCreateSchemaResponse>> pendingGetOrCreateSchemaRequests =
+            new ConcurrentLongHashMap<>(16, 1);
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<TransactionMetaStoreHandler> transactionMetaStoreHandlers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -235,6 +241,7 @@ public class ClientCnx extends PulsarHandler {
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
+        transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
 
         pendingRequests.clear();
         pendingLookupRequests.clear();
@@ -304,7 +311,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleAuthChallenge(CommandAuthChallenge authChallenge) {
         checkArgument(authChallenge.hasChallenge());
-        checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
+        checkArgument(authChallenge.getChallenge().hasAuthData());
 
         // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
         try {
@@ -329,7 +336,10 @@ public class ClientCnx extends PulsarHandler {
                     connectionFuture.completeExceptionally(writeFuture.cause());
                 }
             });
-            state = State.Connecting;
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
         } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
@@ -343,6 +353,7 @@ public class ClientCnx extends PulsarHandler {
 
         long producerId = sendReceipt.getProducerId();
         long sequenceId = sendReceipt.getSequenceId();
+        long highestSequenceId = sendReceipt.getHighestSequenceId();
         long ledgerId = -1;
         long entryId = -1;
         if (sendReceipt.hasMessageId()) {
@@ -360,7 +371,7 @@ public class ClientCnx extends PulsarHandler {
                     ledgerId, entryId);
         }
 
-        producers.get(producerId).ackReceived(this, sequenceId, ledgerId, entryId);
+        producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
     }
 
     @Override
@@ -585,7 +596,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleError(CommandError error) {
-        checkArgument(state == State.Ready);
+        checkArgument(state == State.SentConnectFrame || state == State.Ready);
 
         log.warn("{} Received error from server: {}", ctx.channel(), error.getMessage());
         long requestId = error.getRequestId();
@@ -713,11 +724,23 @@ public class ClientCnx extends PulsarHandler {
         future.complete(commandGetSchemaResponse);
     }
 
+    @Override
+    protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+        checkArgument(state == State.Ready);
+        long requestId = commandGetOrCreateSchemaResponse.getRequestId();
+        CompletableFuture<CommandGetOrCreateSchemaResponse> future = pendingGetOrCreateSchemaRequests.remove(requestId);
+        if (future == null) {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+            return;
+        }
+        future.complete(commandGetOrCreateSchemaResponse);
+    }
+
     Promise<Void> newPromise() {
         return ctx.newPromise();
     }
 
-    ChannelHandlerContext ctx() {
+    public ChannelHandlerContext ctx() {
         return ctx;
     }
 
@@ -798,6 +821,66 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
+    public CompletableFuture<byte[]> sendGetOrCreateSchema(ByteBuf request, long requestId) {
+        CompletableFuture<CommandGetOrCreateSchemaResponse> future = new CompletableFuture<>();
+        pendingGetOrCreateSchemaRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send GetOrCreateSchema request to broker: {}", ctx.channel(),
+                         writeFuture.cause().getMessage());
+                pendingGetOrCreateSchemaRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+        return future.thenCompose(response -> {
+            if (response.hasErrorCode()) {
+                // Request has failed
+                ServerError rc = response.getErrorCode();
+                if (rc == ServerError.TopicNotFound) {
+                    return CompletableFuture.completedFuture(SchemaVersion.Empty.bytes());
+                } else {
+                    return FutureUtil.failedFuture(getPulsarClientException(
+                            rc, response.getErrorMessage()));
+                }
+            } else {
+                return CompletableFuture.completedFuture(response.getSchemaVersion().toByteArray());
+            }
+        });
+    }
+
+    @Override
+    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleNewTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleAddPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleAddPublishPartitionToTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleEndTxnResponse(command);
+        }
+    }
+
+    private TransactionMetaStoreHandler checkAndGetTransactionMetaStoreHandler(long tcId) {
+        TransactionMetaStoreHandler handler = transactionMetaStoreHandlers.get(tcId);
+        if (handler == null) {
+            channel().close();
+            log.warn("Close the channel since can't get the transaction meta store handler, will reconnect later.");
+        }
+        return handler;
+    }
+
     /**
      * check serverError and take appropriate action
      * <ul>
@@ -866,6 +949,10 @@ public class ClientCnx extends PulsarHandler {
 
     void registerProducer(final long producerId, final ProducerImpl<?> producer) {
         producers.put(producerId, producer);
+    }
+
+    void registerTransactionMetaStoreHandler(final long transactionMetaStoreId, final TransactionMetaStoreHandler handler) {
+        transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
     void removeProducer(final long producerId) {

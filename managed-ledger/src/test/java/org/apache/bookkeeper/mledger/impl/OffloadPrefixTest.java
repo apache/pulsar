@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1025,6 +1026,16 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             }
             return promise;
         };
+
+        @Override
+        public OffloadPolicies getOffloadPolicies() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+
+        }
     }
 
     static class ErroringMockLedgerOffloader extends MockLedgerOffloader {

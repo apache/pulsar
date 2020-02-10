@@ -19,7 +19,7 @@
 
 -->
 
-![logo](site/img/pulsar.png)
+![logo](site2/website/static/img/pulsar.svg)
 
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
@@ -50,7 +50,7 @@ Learn more about Pulsar at https://pulsar.apache.org
 
 Requirements:
  * Java JDK 1.8
- * Maven
+ * Maven 3.3.9+
 
 Compile and install:
 
@@ -78,7 +78,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
-
+ 
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with

@@ -111,6 +111,9 @@ public class PulsarAdminTool {
         commandMap.put("sources", CmdSources.class);
         commandMap.put("sinks", CmdSinks.class);
 
+        // Automatically generate documents for pulsar-admin
+        commandMap.put("documents", CmdGenerateDocument.class);
+
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);

@@ -256,7 +256,6 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
          consumer++) {
-        LOG_DEBUG("Unsubcribing Consumer - " << consumer->first);
         (consumer->second)
             ->unsubscribeAsync(std::bind(&MultiTopicsConsumerImpl::handleUnsubscribedAsync,
                                          shared_from_this(), std::placeholders::_1, consumerUnsubed,
@@ -724,5 +723,9 @@ std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(const std::v
 }
 
 void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    callback(ResultOperationNotSupported);
+}
+
+void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }

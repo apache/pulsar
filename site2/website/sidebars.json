@@ -15,8 +15,7 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-tiered-storage",
-      "concepts-schema-registry"
+      "concepts-tiered-storage"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -50,7 +49,8 @@
     "Pulsar SQL": [
       "sql-overview",
       "sql-getting-started",
-      "sql-deployment-configurations"
+      "sql-deployment-configurations",
+      "sql-rest-api"
     ],
     "Deployment": [
       "deploy-aws",
@@ -63,7 +63,7 @@
     "Administration": [
       "administration-zk-bk",
       "administration-geo",
-      "administration-dashboard",
+      "administration-pulsar-manager",
       "administration-stats",
       "administration-load-balance",
       "administration-proxy",
@@ -99,7 +99,8 @@
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
       "admin-api-non-partitioned-topics",
-      "admin-api-schemas"
+      "admin-api-schemas",
+      "admin-api-functions"
     ],
     "Adaptors": [
       "adaptors-kafka",
@@ -127,7 +128,6 @@
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
-      "pulsar-admin",
       "reference-configuration",
       "reference-metrics"
     ]

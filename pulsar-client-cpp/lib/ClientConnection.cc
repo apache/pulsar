@@ -111,6 +111,12 @@ static Result getResult(ServerError serverError) {
 
         case ConsumerAssignError:
             return ResultConsumerAssignError;
+
+        case TransactionCoordinatorNotFound:
+            return ResultTransactionCoordinatorNotFoundError;
+
+        case InvalidTxnStatus:
+            return ResultInvalidTxnStatusError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -139,11 +145,11 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       resolver_(executor_->createTcpResolver()),
       socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
-      strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
+      strand_(boost::asio::make_strand(executor_->io_service_->get_executor())),
 #elif BOOST_VERSION >= 106600
-      strand_(executor_->io_service_.get_executor()),
+      strand_(executor_->io_service_->get_executor()),
 #else
-      strand_(executor_->io_service_),
+      strand_(*(executor_->io_service_)),
 #endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
