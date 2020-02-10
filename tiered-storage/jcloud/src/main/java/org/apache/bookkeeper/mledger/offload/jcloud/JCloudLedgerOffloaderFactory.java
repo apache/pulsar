@@ -20,10 +20,10 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * A jcloud based offloader factory.
@@ -42,10 +42,9 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
     }
 
     @Override
-    public BlobStoreManagedLedgerOffloader create(Properties properties,
+    public BlobStoreManagedLedgerOffloader create(OffloadPolicies offloadPolicies,
                                                   Map<String, String> userMetadata,
                                                   OrderedScheduler scheduler) throws IOException  {
-        TieredStorageConfigurationData data = TieredStorageConfigurationData.create(properties);
-        return BlobStoreManagedLedgerOffloader.create(data, userMetadata, scheduler);
+        return BlobStoreManagedLedgerOffloader.create(offloadPolicies, userMetadata, scheduler);
     }
 }
