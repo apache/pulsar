@@ -878,6 +878,8 @@ Subcommands
 * `clear-offload-deletion-lag`
 * `get-schema-autoupdate-strategy`
 * `set-schema-autoupdate-strategy`
+* `set-offload-policies`
+* `get-offload-policies`
 
 
 ### `list`
@@ -2244,3 +2246,28 @@ Options
 |`-t`, `--type`|The type of the schema (avro or json)||
 
 
+### `get-offload-policies`
+Get the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload-policies tenant/namespace
+```
+
+### `set-offload-policies`
+Set the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-policies tenant/namespace
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-mbs`, `--maxBlockSize`|Max block size|64MB|
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB|
