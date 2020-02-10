@@ -31,10 +31,16 @@ import static org.testng.Assert.assertTrue;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.HttpLookupService;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -47,8 +53,10 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
@@ -603,4 +611,29 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-property/my-ns/testGetSchemaByVersion";
+
+        PulsarClientImpl httpProtocolClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+        PulsarClientImpl binaryProtocolClient = (PulsarClientImpl) pulsarClient;
+
+        pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+            .topic(topic)
+            .create();
+
+        pulsarClient.newProducer(Schema.AVRO(V2Data.class))
+            .topic(topic)
+            .create();
+
+        LookupService httpLookupService = httpProtocolClient.getLookup();
+        LookupService binaryLookupService = binaryProtocolClient.getLookup();
+        Assert.assertTrue(httpLookupService instanceof HttpLookupService);
+        Assert.assertTrue(binaryLookupService instanceof BinaryProtoLookupService);
+        Assert.assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+    }
 }

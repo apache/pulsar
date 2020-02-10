@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-export PULSAR_HOME=`cd $BINDIR/..;pwd`
+export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
@@ -112,16 +112,18 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
 fi
 
 # find pulsar sql presto distribution location
-if [ ! -d "${PRESTO_HOME}" ]; then
+check_presto_libraries() {
+    if [ ! -d "${PRESTO_HOME}" ]; then
 
-  BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
-  if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
-        echo "\nCouldn't find presto distribution.";
-        echo "Make sure you've run 'mvn package'\n";
-        exit 1;
+        BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+        if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
+            echo "\nCouldn't find presto distribution.";
+            echo "Make sure you've run 'mvn package'\n";
+            exit 1;
+        fi
+        PRESTO_HOME=${BUILT_PRESTO_HOME}
     fi
-    PRESTO_HOME=${BUILT_PRESTO_HOME}
-fi
+}
 
 pulsar_help() {
     cat <<EOF
@@ -345,8 +347,10 @@ elif [ $COMMAND == "broker-tool" ]; then
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
+    check_presto_libraries
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
+    check_presto_libraries
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
       exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@

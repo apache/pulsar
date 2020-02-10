@@ -25,7 +25,7 @@ RUN apt-get update
 RUN apt-get -y install postgresql python sudo nginx supervisor
 
 # Postgres configuration
-COPY conf/postgresql.conf /etc/postgresql/9.6/main/
+COPY conf/postgresql.conf /etc/postgresql/11/main/
 
 # Configure nginx and supervisor
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf

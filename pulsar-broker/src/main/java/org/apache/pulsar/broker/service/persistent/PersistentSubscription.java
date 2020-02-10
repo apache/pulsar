@@ -89,6 +89,7 @@ public class PersistentSubscription implements Subscription {
     private PersistentMessageExpiryMonitor expiryMonitor;
 
     private long lastExpireTimestamp = 0L;
+    private long lastConsumedFlowTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
@@ -315,6 +316,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        this.lastConsumedFlowTimestamp = System.currentTimeMillis();
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
@@ -476,7 +478,7 @@ public class PersistentSubscription implements Subscription {
                     pendingAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashSet<>());
 
             for (Position position : positions) {
-                // If try to ack message already acked by some ongoign transaction(can be itself), throw exception.
+                // If try to ack message already acked by some ongoing transaction(can be itself), throw exception.
                 // Acking single message within range of cumulative ack(if exist) is considered valid operation.
                 if (this.pendingAckMessages.contains(position)) {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
@@ -883,7 +885,7 @@ public class PersistentSubscription implements Subscription {
      *
      * @param consumer
      *            consumer object that is initiating the unsubscribe operation
-     * @return CompletableFuture indicating the completion of ubsubscribe operation
+     * @return CompletableFuture indicating the completion of unsubscribe operation
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer) {
@@ -935,6 +937,7 @@ public class PersistentSubscription implements Subscription {
     public SubscriptionStats getStats() {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
+        subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
@@ -944,6 +947,8 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
                 subStats.unackedMessages += consumerStats.unackedMessages;
+                subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
+                subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
             });
         }
 

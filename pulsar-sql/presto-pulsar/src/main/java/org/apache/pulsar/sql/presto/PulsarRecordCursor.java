@@ -57,6 +57,7 @@ import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.sql.presto.PulsarInternalColumn.PartitionColumn;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -110,8 +111,18 @@ public class PulsarRecordCursor implements RecordCursor {
             close();
             throw new RuntimeException(e);
         }
+
+        OffloadPolicies offloadPolicies = pulsarSplit.getOffloadPolicies();
+        if (offloadPolicies != null) {
+            offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
+            offloadPolicies.setManagedLedgerOffloadMaxThreads(
+                    pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
+        }
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(), pulsarConnectorCache.getManagedLedgerConfig(),
+                pulsarConnectorCache.getManagedLedgerFactory(),
+                pulsarConnectorCache.getManagedLedgerConfig(
+                        TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
+                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 

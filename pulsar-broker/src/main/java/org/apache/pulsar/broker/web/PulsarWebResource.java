@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -437,7 +438,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -452,7 +453,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -542,13 +543,17 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for ServiceUnit %s timed out", bundle);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), iae);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, iae);
             throw new RestException(Status.PRECONDITION_FAILED,
                     "ServiceUnit format is not expected. ServiceUnit " + bundle);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), ise);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
@@ -590,17 +595,21 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for topic %s timed out", topicName);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for topic :%s", topicName), iae);
+            log.debug("Failed to find owner for topic: {}", topicName, iae);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), ise);
+            log.debug("Failed to find owner for topic: {}", topicName, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), oe);
+            log.debug("Failed to find owner for topic: {}", topicName, oe);
             throw new RestException(oe);
         }
     }

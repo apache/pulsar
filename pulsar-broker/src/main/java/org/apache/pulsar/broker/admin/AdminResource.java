@@ -113,8 +113,8 @@ public abstract class AdminResource extends PulsarWebResource {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    protected void zkCreateOptimisticAsync(String path, byte[] content, AsyncCallback.StringCallback callback) {
-        ZkUtils.asyncCreateFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+    protected void zkCreateOptimisticAsync(ZooKeeper zk, String path, byte[] content, AsyncCallback.StringCallback callback) {
+        ZkUtils.asyncCreateFullPathOptimistic(zk, path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT, callback, null);
     }
 
@@ -265,7 +265,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     private void tryCreatePartitionAsync(final int partition) {
-        zkCreateOptimisticAsync(ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
+        zkCreateOptimisticAsync(localZk(), ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
             (rc, s, o, s1) -> {
                 if (KeeperException.Code.OK.intValue() == rc) {
                     if (log.isDebugEnabled()) {
@@ -452,6 +452,14 @@ public abstract class AdminResource extends PulsarWebResource {
 
         if (policies.max_consumers_per_subscription < 1) {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
+        }
+
+        if (policies.max_unacked_messages_per_consumer == -1) {
+            policies.max_unacked_messages_per_consumer = config.getMaxUnackedMessagesPerConsumer();
+        }
+
+        if (policies.max_unacked_messages_per_subscription == -1) {
+            policies.max_unacked_messages_per_subscription = config.getMaxUnackedMessagesPerSubscription();
         }
 
         final String cluster = config.getClusterName();

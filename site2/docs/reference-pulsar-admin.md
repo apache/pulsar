@@ -860,6 +860,8 @@ Subcommands
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
+* `set-delayed-delivery`
+* `get-delayed-delivery`
 * `set-subscription-auth-mode`
 * `get-max-producers-per-topic`
 * `set-max-producers-per-topic`
@@ -867,6 +869,10 @@ Subcommands
 * `set-max-consumers-per-topic`
 * `get-max-consumers-per-subscription`
 * `set-max-consumers-per-subscription`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
 * `get-compaction-threshold`
 * `set-compaction-threshold`
 * `get-offload-threshold`
@@ -876,6 +882,8 @@ Subcommands
 * `clear-offload-deletion-lag`
 * `get-schema-autoupdate-strategy`
 * `set-schema-autoupdate-strategy`
+* `set-offload-policies`
+* `get-offload-policies`
 
 
 ### `list`
@@ -1338,6 +1346,38 @@ Options
 |`-d`, `--disable`|Disable message encryption required|false|
 |`-e`, `--enable`|Enable message encryption required|false|
 
+### `set-delayed-delivery`
+Set the delayed delivery policy on a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-delayed-delivery tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--disable`|Disable delayed delivery messages|false|
+|`-e`, `--enable`|Enable delayed delivery messages|false|
+|`-t`, `--time`|The tick time for when retrying on delayed delivery messages|1s|
+
+
+### `get-delayed-delivery`
+Get the delayed delivery policy on a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-delayed-delivery-time tenant/namespace
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-t`, `--time`|The tick time for when retrying on delayed delivery messages|1s|
+
+
 ### `set-subscription-auth-mode`
 Set subscription auth mode on a namespace
 
@@ -1413,6 +1453,50 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--max-consumers-per-subscription`|maxConsumersPerSubscription for a namespace|0|
+
+### `get-max-unacked-messages-per-subscription`
+Get maxUnackedMessagesPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-unacked-messages-per-subscription tenant/namespace
+```
+
+### `set-max-unacked-messages-per-subscription`
+Set maxUnackedMessagesPerSubscription for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-unacked-messages-per-subscription tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-unacked-messages-per-subscription`|maxUnackedMessagesPerSubscription for a namespace|-1|
+
+### `get-max-unacked-messages-per-consumer`
+Get maxUnackedMessagesPerConsumer for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-unacked-messages-per-consumer tenant/namespace
+```
+
+### `set-max-unacked-messages-per-consumer`
+Set maxUnackedMessagesPerConsumer for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-unacked-messages-per-consumer tenant/namespace options
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-c`, `--max-unacked-messages-per-consumer`|maxUnackedMessagesPerConsumer for a namespace|-1|
 
 
 ### `get-compaction-threshold`
@@ -2210,3 +2294,28 @@ Options
 |`-t`, `--type`|The type of the schema (avro or json)||
 
 
+### `get-offload-policies`
+Get the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload-policies tenant/namespace
+```
+
+### `set-offload-policies`
+Set the offload policy for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-policies tenant/namespace
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-mbs`, `--maxBlockSize`|Max block size|64MB|
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB|

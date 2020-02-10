@@ -72,8 +72,16 @@ public class TwoPhaseCompactor extends Compactor {
 
     @Override
     protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
-        return phaseOne(reader).thenCompose(
-                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+        return reader.hasMessageAvailableAsync()
+                .thenCompose(available -> {
+                    if (available) {
+                        return phaseOne(reader).thenCompose(
+                                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+                    } else {
+                        log.info("Skip compaction of the empty topic {}", reader.getTopic());
+                        return CompletableFuture.completedFuture(-1L);
+                    }
+                });
     }
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
@@ -233,36 +241,43 @@ public class TwoPhaseCompactor extends Compactor {
                             messageToAdd = Optional.of(m);
                         } else {
                             m.close();
-                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
-                            // present under latestForKey. Complete the compaction.
-                            if (to.equals(id)) {
-                                promise.complete(null);
-                            }
                         }
                     }
 
-                    messageToAdd.ifPresent((toAdd) -> {
-                            try {
-                                outstanding.acquire();
-                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, toAdd)
+                    if (messageToAdd.isPresent()) {
+                        try {
+                            outstanding.acquire();
+                            CompletableFuture<Void> addFuture = addToCompactedLedger(lh, messageToAdd.get())
                                     .whenComplete((res, exception2) -> {
-                                            outstanding.release();
-                                            if (exception2 != null) {
-                                                promise.completeExceptionally(exception2);
-                                            }
-                                        });
-                                if (to.equals(id)) {
-                                    addFuture.whenComplete((res, exception2) -> {
-                                            if (exception2 == null) {
-                                                promise.complete(null);
-                                            }
-                                        });
-                                }
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                promise.completeExceptionally(ie);
+                                        outstanding.release();
+                                        if (exception2 != null) {
+                                            promise.completeExceptionally(exception2);
+                                        }
+                                    });
+                            if (to.equals(id)) {
+                                addFuture.whenComplete((res, exception2) -> {
+                                    if (exception2 == null) {
+                                        promise.complete(null);
+                                    }
+                                });
                             }
-                        });
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            promise.completeExceptionally(ie);
+                        }
+                    } else if (to.equals(id)) {
+                        // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
+                        // present under latestForKey. Complete the compaction.
+                        try {
+                            // make sure all inflight writes have finished
+                            outstanding.acquire(MAX_OUTSTANDING);
+                            promise.complete(null);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            promise.completeExceptionally(e);
+                        }
+                        return;
+                    }
                     phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
                 }, scheduler);
     }

@@ -176,6 +176,14 @@ const languages = [
     name: '中文',
     tag: 'zh-CN',
   },
-  {enabled: false, name: '繁體中文', tag: 'zh-TW'},
+  {
+    enabled: true, 
+    name: '繁體中文', 
+    tag: 'zh-TW'
+  },
+  {
+    enabled: true, 
+    name: '한국어', 
+    tag: 'ko-KR'},
 ];
 module.exports = languages;

@@ -246,8 +246,9 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.26.Final.jar
     - netty-transport-4.1.43.Final.jar
     - netty-transport-native-epoll-4.1.43.Final.jar
-    - netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
+    - netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.43.Final.jar
+    - netty-transport-native-unix-common-4.1.43.Final-linux-x86_64.jar
  * Joda Time
     - joda-time-2.9.9.jar
     - joda-time-2.10.1.jar
