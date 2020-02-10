@@ -855,6 +855,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected void internalSetTopicDispatchRate(DispatchRate dispatchRate) {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         validateSuperUserAccess();
@@ -867,6 +868,7 @@ public abstract class NamespacesBase extends AdminResource {
             policiesNode = policiesCache().getWithStat(path).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
             policiesNode.getKey().topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+            policiesNode.getKey().clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
@@ -892,11 +894,15 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected DispatchRate internalGetTopicDispatchRate() {
         validateAdminAccessForTenant(namespaceName.getTenant());
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        if (dispatchRate == null) {
+            dispatchRate = policies.clusterDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        }
         if (dispatchRate != null) {
             return dispatchRate;
         } else {
