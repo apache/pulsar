@@ -347,7 +347,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
     configs:
 
-        ## config for pg, docker image: debezium/example-postgress:0.10
+        ## config for pg, docker image: debezium/example-mongodb:0.10
         mongodb.hosts: "rs0/mongodb:27017",
         mongodb.name: "dbserver1",
         mongodb.user: "debezium",
