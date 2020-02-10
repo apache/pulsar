@@ -509,9 +509,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         try {
             messageId = new MessageIdImpl(0, 0, -1);
             admin.topics().resetCursor(topicName, "my-sub", messageId);
-            fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.PreconditionFailedException e) {
-            // Ok
+            fail("It shouldn't fail for a invalid position");
         }
 
         consumer.close();
