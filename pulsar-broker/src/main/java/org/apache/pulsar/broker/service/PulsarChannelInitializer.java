@@ -18,17 +18,27 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
+
+import java.net.SocketAddress;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.flow.FlowControlHandler;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
@@ -37,6 +47,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final boolean enableTls;
     private final NettySslContextBuilder sslCtxRefresher;
     private final ServiceConfiguration brokerConf;
+
+    // This cache is used to maintain a list of active connections to iterate over them
+    // We keep weak references to have the cache to be auto cleaned up when the connections
+    // objects are GCed.
+    private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
+            .weakKeys()
+            .weakValues()
+            .build();
 
     /**
      * @param pulsar
@@ -59,6 +77,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             this.sslCtxRefresher = null;
         }
         this.brokerConf = pulsar.getConfiguration();
+
+        pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::refreshAuthenticationCredentials),
+                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(),
+                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(), TimeUnit.SECONDS);
     }
 
     @Override
@@ -78,6 +100,19 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ch.pipeline().addLast("handler", new ServerCnx(pulsar));
+        ServerCnx cnx = new ServerCnx(pulsar);
+        ch.pipeline().addLast("handler", cnx);
+
+        connections.put(ch.remoteAddress(), cnx);
+    }
+
+    private void refreshAuthenticationCredentials() {
+        connections.asMap().values().forEach(cnx -> {
+            try {
+                cnx.refreshAuthenticationCredentials();
+            } catch (Throwable t) {
+                log.warn("[{}] Failed to refresh auth credentials", cnx.getRemoteAddress());
+            }
+        });
     }
 }
