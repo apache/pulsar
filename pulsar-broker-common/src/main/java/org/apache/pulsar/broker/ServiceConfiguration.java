@@ -879,6 +879,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
+    private int bookkeeperExplicitLacIntervalInMills = 0;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
