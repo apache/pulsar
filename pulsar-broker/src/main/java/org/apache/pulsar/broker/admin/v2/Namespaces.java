@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1140,6 +1141,38 @@ public class Namespaces extends NamespacesBase {
                                              boolean schemaValidationEnforced) {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaValidationEnforced(schemaValidationEnforced);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/offloadPolicies")
+    @ApiOperation(value = " Set offload configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid") })
+    public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                           OffloadPolicies offload, @Suspended final AsyncResponse asyncResponse) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSetOffloadPolicies(asyncResponse, offload);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/offloadPolicies")
+    @ApiOperation(value = "Get offload configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
+                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetOffloadPolicies();
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

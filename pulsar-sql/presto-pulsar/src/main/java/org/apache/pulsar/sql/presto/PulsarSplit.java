@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -55,6 +56,8 @@ public class PulsarSplit implements ConnectorSplit {
     private final PositionImpl startPosition;
     private final PositionImpl endPosition;
 
+    private final OffloadPolicies offloadPolicies;
+
     @JsonCreator
     public PulsarSplit(
             @JsonProperty("splitId") long splitId,
@@ -69,7 +72,8 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
-            @JsonProperty("properties") Map<String, String> schemaInfoProperties) {
+            @JsonProperty("properties") Map<String, String> schemaInfoProperties,
+            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.schemaInfo = SchemaInfo.builder()
@@ -91,6 +95,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
         this.startPosition = PositionImpl.get(startPositionLedgerId, startPositionEntryId);
         this.endPosition = PositionImpl.get(endPositionLedgerId, endPositionEntryId);
+        this.offloadPolicies = offloadPolicies;
     }
 
     @JsonProperty
@@ -161,6 +166,11 @@ public class PulsarSplit implements ConnectorSplit {
         return endPosition;
     }
 
+    @JsonProperty
+    public OffloadPolicies getOffloadPolicies() {
+        return offloadPolicies;
+    }
+
     @Override
     public boolean isRemotelyAccessible() {
         return true;
@@ -190,6 +200,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", endPositionEntryId=" + endPositionEntryId
             + ", startPositionLedgerId=" + startPositionLedgerId
             + ", endPositionLedgerId=" + endPositionLedgerId
+            + (offloadPolicies == null ? "" : offloadPolicies.toString())
             + '}';
     }
 
