@@ -119,8 +119,9 @@ public abstract class Producer {
     }
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
-        beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
-        publishMessageToTopic(headersAndPayload, sequenceId, batchSize);
+        if (checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize)) {
+            publishMessageToTopic(headersAndPayload, sequenceId, batchSize);
+        }
     }
 
     public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
@@ -130,21 +131,22 @@ public abstract class Producer {
             cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             return;
         }
-        beforePublish(producerId, highestSequenceId, headersAndPayload, batchSize);
-        publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize);
+        if (checkAndStartPublish(producerId, highestSequenceId, headersAndPayload, batchSize)) {
+            publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize);
+        }
     }
 
-    public void beforePublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
+    public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
             sendError(producerId, sequenceId, PulsarApi.ServerError.PersistenceError, "Producer is closed");
             cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            return;
+            return false;
         }
 
         if (!verifyChecksum(headersAndPayload)) {
             sendError(producerId, sequenceId, PulsarApi.ServerError.ChecksumError, "Checksum failed on the broker");
             cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            return;
+            return false;
         }
 
         if (topic.isEncryptionRequired()) {
@@ -158,11 +160,12 @@ public abstract class Producer {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
                 sendError(producerId, sequenceId, PulsarApi.ServerError.MetadataError, "Messages must be encrypted");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-                return;
+                return false;
             }
         }
 
         startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
+        return true;
     }
 
     abstract protected void sendError(long producerId, long sequenceId, PulsarApi.ServerError serverError, String message);

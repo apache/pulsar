@@ -26,6 +26,7 @@ option java_multiple_files = true;
 service Pulsar {
     rpc produce(stream CommandSend) returns (stream SendResult) {}
     // rpc consume(stream pulsar.protocols.grpc.BaseCommand) returns (stream pulsar.protocols.grpc.BaseCommand) {}
+    rpc get_schema(CommandGetSchema) returns (CommandGetSchemaResponse) {}
 }
 
 message Schema {
@@ -601,19 +602,13 @@ message CommandGetTopicsOfNamespaceResponse {
 }
 
 message CommandGetSchema {
-    required uint64 request_id = 1;
-    required string topic      = 2;
-
-    optional bytes schema_version = 3;
+    required string topic         = 1;
+    optional bytes schema_version = 2;
 }
 
 message CommandGetSchemaResponse {
-    required uint64 request_id      = 1;
-    optional ServerError error_code = 2;
-    optional string error_message   = 3;
-
-    optional Schema schema          = 4;
-    optional bytes schema_version   = 5;
+    optional Schema schema          = 1;
+    optional bytes schema_version   = 2;
 }
 
 message CommandGetOrCreateSchema {

@@ -11,10 +11,12 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
@@ -32,14 +34,50 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
     private static final Logger log = LoggerFactory.getLogger(PulsarGrpcService.class);
 
     private final BrokerService service;
+    private final SchemaRegistryService schemaService;
     private final EventLoopGroup eventLoopGroup;
     private final boolean schemaValidationEnforced;
     private String originalPrincipal = null;
 
     public PulsarGrpcService(BrokerService service, ServiceConfiguration configuration, EventLoopGroup eventLoopGroup) {
         this.service = service;
+        this.schemaService = service.pulsar().getSchemaRegistryService();
         this.eventLoopGroup = eventLoopGroup;
         this.schemaValidationEnforced = configuration.isSchemaValidationEnforced();
+    }
+
+    @Override
+    public void getSchema(CommandGetSchema commandGetSchema, StreamObserver<CommandGetSchemaResponse> responseObserver) {
+        SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetSchema call from {}", remoteAddress);
+        }
+
+        SchemaVersion schemaVersion = SchemaVersion.Latest;
+        if (commandGetSchema.hasSchemaVersion()) {
+            schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion().toByteArray());
+        }
+
+        String schemaName;
+        try {
+            schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
+        } catch (Throwable t) {
+            responseObserver.onError(Commands.newStatusException(Status.INVALID_ARGUMENT, t, ServerError.InvalidTopicName));
+            return;
+        }
+
+        schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
+            if (schemaAndMetadata == null) {
+                responseObserver.onError(Commands.newStatusException(Status.INVALID_ARGUMENT, "Topic not found or no-schema",
+                    null, ServerError.TopicNotFound));
+            } else {
+                responseObserver.onNext(Commands.newGetSchemaResponse(
+                    SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+            }
+        }).exceptionally(ex -> {
+            responseObserver.onError(Commands.newStatusException(Status.INTERNAL, ex, ServerError.UnknownError));
+            return null;
+        });
     }
 
     @Override
@@ -53,9 +91,8 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = cmdProducer.getMetadataMap();
-
-        // TODO: handle schema
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+
 
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         log.info("################# init 2" + Thread.currentThread().getName());
@@ -92,30 +129,31 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                     StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, illegalStateException, ServerError.ProducerBlockedQuotaExceededException);
                     responseObserver.onError(statusException);
                 }
-                producerFuture.completeExceptionally(illegalStateException);;
+                producerFuture.completeExceptionally(illegalStateException);
+                return;
             }
 
             // Check whether the producer will publish encrypted messages or not
             if (topik.isEncryptionRequired() && !isEncrypted) {
                 String msg = String.format("Encryption is required in %s", topicName);
                 log.warn("[{}] {}", remoteAddress, msg);
-                StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT, msg, null, ServerError.ProducerBlockedQuotaExceededException);
+                StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT, msg, null, ServerError.MetadataError);
                 responseObserver.onError(statusException);
+                return;
             }
 
             CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topik, schema, remoteAddress);
 
             schemaVersionFuture.exceptionally(exception -> {
-                StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT, exception,
+                StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, exception,
                     ServerErrors.convert(BrokerServiceException.getClientErrorCode(exception)));
                 responseObserver.onError(statusException);
                 return null;
             });
 
             schemaVersionFuture.thenAccept(schemaVersion -> {
-
                 Producer producer = new GrpcProducer(topik, cnx, producerName, authRole,
-                    isEncrypted, metadata, SchemaVersion.Empty, epoch, userProvidedProducerName, eventLoopGroup.next());
+                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName, eventLoopGroup.next());
 
                 try {
                     // TODO : check that removeProducer is called even with early client disconnect

@@ -1,5 +1,6 @@
 package org.apache.pulsar.protocols.grpc;
 
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.*;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -17,17 +18,26 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.protocols.grpc.api.*;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -35,6 +45,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -43,10 +54,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.protocols.grpc.Constants.ERROR_CODE_METADATA_KEY;
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_METADATA_KEY;
 import static org.mockito.ArgumentMatchers.any;
@@ -146,12 +159,49 @@ public class PulsarGrpcServiceTest {
     }
 
     @AfterMethod
-    public void teardown() {
+    public void teardown() throws InterruptedException {
         server.shutdownNow();
+        server.awaitTermination(30, TimeUnit.SECONDS);
     }
 
     private int inSec(int time, TimeUnit unit) {
         return (int) TimeUnit.SECONDS.convert(time, unit);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProduce() throws Exception {
+        // test PRODUCER success case
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(successTopicName,"prod-name", Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> request = producerStub.produce(observer);
+
+        assertTrue(observer.takeOneMessage().hasProducerSuccess());
+
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
+
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        // test PRODUCER error case
+        headers = new Metadata();
+        producerParams = Commands.newProducer(failTopicName,"prod-name-2", Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer2 = TestStreamObserver.create();
+        StreamObserver<CommandSend> request2 = producerStub.produce(observer2);
+        assertErrorIsStatusExceptionWithServerError(observer2.waitForError(), Status.FAILED_PRECONDITION, ServerError.PersistenceError);
+        assertFalse(pulsar.getBrokerService().getTopicReference(failTopicName).isPresent());
+
+        request.onCompleted();
+        observer.waitForCompletion();
+        assertEquals(topicRef.getProducers().size(), 0);
     }
 
     @Test(timeOut = 30000)
@@ -183,6 +233,7 @@ public class PulsarGrpcServiceTest {
         assertTrue(sendReceipt.hasSendReceipt());
 
         request.onCompleted();
+        observer.waitForCompletion();
     }
 
     @Test(timeOut = 30000)
@@ -200,8 +251,6 @@ public class PulsarGrpcServiceTest {
         StreamObserver<CommandSend> request = producerStub.produce(observer);
         Throwable t = observer.waitForError();
         assertErrorIsStatusExceptionWithServerError(t, Status.INVALID_ARGUMENT, ServerError.InvalidTopicName);
-
-        request.onCompleted();
     }
 
     @Test(timeOut = 30000)
@@ -223,8 +272,6 @@ public class PulsarGrpcServiceTest {
         assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ServiceNotReady);
 
         assertFalse(pulsar.getBrokerService().getTopicReference(nonOwnedTopicName).isPresent());
-
-        request.onCompleted();
     }
 
     @Test(timeOut = 30000)
@@ -247,9 +294,212 @@ public class PulsarGrpcServiceTest {
 
         Throwable t = observer2.waitForError();
         assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ProducerBusy);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerWithSchema() throws Exception {
+        LongSchemaVersion schemaVersion = new LongSchemaVersion(42L);
+        Map<String, String> schemaProps = new HashMap<>();
+        schemaProps.put("key0", "value0");
+        SchemaInfo schemaInfo = SchemaInfo.builder()
+            .name("my-schema")
+            .type(SchemaType.STRING)
+            .schema("test".getBytes(StandardCharsets.UTF_8))
+            .properties(schemaProps)
+            .build();
+
+        Topic spyTopic = spy(new NonPersistentTopic(successTopicName, brokerService));
+        ArgumentCaptor<SchemaData> schemaCaptor = ArgumentCaptor.forClass(SchemaData.class);
+        doReturn(CompletableFuture.completedFuture(schemaVersion)).when(spyTopic).addSchema(schemaCaptor.capture());
+        doReturn(CompletableFuture.completedFuture(spyTopic)).when(brokerService).getOrCreateTopic(successTopicName);
+
+        String producerName = "my-producer";
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(successTopicName, producerName, false,
+            Collections.emptyMap(), schemaInfo, 0, false);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        SendResult sendResult = observer.takeOneMessage();
+        assertTrue(sendResult.hasProducerSuccess());
+        assertEquals(sendResult.getProducerSuccess().getSchemaVersion().toByteArray(), schemaVersion.bytes());
+        SchemaData schemaData = schemaCaptor.getValue();
+        assertEquals(schemaData.getType(), SchemaType.STRING);
+        assertEquals(schemaData.getProps().get("key0"), "value0");
+        assertEquals(schemaData.getData(), "test".getBytes(StandardCharsets.UTF_8));
 
         produce.onCompleted();
-        produce2.onCompleted();
+        observer.waitForCompletion();
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerValidationEnforced() throws Exception {
+        Topic spyTopic = spy(new NonPersistentTopic(successTopicName, brokerService));
+        doReturn(CompletableFuture.completedFuture(true)).when(spyTopic).hasSchema();
+        doReturn(true).when(spyTopic).getSchemaValidationEnforced();
+        doReturn(CompletableFuture.completedFuture(spyTopic)).when(brokerService).getOrCreateTopic(successTopicName);
+
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(successTopicName,"prod-name", Collections.emptyMap());
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        Throwable t = observer.waitForError();
+        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.IncompatibleSchema);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerSuccessOnEncryptionRequiredTopic() throws Exception {
+        // Set encryption_required to true
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        policies.encryption_required = true;
+        policies.topicDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        // test success case: encrypted producer can connect
+        Metadata headers = new Metadata();
+        CommandProducer producerParams =Commands.newProducer(encryptionRequiredTopicName,
+            "encrypted-producer", true, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        SendResult sendResult = observer.takeOneMessage();
+
+        assertTrue(sendResult.hasProducerSuccess());
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        produce.onCompleted();
+        observer.waitForCompletion();
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerFailureOnEncryptionRequiredTopic() throws Exception {
+        // Set encryption_required to true
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        policies.encryption_required = true;
+        policies.topicDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        // test success case: encrypted producer can connect
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(encryptionRequiredTopicName,
+            "unencrypted-producer", false, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        Throwable error = observer.waitForError();
+        assertErrorIsStatusExceptionWithServerError(error, Status.INVALID_ARGUMENT, ServerError.MetadataError);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testSendSuccessOnEncryptionRequiredTopic() throws Exception {
+        // Set encryption_required to true
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        policies.encryption_required = true;
+        policies.topicDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(encryptionRequiredTopicName,
+            "prod-name", true, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        assertTrue(observer.takeOneMessage().hasProducerSuccess());
+
+        // test success case: encrypted messages can be published
+        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+            .setPublishTime(System.currentTimeMillis())
+            .setProducerName("prod-name")
+            .setSequenceId(0)
+            .addEncryptionKeys(PulsarApi.EncryptionKeys.newBuilder().setKey("testKey").setValue(ByteString.copyFrom("testVal".getBytes())))
+            .build();
+        ByteBuf data = Unpooled.buffer(1024);
+
+        CommandSend send = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
+        produce.onNext(send);
+
+        assertTrue(observer.takeOneMessage().hasSendReceipt());
+
+        produce.onCompleted();
+        observer.waitForCompletion();
+    }
+
+    @Test//(timeOut = 30000)
+    public void testSendFailureOnEncryptionRequiredTopic() throws Exception {
+        // Set encryption_required to true
+        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
+        Policies policies = mock(Policies.class);
+        policies.encryption_required = true;
+        policies.topicDispatchRate = Maps.newHashMap();
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(zkDataCache).when(configCacheService).policiesCache();
+
+        Metadata headers = new Metadata();
+        CommandProducer producerParams = Commands.newProducer(encryptionRequiredTopicName,
+            "prod-name", true, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        assertTrue(observer.takeOneMessage().hasProducerSuccess());
+
+        // test success case: encrypted messages can be published
+        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+            .setPublishTime(System.currentTimeMillis())
+            .setProducerName("prod-name")
+            .setSequenceId(0)
+            .build();
+        ByteBuf data = Unpooled.buffer(1024);
+
+        CommandSend send = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
+        produce.onNext(send);
+
+        SendResult sendResult = observer.takeOneMessage();
+        assertTrue(sendResult.hasSendError());
+        assertEquals(sendResult.getSendError().getError(), ServerError.MetadataError);
+
+        produce.onCompleted();
+        observer.waitForCompletion();
+
+        assertTrue(true);
     }
 
     private static class TestStreamObserver<T> implements StreamObserver<T> {
@@ -260,6 +510,7 @@ public class PulsarGrpcServiceTest {
 
         private LinkedBlockingQueue<T> queue = new LinkedBlockingQueue<>();
         private CompletableFuture<Throwable> error = new CompletableFuture<>();
+        private CountDownLatch complete = new CountDownLatch(1);
 
         private TestStreamObserver() {
         }
@@ -276,6 +527,7 @@ public class PulsarGrpcServiceTest {
 
         @Override
         public void onCompleted() {
+            complete.countDown();
         }
 
         public T takeOneMessage() throws InterruptedException {
@@ -284,6 +536,10 @@ public class PulsarGrpcServiceTest {
 
         public Throwable waitForError() throws ExecutionException, InterruptedException {
             return error.get();
+        }
+
+        public void waitForCompletion() throws InterruptedException {
+            complete.await();
         }
     }
 

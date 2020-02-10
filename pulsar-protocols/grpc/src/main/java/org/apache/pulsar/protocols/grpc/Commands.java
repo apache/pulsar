@@ -5,7 +5,6 @@ import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -14,7 +13,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.protocols.grpc.api.*;
 
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.google.protobuf.ByteString.copyFrom;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
@@ -138,7 +136,9 @@ public class Commands {
         producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
         producerBuilder.setEncrypted(encrypted);
 
-        producerBuilder.putAllMetadata(metadata);
+        if (metadata != null) {
+            producerBuilder.putAllMetadata(metadata);
+        }
 
         if (null != schemaInfo) {
             producerBuilder.setSchema(getSchema(schemaInfo));
@@ -183,4 +183,21 @@ public class Commands {
         }
     }
 
+    public static CommandGetSchema newGetSchema(String topic, SchemaVersion version) {
+        CommandGetSchema.Builder schema = CommandGetSchema.newBuilder();
+        schema.setTopic(topic);
+        if (version != null) {
+            schema.setSchemaVersion(ByteString.copyFrom(version.bytes()));
+        }
+
+        return schema.build();
+    }
+
+    public static CommandGetSchemaResponse newGetSchemaResponse(SchemaInfo schema, SchemaVersion version) {
+        CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
+            .setSchemaVersion(ByteString.copyFrom(version.bytes()))
+            .setSchema(getSchema(schema));
+
+        return schemaResponse.build();
+    }
 }
