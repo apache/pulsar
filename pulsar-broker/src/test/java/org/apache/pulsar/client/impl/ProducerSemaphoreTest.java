@@ -82,17 +82,8 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(futures).get();
 
-        // Here must ensure that the semaphore available permits is 0
+        // Here must ensure that the semaphore available permits is equals to size of pending queue
         Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
-
-        // Acquire 5 and not wait the send ack call back
-        for (int i = 0; i < messages / 2; i++) {
-            producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync();
-        }
-
-        // Here must ensure that the Semaphore a acquired 5
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize - messages / 2);
-
     }
 
     /**
@@ -101,7 +92,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
      * dead lock happens {https://github.com/apache/pulsar/issues/5585}
      */
     @Test(timeOut = 30000)
-    public void testEnsureNotBlockOnThePendingQueue() throws PulsarClientException {
+    public void testEnsureNotBlockOnThePendingQueue() throws PulsarClientException, InterruptedException, ExecutionException {
 
         final int pendingQueueSize = 10;
 
@@ -124,12 +115,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             futures.add(producer.sendAsync(msg));
         }
 
-        FutureUtil.waitForAll(futures);
+        FutureUtil.waitForAll(futures).get();
         futures.clear();
-
-        for (int i = 0; i < messages; i++) {
-            futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
-        }
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
+        // Here must ensure that the semaphore available permits is equals to size of pending queue
+        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
     }
 }
