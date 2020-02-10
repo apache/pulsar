@@ -445,6 +445,31 @@ grafana:
     ports:
     - name: server
       port: 3000
+  plugins: []
+  ## Grafana ingress
+  ## templates/grafana-ingress.yaml
+  ##
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # nginx.ingress.kubernetes.io/rewrite-target: /$1
+      # ingress.kubernetes.io/force-ssl-redirect: "true"
+      ingress.kubernetes.io/rewrite-target: /
+    labels: {}
+
+    tls: []
+
+    ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+    #- secretName: ""
+
+    ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
+    extraPaths: []
+    ## Required if ingress is enabled
+    hostname: ""
+    protocol: http
+    path: /grafana
+    port: 80
 
 zookeeper_metadata:
   resources:
