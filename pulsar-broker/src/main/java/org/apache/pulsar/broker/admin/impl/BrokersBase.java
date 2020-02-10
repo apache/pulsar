@@ -81,6 +81,7 @@ public class BrokersBase extends AdminResource {
         responseContainer = "Set")
     @ApiResponses(
         value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve this cluster"),
             @ApiResponse(code = 401, message = "Authentication required"),
             @ApiResponse(code = 403, message = "This operation requires super-user access"),
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
@@ -101,6 +102,7 @@ public class BrokersBase extends AdminResource {
     @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
     @ApiOperation(value = "Get the list of namespaces served by the specific broker", response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,

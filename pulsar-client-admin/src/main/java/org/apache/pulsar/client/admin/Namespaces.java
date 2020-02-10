@@ -1357,6 +1357,94 @@ public interface Namespaces {
     void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
 
     /**
+     * Get the maxUnackedMessagesPerConsumer for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerConsumer for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerConsumer
+     *            maxUnackedMessagesPerConsumer value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer) throws PulsarAdminException;
+
+    /**
+     * Get the maxUnackedMessagesPerSubscription for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerSubscription for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerSubscription
+     *            Max number of unacknowledged messages allowed per shared subscription.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription) throws PulsarAdminException;
+
+    /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
      * <p>

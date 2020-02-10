@@ -26,7 +26,7 @@ import (
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
-func HandleRequest(ctx context.Context, in []byte) error{
+func HandleRequest(ctx context.Context, in []byte) error {
 	fmt.Println(string(in) + "!")
 	return nil
 }

@@ -691,7 +691,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
-            .patternAutoDiscoveryPeriod(2)
+            .patternAutoDiscoveryPeriod(10, TimeUnit.SECONDS)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)

@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-export PULSAR_HOME=`cd $BINDIR/..;pwd`
+export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf

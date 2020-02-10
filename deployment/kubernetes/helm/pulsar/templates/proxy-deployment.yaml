@@ -76,7 +76,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.proxy.gracePeriod }}
       initContainers:
       # This init container will wait for zookeeper to be ready before
-      # deploying the bookies
+      # deploying the proxies
       - name: wait-zookeeper-ready
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -85,6 +85,21 @@ spec:
           - >-
             until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} ls /admin/clusters/{{ template "pulsar.fullname" . }}; do
               sleep 3;
+            done;
+      # This init container will wait for at least one broker to be ready before
+      # deploying the proxy
+      - name: wait-broker-ready
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["bash", "-c"]
+        args:
+          - >-
+            for i in {0..{{ .Values.broker.replicaCount }}}; do
+              brokerServiceNumber="$(nslookup -timeout=10 {{ template "pulsar.fullname" . }}-{{ .Values.broker.component }} | grep Name | wc -l)"
+              if [[ ${brokerServiceNumber} -ge 1 ]]; then
+                break
+              fi
+              sleep 30;
             done;
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
