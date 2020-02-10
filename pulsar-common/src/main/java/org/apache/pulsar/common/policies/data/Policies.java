@@ -39,6 +39,8 @@ public class Policies {
     public BundlesData bundles;
     @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
+    @Deprecated
+    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
@@ -64,6 +66,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
     @SuppressWarnings("checkstyle:MemberName")
+    public DelayedDeliveryPolicies delayed_delivery_policies = null;
+    @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -72,6 +76,10 @@ public class Policies {
     public int max_consumers_per_topic = 0;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
+    @SuppressWarnings("checkstyle:MemberName")
+    public int max_unacked_messages_per_consumer = -1;
+    @SuppressWarnings("checkstyle:MemberName")
+    public int max_unacked_messages_per_subscription = -1;
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
@@ -97,14 +105,16 @@ public class Policies {
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map, publishMaxMessageRate,
+                backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
-                encryption_required, subscription_auth_mode,
+                encryption_required, delayed_delivery_policies,
+                subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
+                max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
@@ -120,6 +130,7 @@ public class Policies {
             return Objects.equals(auth_policies, other.auth_policies)
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
+                    && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
                     && Objects.equals(topicDispatchRate, other.topicDispatchRate)
                     && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
                     && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
@@ -132,11 +143,14 @@ public class Policies {
                             other.message_ttl_in_seconds)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
+                    && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
                     && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
+                    && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
+                    && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
@@ -171,6 +185,7 @@ public class Policies {
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
+                .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
                 .add("replicatorDispatchRate", replicatorDispatchRate)
@@ -181,10 +196,13 @@ public class Policies {
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
+                .add("delayed_delivery_policies", delayed_delivery_policies)
                 .add("subscription_auth_mode", subscription_auth_mode)
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
                 .add("max_consumers_per_subscription", max_consumers_per_topic)
+                .add("max_unacked_messages_per_consumer", max_unacked_messages_per_consumer)
+                .add("max_unacked_messages_per_subscription", max_unacked_messages_per_subscription)
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)

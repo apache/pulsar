@@ -33,7 +33,7 @@ BOOKIE_CONF=${BOOKIE_CONF:-"$BK_HOME/conf/bookkeeper.conf"}
 # BOOKIE_LOG_DIR=
 
 # Memory size options
-BOOKIE_MEM=${BOOKIE_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g"}
+BOOKIE_MEM=${BOOKIE_MEM:-${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g"}}
 
 # Garbage collection options
 BOOKIE_GC=${BOOKIE_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB"}

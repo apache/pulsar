@@ -427,9 +427,7 @@ public class PulsarService implements AutoCloseable {
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
-                this.webSocketService = new WebSocketService(
-                        new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
-                        config);
+                this.webSocketService = new WebSocketService(null, config);
                 this.webSocketService.start();
 
                 final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
@@ -465,6 +463,12 @@ public class PulsarService implements AutoCloseable {
             this.webServiceAddressTls = webAddressTls(config);
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
+
+            if (null != this.webSocketService) {
+                ClusterData clusterData =
+                    new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls);
+                this.webSocketService.setLocalCluster(clusterData);
+            }
 
             // needs load management service
             this.startNamespaceService();

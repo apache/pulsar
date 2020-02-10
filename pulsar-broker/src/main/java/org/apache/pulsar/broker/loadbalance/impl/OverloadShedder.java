@@ -73,7 +73,8 @@ public class OverloadShedder implements LoadSheddingStrategy {
             final double currentUsage = localData.getMaxResourceUsage();
             if (currentUsage < overloadThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Broker is not overloaded, ignoring at this point", broker);
+                    log.debug("[{}] Broker is not overloaded, ignoring at this point ({})", broker,
+                            localData.printResourceUsage());
                 }
                 return;
             }
@@ -86,8 +87,9 @@ public class OverloadShedder implements LoadSheddingStrategy {
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
             log.info(
-                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}% -- Offloading at least {} MByte/s of traffic",
-                    broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024);
+                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}% -- Offloading at least {} MByte/s of traffic ({})",
+                    broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
+                    localData.printResourceUsage());
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);

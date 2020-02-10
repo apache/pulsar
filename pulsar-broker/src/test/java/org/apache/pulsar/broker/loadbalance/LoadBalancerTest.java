@@ -312,7 +312,7 @@ public class LoadBalancerTest {
     /*
      * Pre-publish load report to ZK, each broker has: - Difference memory capacity, for the first 3 brokers memory is
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
-     * idle resources are avaiable for new bundle Check the broker rankings are the load percentage of each broker.
+     * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
     @Test
     public void testBrokerRanking() throws Exception {
@@ -402,7 +402,7 @@ public class LoadBalancerTest {
             printSortedRanking(sortedRanking);
         }
 
-        // check owner of new destiations and verify that the distribution is roughly
+        // check owner of new destinations and verify that the distribution is roughly
         // consistent (variation < 10%) with the broker capacity:
         int totalNamespaces = 250;
         int[] expectedAssignments = new int[] { 17, 34, 51, 68, 85 };

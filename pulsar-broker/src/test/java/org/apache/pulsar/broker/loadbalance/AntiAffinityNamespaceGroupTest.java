@@ -428,7 +428,7 @@ public class AntiAffinityNamespaceGroupTest {
 
     /**
      * It verifies that load-shedding task should unload namespace only if there is a broker available which doesn't
-     * cause uneven anti-affinitiy namespace distribution.
+     * cause uneven anti-affinity namespace distribution.
      *
      * <pre>
      * 1. broker1 owns ns-0 => broker1 can unload ns-0
