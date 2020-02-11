@@ -207,11 +207,6 @@ public class WebServiceTest {
         Assert.assertEquals(result, "topic1");
     }
 
-    /**
-     * Test that the {@WebService} class properly passes the allowUnversionedClients value. We do this by setting
-     * allowUnversionedClients to true, then making a request with no version, which should go through.
-     *
-     */
     @Test
     public void testMaxRequestSize() throws Exception {
         setupEnv(true, "1.0", true, false, false, false);
