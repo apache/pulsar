@@ -384,7 +384,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         messageSet.clear();
         for (int i = 0; i < numMessagesPerBatch; i++) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive();
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-batch-message-" + i;
