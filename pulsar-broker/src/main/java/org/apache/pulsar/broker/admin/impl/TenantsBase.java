@@ -92,6 +92,7 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Tenant name is not valid"),
+            @ApiResponse(code = 412, message = "Clusters can not be empty"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void createTenant(
         @ApiParam(value = "The tenant name")
@@ -103,9 +104,6 @@ public class TenantsBase extends AdminResource {
 
         try {
             NamedEntity.checkName(tenant);
-            if (config == null) {
-                config = new TenantInfo();
-            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
@@ -126,6 +124,7 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
+            @ApiResponse(code = 412, message = "Clusters can not be empty"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
     public void updateTenant(
         @ApiParam(value = "The tenant name")
@@ -222,23 +221,16 @@ public class TenantsBase extends AdminResource {
         }
     }
 
-    private Set<String> getNonBlankClusters(Set<String> allowedClusters) {
-        Set<String> nonBlankClusters = Sets.newHashSet();
-        for (String ac : allowedClusters) {
-            if (!StringUtils.isBlank(ac)) {
-                nonBlankClusters.add(ac);
-            }
-        }
-        return nonBlankClusters;
-    }
-
     private void validateClusters(TenantInfo info) {
+        // empty cluster shouldn't be allowed
+        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
+            || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
+            log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
+            throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
+        }
+
         List<String> nonexistentClusters;
         try {
-            // treat a blank cluster as a cluster is not specified
-            if (info == null || getNonBlankClusters(info.getAllowedClusters()).isEmpty()) {
-                info = new TenantInfo();
-            }
             Set<String> availableClusters = clustersListCache().get();
             Set<String> allowedClusters = info.getAllowedClusters();
             nonexistentClusters = allowedClusters.stream()
