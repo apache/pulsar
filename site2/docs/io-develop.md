@@ -24,9 +24,9 @@ You can develop Pulsar source connectors and sink connectors.
 ### Source
 
 Developing a source connector is to implement the {@inject: github:`Source`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}
-interface, which means you need to implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33} method and the {@inject: github:`record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} method.
+interface, which means you need to implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method and the {@inject: github:`read`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
-1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33} method. 
+1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method. 
 
     ```java
     /**
@@ -48,7 +48,7 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
     Besides, Pulsar runtime also provides a `SourceContext` for the 
     connector to access runtime resources for tasks like collecting metrics. The implementation can save the `SourceContext` for future use.
 
-2. Implement the {@inject: github:`read`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41} method.
+2. Implement the {@inject: github:`read`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
     ```java
         /**
@@ -62,9 +62,9 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
 
     If nothing to return, the implementation should be blocking rather than returning `null`. 
 
-    The returned {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should encapsulate the following information, which is needed by Pulsar IO runtime. 
+    The returned {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
 
-    * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should provide the following variables:
+    * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following variables:
 
       |Variable|Required|Description
       |---|---|---
@@ -78,7 +78,7 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
       `DestinationTopic`|No|Topic to which message should be written.
       `Message`|No|A class which carries data sent by users.<br/><br/>For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
 
-     * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should provide the following methods:
+     * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following methods:
 
         Method|Description
         |---|---
@@ -91,9 +91,9 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
 
 ### Sink
 
-Developing a sink connector **is similar to** developing a source connector, that is, you need to implement the {@inject: github:`Sink`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} interface, which means implementing the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36} method and the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44} method.
+Developing a sink connector **is similar to** developing a source connector, that is, you need to implement the {@inject: github:`Sink`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} interface, which means implementing the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method and the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
-1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36} method.
+1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
         /**
@@ -106,7 +106,7 @@ Developing a sink connector **is similar to** developing a source connector, tha
         void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
     ```
 
-2. Implement the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44} method.
+2. Implement the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
         /**
@@ -196,7 +196,7 @@ All you need to do is to include this [nifi-nar-maven-plugin](https://mvnreposit
 
 > #### Tip
 > 
-> For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:`TwitterFirehose`:/pulsar-io/twitter/pom.xml#L79}.
+> For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:`TwitterFirehose`:/pulsar-io/twitter/pom.xml}.
 
 ### Uber JAR
 
