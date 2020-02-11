@@ -21,10 +21,10 @@ package org.apache.pulsar.common.compression;
 import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -50,7 +50,7 @@ public class CompressorCodecBackwardCompatTest {
     @Test(dataProvider = "codecs")
     void testCompressDecompress(CompressionCodec c1, CompressionCodec c2) throws IOException {
         byte[] data = text.getBytes();
-        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
+        ByteBuf raw = Unpooled.directBuffer();
         raw.writeBytes(data);
 
         ByteBuf compressed = c1.encode(raw);
