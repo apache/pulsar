@@ -41,7 +41,6 @@ public class GrpcHandler implements ProtocolHandler {
      */
     @Override
     public void initialize(ServiceConfiguration conf) {
-        log.info("####################### initialize");
         grpcServer = new GrpcServer(conf);
     }
 
@@ -60,8 +59,7 @@ public class GrpcHandler implements ProtocolHandler {
      */
     @Override
     public String getProtocolDataToAdvertise() {
-        log.info("####################### advertise");
-        return "null";
+        return "";
     }
 
     /**
@@ -74,7 +72,6 @@ public class GrpcHandler implements ProtocolHandler {
      */
     @Override
     public void start(BrokerService service) {
-        log.info("####################### start");
         try {
             grpcServer.start(service);
         } catch (IOException e) {
@@ -92,13 +89,12 @@ public class GrpcHandler implements ProtocolHandler {
      */
     @Override
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        log.info("####################### newChannelInitializers");
+        // The gRPC server uses it's own Netty setup.
         return Collections.emptyMap();
     }
 
     @Override
     public void close() {
-        log.info("####################### stop");
         try {
             grpcServer.stop();
         } catch (InterruptedException e) {

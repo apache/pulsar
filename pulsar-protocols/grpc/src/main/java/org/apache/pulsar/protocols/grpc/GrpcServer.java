@@ -37,11 +37,8 @@ public class GrpcServer {
         this.configuration = configuration;
     }
 
-
     public void start(BrokerService service) throws IOException {
-        // TODO: replace with configurable port
-        int port = 50444;
-
+        int port = Integer.parseInt(configuration.getProperties().getProperty("grpcServicePort", "50051"));
 
         server = ServerBuilder.forPort(port)
             .addService(ServerInterceptors.intercept(
