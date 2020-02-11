@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import io.netty.buffer.ByteBuf;
@@ -151,6 +152,9 @@ public class ServerCnx extends PulsarHandler {
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
     private FeatureFlags features;
+    // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
+    private volatile boolean autoReadDisabledPublishBufferLimiting = false;
+    private volatile long messagePublishBufferSize = 0;
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -1678,17 +1682,20 @@ public class ServerCnx extends PulsarHandler {
     }
 
     private void startSendOperation(Producer producer, int msgSize) {
+        messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-        if (++pendingSendRequest == MaxPendingSendRequests | isPublishRateExceeded | service.increasePublishBufferSizeAndCheckStopRead(msgSize)) {
+        if (++pendingSendRequest == MaxPendingSendRequests | isPublishRateExceeded | getBrokerService().isMessagePublishBufferThreshold()) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
+            autoReadDisabledPublishBufferLimiting = true;
         }
     }
 
     void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        if (--pendingSendRequest == ResumeReadsThreshold | service.decreasePublishBufferSizeAndCheckResumeRead(msgSize)) {
+        messagePublishBufferSize -= msgSize;
+        if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
@@ -1703,15 +1710,31 @@ public class ServerCnx extends PulsarHandler {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
-        if (!ctx.channel().config().isAutoRead() && autoReadDisabledRateLimiting) {
+        if (!ctx.channel().config().isAutoRead() && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
             ctx.read();
+        }
+    }
+
+    @VisibleForTesting
+    void cancelPublishRateLimiting() {
+        if (autoReadDisabledRateLimiting) {
             autoReadDisabledRateLimiting = false;
         }
     }
 
+<<<<<<< HEAD
+=======
+    @VisibleForTesting
+    void cancelPublishBufferLimiting() {
+        if (autoReadDisabledPublishBufferLimiting) {
+            autoReadDisabledPublishBufferLimiting = false;
+        }
+    }
+    
+>>>>>>> Apply comments
     private <T> ServerError getErrorCode(CompletableFuture<T> future) {
         ServerError error = ServerError.UnknownError;
         try {
@@ -1798,5 +1821,19 @@ public class ServerCnx extends PulsarHandler {
 
     public String getClientVersion() {
         return clientVersion;
+    }
+
+    public long getMessagePublishBufferSize() {
+        return this.messagePublishBufferSize;
+    }
+
+    @VisibleForTesting
+    void setMessagePublishBufferSize(long bufferSize) {
+        this.messagePublishBufferSize = bufferSize;
+    }
+
+    @VisibleForTesting
+    void setAutoReadDisabledRateLimiting(boolean isLimiting) {
+        this.autoReadDisabledRateLimiting = isLimiting;
     }
 }

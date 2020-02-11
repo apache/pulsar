@@ -201,6 +201,4 @@ public interface Topic {
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
     }
-
-    void enableProducerRead();
 }

@@ -615,6 +615,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
+    )
+    private int messagePublishBufferCheckIntervalInMills = 100;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
