@@ -33,6 +33,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -254,6 +255,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How often to check for inactive topics"
     )
     private int brokerDeleteInactiveTopicsFrequencySeconds = 60;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
+        + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active producers\n"
+        + "'delete_when_subscriptions_caught_up' mode only delete the topic that all subscriptions has no backlogs(caught up)"
+        + "and no active producers/consumers"
+    )
+    private InactiveTopicDeleteMode brokerDeleteInactiveTopicsMode = InactiveTopicDeleteMode.delete_when_no_subscriptions;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Max duration of topic inactivity in seconds, default is not present\n"
+        + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
+        + "Topics that are inactive for longer than this value will be deleted"
+    )
+    private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -661,6 +680,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Interval of time for checking for expired authentication credentials"
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
+    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Enforce authorization"
     )
@@ -859,6 +884,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
+    private int bookkeeperExplicitLacIntervalInMills = 0;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -1447,6 +1475,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isDefaultTopicTypePartitioned() {
         return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+    }
+
+    public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
+        if (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds == null) {
+            return brokerDeleteInactiveTopicsFrequencySeconds;
+        } else {
+            return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
+        }
     }
 
     enum TopicType {

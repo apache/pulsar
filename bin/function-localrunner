@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-export PULSAR_HOME=`cd $BINDIR/..;pwd`
+export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 . "$PULSAR_HOME/bin/pulsar-admin-common.sh"
 
 # functions related variables

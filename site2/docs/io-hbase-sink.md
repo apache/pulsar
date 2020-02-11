@@ -14,7 +14,7 @@ The configuration of the HBase sink connector has the following properties.
 ### Property
 
 | Name | Type|Default | Required | Description |
-|------|---------|----------|-------------|
+|------|---------|----------|-------------|---
 | `hbaseConfigResources` | String|None | false | HBase system configuration `hbase-site.xml` file. |
 | `zookeeperQuorum` | String|None | true | HBase system configuration about `hbase.zookeeper.quorum` value. |
 | `zookeeperClientPort` | String|2181 | false | HBase system configuration about `hbase.zookeeper.property.clientPort` value. |

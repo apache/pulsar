@@ -78,7 +78,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
-
+ 
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with

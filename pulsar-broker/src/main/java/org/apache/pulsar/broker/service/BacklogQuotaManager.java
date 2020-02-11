@@ -65,8 +65,7 @@ public class BacklogQuotaManager {
                     .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
-            log.error(String.format("Failed to read policies data, will apply the default backlog quota: namespace=%s",
-                    namespace), e);
+            log.error("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }

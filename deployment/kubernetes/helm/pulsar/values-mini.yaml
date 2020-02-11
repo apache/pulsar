@@ -21,9 +21,9 @@
 namespace: pulsar
 namespaceCreate: yes
 
-## If persistence is enabled, components that has state will
+## If persistence is enabled, components that have state will
 ## be deployed with PersistentVolumeClaims, otherwise, for test
-## purposes, they will be deployed with emptDir
+## purposes, they will be deployed with emptyDir
 persistence: no
 
 ## If prometheus_persistence is enabled, prometheus will be deployed
@@ -70,7 +70,7 @@ zookeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -80,6 +80,17 @@ zookeeper:
     data:
       name: data
       size: 2Gi
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
   ## Zookeeper configmap
   ## templates/zookeeper-configmap.yaml
   ##
@@ -107,8 +118,8 @@ zookeeper:
     maxUnavailable: 1
 
 ## Pulsar Zookeeper metadata. The metadata will be deployed as
-## soon as the las zookeeper node is reachable. The deployment
-## of other components that depends o zookeeper, such as the
+## soon as the last zookeeper node is reachable. The deployment
+## of other components that depends on zookeeper, such as the
 ## bookkeeper nodes, broker nodes, etc will only start to be
 ## deployed when the zookeeper cluster is ready and with the
 ## metadata deployed
@@ -129,7 +140,7 @@ bookkeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -139,9 +150,31 @@ bookkeeper:
     journal:
       name: journal
       size: 5Gi
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
     ledgers:
       name: ledgers
       size: 5Gi
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
   ## Bookkeeper configmap
   ## templates/bookkeeper-configmap.yaml
   ##
@@ -179,7 +212,7 @@ broker:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -224,7 +257,7 @@ proxy:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -266,7 +299,7 @@ autoRecovery:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -288,16 +321,16 @@ dashboard:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 0.1
   image:
     repository: apachepulsar/pulsar-dashboard
     tag: latest
     pullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 0.1
   ## Dashboard service
   ## templates/dashboard-service.yaml
   ##
@@ -308,6 +341,18 @@ dashboard:
       port: 80
   ingress:
     enabled: false
+    annotations: {}
+    tls:
+      enabled: false
+
+      ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+      secretName: ""
+
+    ## Required if ingress is enabled
+    hostname: ""
+    path: "/"
+    port: 80
+
 
 ## Pulsar Extra: Bastion
 ## templates/bastion-deployment.yaml
@@ -318,7 +363,7 @@ bastion:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -339,21 +384,32 @@ prometheus:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 0.1
   image:
     repository: prom/prometheus
     tag: v1.6.3
     pullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 0.1
   volumes:
     data:
       name: data
       size: 2Gi
-  ## Prometheus service
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
+      ##
+      # storageClass:
+        # type: pd-standard
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
+      ## Prometheus service
   ## templates/prometheus-service.yaml
   ##
   service:
@@ -371,17 +427,17 @@ grafana:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 0.1
   image:
     repository: apachepulsar/pulsar-grafana
     tag: latest
     pullPolicy: IfNotPresent
-  ## Grafana service
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 0.1
+      ## Grafana service
   ## templates/grafana-service.yaml
   ##
   service:
@@ -389,6 +445,31 @@ grafana:
     ports:
     - name: server
       port: 3000
+  plugins: []
+  ## Grafana ingress
+  ## templates/grafana-ingress.yaml
+  ##
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # nginx.ingress.kubernetes.io/rewrite-target: /$1
+      # ingress.kubernetes.io/force-ssl-redirect: "true"
+      ingress.kubernetes.io/rewrite-target: /
+    labels: {}
+
+    tls: []
+
+    ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+    #- secretName: ""
+
+    ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
+    extraPaths: []
+    ## Required if ingress is enabled
+    hostname: ""
+    protocol: http
+    path: /grafana
+    port: 80
 
 zookeeper_metadata:
   resources:
@@ -406,7 +487,7 @@ pulsar_manager:
   # nodeSelector:
   # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-manager
@@ -428,4 +509,3 @@ pulsar_manager:
   admin:
     user: pulsar
     password: pulsar
-

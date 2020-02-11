@@ -121,6 +121,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -403,7 +404,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected void startInactivityMonitor() {
         if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
             int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
-            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(interval)), interval, interval,
+            int maxInactiveDurationInSec = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(maxInactiveDurationInSec)), interval, interval,
                     TimeUnit.SECONDS);
         }
 
@@ -463,7 +465,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // schedule task that sums up publish-rate across all cnx on a topic
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
                             topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
                             TimeUnit.SECONDS);
                 }
@@ -502,7 +504,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         brokerTickTimeMs,
                         brokerTickTimeMs,
                         TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
                         safeRun(() -> refreshBrokerPublishRate()),
                         1,
@@ -981,7 +983,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             policies.ifPresent(p -> {
                     long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
                     if (p.offload_deletion_lag_ms != null) {
@@ -1095,8 +1098,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return lookupRequestSemaphore.get();
     }
 
-    public void checkGC(int gcIntervalInSeconds) {
-        forEachTopic(topic -> topic.checkGC(gcIntervalInSeconds));
+    public void checkGC(int maxInactiveDurationInSec) {
+        forEachTopic(topic -> topic.checkGC(maxInactiveDurationInSec,
+            pulsar.getConfiguration().getBrokerDeleteInactiveTopicsMode()));
     }
 
     public void checkMessageExpiry() {
@@ -1198,7 +1202,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
-            log.debug(String.format("Failed to check the ownership of the topic: %s", topicName), e);
+            log.debug("Failed to check the ownership of the topic: {}", topicName, e);
             throw new RuntimeException(new ServerMetadataException(e));
         }
 
@@ -1869,7 +1873,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * If per-broker unack message reached to limit then it blocks dispatcher if its unack message limit has been
+     * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}
      *
      * @param dispatcher
