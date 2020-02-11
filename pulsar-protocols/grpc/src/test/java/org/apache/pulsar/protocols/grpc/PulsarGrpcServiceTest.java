@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -249,8 +250,9 @@ public class PulsarGrpcServiceTest {
         TestStreamObserver<SendResult> observer = new TestStreamObserver<>();
 
         StreamObserver<CommandSend> request = producerStub.produce(observer);
-        Throwable t = observer.waitForError();
-        assertErrorIsStatusExceptionWithServerError(t, Status.INVALID_ARGUMENT, ServerError.InvalidTopicName);
+
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(),
+            Status.INVALID_ARGUMENT, ServerError.InvalidTopicName);
     }
 
     @Test(timeOut = 30000)
@@ -268,8 +270,8 @@ public class PulsarGrpcServiceTest {
         TestStreamObserver<SendResult> observer = new TestStreamObserver<>();
 
         StreamObserver<CommandSend> request = producerStub.produce(observer);
-        Throwable t = observer.waitForError();
-        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ServiceNotReady);
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(),
+            Status.FAILED_PRECONDITION, ServerError.ServiceNotReady);
 
         assertFalse(pulsar.getBrokerService().getTopicReference(nonOwnedTopicName).isPresent());
     }
@@ -292,8 +294,8 @@ public class PulsarGrpcServiceTest {
         TestStreamObserver<SendResult> observer2 = new TestStreamObserver<>();
         StreamObserver<CommandSend> produce2 = producerStub.produce(observer2);
 
-        Throwable t = observer2.waitForError();
-        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.ProducerBusy);
+        assertErrorIsStatusExceptionWithServerError(observer2.waitForError(),
+            Status.FAILED_PRECONDITION, ServerError.ProducerBusy);
     }
 
     @Test(timeOut = 30000)
@@ -351,8 +353,8 @@ public class PulsarGrpcServiceTest {
         TestStreamObserver<SendResult> observer = TestStreamObserver.create();
         StreamObserver<CommandSend> produce = producerStub.produce(observer);
 
-        Throwable t = observer.waitForError();
-        assertErrorIsStatusExceptionWithServerError(t, Status.FAILED_PRECONDITION, ServerError.IncompatibleSchema);
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(),
+            Status.FAILED_PRECONDITION, ServerError.IncompatibleSchema);
     }
 
     @Test(timeOut = 30000)
@@ -458,7 +460,7 @@ public class PulsarGrpcServiceTest {
         observer.waitForCompletion();
     }
 
-    @Test//(timeOut = 30000)
+    @Test(timeOut = 30000)
     public void testSendFailureOnEncryptionRequiredTopic() throws Exception {
         // Set encryption_required to true
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
@@ -500,6 +502,50 @@ public class PulsarGrpcServiceTest {
         observer.waitForCompletion();
 
         assertTrue(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerProducerBlockedQuotaExceededErrorOnBacklogQuotaExceeded() throws Exception {
+        Topic spyTopic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
+        doReturn(true).when(spyTopic).isBacklogQuotaExceeded("exceeded-producer");
+        doReturn(new BacklogQuota(0, BacklogQuota.RetentionPolicy.producer_request_hold)).when(spyTopic).getBacklogQuota();
+        doReturn(CompletableFuture.completedFuture(spyTopic)).when(brokerService).getOrCreateTopic(successTopicName);
+
+        // test success case: encrypted producer can connect
+        Metadata headers = new Metadata();
+        CommandProducer producerParams =Commands.newProducer(successTopicName,
+            "exceeded-producer", true, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(),
+            Status.FAILED_PRECONDITION, ServerError.ProducerBlockedQuotaExceededError);
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerProducerBlockedQuotaExceededExceptionOnBacklogQuotaExceeded() throws Exception {
+        Topic spyTopic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
+        doReturn(true).when(spyTopic).isBacklogQuotaExceeded("exceeded-producer");
+        doReturn(new BacklogQuota(0, BacklogQuota.RetentionPolicy.producer_exception)).when(spyTopic).getBacklogQuota();
+        doReturn(CompletableFuture.completedFuture(spyTopic)).when(brokerService).getOrCreateTopic(successTopicName);
+
+        // test success case: encrypted producer can connect
+        Metadata headers = new Metadata();
+        CommandProducer producerParams =Commands.newProducer(successTopicName,
+            "exceeded-producer", true, null);
+        headers.put(PRODUCER_PARAMS_METADATA_KEY, producerParams.toByteArray());
+
+        PulsarGrpc.PulsarStub producerStub = MetadataUtils.attachHeaders(stub, headers);
+
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> produce = producerStub.produce(observer);
+
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(),
+            Status.FAILED_PRECONDITION, ServerError.ProducerBlockedQuotaExceededException);
     }
 
     private static class TestStreamObserver<T> implements StreamObserver<T> {
