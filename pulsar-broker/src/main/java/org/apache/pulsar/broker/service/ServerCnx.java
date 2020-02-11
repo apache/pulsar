@@ -1684,7 +1684,7 @@ public class ServerCnx extends PulsarHandler {
     private void startSendOperation(Producer producer, int msgSize) {
         messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-        if (++pendingSendRequest == MaxPendingSendRequests | isPublishRateExceeded | getBrokerService().isMessagePublishBufferThreshold()) {
+        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded || getBrokerService().isMessagePublishBufferThreshold()) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
@@ -1725,8 +1725,6 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-<<<<<<< HEAD
-=======
     @VisibleForTesting
     void cancelPublishBufferLimiting() {
         if (autoReadDisabledPublishBufferLimiting) {
@@ -1734,7 +1732,6 @@ public class ServerCnx extends PulsarHandler {
         }
     }
     
->>>>>>> Apply comments
     private <T> ServerError getErrorCode(CompletableFuture<T> future) {
         ServerError error = ServerError.UnknownError;
         try {

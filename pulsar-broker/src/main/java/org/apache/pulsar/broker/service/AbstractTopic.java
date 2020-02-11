@@ -292,7 +292,7 @@ public abstract class AbstractTopic implements Topic {
     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    public void enableProducerReadForPublishRateLimiting() {
+    protected void enableProducerReadForPublishRateLimiting() {
         if (producers != null) {
             producers.values().forEach(producer -> {
                 producer.getCnx().cancelPublishRateLimiting();
@@ -301,7 +301,7 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    public void enableProducerReadForPublishBufferLimiting() {
+    protected void enableProducerReadForPublishBufferLimiting() {
         if (producers != null) {
             producers.values().forEach(producer -> {
                 producer.getCnx().cancelPublishBufferLimiting();

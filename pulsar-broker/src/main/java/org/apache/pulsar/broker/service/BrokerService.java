@@ -54,13 +54,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -224,10 +222,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long resumeProducerReadMessagePublishBufferSize;
     private volatile long currentMessagePublishBufferSize;
     private volatile boolean isMessagePublishBufferThreshold;
-    @VisibleForTesting
-    int messagePublishBufferThrottleTimes;
-    @VisibleForTesting
-    int messagePublishBufferResumeTimes;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -2046,12 +2040,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (currentMessagePublishBufferSize >= maxMessagePublishBufferSize
             && !isMessagePublishBufferThreshold) {
             isMessagePublishBufferThreshold = true;
-            messagePublishBufferThrottleTimes++;
         }
         if (currentMessagePublishBufferSize < resumeProducerReadMessagePublishBufferSize
             && isMessagePublishBufferThreshold) {
             isMessagePublishBufferThreshold = false;
-            messagePublishBufferResumeTimes++;
             forEachTopic(topic -> ((AbstractTopic) topic).enableProducerReadForPublishBufferLimiting());
         }
     }
