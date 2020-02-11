@@ -656,60 +656,65 @@ public class NamespaceService {
         splitAlgorithm.getSplitBoundary(this, bundle).whenComplete((splitBoundary, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
-                final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
-                    2 /* by default split into 2 */, splitBoundary);
+                final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles;
+                try {
+                    splittedBundles = bundleFactory.splitBundles(bundle,
+                        2 /* by default split into 2 */, splitBoundary);
 
-                // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
-                if (splittedBundles != null) {
-                    checkNotNull(splittedBundles.getLeft());
-                    checkNotNull(splittedBundles.getRight());
-                    checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
-                    NamespaceName nsname = bundle.getNamespaceObject();
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
-                            nsname.toString(), bundle.getBundleRange(), counter.get(),
-                            splittedBundles != null ? splittedBundles.getRight().get(0).getBundleRange() : "null splittedBundles",
-                            splittedBundles != null ? splittedBundles.getRight().get(1).getBundleRange() : "null splittedBundles");
-                    }
-                    try {
-                        // take ownership of newly split bundles
-                        for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                            checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
+                    // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
+                    if (splittedBundles != null) {
+                        checkNotNull(splittedBundles.getLeft());
+                        checkNotNull(splittedBundles.getRight());
+                        checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
+                        NamespaceName nsname = bundle.getNamespaceObject();
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                                nsname.toString(), bundle.getBundleRange(), counter.get(),
+                                splittedBundles != null ? splittedBundles.getRight().get(0).getBundleRange() : "null splittedBundles",
+                                splittedBundles != null ? splittedBundles.getRight().get(1).getBundleRange() : "null splittedBundles");
                         }
-                        updateNamespaceBundles(nsname, splittedBundles.getLeft(),
-                            (rc, path, zkCtx, stat) ->  {
-                                if (rc == Code.OK.intValue()) {
-                                    // invalidate cache as zookeeper has new split
-                                    // namespace bundle
-                                    bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
+                        try {
+                            // take ownership of newly split bundles
+                            for (NamespaceBundle sBundle : splittedBundles.getRight()) {
+                                checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
+                            }
+                            updateNamespaceBundles(nsname, splittedBundles.getLeft(),
+                                (rc, path, zkCtx, stat) ->  {
+                                    if (rc == Code.OK.intValue()) {
+                                        // invalidate cache as zookeeper has new split
+                                        // namespace bundle
+                                        bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
 
-                                    updateFuture.complete(splittedBundles.getRight());
-                                } else if (rc == Code.BADVERSION.intValue()) {
-                                    KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
-                                    String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
-                                            "due to %s, counter: %d",
-                                        nsname.toString(), bundle.getBundleRange(),
-                                        keeperException.getMessage(), counter.get());
-                                    LOG.warn(msg);
-                                    updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
-                                } else {
-                                    String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
-                                        nsname.toString(), bundle.getBundleRange(),
-                                        KeeperException.create(KeeperException.Code.get(rc)).getMessage());
-                                    LOG.warn(msg);
-                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-                                }
-                            });
-                    } catch (Exception e) {
-                        String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
-                            nsname.toString(), e.getMessage());
-                        LOG.warn(msg, e);
+                                        updateFuture.complete(splittedBundles.getRight());
+                                    } else if (rc == Code.BADVERSION.intValue()) {
+                                        KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
+                                        String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
+                                                "due to %s, counter: %d",
+                                            nsname.toString(), bundle.getBundleRange(),
+                                            keeperException.getMessage(), counter.get());
+                                        LOG.warn(msg);
+                                        updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
+                                    } else {
+                                        String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
+                                            nsname.toString(), bundle.getBundleRange(),
+                                            KeeperException.create(KeeperException.Code.get(rc)).getMessage());
+                                        LOG.warn(msg);
+                                        updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                                    }
+                                });
+                        } catch (Exception e) {
+                            String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
+                                nsname.toString(), e.getMessage());
+                            LOG.warn(msg, e);
+                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                        }
+                    } else {
+                        String msg = format("bundle %s not found under namespace", bundle.toString());
+                        LOG.warn(msg);
                         updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
                     }
-                } else {
-                    String msg = format("bundle %s not found under namespace", bundle.toString());
-                    LOG.warn(msg);
-                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                } catch (Exception e) {
+                    updateFuture.completeExceptionally(e);
                 }
             } else {
                 updateFuture.completeExceptionally(ex);
@@ -723,6 +728,8 @@ public class NamespaceService {
                     if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
                         pulsar.getOrderedExecutor()
                             .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm));
+                    } else if (t instanceof IllegalArgumentException) {
+                        unloadFuture.completeExceptionally(t);
                     } else {
                         // Retry enough, or meet other exception
                         String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
