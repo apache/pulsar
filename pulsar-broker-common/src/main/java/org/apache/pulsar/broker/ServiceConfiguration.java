@@ -749,6 +749,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String anonymousUserRole = null;
 
     @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If >0, it will reject all HTTP requests with bodies larged than the configured limit"
+    )
+    private long httpMaxRequestSize = -1;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
