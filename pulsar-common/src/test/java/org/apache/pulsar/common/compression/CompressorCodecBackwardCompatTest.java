@@ -25,6 +25,7 @@ import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -50,7 +51,7 @@ public class CompressorCodecBackwardCompatTest {
     @Test(dataProvider = "codecs")
     void testCompressDecompress(CompressionCodec c1, CompressionCodec c2) throws IOException {
         byte[] data = text.getBytes();
-        ByteBuf raw = Unpooled.directBuffer();
+        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
         raw.writeBytes(data);
 
         ByteBuf compressed = c1.encode(raw);
@@ -58,9 +59,13 @@ public class CompressorCodecBackwardCompatTest {
 
         int compressedSize = compressed.readableBytes();
 
-        ByteBuf uncompressed = c2.decode(compressed, data.length);
+        // Copy into a direct byte buf
+        ByteBuf compressedDirect = PulsarByteBufAllocator.DEFAULT.directBuffer();
+        compressedDirect.writeBytes(compressed);
 
-        assertEquals(compressed.readableBytes(), compressedSize);
+        ByteBuf uncompressed = c2.decode(compressedDirect, data.length);
+
+        assertEquals(compressedDirect.readableBytes(), compressedSize);
 
         assertEquals(uncompressed.readableBytes(), data.length);
         assertEquals(uncompressed, raw);
@@ -68,10 +73,11 @@ public class CompressorCodecBackwardCompatTest {
         raw.release();
         compressed.release();
         uncompressed.release();
+        compressedDirect.release();
 
         // Verify compression codecs have the same behavior with buffers ref counting
         assertEquals(raw.refCnt(), 0);
-        assertEquals(compressed.refCnt(), 0);
-        assertEquals(compressed.refCnt(), 0);
+        assertEquals(compressedDirect.refCnt(), 0);
+        assertEquals(compressedDirect.refCnt(), 0);
     }
 }
