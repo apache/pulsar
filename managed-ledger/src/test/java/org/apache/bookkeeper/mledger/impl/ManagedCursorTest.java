@@ -77,10 +77,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.zookeeper.KeeperException.Code;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -92,7 +92,7 @@ import org.testng.annotations.Test;
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
-    
+
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -2944,7 +2944,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final long markDeleteLedgerId = 2L;
         final long markDeleteEntryId = -1L;
 
-        MetaStoreImplZookeeper mockMetaStore = mock(MetaStoreImplZookeeper.class);
+        MetaStore mockMetaStore = mock(MetaStore.class);
         doAnswer(new Answer<Object>() {
             public Object answer(InvocationOnMock invocation) {
                 ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
@@ -3038,6 +3038,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getMarkDeletedPosition(), positions[markDelete]);
         assertEquals(c1.getReadPosition(), positions[markDelete + 1]);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

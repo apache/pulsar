@@ -18,32 +18,30 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.Test;
 
-public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
+public class MetaStoreImplTest extends MockedBookKeeperTestCase {
 
     @Test
     void getMLList() throws Exception {
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         zkc.failNow(Code.CONNECTIONLOSS);
 
@@ -57,7 +55,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test
     void deleteNonExistingML() throws Exception {
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         AtomicReference<MetaStoreException> exception = new AtomicReference<>();
         CountDownLatch counter = new CountDownLatch(1);
@@ -82,7 +80,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readMalformedML() throws Exception {
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         zkc.create("/managed-ledgers/my_test", "non-valid".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
@@ -105,7 +103,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readMalformedCursorNode() throws Exception {
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zkc.create("/managed-ledgers/my_test/c1", "non-valid".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
@@ -129,7 +127,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void failInCreatingMLnode() throws Exception {
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -151,7 +149,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void updatingCursorNode() throws Exception {
-        final MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
@@ -187,7 +185,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void updatingMLNode() throws Exception {
-        final MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
 
         zkc.create("/managed-ledgers/my_test", "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
@@ -217,56 +215,5 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
         });
 
         latch.await();
-    }
-
-    @Test(timeOut = 20000)
-    public void createOptimisticBaseNotExist() throws Exception {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-
-        MetaStoreImplZookeeper store = new MetaStoreImplZookeeper(zkc, executor);
-        store.asyncCreateFullPathOptimistic(
-                "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
-                (rc, path, ctx, name) -> {
-                    if (rc != KeeperException.Code.OK.intValue()) {
-                        promise.completeExceptionally(KeeperException.create(rc));
-                    } else {
-                        promise.complete(null);
-                    }
-                });
-        try {
-            promise.get();
-            fail("should have failed");
-        } catch (ExecutionException ee) {
-            assertEquals(ee.getCause().getClass(), KeeperException.NoNodeException.class);
-        }
-    }
-
-    @Test(timeOut = 20000)
-    public void createOptimisticBaseExists() throws Exception {
-        MetaStoreImplZookeeper store = new MetaStoreImplZookeeper(zkc, executor);
-        zkc.create("/foo", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        store.asyncCreateFullPathOptimistic(
-                "/foo", "bar/zar/gar", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
-                (rc, path, ctx, name) -> {
-                    if (rc != KeeperException.Code.OK.intValue()) {
-                        promise.completeExceptionally(KeeperException.create(rc));
-                    } else {
-                        promise.complete(null);
-                    }
-                });
-        promise.get();
-
-        CompletableFuture<Void> promise2 = new CompletableFuture<>();
-        store.asyncCreateFullPathOptimistic(
-                "/foo", "blah", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT,
-                (rc, path, ctx, name) -> {
-                    if (rc != KeeperException.Code.OK.intValue()) {
-                        promise2.completeExceptionally(KeeperException.create(rc));
-                    } else {
-                        promise2.complete(null);
-                    }
-                });
-        promise2.get();
     }
 }

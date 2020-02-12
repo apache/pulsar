@@ -356,6 +356,8 @@ The Apache Software License, Version 2.0
   * Avro
     - avro-1.9.1.jar
     - avro-protobuf-1.9.1.jar
+  * Caffeine
+    - caffeine-2.6.2.jar
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
