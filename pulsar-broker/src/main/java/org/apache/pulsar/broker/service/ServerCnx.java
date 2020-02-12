@@ -1684,11 +1684,15 @@ public class ServerCnx extends PulsarHandler {
     private void startSendOperation(Producer producer, int msgSize) {
         messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded || getBrokerService().isMessagePublishBufferThreshold()) {
+        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
+
+        }
+        if (getBrokerService().isMessagePublishBufferThreshold()) {
+            ctx.channel().config().setAutoRead(false);
             autoReadDisabledPublishBufferLimiting = true;
         }
     }
