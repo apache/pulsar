@@ -636,7 +636,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get);
+        return getTopic(topic, isAllowAutoTopicCreation(topic)).thenApply(Optional::get);
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -2009,6 +2009,29 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return Optional.of(((InetSocketAddress) listenChannelTls.localAddress()).getPort());
         } else {
             return Optional.empty();
+        }
+    }
+
+    //TODO: does this need to be on a separate thread?
+    public boolean isAllowAutoTopicCreation(final String topic) {
+        TopicName topicName = TopicName.get(topic);
+
+        if (pulsar.getConfiguration().isAllowAutoTopicCreation()) {
+            // If the broker allows auto topic creation, we do not care about the namespace setting (TODO: is this right?)
+            return true;
+        }
+        try {
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent()) {
+                return policies.get().allowAutoTopicCreation;
+            }
+            return pulsar.getConfiguration().isAllowAutoTopicCreation();
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading persistence policy for {}: {}; falling back to broker configuration", topicName, t.getMessage(), t);
+            return pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
     }
 }

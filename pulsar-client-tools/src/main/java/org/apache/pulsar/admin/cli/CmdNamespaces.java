@@ -378,7 +378,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 //   TODO: should I have this?
-//  
+//
 //    @Parameters(commandDescription = "Get the allowAutoTopicCreation setting for a namespace")
 //    private class GetAllowAutoTopicCreation extends CliCommand {
 //        @Parameter(description = "tenant/namespace", required = true)
