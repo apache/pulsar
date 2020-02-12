@@ -84,10 +84,9 @@ public class ClustersBase extends AdminResource {
     })
     public Set<String> getClusters() throws Exception {
         try {
-            Set<String> clusters = clustersListCache().get();
-
             // Remove "global" cluster from returned list
-            clusters.remove(Constants.GLOBAL_CLUSTER);
+            Set<String> clusters = clustersListCache().get().stream()
+                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
             log.error("[{}] Failed to get clusters list", clientAppId(), e);

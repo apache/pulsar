@@ -622,9 +622,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 new ClusterData("http://broker.messaging.east2.example.com:8080"));
         admin.clusters().createCluster("global", new ClusterData());
 
+        List<String> allClusters = admin.clusters().getClusters();
+        Collections.sort(allClusters);
+        assertEquals(allClusters,
+                Lists.newArrayList("test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
+
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
-                "us-east2");
+                "us-east2", "global");
         TenantInfo propConfig = new TenantInfo(Sets.newHashSet("test"), allowedClusters);
         admin.tenants().createTenant(property, propConfig);
 
