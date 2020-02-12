@@ -1365,6 +1365,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int statsUpdateInitialDelayInSecs = 60;
 
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Enable expose the precise backlog metrics.\n" +
+            " Set false to use published counter and consumed counter to calculate,\n" +
+            " this would be more efficient but may be inaccurate. Default is false."
+    )
+    private boolean exposePreciseBacklogEnabled = false;
+
     /**** --- Ledger Offloading --- ****/
     /****
      * NOTES: all implementation related settings should be put in implementation package.
