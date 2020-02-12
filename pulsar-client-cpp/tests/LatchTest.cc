@@ -66,19 +66,19 @@ TEST(LatchTest, testLatchCount) {
 }
 
 TEST(LatchTest, testTimedWait) {
-    // Wait for 7 seconds which is more than the maximum sleep time (5 seconds)
+    // Wait for at most 3 seconds which is more than the maximum sleep time (50 millis)
     Latch latch1(3);
     Service service1("service1", std::chrono::milliseconds(50), latch1);
     Service service2("service2", std::chrono::milliseconds(30), latch1);
     Service service3("service3", std::chrono::milliseconds(50), latch1);
-    ASSERT_TRUE(latch1.wait(std::chrono::milliseconds(70)));
+    ASSERT_TRUE(latch1.wait(std::chrono::seconds(3)));
 
-    // Wait for 3 seconds which is less than the maximum sleep time (5 seconds)
+    // Wait for up to 300 millis which is less than the maximum sleep time (500 millis)
     Latch latch2(3);
-    Service service4("service4", std::chrono::milliseconds(50), latch2);
-    Service service5("service5", std::chrono::milliseconds(30), latch2);
-    Service service6("service6", std::chrono::milliseconds(50), latch2);
-    ASSERT_FALSE(latch2.wait(std::chrono::milliseconds(30)));
+    Service service4("service4", std::chrono::milliseconds(500), latch2);
+    Service service5("service5", std::chrono::milliseconds(300), latch2);
+    Service service6("service6", std::chrono::milliseconds(500), latch2);
+    ASSERT_FALSE(latch2.wait(std::chrono::milliseconds(300)));
 
     // After the assert is passed and Service is destroyed because of join, the
     // main thread would not exit until service4 thread is returned.
