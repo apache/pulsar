@@ -522,10 +522,9 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get();
-
             // Remove "global" cluster from returned list
-            clusters.remove(Constants.GLOBAL_CLUSTER);
+            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get().stream()
+                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
             throw new RestException(e);
