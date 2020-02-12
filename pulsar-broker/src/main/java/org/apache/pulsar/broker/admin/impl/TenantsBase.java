@@ -33,6 +33,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
@@ -143,6 +144,9 @@ public class TenantsBase extends AdminResource {
                 oldTenantAdmin.getAllowedClusters().removeAll(newTenantAdmin.getAllowedClusters());
                 log.debug("Following clusters are being removed : [{}]", oldTenantAdmin.getAllowedClusters());
                 for (String cluster : oldTenantAdmin.getAllowedClusters()) {
+                    if (Constants.GLOBAL_CLUSTER.equals(cluster)) {
+                        continue;
+                    }
                     List<String> activeNamespaces = Lists.newArrayList();
                     try {
                         activeNamespaces = globalZk().getChildren(path(POLICIES, tenant, cluster), false);
@@ -229,7 +233,7 @@ public class TenantsBase extends AdminResource {
             Set<String> availableClusters = clustersListCache().get();
             Set<String> allowedClusters = info.getAllowedClusters();
             nonexistentClusters = allowedClusters.stream()
-                .filter(cluster -> !availableClusters.contains(cluster))
+                .filter(cluster -> !(availableClusters.contains(cluster) || Constants.GLOBAL_CLUSTER.equals(cluster)))
                 .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("[{}] Failed to get available clusters", clientAppId(), e);
