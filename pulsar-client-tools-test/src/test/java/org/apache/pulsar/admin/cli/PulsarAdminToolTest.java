@@ -355,6 +355,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
 
+        namespaces.run(split("set-allow-auto-topic-creation myprop/clust/ns1 --enable"));
+        verify(mockNamespaces).setAllowAutoTopicCreation("myprop/clust/ns1", true);
+
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
 

@@ -298,6 +298,17 @@ public class Namespaces extends NamespacesBase {
         internalModifyDeduplication(enableDeduplication);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/allowAutoTopicCreation")
+    @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void setAllowAutoTopicCreation(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                    boolean allowAutoTopicCreation) {
+        validateNamespaceName(tenant, namespace);
+        internalSetAllowAutoTopicCreation(allowAutoTopicCreation);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/bundles")
     @ApiOperation(value = "Get the bundles split data.")

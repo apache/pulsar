@@ -377,6 +377,42 @@ public class CmdNamespaces extends CmdBase {
             admin.namespaces().setDeduplicationStatus(namespace, enable);
         }
     }
+//   TODO: should I have this?
+//  
+//    @Parameters(commandDescription = "Get the allowAutoTopicCreation setting for a namespace")
+//    private class GetAllowAutoTopicCreation extends CliCommand {
+//        @Parameter(description = "tenant/namespace", required = true)
+//        private java.util.List<String> params;
+//
+//        @Override
+//        void run() throws PulsarAdminException {
+//            String namespace = validateNamespace(params);
+//
+//            System.out.println(admin.namespaces().getAllowAutoTopicCreation(namespace));
+//        }
+//    }
+
+    @Parameters(commandDescription = "Enable or disable allowAutoTopicCreation for a namespace")
+    private class SetAllowAutoTopicCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoTopicCreation")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable allowAutoTopicCreation")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setAllowAutoTopicCreation(namespace, enable);
+        }
+    }
 
     @Parameters(commandDescription = "Set the retention policy for a namespace")
     private class SetRetention extends CliCommand {
@@ -1503,6 +1539,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
+
+        jcommander.addCommand("set-allow-auto-topic-creation", new SetAllowAutoTopicCreation());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());

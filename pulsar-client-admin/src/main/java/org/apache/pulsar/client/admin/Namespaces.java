@@ -606,6 +606,31 @@ public interface Namespaces {
     void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
+     * Sets the allowAutoTopicCreation policy for a given namespace.
+     * <p>
+     * When allowAutoTopicCreation is enabled, new topics will be created upon connection regardless of the broker level configuration.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param allowAutoTopicCreation
+     *            wether to enable or disable allowAutoTopicCreation
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAllowAutoTopicCreation(String namespace, boolean allowAutoTopicCreation) throws PulsarAdminException;
+
+    /**
      * Get the bundles split data.
      *
      * @param namespace

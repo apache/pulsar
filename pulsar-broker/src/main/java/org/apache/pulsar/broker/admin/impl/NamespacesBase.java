@@ -553,6 +553,41 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalSetAllowAutoTopicCreation(boolean allowAutoTopicCreation) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().allowAutoTopicCreation = allowAutoTopicCreation;
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully {} on namespace {}", clientAppId(),
+                    allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to modify allowAutoTopicCreation status for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to modify allowAutoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to modify allowAutoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalModifyDeduplication(boolean enableDeduplication) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -573,17 +608,17 @@ public abstract class NamespacesBase extends AdminResource {
             log.info("[{}] Successfully {} on namespace {}", clientAppId(),
                     enableDeduplication ? "enabled" : "disabled", namespaceName);
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to modify deplication status for namespace {}: does not exist", clientAppId(),
+            log.warn("[{}] Failed to modify deduplication status for namespace {}: does not exist", clientAppId(),
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to modify deplication status on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to modify deduplication status on namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
-            log.error("[{}] Failed to modify deplication status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify deduplication status on namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
