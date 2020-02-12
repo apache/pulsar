@@ -40,7 +40,7 @@ public class SubscriptionStats {
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
 
-    /** Number of messages in the subscription backlog that do not contain the delay messages */
+    /** Number of messages in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
