@@ -460,7 +460,7 @@ public abstract class ZooKeeperCache implements Watcher {
     @SuppressWarnings("unchecked")
     public <T> T getDataIfPresent(String path) {
         CompletableFuture<Map.Entry<Object, Stat>> f = dataCache.getIfPresent(path);
-        if (f.isDone() && !f.isCompletedExceptionally()) {
+        if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
             return (T) f.join().getKey();
         } else {
             return null;
