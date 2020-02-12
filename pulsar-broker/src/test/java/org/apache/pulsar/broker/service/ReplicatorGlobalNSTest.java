@@ -87,7 +87,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
         Assert.assertFalse(producer1.isConnected());
@@ -118,7 +118,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         admin1.topics().delete(topicName, true);
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
 
