@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -1478,9 +1479,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             for (String bundleName : bundlesToBeSplit) {
                 try {
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
-                            LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
-                            LoadManagerShared.getBundleRangeFromBundleName(bundleName),
-                            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled());
+                        LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
+                        LoadManagerShared.getBundleRangeFromBundleName(bundleName),
+                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), null);
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);

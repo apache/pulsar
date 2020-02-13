@@ -310,7 +310,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff");
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
-        verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false);
+        verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
 
         namespaces.run(split("get-backlog-quotas myprop/clust/ns1"));
         verify(mockNamespaces).getBacklogQuotaMap("myprop/clust/ns1");
