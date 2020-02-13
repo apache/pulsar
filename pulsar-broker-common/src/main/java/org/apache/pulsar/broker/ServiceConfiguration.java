@@ -1367,7 +1367,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_METRICS,
-        doc = "Enable expose the precise backlog metrics.\n" +
+        doc = "Enable expose the precise backlog stats.\n" +
             " Set false to use published counter and consumed counter to calculate,\n" +
             " this would be more efficient but may be inaccurate. Default is false."
     )
