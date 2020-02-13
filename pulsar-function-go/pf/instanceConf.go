@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-function-go/core/conf"
-	pb "github.com/apache/pulsar/pulsar-function-go/core/pb"
+	"github.com/apache/pulsar/pulsar-function-go/conf"
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 // This is the config passed to the Golang Instance. Contains all the information

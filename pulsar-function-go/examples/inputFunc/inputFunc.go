@@ -23,7 +23,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/core/pf"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func HandleRequest(ctx context.Context, in []byte) error {

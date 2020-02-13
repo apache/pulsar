@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/apache/pulsar/pulsar-function-go/core/pf"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func hello() {

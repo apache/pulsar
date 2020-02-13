@@ -69,8 +69,8 @@ COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/exception_function.py /pulsar/examples/python-examples/
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
-RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/core && go install ./...
-RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/core/pf && go install
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
 COPY target/java-test-functions.jar /pulsar/examples/

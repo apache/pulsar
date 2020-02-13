@@ -22,7 +22,7 @@ package main
 import (
 	"context"
 
-	"github.com/apache/pulsar/pulsar-function-go/core/pf"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func HandleExclamation(ctx context.Context, in []byte) ([]byte, error) {

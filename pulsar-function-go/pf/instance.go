@@ -27,8 +27,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	log "github.com/apache/pulsar/pulsar-function-go/core/logutil"
-	pb "github.com/apache/pulsar/pulsar-function-go/core/pb"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 type goInstance struct {
