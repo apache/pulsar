@@ -871,7 +871,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
         // (5) Split the bundle for topic-1
-        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true);
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
 
         // (6) Broker-2 should get the watch and update bundle cache
         final int retry = 5;
