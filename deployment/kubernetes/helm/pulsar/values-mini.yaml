@@ -497,6 +497,15 @@ pulsar_manager:
     requests:
       memory: 250Mi
       cpu: 0.1
+  configData:
+    REDIRECT_HOST: "http://127.0.0.1"
+    REDIRECT_PORT: "9527"
+    DRIVER_CLASS_NAME: org.postgresql.Driver
+    URL: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
+    LOG_LEVEL: DEBUG
+    ## If you enabled authentication support
+    #JWT_TOKEN: <token>
+    #SECRET_KEY: data:base64,<secret key>
   ## Pulsar manager service
   ## templates/pulsar-manager-service.yaml
   ##
