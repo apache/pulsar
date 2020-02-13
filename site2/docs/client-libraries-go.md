@@ -6,6 +6,8 @@ sidebar_label: Go
 
 You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
+All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Go client are thread-safe.
+
 Currently, the following Go clients are maintained in two repositories.
 
 | Language | Project | Maintainer | License | Description |

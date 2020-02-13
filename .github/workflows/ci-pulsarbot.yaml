@@ -17,18 +17,14 @@
 # under the License.
 #
 
-name: CI - Go Functions Tests
+name: Pulsar Bot
 on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
+  issue_comment:
+    types: [created]
 
 jobs:
 
-  cpp-tests:
+  action-runner:
     name:
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -36,22 +32,8 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v1
-
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 .github deployment .asf.yaml
-
-      - name: Set up Go 1.12
-        uses: actions/setup-go@v1
-        if: steps.docs.outputs.changed_only == 'no'
-        with:
-          go-version: 1.12
-        id: go
-
-      - name: run tests
-        if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          cd pulsar-function-go/core
-          go test -v $(go list ./... | grep -v examples)
+      - name: Execute pulsarbot command
+        id:   pulsarbot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: apache/pulsar-test-infra/pulsarbot@master
