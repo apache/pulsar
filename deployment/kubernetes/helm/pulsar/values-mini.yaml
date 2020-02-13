@@ -49,6 +49,8 @@ extra:
   bastion: yes
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
+  # Configure Kubernetes runtime for Functions
+  functionsAsPods: no
 
 ## Which pulsar image to use
 image:
@@ -245,6 +247,11 @@ broker:
   pdb:
     usePolicy: yes
     maxUnavailable: 1
+  ## Broker rbac
+  ## templates/broker-rbac.yaml
+  ##
+  functions:
+    component: functions-worker
 
 ## Pulsar Extra: Proxy
 ## templates/proxy-deployment.yaml
