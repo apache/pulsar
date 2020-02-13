@@ -257,6 +257,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected Boolean retainOrdering;
+        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
+        protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
@@ -389,8 +391,12 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            if (retainOrdering != null) {
+            if (null != retainOrdering) {
                 functionConfig.setRetainOrdering(retainOrdering);
+            }
+
+            if (null != forwardSourceMessageProperty) {
+                functionConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
 
             if (isNotBlank(subsName)) {
