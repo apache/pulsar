@@ -57,11 +57,11 @@ jobs:
       - name: Build
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          cd pulsar-function-go/core
+          cd pulsar-function-go
           go build ./...
 
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          cd pulsar-function-go/core
+          cd pulsar-function-go
           ../bin/golangci-lint run -c ./golangci.yml ./pf
