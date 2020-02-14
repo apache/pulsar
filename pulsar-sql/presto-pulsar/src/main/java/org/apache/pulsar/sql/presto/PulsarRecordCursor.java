@@ -40,7 +40,10 @@ import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -418,7 +421,16 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        if (this.schemaHandler instanceof KeyValueSchemaHandler) {
+            ByteBuf keyByteBuf = null;
+            if (this.currentMessage.getKey().isPresent()) {
+                keyByteBuf = Unpooled.wrappedBuffer(
+                        Base64.getDecoder().decode(this.currentMessage.getKey().get()));
+            }
+            currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
+        } else {
+            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        }
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing

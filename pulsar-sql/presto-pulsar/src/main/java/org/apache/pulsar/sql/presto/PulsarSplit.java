@@ -26,7 +26,9 @@ import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -39,9 +41,12 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class PulsarSplit implements ConnectorSplit {
 
+    private static final Logger log = Logger.get(PulsarSplit.class);
+
     private final long splitId;
     private final String connectorId;
     private final String schemaName;
+    private final String originSchemaName;
     private final String tableName;
     private final long splitSize;
     private final String schema;
@@ -55,6 +60,7 @@ public class PulsarSplit implements ConnectorSplit {
 
     private final PositionImpl startPosition;
     private final PositionImpl endPosition;
+    private final String schemaInfoProperties;
 
     private final OffloadPolicies offloadPolicies;
 
@@ -63,6 +69,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("splitId") long splitId,
             @JsonProperty("connectorId") String connectorId,
             @JsonProperty("schemaName") String schemaName,
+            @JsonProperty("originSchemaName") String originSchemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("splitSize") long splitSize,
             @JsonProperty("schema") String schema,
@@ -72,16 +79,11 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
-            @JsonProperty("properties") Map<String, String> schemaInfoProperties,
+            @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
             @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
-        this.schemaInfo = SchemaInfo.builder()
-                .type(schemaType)
-                .name(schemaName)
-                .schema(schema.getBytes())
-                .properties(schemaInfoProperties)
-                .build();
+        this.originSchemaName = originSchemaName;
         this.schemaName = requireNonNull(schemaName, "schema name is null");
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
@@ -95,7 +97,23 @@ public class PulsarSplit implements ConnectorSplit {
         this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
         this.startPosition = PositionImpl.get(startPositionLedgerId, startPositionEntryId);
         this.endPosition = PositionImpl.get(endPositionLedgerId, endPositionEntryId);
+        this.schemaInfoProperties = schemaInfoProperties;
         this.offloadPolicies = offloadPolicies;
+
+        SchemaInfo schemaInfoTemp;
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            schemaInfoTemp = SchemaInfo.builder()
+                    .name(originSchemaName)
+                    .type(schemaType)
+                    .schema(schema.getBytes("ISO8859-1"))
+                    .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
+                    .build();
+        } catch (Exception e) {
+            log.error("Create schemaInfo failed!", e);
+            schemaInfoTemp = SchemaInfo.builder().build();
+        }
+        this.schemaInfo = schemaInfoTemp;
     }
 
     @JsonProperty
@@ -126,6 +144,11 @@ public class PulsarSplit implements ConnectorSplit {
     @JsonProperty
     public long getSplitSize() {
         return splitSize;
+    }
+
+    @JsonProperty
+    public String getOriginSchemaName() {
+        return originSchemaName;
     }
 
     @JsonProperty
@@ -164,6 +187,11 @@ public class PulsarSplit implements ConnectorSplit {
 
     public PositionImpl getEndPosition() {
         return endPosition;
+    }
+
+    @JsonProperty
+    public String getSchemaInfoProperties() {
+        return schemaInfoProperties;
     }
 
     @JsonProperty

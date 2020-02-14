@@ -26,6 +26,7 @@ import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * This class represents the basic information about a presto column.
@@ -58,6 +59,16 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     private final Integer[] positionIndices;
 
+    /**
+     * True if the column is key column handler for KeyValueSchema.
+     */
+    private final boolean key;
+
+    /**
+     * True if the column is value column handler for KeyValueSchema.
+     */
+    private final boolean value;
+
     @JsonCreator
     public PulsarColumnHandle(
             @JsonProperty("connectorId") String connectorId,
@@ -66,7 +77,9 @@ public class PulsarColumnHandle implements ColumnHandle {
             @JsonProperty("hidden") boolean hidden,
             @JsonProperty("internal") boolean internal,
             @JsonProperty("fieldNames") String[] fieldNames,
-            @JsonProperty("positionIndices") Integer[] positionIndices) {
+            @JsonProperty("positionIndices") Integer[] positionIndices,
+            @JsonProperty("key") boolean key,
+            @JsonProperty("value") boolean value) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
         this.name = requireNonNull(name, "name is null");
         this.type = requireNonNull(type, "type is null");
@@ -74,6 +87,8 @@ public class PulsarColumnHandle implements ColumnHandle {
         this.internal = internal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
+        this.key = key;
+        this.value = value;
     }
 
     @JsonProperty
@@ -111,6 +126,15 @@ public class PulsarColumnHandle implements ColumnHandle {
         return positionIndices;
     }
 
+    @JsonProperty
+    public boolean isKey() {
+        return key;
+    }
+
+    @JsonProperty
+    public boolean isValue() {
+        return value;
+    }
 
     ColumnMetadata getColumnMetadata() {
         return new ColumnMetadata(name, type, null, hidden);
@@ -145,7 +169,13 @@ public class PulsarColumnHandle implements ColumnHandle {
         if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
             return false;
         }
-        return Arrays.deepEquals(positionIndices, that.positionIndices);
+        if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
+            return false;
+        }
+        if (!Objects.equals(key, that.key)) {
+            return false;
+        }
+        return Objects.equals(value, that.value);
     }
 
     @Override
@@ -157,6 +187,8 @@ public class PulsarColumnHandle implements ColumnHandle {
         result = 31 * result + (internal ? 1 : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
+        result = 31 * result + (key ? 1 : 0);
+        result = 31 * result + (value ? 1 : 0);
         return result;
     }
 
@@ -170,6 +202,8 @@ public class PulsarColumnHandle implements ColumnHandle {
             + ", internal=" + internal
             + ", fieldNames=" + Arrays.toString(fieldNames)
             + ", positionIndices=" + Arrays.toString(positionIndices)
+            + ", key=" + key
+            + ", value=" + value
             + '}';
     }
 }

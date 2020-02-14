@@ -35,9 +35,12 @@ import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
+import java.io.UnsupportedEncodingException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +77,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     private final PulsarAdmin pulsarAdmin;
 
     private static final Logger log = Logger.get(PulsarSplitManager.class);
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Inject
     public PulsarSplitManager(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig) {
@@ -250,7 +255,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               SchemaInfo schemaInfo, String tableName,
                                               TupleDomain<ColumnHandle> tupleDomain,
                                               OffloadPolicies offloadPolicies)
-            throws ManagedLedgerException, InterruptedException {
+            throws ManagedLedgerException, InterruptedException, UnsupportedEncodingException, JsonProcessingException {
 
         ReadOnlyCursor readOnlyCursor = null;
         try {
@@ -295,19 +300,21 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 readOnlyCursor.skipEntries(Math.toIntExact(entriesForSplit));
                 PositionImpl endPosition = (PositionImpl) readOnlyCursor.getReadPosition();
 
-                splits.add(new PulsarSplit(i, this.connectorId,
+                PulsarSplit pulsarSplit = new PulsarSplit(i, this.connectorId,
                         restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig),
+                        schemaInfo.getName(),
                         tableName,
                         entriesForSplit,
-                        new String(schemaInfo.getSchema()),
+                        new String(schemaInfo.getSchema(),  "ISO8859-1"),
                         schemaInfo.getType(),
                         startPosition.getEntryId(),
                         endPosition.getEntryId(),
                         startPosition.getLedgerId(),
                         endPosition.getLedgerId(),
                         tupleDomain,
-                        schemaInfo.getProperties(),
-                        offloadPolicies));
+                        objectMapper.writeValueAsString(schemaInfo.getProperties()),
+                        offloadPolicies);
+                splits.add(pulsarSplit);
             }
             return splits;
         } finally {

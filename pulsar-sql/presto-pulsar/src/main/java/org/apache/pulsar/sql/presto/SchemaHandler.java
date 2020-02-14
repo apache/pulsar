@@ -27,6 +27,8 @@ public interface SchemaHandler {
 
     Object deserialize(ByteBuf payload);
 
+    Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload);
+
     Object extractField(int index, Object currentRecord);
 
 }
