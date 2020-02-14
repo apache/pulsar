@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v1;
+package org.apache.pulsar.common.naming;
 
-import io.swagger.annotations.Api;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import java.util.concurrent.CompletableFuture;
 
-@Path("/functions")
-@Api(value = "/functions", description = "Functions admin apis", tags = "functions", hidden = true)
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-public class Functions extends  org.apache.pulsar.broker.admin.v2.Functions{
+/**
+ * This algorithm divides the bundle into two parts with the same hash range size.
+ */
+public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm {
+
+    @Override
+    public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
+        return CompletableFuture.completedFuture(bundle.getLowerEndpoint() +
+            (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
+    }
 }

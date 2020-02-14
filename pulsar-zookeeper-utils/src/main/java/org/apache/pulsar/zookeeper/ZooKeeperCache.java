@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -458,7 +459,12 @@ public abstract class ZooKeeperCache implements Watcher {
 
     @SuppressWarnings("unchecked")
     public <T> T getDataIfPresent(String path) {
-        return (T) dataCache.getIfPresent(path);
+        CompletableFuture<Map.Entry<Object, Stat>> f = dataCache.getIfPresent(path);
+        if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
+            return (T) f.join().getKey();
+        } else {
+            return null;
+        }
     }
 
     public Set<String> getChildrenIfPresent(String path) {

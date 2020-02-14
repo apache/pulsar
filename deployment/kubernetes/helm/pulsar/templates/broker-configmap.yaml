@@ -39,4 +39,9 @@ data:
   clusterName: {{ template "pulsar.fullname" . }}
   functionsWorkerEnabled: "true"
   PF_pulsarFunctionsCluster: {{ template "pulsar.fullname" . }}
-{{ toYaml .Values.broker.configData | indent 2 }}
+  {{- if .Values.extra.functionsAsPods }}
+  PF_functionRuntimeFactoryClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory"
+  PF_functionRuntimeFactoryConfigs_submittingInsidePod: "true"
+  PF_functionRuntimeFactoryConfigs_jobNamespace: {{ .Values.namespace }}
+  {{- end }}
+  {{ toYaml .Values.broker.configData | indent 2 }}
