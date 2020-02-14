@@ -149,7 +149,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.19</commons-compress.version>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
-    <zookeeper.version>3.5.6</zookeeper.version>
+    <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.43.Final</netty.version>
     <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
