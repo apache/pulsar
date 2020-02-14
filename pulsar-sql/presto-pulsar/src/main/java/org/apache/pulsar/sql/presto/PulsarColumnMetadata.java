@@ -21,6 +21,7 @@ package org.apache.pulsar.sql.presto;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Description of the column metadata.
@@ -32,15 +33,20 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private String nameWithCase;
     private String[] fieldNames;
     private Integer[] positionIndices;
+    private boolean isKey;
+    private boolean isValue;
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
-                                String[] fieldNames, Integer[] positionIndices) {
+                                String[] fieldNames, Integer[] positionIndices,
+                                boolean isKey, boolean isValue) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
+        this.isKey = isKey;
+        this.isValue = isValue;
     }
 
     public String getNameWithCase() {
@@ -59,6 +65,14 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return positionIndices;
     }
 
+    public boolean isKey() {
+        return isKey;
+    }
+
+    public boolean isValue() {
+        return isValue;
+    }
+
     @Override
     public String toString() {
         return "PulsarColumnMetadata{"
@@ -66,6 +80,8 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             + ", nameWithCase='" + nameWithCase + '\''
             + ", fieldNames=" + Arrays.toString(fieldNames)
             + ", positionIndices=" + Arrays.toString(positionIndices)
+            + ", isKey=" + isKey
+            + ", isValue=" + isValue
             + '}';
     }
 
@@ -92,7 +108,13 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
             return false;
         }
-        return Arrays.deepEquals(positionIndices, that.positionIndices);
+        if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
+            return false;
+        }
+        if (!Objects.equals(isKey, that.isKey)) {
+            return false;
+        }
+        return Objects.equals(isValue, that.isValue);
     }
 
     @Override
@@ -102,6 +124,8 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
+        result = 31 * result + (isKey ? 1 : 0);
+        result = 31 * result + (isValue ? 1 : 0);
         return result;
     }
 }

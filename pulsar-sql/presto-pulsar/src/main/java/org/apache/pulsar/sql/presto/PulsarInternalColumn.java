@@ -218,11 +218,11 @@ public abstract class PulsarInternalColumn {
                 getName(),
                 getType(),
                 hidden,
-                true, null, null);
+                true, null, null, false, false);
     }
 
     PulsarColumnMetadata getColumnMetadata(boolean hidden) {
-        return new PulsarColumnMetadata(name, type, comment, null, hidden, true, null, null);
+        return new PulsarColumnMetadata(name, type, comment, null, hidden, true, null, null, false, false);
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {
