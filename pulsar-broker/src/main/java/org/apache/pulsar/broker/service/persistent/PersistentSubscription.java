@@ -777,12 +777,8 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog() {
-        if (topic.getBrokerService().getPulsar().getConfiguration().isExposePreciseBacklogEnabled()) {
-            return cursor.getNumberOfEntriesInBacklog(true);
-        } else {
-            return cursor.getNumberOfEntriesInBacklog(false);
-        }
+    public long getNumberOfEntriesInBacklog(boolean isPreciseBacklog) {
+        return cursor.getNumberOfEntriesInBacklog(isPreciseBacklog);
     }
 
     @Override
@@ -922,8 +918,8 @@ public class PersistentSubscription implements Subscription {
     @Override
     public void expireMessages(int messageTTLInSeconds) {
         this.lastExpireTimestamp = System.currentTimeMillis();
-        if ((getNumberOfEntriesInBacklog() == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
-                && getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
+                && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return;
@@ -939,7 +935,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats() {
+    public SubscriptionStats getStats(Boolean isPreciseBacklog) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -972,7 +968,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog();
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(isPreciseBacklog);
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();

@@ -53,7 +53,7 @@ public interface Subscription {
 
     Dispatcher getDispatcher();
 
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean isPreciseBacklog);
 
     default long getNumberOfEntriesDelayed() {
         return 0;

@@ -1341,6 +1341,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Enable expose the precise backlog stats.\n" +
+            " Set false to use published counter and consumed counter to calculate,\n" +
+            " this would be more efficient but may be inaccurate. Default is false."
+    )
+    private boolean exposePreciseBacklogInPrometheus = false;
+
     /**** --- Functions --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
@@ -1364,14 +1372,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
-
-    @FieldContext(
-        category = CATEGORY_METRICS,
-        doc = "Enable expose the precise backlog stats.\n" +
-            " Set false to use published counter and consumed counter to calculate,\n" +
-            " this would be more efficient but may be inaccurate. Default is false."
-    )
-    private boolean exposePreciseBacklogEnabled = false;
 
     /**** --- Ledger Offloading --- ****/
     /****
