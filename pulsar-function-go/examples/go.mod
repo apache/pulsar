@@ -7,12 +7,12 @@ require (
 	github.com/apache/pulsar/pulsar-function-go v0.0.0
 )
 
-replace github.com/apache/pulsar/pulsar-function-go => ../core
+replace github.com/apache/pulsar/pulsar-function-go => ../
 
-replace github.com/apache/pulsar/pulsar-function-go/pf => ../core/pf
+replace github.com/apache/pulsar/pulsar-function-go/pf => ../pf
 
-replace github.com/apache/pulsar/pulsar-function-go/logutil => ../core/logutil
+replace github.com/apache/pulsar/pulsar-function-go/logutil => ../logutil
 
-replace github.com/apache/pulsar/pulsar-function-go/pb => ../core/pb
+replace github.com/apache/pulsar/pulsar-function-go/pb => ../pb
 
-replace github.com/apache/pulsar/pulsar-function-go/conf => ../core/conf
+replace github.com/apache/pulsar/pulsar-function-go/conf => ../conf
