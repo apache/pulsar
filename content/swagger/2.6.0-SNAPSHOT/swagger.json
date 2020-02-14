@@ -2607,6 +2607,74 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/offloadPolicies" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get offload configuration on a namespace.",
+        "description" : "",
+        "operationId" : "getOffloadPolicies",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/OffloadPolicies"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : " Set offload configuration on a namespace.",
+        "description" : "",
+        "operationId" : "setOffloadPolicies",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "OffloadPolicies is empty or driver is not supported or bucket is not valid"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/offloadThreshold" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -3742,6 +3810,11 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "name" : "splitAlgorithmName",
+          "in" : "query",
+          "required" : false,
+          "type" : "string"
         } ],
         "responses" : {
           "307" : {
@@ -9198,10 +9271,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9570,25 +9643,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -9596,6 +9650,25 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9772,13 +9845,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -9973,6 +10046,76 @@
         "msgDropRate" : {
           "type" : "number",
           "format" : "double"
+        }
+      }
+    },
+    "OffloadPolicies" : {
+      "type" : "object",
+      "properties" : {
+        "offloadersDirectory" : {
+          "type" : "string"
+        },
+        "managedLedgerOffloadDriver" : {
+          "type" : "string"
+        },
+        "managedLedgerOffloadMaxThreads" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadRegion" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadBucket" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadServiceEndpoint" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadMaxBlockSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadReadBufferSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "s3ManagedLedgerOffloadRole" : {
+          "type" : "string"
+        },
+        "s3ManagedLedgerOffloadRoleSessionName" : {
+          "type" : "string"
+        },
+        "gcsManagedLedgerOffloadRegion" : {
+          "type" : "string"
+        },
+        "gcsManagedLedgerOffloadBucket" : {
+          "type" : "string"
+        },
+        "gcsManagedLedgerOffloadMaxBlockSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "gcsManagedLedgerOffloadReadBufferSizeInBytes" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "gcsManagedLedgerOffloadServiceAccountKeyFile" : {
+          "type" : "string"
+        },
+        "fileSystemProfilePath" : {
+          "type" : "string"
+        },
+        "fileSystemURI" : {
+          "type" : "string"
+        },
+        "s3Driver" : {
+          "type" : "boolean"
+        },
+        "gcsDriver" : {
+          "type" : "boolean"
+        },
+        "fileSystemDriver" : {
+          "type" : "boolean"
         }
       }
     },
@@ -10296,6 +10439,9 @@
         },
         "schema_validation_enforced" : {
           "type" : "boolean"
+        },
+        "offload_policies" : {
+          "$ref" : "#/definitions/OffloadPolicies"
         }
       }
     },
@@ -10514,13 +10660,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -10622,11 +10768,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

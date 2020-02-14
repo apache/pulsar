@@ -1072,6 +1072,9 @@
         "retainOrdering" : {
           "type" : "boolean"
         },
+        "forwardSourceMessageProperty" : {
+          "type" : "boolean"
+        },
         "userConfig" : {
           "type" : "object",
           "additionalProperties" : {
@@ -1366,6 +1369,40 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
         "replicated" : {
           "type" : "boolean"
         },
@@ -1380,41 +1417,7 @@
         "topicName" : {
           "type" : "string"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",

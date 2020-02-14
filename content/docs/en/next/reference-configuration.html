@@ -293,6 +293,8 @@
 <tr><td>defaultRetentionSizeInMB</td><td>Default retention size</td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td>How often to check whether the connections are still alive</td><td>30</td></tr>
 <tr><td>loadManagerClassName</td><td>Name of load manager to use</td><td>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</td></tr>
+<tr><td>supportedNamespaceBundleSplitAlgorithms</td><td>Supported algorithms name for namespace bundle split</td><td>[range_equally_divide,topic_count_equally_divide]</td></tr>
+<tr><td>defaultNamespaceBundleSplitAlgorithm</td><td>Default algorithm name for namespace bundle split</td><td>range_equally_divide</td></tr>
 <tr><td>managedLedgerOffloadDriver</td><td>Driver to use to offload old data to long term storage (Possible values: S3)</td><td></td></tr>
 <tr><td>managedLedgerOffloadMaxThreads</td><td>Maximum number of thread pool threads for ledger offloading</td><td>2</td></tr>
 <tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>

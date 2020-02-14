@@ -98,6 +98,10 @@
 }
 </code></pre>
 <p>可以編寫一個簡單的單元測試來測試 Pulsar Function。</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>Pulsar uses testng for testing.</p>
+</blockquote>
 <pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
 <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testJavaNativeExclamationFunction</span><span class="hljs-params">()</span> </span>{
    JavaNativeExclamationFunction exclamation = <span class="hljs-keyword">new</span> JavaNativeExclamationFunction();
@@ -117,6 +121,10 @@
 }
 </code></pre>
 <p>在這種情況下，你也可以為此 function 編寫單元測試。 記住要模擬 <code>Context</code> 參數。 以下是一個範例。</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>Pulsar uses testng for testing.</p>
+</blockquote>
 <pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
 <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testExclamationFunction</span><span class="hljs-params">()</span> </span>{
    ExclamationFunction exclamation = <span class="hljs-keyword">new</span> ExclamationFunction();
@@ -213,7 +221,7 @@ localRunner.start(<span class="hljs-keyword">true</span>);
 </ul>
 <blockquote>
 <p><strong>提示</strong></p>
-<p>有關 <strong>Pulsar Functions CLI</strong> 的完整命令，請參見<a href="/docs/zh-TW/next/pulsar-admin#functions">此處</a>。</p>
+<p>For complete commands of <strong>Pulsar Functions CLI</strong>, see <a href="/docs/zh-TW/next/pulsar-admin#functions">here</a>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>獲取有關 Pulsar Function 的訊息。</p>
@@ -433,8 +441,8 @@ ExclamationFunctio3
 <pre><code class="hljs css language-text">This is my function!
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="注意"></a><a href="#注意" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><strong>注意</strong></h4>
-<p>使用 <code>--topic</code> 選項時，必須指定 topic 的 <a href="/docs/zh-TW/next/pulsar-2.0#topic-names">FQFN</a>。 否則，將發生以下錯誤。</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><strong>Note</strong></h4>
+<p>You must specify the <a href="/docs/zh-TW/next/pulsar-2.0#topic-names">entire topic name</a> when using the <code>--topic</code> option. 否則，將發生以下錯誤。</p>
 <pre><code class="hljs css language-text"></code></pre>
 </blockquote>
 <p>Function in trigger function has unidentified topic</p>

@@ -84,11 +84,11 @@
 <p>You can develop Pulsar source connectors and sink connectors.</p>
 <h3><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h3>
 <p>Developing a source connector is to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
- interface, which means you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33"><code>open</code></a>
- method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>record</code></a>
+ interface, which means you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
+ method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
  method.</p>
 <ol>
-<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33"><code>open</code></a>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
  method.</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
 * Open connector with configuration
@@ -103,7 +103,7 @@
 <p>In this method, you can retrieve all connector specific settings through the passed-in <code>config</code> parameter and initialize all necessary resources.</p>
 <p>For example, a Kafka connector can create a Kafka client in this <code>open</code> method.</p>
 <p>Besides, Pulsar runtime also provides a <code>SourceContext</code> for the connector to access runtime resources for tasks like collecting metrics. The implementation can save the <code>SourceContext</code> for future use.</p></li>
-<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41"><code>read</code></a>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
  method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Reads the next message from source.
@@ -114,10 +114,10 @@
     <span class="hljs-function">Record&lt;T&gt; <span class="hljs-title">read</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
 <p>If nothing to return, the implementation should be blocking rather than returning <code>null</code>.</p>
-<p>The returned <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
+<p>The returned <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
  should encapsulate the following information, which is needed by Pulsar IO runtime.</p>
 <ul>
-<li><p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
+<li><p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
  should provide the following variables:</p>
 <p>|Variable|Required|Description |---|---|--- <code>TopicName</code>|No|Pulsar topic name from which the record is originated from. <code>Key</code>|No| Messages can optionally be tagged with keys.</p>
 <p>For more information, see <a href="/docs/fr/next/concepts-messaging#routing-modes">Routing modes</a>.| <code>Value</code>|Yes|Actual data of the record. <code>EventTime</code>|No|Event time of the record from the source. <code>PartitionId</code>|No| If the record is originated from a partitioned source, it returns its <code>PartitionId</code>.</p>
@@ -125,7 +125,7 @@
 <p><code>RecordSequence</code> is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee. <code>Properties</code> |No| If the record carries user-defined properties, it returns those properties. <code>DestinationTopic</code>|No|Topic to which message should be written. <code>Message</code>|No|A class which carries data sent by users.</p>
 <p>For more information, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java">Message.java</a>.|</p>
 <ul>
-<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
+<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
  should provide the following methods:</li>
 </ul>
 <p>Method|Description |---|--- <code>ack</code> |Acknowledge that the record is fully processed. <code>fail</code>|Indicate that the record fails to be processed.</p></li>
@@ -138,11 +138,11 @@
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h3>
 <p>Developing a sink connector <strong>is similar to</strong> developing a source connector, that is, you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
- interface, which means implementing the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
- method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
+ interface, which means implementing the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
+ method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
  method.</p>
 <ol>
-<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
  method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Open connector with configuration
@@ -153,7 +153,7 @@
     */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SinkContext sinkContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre></li>
-<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
  method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Write a message to Sink
@@ -206,7 +206,7 @@
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>For more information about an <strong>how to use NAR for Pulsar connectors</strong>, see <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/twitter/pom.xml#L79"><code>TwitterFirehose</code></a>
+<p>For more information about an <strong>how to use NAR for Pulsar connectors</strong>, see <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/twitter/pom.xml"><code>TwitterFirehose</code></a>
 .</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="uber-jar"></a><a href="#uber-jar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Uber JAR</h3>

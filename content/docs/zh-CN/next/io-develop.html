@@ -84,13 +84,13 @@
 <h2><a class="anchor" aria-hidden="true" id="develop"></a><a href="#develop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Develop</h2>
 <p>可以开发 Pulsar 源连接器 和 sink 连接器。</p>
 <h3><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h3>
-<p>开发源连接器是为了实现 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
- 接口，也就是说，需要执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33"><code>open</code></a>
- 和 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>record</code></a>
- 两个方法。</p>
+<p>Developing a source connector is to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
+ interface, which means you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
+ method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
+ method.</p>
 <ol>
-<li><p>执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L33"><code>open</code></a>
- 方法。</p>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
+ method.</p>
 <pre><code class="hljs css language-java"><span class="hljs-comment">/**
 * Open connector with configuration
 *
@@ -104,8 +104,8 @@
 <p>在此方法中，可通过传入的 <code>config</code> 参数检索所有连接器的特定设置，并初始化所有必要的资源。</p>
 <p>例如，Kafka连接器可以在 <code>open</code> 方法中创建 Kafka 客户端。</p>
 <p>此外，Pulsar 运行时会为连接器提供 <code>SourceContext</code>，连接器可以访问运行时资源，以执行收集度量等任务。 执行此方法可以保存 <code>SourceContext</code> 供后续使用。</p></li>
-<li><p>执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41"><code>read</code></a>
- 方法。</p>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
+ method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Reads the next message from source.
     * If source does not have any new messages, this call should block.
@@ -115,19 +115,19 @@
     <span class="hljs-function">Record&lt;T&gt; <span class="hljs-title">read</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
 <p>如果没有要返回的内容，则应停止该方法的执行而不是返回 <code>null</code>。</p>
-<p>返回的 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
- 应该封装以下信息，这是 Pulsar IO 运行时间所必须的。</p>
+<p>The returned <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
+ should encapsulate the following information, which is needed by Pulsar IO runtime.</p>
 <ul>
-<li><p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
- 应该提供以下变量：</p>
+<li><p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
+ should provide the following variables:</p>
 <p>|Variable|Required|Description |---|---|--- <code>TopicName</code>|No| 记录来自于 Pulsar 主题名称。 <code>Key</code>|No| 消息会被随机标记为密钥。</p>
 <p>更多详细信息，请参见 <a href="/docs/zh-CN/next/concepts-messaging#routing-modes">Routing modes</a>.| <code>Value</code>|Yes| 实际记录数据。 <code>EventTime</code>|No| 来自源记录的事件时间。 <code>PartitionId</code>|No| 如果记录来自已分区的源，则返回 <code>PartitionId</code>。</p>
 <p><code>PartitionId</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>RecordSequence</code>|No| 如果记录源自序列，则返回 <code>RecordSequence</code>。</p>
 <p><code>RecordSequence</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>Properties</code> |No| 如果记录带有用户自定义的属性，则返回相关属性。 <code>DestinationTopic</code>|No| 应该写入消息的主题。 <code>Message</code>|No| 包含用户所发送数据的类。</p>
 <p>更多详细信息，请参见 <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java">Message.java</a>.|</p>
 <ul>
-<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
- 应该提供以下方法：</li>
+<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
+ should provide the following methods:</li>
 </ul>
 <p>Method|Description |---|--- <code>ack</code> | 确认记录已被处理。 <code>fail</code>| 表示记录未被处理。</p></li>
 </ul></li>
@@ -138,13 +138,13 @@
 。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h3>
-<p>开发 sink 连接器 <strong>is similar to</strong> 开发源连接器，也就是说，需要实现 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
- 接口，即需要执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
- 方法和 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
- 方法。</p>
+<p>Developing a sink connector <strong>is similar to</strong> developing a source connector, that is, you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
+ interface, which means implementing the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
+ method and the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
+ method.</p>
 <ol>
-<li><p>执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
- 方法。</p>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>open</code></a>
+ method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Open connector with configuration
     *
@@ -154,8 +154,8 @@
     */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SinkContext sinkContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre></li>
-<li><p>执行 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
- 方法。</p>
+<li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>write</code></a>
+ method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
     * Write a message to Sink
     * <span class="hljs-doctag">@param</span> inputRecordContext Context of input record from the source
@@ -207,8 +207,8 @@
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <strong>how to use NAR for Pulsar connectors</strong> 的更多信息，请参见 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/twitter/pom.xml#L79"><code>TwitterFirehose</code></a>
-。</p>
+<p>For more information about an <strong>how to use NAR for Pulsar connectors</strong>, see <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/twitter/pom.xml"><code>TwitterFirehose</code></a>
+.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="uber-jar"></a><a href="#uber-jar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Uber JAR</h3>
 <p>另一种方法是创建一个 <strong>uber JAR</strong>，其中包含所有连接器的 JAR 文件和其他源文件。 无需目录内部结构。</p>
