@@ -301,7 +301,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fooFieldNames.get("field1"),
-                    fooPositionIndices.get("field1"), false, false));
+                    fooPositionIndices.get("field1"), null));
 
 
             String[] fieldNames2 = {"field2"};
@@ -314,7 +314,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames2,
-                    positionIndices2, false, false));
+                    positionIndices2, null));
 
             String[] fieldNames3 = {"field3"};
             Integer[] positionIndices3 = {2};
@@ -326,7 +326,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames3,
-                    positionIndices3, false, false));
+                    positionIndices3,  null));
 
             String[] fieldNames4 = {"field4"};
             Integer[] positionIndices4 = {3};
@@ -338,7 +338,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames4,
-                    positionIndices4, false, false));
+                    positionIndices4, null));
 
 
             String[] fieldNames5 = {"field5"};
@@ -351,7 +351,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames5,
-                    positionIndices5, false, false));
+                    positionIndices5, null));
 
             String[] fieldNames6 = {"field6"};
             Integer[] positionIndices6 = {5};
@@ -363,7 +363,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames6,
-                    positionIndices6, false, false));
+                    positionIndices6, null));
 
             String[] fieldNames7 = {"timestamp"};
             Integer[] positionIndices7 = {6};
@@ -375,7 +375,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames7,
-                    positionIndices7, false, false));
+                    positionIndices7, null));
 
             String[] fieldNames8 = {"time"};
             Integer[] positionIndices8 = {7};
@@ -387,7 +387,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames8,
-                    positionIndices8, false, false));
+                    positionIndices8, null));
 
             String[] fieldNames9 = {"date"};
             Integer[] positionIndices9 = {8};
@@ -399,7 +399,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames9,
-                    positionIndices9, false, false));
+                    positionIndices9, null));
 
             String[] bar_fieldNames1 = {"bar", "field1"};
             Integer[] bar_positionIndices1 = {9, 0};
@@ -411,7 +411,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_fieldNames1,
-                    bar_positionIndices1, false, false));
+                    bar_positionIndices1, null));
 
             String[] bar_fieldNames2 = {"bar", "field2"};
             Integer[] bar_positionIndices2 = {9, 1};
@@ -423,7 +423,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_fieldNames2,
-                    bar_positionIndices2, false, false));
+                    bar_positionIndices2, null));
 
             String[] bar_test_fieldNames4 = {"bar", "test", "field4"};
             Integer[] bar_test_positionIndices4 = {9, 2, 0};
@@ -435,7 +435,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames4,
-                    bar_test_positionIndices4, false, false));
+                    bar_test_positionIndices4, null));
 
             String[] bar_test_fieldNames5 = {"bar", "test", "field5"};
             Integer[] bar_test_positionIndices5 = {9, 2, 1};
@@ -447,7 +447,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames5,
-                    bar_test_positionIndices5, false, false));
+                    bar_test_positionIndices5, null));
 
             String[] bar_test_fieldNames6 = {"bar", "test", "field6"};
             Integer[] bar_test_positionIndices6 = {9, 2, 2};
@@ -459,7 +459,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames6,
-                    bar_test_positionIndices6, false, false));
+                    bar_test_positionIndices6, null));
 
             String[] bar_test_foobar_fieldNames1 = {"bar", "test", "foobar", "field1"};
             Integer[] bar_test_foobar_positionIndices1 = {9, 2, 6, 0};
@@ -471,7 +471,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_foobar_fieldNames1,
-                    bar_test_foobar_positionIndices1, false, false));
+                    bar_test_foobar_positionIndices1, null));
 
             String[] bar_field3 = {"bar", "field3"};
             Integer[] bar_positionIndices3 = {9, 3};
@@ -483,7 +483,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_field3,
-                    bar_positionIndices3, false, false));
+                    bar_positionIndices3, null));
 
             String[] bar_test2_fieldNames4 = {"bar", "test2", "field4"};
             Integer[] bar_test2_positionIndices4 = {9, 4, 0};
@@ -495,7 +495,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames4,
-                    bar_test2_positionIndices4, false, false));
+                    bar_test2_positionIndices4, null));
 
             String[] bar_test2_fieldNames5 = {"bar", "test2", "field5"};
             Integer[] bar_test2_positionIndices5 = {9, 4, 1};
@@ -507,7 +507,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames5,
-                    bar_test2_positionIndices5, false, false));
+                    bar_test2_positionIndices5, null));
 
             String[] bar_test2_fieldNames6 = {"bar", "test2", "field6"};
             Integer[] bar_test2_positionIndices6 = {9, 4, 2};
@@ -519,7 +519,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames6,
-                    bar_test2_positionIndices6, false, false));
+                    bar_test2_positionIndices6, null));
 
             String[] bar_test2_foobar_fieldNames1 = {"bar", "test2", "foobar", "field1"};
             Integer[] bar_test2_foobar_positionIndices1 = {9, 4, 6, 0};
@@ -531,7 +531,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_foobar_fieldNames1,
-                    bar_test2_foobar_positionIndices1, false, false));
+                    bar_test2_foobar_positionIndices1, null));
 
             String[] fieldNames10 = {"field7"};
             Integer[] positionIndices10 = {10};
@@ -543,7 +543,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames10,
-                    positionIndices10, false, false));
+                    positionIndices10, null));
 
             fooColumnHandles.addAll(PulsarInternalColumn.getInternalFields().stream()
                 .map(pulsarInternalColumn -> pulsarInternalColumn.getColumnHandle(pulsarConnectorId.toString(), false))

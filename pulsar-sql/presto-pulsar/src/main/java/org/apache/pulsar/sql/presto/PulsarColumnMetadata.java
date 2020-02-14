@@ -33,20 +33,20 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private String nameWithCase;
     private String[] fieldNames;
     private Integer[] positionIndices;
-    private boolean isKey;
-    private boolean isValue;
+    private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
+    public final static String KEY_SCHEMA_COLUMN_PREFIX = "key.";
+    public final static String VALUE_SCHEMA_COLUMN_PREFIX = "value.";
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
                                 String[] fieldNames, Integer[] positionIndices,
-                                boolean isKey, boolean isValue) {
+                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
-        this.isKey = isKey;
-        this.isValue = isValue;
+        this.handleKeyValueType = handleKeyValueType;
     }
 
     public String getNameWithCase() {
@@ -65,12 +65,25 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return positionIndices;
     }
 
+    public PulsarColumnHandle.HandleKeyValueType getHandleKeyValueType() {
+        return handleKeyValueType;
+    }
+
     public boolean isKey() {
-        return isKey;
+        return Objects.equals(handleKeyValueType, PulsarColumnHandle.HandleKeyValueType.KEY);
     }
 
     public boolean isValue() {
-        return isValue;
+        return Objects.equals(handleKeyValueType, PulsarColumnHandle.HandleKeyValueType.VALUE);
+    }
+
+    public static String getColumnName(PulsarColumnHandle.HandleKeyValueType handleKeyValueType, String name) {
+        if (Objects.equals(PulsarColumnHandle.HandleKeyValueType.KEY, handleKeyValueType)) {
+            return KEY_SCHEMA_COLUMN_PREFIX + name;
+        } else if (Objects.equals(PulsarColumnHandle.HandleKeyValueType.VALUE, handleKeyValueType)) {
+            return VALUE_SCHEMA_COLUMN_PREFIX + name;
+        }
+        return name;
     }
 
     @Override
@@ -80,8 +93,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             + ", nameWithCase='" + nameWithCase + '\''
             + ", fieldNames=" + Arrays.toString(fieldNames)
             + ", positionIndices=" + Arrays.toString(positionIndices)
-            + ", isKey=" + isKey
-            + ", isValue=" + isValue
+            + ", handleKeyValueType=" + handleKeyValueType
             + '}';
     }
 
@@ -111,10 +123,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
             return false;
         }
-        if (!Objects.equals(isKey, that.isKey)) {
-            return false;
-        }
-        return Objects.equals(isValue, that.isValue);
+        return Objects.equals(handleKeyValueType, that.handleKeyValueType);
     }
 
     @Override
@@ -124,8 +133,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
-        result = 31 * result + (isKey ? 1 : 0);
-        result = 31 * result + (isValue ? 1 : 0);
+        result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
 }

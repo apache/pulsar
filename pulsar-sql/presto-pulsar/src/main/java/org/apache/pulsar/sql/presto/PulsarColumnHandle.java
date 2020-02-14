@@ -24,6 +24,7 @@ import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
 import java.util.Objects;
@@ -59,15 +60,25 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     private final Integer[] positionIndices;
 
-    /**
-     * True if the column is key column handler for KeyValueSchema.
-     */
-    private final boolean key;
+    private HandleKeyValueType handleKeyValueType;
 
     /**
-     * True if the column is value column handler for KeyValueSchema.
+     * Column Handle keyValue type, used for keyValue schema.
      */
-    private final boolean value;
+    public enum HandleKeyValueType {
+        /**
+         * The handle not for keyValue schema.
+         */
+        NONE,
+        /**
+         * The key schema handle for keyValue schema.
+         */
+        KEY,
+        /**
+         * The value schema handle for keyValue schema.
+         */
+        VALUE
+    }
 
     @JsonCreator
     public PulsarColumnHandle(
@@ -78,8 +89,7 @@ public class PulsarColumnHandle implements ColumnHandle {
             @JsonProperty("internal") boolean internal,
             @JsonProperty("fieldNames") String[] fieldNames,
             @JsonProperty("positionIndices") Integer[] positionIndices,
-            @JsonProperty("key") boolean key,
-            @JsonProperty("value") boolean value) {
+            @JsonProperty("handleKeyValueType") HandleKeyValueType handleKeyValueType) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
         this.name = requireNonNull(name, "name is null");
         this.type = requireNonNull(type, "type is null");
@@ -87,8 +97,11 @@ public class PulsarColumnHandle implements ColumnHandle {
         this.internal = internal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
-        this.key = key;
-        this.value = value;
+        if (handleKeyValueType == null) {
+            this.handleKeyValueType = HandleKeyValueType.NONE;
+        } else {
+            this.handleKeyValueType = handleKeyValueType;
+        }
     }
 
     @JsonProperty
@@ -127,13 +140,18 @@ public class PulsarColumnHandle implements ColumnHandle {
     }
 
     @JsonProperty
-    public boolean isKey() {
-        return key;
+    public HandleKeyValueType getHandleKeyValueType() {
+        return handleKeyValueType;
     }
 
-    @JsonProperty
+    @JsonIgnore
+    public boolean isKey() {
+        return Objects.equals(handleKeyValueType, HandleKeyValueType.KEY);
+    }
+
+    @JsonIgnore
     public boolean isValue() {
-        return value;
+        return Objects.equals(handleKeyValueType, HandleKeyValueType.VALUE);
     }
 
     ColumnMetadata getColumnMetadata() {
@@ -172,10 +190,7 @@ public class PulsarColumnHandle implements ColumnHandle {
         if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
             return false;
         }
-        if (!Objects.equals(key, that.key)) {
-            return false;
-        }
-        return Objects.equals(value, that.value);
+        return Objects.equals(handleKeyValueType, that.handleKeyValueType);
     }
 
     @Override
@@ -187,8 +202,7 @@ public class PulsarColumnHandle implements ColumnHandle {
         result = 31 * result + (internal ? 1 : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
-        result = 31 * result + (key ? 1 : 0);
-        result = 31 * result + (value ? 1 : 0);
+        result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
 
@@ -202,8 +216,7 @@ public class PulsarColumnHandle implements ColumnHandle {
             + ", internal=" + internal
             + ", fieldNames=" + Arrays.toString(fieldNames)
             + ", positionIndices=" + Arrays.toString(positionIndices)
-            + ", key=" + key
-            + ", value=" + value
+            + ", handleKeyValueType=" + handleKeyValueType
             + '}';
     }
 }

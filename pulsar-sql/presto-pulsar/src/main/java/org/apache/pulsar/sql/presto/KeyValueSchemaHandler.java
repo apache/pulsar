@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
@@ -35,8 +34,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public class KeyValueSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(KeyValueSchemaHandler.class);
-
-    private final static ObjectMapper objectMapper = new ObjectMapper();
 
     private final List<PulsarColumnHandle> columnHandles;
 
@@ -65,13 +62,13 @@ public class KeyValueSchemaHandler implements SchemaHandler {
         ByteBuf valueByteBuf;
         if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {
             dataPayload.resetReaderIndex();
-            int keyLength2 = dataPayload.readInt();
-            keyByteBuf = dataPayload.readBytes(keyLength2);
+            int keyLength = dataPayload.readInt();
+            keyByteBuf = dataPayload.readSlice(keyLength);
 
-            int valueLength2 = dataPayload.readInt();
-            valueByteBuf = dataPayload.readBytes(valueLength2);
+            int valueLength = dataPayload.readInt();
+            valueByteBuf = dataPayload.readSlice(valueLength);
         } else {
-            keyByteBuf = keyPayload.slice();
+            keyByteBuf = keyPayload;
             valueByteBuf = dataPayload;
         }
         Object keyObj = keySchemaHandler.deserialize(keyByteBuf);

@@ -41,9 +41,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.io.IOException;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -423,9 +421,8 @@ public class PulsarRecordCursor implements RecordCursor {
 
         if (this.schemaHandler instanceof KeyValueSchemaHandler) {
             ByteBuf keyByteBuf = null;
-            if (this.currentMessage.getKey().isPresent()) {
-                keyByteBuf = Unpooled.wrappedBuffer(
-                        Base64.getDecoder().decode(this.currentMessage.getKey().get()));
+            if (this.currentMessage.getKeyBytes().isPresent()) {
+                keyByteBuf = this.currentMessage.getKeyBytes().get();
             }
             currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
         } else {

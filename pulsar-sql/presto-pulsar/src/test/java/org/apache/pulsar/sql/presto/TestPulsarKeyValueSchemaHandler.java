@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
-import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -87,7 +86,7 @@ public class TestPulsarKeyValueSchemaHandler {
         final Integer valueData = 10;
         List<ColumnMetadata> columnMetadataList =
                 PulsarMetadata.getPulsarColumns(topicName, schema1.getSchemaInfo(),
-                        true, false, false);
+                        true, null);
         int keyCount = 0;
         int valueCount = 0;
         for (ColumnMetadata columnMetadata : columnMetadataList) {
@@ -102,8 +101,6 @@ public class TestPulsarKeyValueSchemaHandler {
         Assert.assertEquals(valueCount, 1);
 
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
-
-
 
         KeyValueSchemaHandler keyValueSchemaHandler =
                 new KeyValueSchemaHandler(schema1.getSchemaInfo(), columnHandleList);
@@ -125,7 +122,7 @@ public class TestPulsarKeyValueSchemaHandler {
 
         List<ColumnMetadata> columnMetadataList =
                 PulsarMetadata.getPulsarColumns(topicName, schema2.getSchemaInfo(),
-                        true, false, false);
+                        true, null);
         int keyCount = 0;
         int valueCount = 0;
         for (ColumnMetadata columnMetadata : columnMetadataList) {
@@ -169,7 +166,7 @@ public class TestPulsarKeyValueSchemaHandler {
 
         List<ColumnMetadata> columnMetadataList =
                 PulsarMetadata.getPulsarColumns(topicName, schema3.getSchemaInfo(),
-                        true, false, false);
+                        true, null);
         int keyCount = 0;
         int valueCount = 0;
         for (ColumnMetadata columnMetadata : columnMetadataList) {
@@ -189,9 +186,9 @@ public class TestPulsarKeyValueSchemaHandler {
                 new KeyValueSchemaHandler(schema3.getSchemaInfo(), columnHandleList);
 
         RawMessage message = Mockito.mock(RawMessage.class);
-        Mockito.when(message.getKey()).thenReturn(
-                Optional.of(Base64.getEncoder().encodeToString(
-                        ((KeyValueSchema) schema3).getKeySchema().encode(boo)
+        Mockito.when(message.getKeyBytes()).thenReturn(
+                Optional.of(Unpooled.wrappedBuffer(
+                    ((KeyValueSchema) schema3).getKeySchema().encode(boo)
                 ))
         );
         Mockito.when(message.getData()).thenReturn(
@@ -213,7 +210,7 @@ public class TestPulsarKeyValueSchemaHandler {
     public void testSchema4() throws IOException {
         List<ColumnMetadata> columnMetadataList =
                 PulsarMetadata.getPulsarColumns(topicName, schema4.getSchemaInfo(),
-                        true, false, false);
+                        true, null);
         int keyCount = 0;
         int valueCount = 0;
         for (ColumnMetadata columnMetadata : columnMetadataList) {
@@ -233,8 +230,8 @@ public class TestPulsarKeyValueSchemaHandler {
                 new KeyValueSchemaHandler(schema4.getSchemaInfo(), columnHandleList);
 
         RawMessage message = Mockito.mock(RawMessage.class);
-        Mockito.when(message.getKey()).thenReturn(
-                Optional.of(Base64.getEncoder().encodeToString(
+        Mockito.when(message.getKeyBytes()).thenReturn(
+                Optional.of(Unpooled.wrappedBuffer(
                         ((KeyValueSchema) schema4).getKeySchema().encode(boo)
                 ))
         );
@@ -269,8 +266,7 @@ public class TestPulsarKeyValueSchemaHandler {
                     pulsarColumnMetadata.isInternal(),
                     pulsarColumnMetadata.getFieldNames(),
                     pulsarColumnMetadata.getPositionIndices(),
-                    pulsarColumnMetadata.isKey(),
-                    pulsarColumnMetadata.isValue());
+                    pulsarColumnMetadata.getHandleKeyValueType());
             columnHandleList.add(pulsarColumnHandle);
         });
 
@@ -281,8 +277,8 @@ public class TestPulsarKeyValueSchemaHandler {
         KeyValueEncodingType encodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schema.getSchemaInfo());
         ByteBuf keyByteBuf = null;
         if (Objects.equals(KeyValueEncodingType.SEPARATED, encodingType)) {
-            if (message.getKey().isPresent()) {
-                keyByteBuf = Unpooled.wrappedBuffer(Base64.getDecoder().decode(message.getKey().get()));
+            if (message.getKeyBytes().isPresent()) {
+                keyByteBuf = message.getKeyBytes().get();
             } else {
                 keyByteBuf = null;
             }
