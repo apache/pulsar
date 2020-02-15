@@ -52,7 +52,7 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
 
         while (true) {
             if (transactionMetadataStore.checkIfReady()) {
-                TxnID txnID = transactionMetadataStore.newTransactionAsync(1000).get();
+                TxnID txnID = transactionMetadataStore.newTransactionAsync(5000).get();
                 Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
@@ -80,7 +80,7 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.COMMITTING);
 
                 transactionMetadataStore.updateTxnStatusAsync(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatusAsync(txnID).get(), TxnStatus.COMMITTED);
+                Assert.assertNull(transactionMetadataStore.getTxnMetaAsync(txnID).get());
                 break;
             } else {
                 Thread.sleep(100);
@@ -128,8 +128,6 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 transactionMetadataStore.updateTxnStatusAsync(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
                 transactionMetadataStore.updateTxnStatusAsync(txnID2, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
-                transactionMetadataStore.updateTxnStatusAsync(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
-                transactionMetadataStore.updateTxnStatusAsync(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
                 transactionMetadataStore.closeAsync();
 
                 MLTransactionMetadataStore transactionMetadataStoreTest =
@@ -149,8 +147,14 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                         Assert.assertEquals(txnMeta2.ackedPartitions().size(), subscriptions.size());
                         Assert.assertTrue(subscriptions.containsAll(txnMeta1.ackedPartitions()));
                         Assert.assertTrue(subscriptions.containsAll(txnMeta2.ackedPartitions()));
-                        Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
-                        Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTED);
+                        Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTING);
+                        Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
+                        transactionMetadataStoreTest
+                                .updateTxnStatusAsync(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                        transactionMetadataStoreTest
+                                .updateTxnStatusAsync(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+                        Assert.assertNull(transactionMetadataStoreTest.getTxnMetaAsync(txnID1).get());
+                        Assert.assertNull(transactionMetadataStoreTest.getTxnMetaAsync(txnID2).get());
                         TxnID txnID = transactionMetadataStoreTest.newTransactionAsync(1000).get();
                         Assert.assertEquals(txnID.getLeastSigBits(), 2L);
                         break;

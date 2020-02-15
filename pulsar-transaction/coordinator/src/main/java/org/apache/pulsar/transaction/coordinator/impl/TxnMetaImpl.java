@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
@@ -37,16 +41,41 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
  */
 class TxnMetaImpl implements TxnMeta {
 
-    private final TxnID txnID;
-    private final Set<String> producedPartitions = new HashSet<>();
-    private final Set<TxnSubscription> ackedPartitions = new HashSet<>();
-    private volatile TxnStatus txnStatus;
+    private TxnID txnID;
+    private Set<String> producedPartitions = new HashSet<>();
+    private Set<TxnSubscription> ackedPartitions = new HashSet<>();
+    private volatile TxnStatus txnStatus = TxnStatus.OPEN;
+    private List<Position> positions = Collections.synchronizedList(new ArrayList<>());
+    private Handle<TxnMetaImpl> recycleHandle;
 
-    TxnMetaImpl(TxnID txnID) {
-        this.txnID = txnID;
-        this.txnStatus = TxnStatus.OPEN;
+    private static final Recycler<TxnMetaImpl> RECYCLER = new Recycler<TxnMetaImpl>() {
+        protected TxnMetaImpl newObject(Recycler.Handle<TxnMetaImpl> handle) {
+            return new TxnMetaImpl(handle);
+        }
+    };
+
+    TxnMetaImpl(Handle<TxnMetaImpl> handle) {
+        this.recycleHandle = handle;
     }
 
+    // Constructor for transaction metadata
+    static TxnMetaImpl create(TxnID txnID) {
+        @SuppressWarnings("unchecked")
+        TxnMetaImpl txnMeta = RECYCLER.get();
+        txnMeta.txnID = txnID;
+        return txnMeta;
+    }
+
+    public void recycle() {
+        this.producedPartitions.clear();
+        this.ackedPartitions.clear();
+        this.txnStatus = TxnStatus.OPEN;
+        this.positions.clear();
+
+        if (recycleHandle != null) {
+            recycleHandle.recycle(this);
+        }
+    }
     @Override
     public TxnID id() {
         return txnID;
@@ -75,6 +104,11 @@ class TxnMetaImpl implements TxnMeta {
             returnedSubscriptions.addAll(ackedPartitions);
         }
         return returnedSubscriptions;
+    }
+
+    @Override
+    public List<Position> positions() {
+        return positions;
     }
 
     @Override
@@ -111,6 +145,12 @@ class TxnMetaImpl implements TxnMeta {
             throw new InvalidTxnStatusException(txnID, expectedStatus, newStatus);
         }
         this.txnStatus = newStatus;
+        return this;
+    }
+
+    @Override
+    public TxnMeta addTxnPosition(Position position) {
+        positions.add(position);
         return this;
     }
 }

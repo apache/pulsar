@@ -67,7 +67,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
                 tcID.getId(),
                 localID.getAndIncrement()
         );
-        TxnMetaImpl txn = new TxnMetaImpl(txnID);
+        TxnMetaImpl txn = TxnMetaImpl.create(txnID);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }

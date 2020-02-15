@@ -27,14 +27,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -55,7 +55,9 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final static String TRANSACTION_LOG_PREFIX = "transaction/log/";
 
-    private final ReadOnlyCursor readOnlyCursor;
+    private final ManagedCursor cursor;
+
+    private final static String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
@@ -63,12 +65,15 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final long tcId;
 
+    private final String topicName;
+
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory) throws Exception {
+        this.topicName = TRANSACTION_LOG_PREFIX + tcID;
         this.tcId = tcID.getId();
-        this.managedLedger = managedLedgerFactory.open(TRANSACTION_LOG_PREFIX + tcID);
-        this.readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(TRANSACTION_LOG_PREFIX + tcID,
-                PositionImpl.earliest, new ManagedLedgerConfig());
+        this.managedLedger = managedLedgerFactory.open(topicName);
+        this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
+                PulsarApi.CommandSubscribe.InitialPosition.Earliest);
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
@@ -80,45 +85,43 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        readOnlyCursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime());
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime());
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        closeReadOnlyCursorAsync().thenRun(() -> {
-            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
-                    completableFuture.complete(null);
-                }
+        managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
+                completableFuture.complete(null);
+            }
 
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
-                    completableFuture.completeExceptionally(exception);
-                }
-            }, null);
-        });
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
 
         return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Void> append(TransactionMetadataEntry transactionMetadataEntry) {
+    public CompletableFuture<Position> append(TransactionMetadataEntry transactionMetadataEntry) {
         int transactionMetadataEntrySize = transactionMetadataEntry.getSerializedSize();
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(transactionMetadataEntrySize, transactionMetadataEntrySize);
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         try {
             transactionMetadataEntry.writeTo(outStream);
             managedLedger.asyncAddEntry(buf, new AsyncCallbacks.AddEntryCallback() {
                 @Override
                 public void addComplete(Position position, Object ctx) {
                     buf.release();
-                    completableFuture.complete(null);
+                    completableFuture.complete(position);
                 }
 
                 @Override
@@ -134,6 +137,29 @@ public class MLTransactionLogImpl implements TransactionLog {
         } finally {
             outStream.recycle();
         }
+        return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> deletePosition(List<Position> positions) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        this.cursor.asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
+            @Override
+            public void deleteComplete(Object position) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Deleted message at {}", topicName,
+                            TRANSACTION_SUBSCRIPTION_NAME, position);
+                }
+                completableFuture.complete(null);
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{}] Failed to delete message at {}", topicName,
+                        TRANSACTION_SUBSCRIPTION_NAME, ctx, exception);
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
@@ -166,7 +192,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                         log.error(e.getMessage(), e);
                         throw new RuntimeException("TransactionLog convert entry error : ", e);
                     }
-                    transactionLogReplayCallback.handleMetadataEntry(transactionMetadataEntry);
+                    transactionLogReplayCallback.handleMetadataEntry(entry.getPosition(), transactionMetadataEntry);
                     entry.release();
                     transactionMetadataEntry.recycle();
                     transactionMetadataEntryBuilder.recycle();
@@ -179,27 +205,8 @@ public class MLTransactionLogImpl implements TransactionLog {
                     }
                 }
             }
-
-            closeReadOnlyCursorAsync().thenRun(() -> transactionLogReplayCallback.replayComplete());
+            transactionLogReplayCallback.replayComplete();
         }
-    }
-
-    private CompletableFuture<Void> closeReadOnlyCursorAsync() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        readOnlyCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                log.info("Transaction log with tcId : {} close ReadOnlyCursor successful!", tcId);
-                completableFuture.complete(null);
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Transaction log with tcId : " + tcId + " close ReadOnlyCursor fail", exception);
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
-        return completableFuture;
     }
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
@@ -208,7 +215,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         void fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
-                if (readOnlyCursor.hasMoreEntries()) {
+                if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
                 }
