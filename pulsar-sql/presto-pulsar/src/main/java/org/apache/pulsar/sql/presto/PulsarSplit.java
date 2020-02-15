@@ -101,15 +101,13 @@ public class PulsarSplit implements ConnectorSplit {
         this.schemaInfoProperties = schemaInfoProperties;
         this.offloadPolicies = offloadPolicies;
 
-        SchemaInfo schemaInfoTemp;
         ObjectMapper objectMapper = new ObjectMapper();
-        schemaInfoTemp = SchemaInfo.builder()
+        this.schemaInfo = SchemaInfo.builder()
                 .name(originSchemaName)
                 .type(schemaType)
                 .schema(schema.getBytes("ISO8859-1"))
                 .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
                 .build();
-        this.schemaInfo = schemaInfoTemp;
     }
 
     @JsonProperty
