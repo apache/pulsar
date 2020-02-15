@@ -61,7 +61,7 @@ Configuration:
       name: RollingFile
       fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: true
+      immediateFlush: false
       PatternLayout:
         Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
       Policies:
