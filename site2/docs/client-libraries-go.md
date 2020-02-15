@@ -1,10 +1,19 @@
 ---
 id: client-libraries-go
-title: The Pulsar Go client
+title: Pulsar Go client
 sidebar_label: Go
 ---
 
-The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
+You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
+
+All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Go client are thread-safe.
+
+Currently, the following Go clients are maintained in two repositories.
+
+| Language | Project | Maintainer | License | Description |
+|----------|---------|------------|---------|-------------|
+| CGo | [pulsar-client-go](https://github.com/apache/pulsar/tree/master/pulsar-client-go) | [Apache Pulsar](https://github.com/apache/pulsar) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | CGo client that depends on C++ client library |
+| Go | [pulsar-client-go](https://github.com/apache/pulsar-client-go) | [Apache Pulsar](https://github.com/apache/pulsar) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | A native golang client |
 
 > #### API docs available as well
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
@@ -15,10 +24,9 @@ The Pulsar Go client can be used to create Pulsar [producers](#producers), [cons
 ### Requirements
 
 Pulsar Go client library is based on the C++ client library. Follow
-the instructions for [C++ library](client-libraries-cpp.md) for installing the binaries
-through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) or [Homebrew packages](client-libraries-cpp.md#macos).
+the instructions for [C++ library](client-libraries-cpp.md) for installing the binaries through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) or [Homebrew packages](client-libraries-cpp.md#macos).
 
-### Installing go package
+### Install go package
 
 > #### Compatibility Warning
 > The version number of the Go client **must match** the version number of the Pulsar C++ client library.
@@ -63,7 +71,7 @@ If you're using [TLS](security-tls-authentication.md) authentication, the URL wi
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Creating a client
+## Create a client
 
 In order to interact with Pulsar, you'll first need a `Client` object. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
 
@@ -433,8 +441,8 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages |
-`Name` | The name of the reader |
+`Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages 
+`Name` | The name of the reader 
 `StartMessageID` | THe initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
 `MessageChannel` | The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `Next`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000

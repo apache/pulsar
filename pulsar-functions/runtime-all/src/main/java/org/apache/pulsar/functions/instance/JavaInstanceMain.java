@@ -104,7 +104,7 @@ public class JavaInstanceMain {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("Class " + userClassName + " must be in class path", cnfe);
         }
         Object result;

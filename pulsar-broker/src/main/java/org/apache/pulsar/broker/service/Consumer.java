@@ -79,6 +79,9 @@ public class Consumer {
     private final Rate msgOut;
     private final Rate msgRedeliver;
 
+    private long lastConsumedTimestamp;
+    private long lastAckedTimestamp;
+
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
     // increase its availability
@@ -188,6 +191,7 @@ public class Consumer {
      */
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
             long totalBytes, RedeliveryTracker redeliveryTracker) {
+        this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
 
@@ -258,8 +262,11 @@ public class Consumer {
                             consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
-                int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                int redeliveryCount = 0;
+                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                if (redeliveryTracker.contains(position)) {
+                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                }
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
@@ -275,7 +282,7 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (shouldBlockConsumerOnUnackMsgs() && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages) {
+        if (addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages && shouldBlockConsumerOnUnackMsgs()) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -332,6 +339,7 @@ public class Consumer {
     }
 
     void messageAcked(CommandAck ack) {
+        this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
@@ -447,6 +455,8 @@ public class Consumer {
     }
 
     public ConsumerStats getStats() {
+        stats.lastAckedTimestamp = lastAckedTimestamp;
+        stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;

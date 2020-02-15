@@ -90,7 +90,7 @@ To install the Python bindings:
                     batching_max_publish_delay_ms=10
                 )
 
-    def send_callback(res, msg):
+    def send_callback(res, msg_id):
         print('Message published res=%s', res)
 
     while True:
@@ -549,7 +549,7 @@ class Client:
                   This method will accept these forms:
                     - `topic='my-topic'`
                     - `topic=['topic-1', 'topic-2', 'topic-3']`
-                    - `topic=re.compile('topic-.*')`
+                    - `topic=re.compile('persistent://public/default/topic-*')`
         * `subscription`: The name of the subscription.
 
         **Options**
@@ -858,7 +858,7 @@ class Producer:
         Example:
 
             #!python
-            def callback(res, msg):
+            def callback(res, msg_id):
                 print('Message published: %s' % res)
 
             producer.send_async(msg, callback)

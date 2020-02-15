@@ -23,6 +23,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
+import com.beust.jcommander.internal.Maps;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
+
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Map;
@@ -34,7 +40,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
@@ -60,17 +65,9 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.beust.jcommander.internal.Maps;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
 
 public class AntiAffinityNamespaceGroupTest {
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -93,13 +90,6 @@ public class AntiAffinityNamespaceGroupTest {
 
     private ExecutorService executor;
 
-    private int ZOOKEEPER_PORT;
-    private int PRIMARY_BROKER_WEBSERVICE_PORT;
-    private int SECONDARY_BROKER_WEBSERVICE_PORT;
-    private int PRIMARY_BROKER_PORT;
-    private int SECONDARY_BROKER_PORT;
-    private static final Logger log = LoggerFactory.getLogger(AntiAffinityNamespaceGroupTest.class);
-
     private static Object getField(final Object instance, final String fieldName) throws Exception {
         final Field field = instance.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -110,24 +100,17 @@ public class AntiAffinityNamespaceGroupTest {
     void setup() throws Exception {
         executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>());
-
-        ZOOKEEPER_PORT = PortManager.nextFreePort();
-        PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-        SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-        PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-        SECONDARY_BROKER_PORT = PortManager.nextFreePort();
-
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
-        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
-        config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
+        config1.setWebServicePort(Optional.of(0));
+        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setBrokerServicePort(Optional.of(0));
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
         config1.setAdvertisedAddress("localhost");
@@ -136,26 +119,25 @@ public class AntiAffinityNamespaceGroupTest {
         pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
-        primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
-        url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        url1 = new URL("http://127.0.0.1" + ":" + pulsar1.getListenPortHTTP().get());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
-        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
-        config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
+        config2.setWebServicePort(Optional.of(0));
+        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
         pulsar2 = new PulsarService(config2);
         pulsar2.setShutdownService(new NoOpShutdownService());
-        secondaryHost = String.format("%s:%d", "localhost",
-                SECONDARY_BROKER_WEBSERVICE_PORT);
-
         pulsar2.start();
 
-        url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
+        secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+
+        url2 = new URL("http://127.0.0.1" + ":" + config2.getWebServicePort().get());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
@@ -166,7 +148,6 @@ public class AntiAffinityNamespaceGroupTest {
 
     @AfterMethod
     void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
         executor.shutdown();
 
         admin1.close();
@@ -407,32 +388,39 @@ public class AntiAffinityNamespaceGroupTest {
         final String namespace1 = tenant + "/" + cluster + "/ns1";
         final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
-        FailureDomain domain = new FailureDomain();
-        domain.brokers = Sets.newHashSet(broker1);
-        admin1.clusters().createFailureDomain(cluster, "domain1", domain);
-        domain.brokers = Sets.newHashSet(broker2);
-        admin1.clusters().createFailureDomain(cluster, "domain2", domain);
+
+        FailureDomain domain1 = new FailureDomain();
+        domain1.brokers = Sets.newHashSet(broker1);
+        admin1.clusters().createFailureDomain(cluster, "domain1", domain1);
+
+        FailureDomain domain2 = new FailureDomain();
+        domain2.brokers = Sets.newHashSet(broker2);
+        admin1.clusters().createFailureDomain(cluster, "domain2", domain2);
+
         admin1.tenants().createTenant(tenant, new TenantInfo(null, Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
+
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace1, namespaceAntiAffinityGroup);
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace2, namespaceAntiAffinityGroup);
 
         // validate strategically if brokerToDomainCache updated
         for (int i = 0; i < 5; i++) {
             if (!isLoadManagerUpdatedDomainCache(primaryLoadManager)
-                    || !isLoadManagerUpdatedDomainCache(secondaryLoadManager) || i != 4) {
+                    || !isLoadManagerUpdatedDomainCache(secondaryLoadManager)) {
                 Thread.sleep(200);
+            } else {
+                break;
             }
         }
         assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
         assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
 
-        ServiceUnitId serviceUnit = makeBundle(tenant, cluster, "ns1");
-        String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
+        ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
+        String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit1).get();
 
-        serviceUnit = makeBundle(tenant, cluster, "ns2");
-        String selectedBroker2 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
+        ServiceUnitId serviceUnit2 = makeBundle(tenant, cluster, "ns2");
+        String selectedBroker2 = primaryLoadManager.selectBrokerForAssignment(serviceUnit2).get();
 
         assertNotEquals(selectedBroker1, selectedBroker2);
 
@@ -440,7 +428,7 @@ public class AntiAffinityNamespaceGroupTest {
 
     /**
      * It verifies that load-shedding task should unload namespace only if there is a broker available which doesn't
-     * cause uneven anti-affinitiy namespace distribution.
+     * cause uneven anti-affinity namespace distribution.
      *
      * <pre>
      * 1. broker1 owns ns-0 => broker1 can unload ns-0

@@ -131,7 +131,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         try {
             theCls = Class.forName(windowConfig.getTimestampExtractorClassName(),
                     true, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException(
                     String.format("Timestamp extractor class %s must be in class path",
                             windowConfig.getTimestampExtractorClassName()), cnfe);

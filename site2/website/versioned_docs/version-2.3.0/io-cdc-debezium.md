@@ -137,3 +137,46 @@ mysql> UPDATE products SET name='1111111111' WHERE id=107;
 ```
 
 - In above subscribe topic terminal tab, we could find that 2 changes has been kept into products topic.
+
+## FAQ
+ 
+### Debezium postgres connector will hang when create snap
+
+```$xslt
+#18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
+    java.lang.Thread.State: WAITING (parking)
+     at sun.misc.Unsafe.park(Native Method)
+     - parking to wait for  <0x00000007ab025a58> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+     at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+     at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+     at java.util.concurrent.LinkedBlockingDeque.putLast(LinkedBlockingDeque.java:396)
+     at java.util.concurrent.LinkedBlockingDeque.put(LinkedBlockingDeque.java:649)
+     at io.debezium.connector.base.ChangeEventQueue.enqueue(ChangeEventQueue.java:132)
+     at io.debezium.connector.postgresql.PostgresConnectorTask$$Lambda$203/385424085.accept(Unknown Source)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.sendCurrentRecord(RecordsSnapshotProducer.java:402)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.readTable(RecordsSnapshotProducer.java:321)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$takeSnapshot$6(RecordsSnapshotProducer.java:226)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$240/1347039967.accept(Unknown Source)
+     at io.debezium.jdbc.JdbcConnection.queryWithBlockingConsumer(JdbcConnection.java:535)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.takeSnapshot(RecordsSnapshotProducer.java:224)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$start$0(RecordsSnapshotProducer.java:87)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$206/589332928.run(Unknown Source)
+     at java.util.concurrent.CompletableFuture.uniRun(CompletableFuture.java:705)
+     at java.util.concurrent.CompletableFuture.uniRunStage(CompletableFuture.java:717)
+     at java.util.concurrent.CompletableFuture.thenRun(CompletableFuture.java:2010)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer.start(RecordsSnapshotProducer.java:87)
+     at io.debezium.connector.postgresql.PostgresConnectorTask.start(PostgresConnectorTask.java:126)
+     at io.debezium.connector.common.BaseSourceTask.start(BaseSourceTask.java:47)
+     at org.apache.pulsar.io.kafka.connect.KafkaConnectSource.open(KafkaConnectSource.java:127)
+     at org.apache.pulsar.io.debezium.DebeziumSource.open(DebeziumSource.java:100)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.setupInput(JavaInstanceRunnable.java:690)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.setupJavaInstance(JavaInstanceRunnable.java:200)
+     at org.apache.pulsar.functions.instance.JavaInstanceRunnable.run(JavaInstanceRunnable.java:230)
+     at java.lang.Thread.run(Thread.java:748)
+``` 
+
+If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
+
+```$xslt
+max.queue.size=
+```

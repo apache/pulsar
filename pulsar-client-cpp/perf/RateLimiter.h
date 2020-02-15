@@ -50,7 +50,7 @@ RateLimiter::RateLimiter(double rate)
         : interval_(std::chrono::microseconds((long)(1e6 / rate))),
           storedPermits_(0.0),
           maxPermits_(rate),
-          nextFree_() {
+          nextFree_(Clock::now()) {
     assert(rate < 1e6 && "Exceeded maximum rate");
 }
 

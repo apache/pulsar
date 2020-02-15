@@ -67,8 +67,8 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
 
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
-        producerStatsBasePtr_ = std::make_shared<ProducerStatsImpl>(
-            producerStr_, executor_->createDeadlineTimer(), statsIntervalInSeconds);
+        producerStatsBasePtr_ =
+            std::make_shared<ProducerStatsImpl>(producerStr_, executor_, statsIntervalInSeconds);
     } else {
         producerStatsBasePtr_ = std::make_shared<ProducerStatsDisabled>();
     }
@@ -286,6 +286,9 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
     if (conf_.getCompressionType() != CompressionNone) {
         msgMetadata.set_compression(CompressionCodecProvider::convertType(conf_.getCompressionType()));
         msgMetadata.set_uncompressed_size(uncompressedSize);
+    }
+    if (!this->getSchemaVersion().empty()) {
+        msgMetadata.set_schema_version(this->getSchemaVersion());
     }
 }
 

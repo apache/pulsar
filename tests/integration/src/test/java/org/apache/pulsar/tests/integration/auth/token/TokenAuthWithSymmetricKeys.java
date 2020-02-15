@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.auth.token;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSuite {
@@ -70,4 +72,13 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
         proxyContainer.withEnv("tokenSecretKey", "data:base64," + secretKey);
     }
 
+    @Override
+    protected String createClientTokenWithExpiry(long expiryTime, TimeUnit unit) throws Exception {
+        return cmdContainer
+                .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
+                        "--secret-key", "data:base64," + secretKey,
+                        "--subject", REGULAR_USER_ROLE,
+                        "--expiry-time", unit.toSeconds(expiryTime) + "s")
+                .getStdout().trim();
+    }
 }

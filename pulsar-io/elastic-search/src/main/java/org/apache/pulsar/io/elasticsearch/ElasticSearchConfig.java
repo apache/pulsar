@@ -25,10 +25,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -37,10 +33,6 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  * Configuration class for the ElasticSearch Sink Connector.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class ElasticSearchConfig implements Serializable {
 
@@ -59,6 +51,15 @@ public class ElasticSearchConfig implements Serializable {
         help = "The index name that the connector writes messages to"
     )
     private String indexName;
+
+    @FieldDoc(
+        required = false,
+        defaultValue = "_doc",
+        help = "The type name that the connector writes messages to, with the default value set to _doc." +
+                " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
+                " and left to the default value otherwise."
+    )
+    private String typeName = "_doc";
 
     @FieldDoc(
         required = false,
