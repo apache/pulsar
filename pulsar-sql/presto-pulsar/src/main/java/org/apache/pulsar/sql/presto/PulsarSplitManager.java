@@ -35,12 +35,11 @@ import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
-import java.io.UnsupportedEncodingException;
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -255,7 +254,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               SchemaInfo schemaInfo, String tableName,
                                               TupleDomain<ColumnHandle> tupleDomain,
                                               OffloadPolicies offloadPolicies)
-            throws ManagedLedgerException, InterruptedException, UnsupportedEncodingException, JsonProcessingException {
+            throws ManagedLedgerException, InterruptedException, IOException {
 
         ReadOnlyCursor readOnlyCursor = null;
         try {

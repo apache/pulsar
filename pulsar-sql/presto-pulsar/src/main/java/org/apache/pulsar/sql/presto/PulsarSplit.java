@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -80,7 +81,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) {
+            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -101,18 +102,13 @@ public class PulsarSplit implements ConnectorSplit {
         this.offloadPolicies = offloadPolicies;
 
         SchemaInfo schemaInfoTemp;
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            schemaInfoTemp = SchemaInfo.builder()
-                    .name(originSchemaName)
-                    .type(schemaType)
-                    .schema(schema.getBytes("ISO8859-1"))
-                    .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
-                    .build();
-        } catch (Exception e) {
-            log.error("Create schemaInfo failed!", e);
-            schemaInfoTemp = SchemaInfo.builder().build();
-        }
+        ObjectMapper objectMapper = new ObjectMapper();
+        schemaInfoTemp = SchemaInfo.builder()
+                .name(originSchemaName)
+                .type(schemaType)
+                .schema(schema.getBytes("ISO8859-1"))
+                .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
+                .build();
         this.schemaInfo = schemaInfoTemp;
     }
 
@@ -219,6 +215,7 @@ public class PulsarSplit implements ConnectorSplit {
         return "PulsarSplit{"
             + "splitId=" + splitId
             + ", connectorId='" + connectorId + '\''
+            + ", originSchemaName='" + originSchemaName + '\''
             + ", schemaName='" + schemaName + '\''
             + ", tableName='" + tableName + '\''
             + ", splitSize=" + splitSize
@@ -228,6 +225,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", endPositionEntryId=" + endPositionEntryId
             + ", startPositionLedgerId=" + startPositionLedgerId
             + ", endPositionLedgerId=" + endPositionLedgerId
+            + ", schemaInfoProperties=" + schemaInfoProperties
             + (offloadPolicies == null ? "" : offloadPolicies.toString())
             + '}';
     }
