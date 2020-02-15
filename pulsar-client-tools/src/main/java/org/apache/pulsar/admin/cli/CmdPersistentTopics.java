@@ -570,10 +570,6 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to get messages from", required = true)
-        private String subName;
-
         @Parameter(names = { "-l", "--ledgerId" },
             description = "ledger id pointing to the desired ledger",
             required = true)
@@ -588,7 +584,7 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = persistentTopics.getMessageById(persistentTopic, subName, ledgerId, entryId);
+            Message<byte[]> message = persistentTopics.getMessageById(persistentTopic, ledgerId, entryId);
 
             ByteBuf date = Unpooled.wrappedBuffer(message.getData());
             System.out.println(ByteBufUtil.prettyHexDump(date));

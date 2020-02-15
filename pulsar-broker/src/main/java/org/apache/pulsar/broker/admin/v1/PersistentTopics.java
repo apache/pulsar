@@ -538,7 +538,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}/ledger/{ledgerId}/entry/{entryId}")
+    @Path("/{property}/{cluster}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}")
     @ApiOperation(hidden = true, value = "Get message by its messageId.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -547,10 +547,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     })
     public Response getMessageByID(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String encodedSubName, @PathParam("ledgerId") Long ledgerId,
-            @PathParam("entryId") Long entryId, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @PathParam("ledgerId") Long ledgerId, @PathParam("entryId") Long entryId,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetMessageById(decode(encodedSubName), ledgerId, entryId, authoritative);
+        return internalGetMessageById(ledgerId, entryId, authoritative);
     }
 
     @GET

@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1402,24 +1403,17 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected Response internalGetMessageById(String subName, long ledgerId, long entryId, boolean authoritative) {
-        verifyReadOperation(subName, authoritative);
+    protected Response internalGetMessageById(long ledgerId, long entryId, boolean authoritative) {
+        verifyReadOperation(authoritative);
 
+        String subName = "get-message-id-" + UUID.randomUUID().toString();
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        PersistentReplicator replicator = null;
-        PersistentSubscription subscription = null;
+
         Entry entry = null;
-        if (subName.startsWith(topic.getReplicatorPrefix())) {
-            replicator = getReplicatorReference(subName, topic);
-        } else {
-            subscription = (PersistentSubscription) getSubscriptionReference(subName, topic);
-        }
         try {
-            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                entry = replicator.getMessageById(ledgerId, entryId).get();
-            } else {
+            PersistentSubscription subscription =
+                    (PersistentSubscription) topic.createSubscription(subName, InitialPosition.Earliest, false).get();
             entry = subscription.getMessageById(ledgerId, entryId).get();
-            }
             return generateResponseWithEntry(entry);
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
@@ -1431,11 +1425,24 @@ public class PersistentTopicsBase extends AdminResource {
             if (entry != null) {
                 entry.release();
             }
+
+            try {
+                topic.unsubscribe(subName).get();
+            } catch (Exception exception) {
+                log.error("Failed to unsubscribe from  topic {} with subscription name {}", topicName, subName);
+            }
         }
     }
 
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
-        verifyReadOperation(subName, authoritative);
+        verifyReadOperation(authoritative);
+        validateAdminAccessForSubscriber(subName, authoritative);
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
+                    subName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Skip messages on a non-persistent topic is not allowed");
+        }
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         PersistentReplicator repl = null;
@@ -1466,20 +1473,13 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private void verifyReadOperation(String subName, boolean authoritative) {
+    private void verifyReadOperation(boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
-        }
-        validateAdminAccessForSubscriber(subName, authoritative);
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
-                    subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
         }
     }
 

@@ -809,9 +809,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, String subName, long ledgerId, long entryId) {
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
         CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        getRemoteMessageById(topic, subName, ledgerId, entryId).handle((r, ex) -> {
+        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
             if (ex != null) {
                 if (ex instanceof NotFoundException) {
                     log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
@@ -827,11 +827,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, String subName,
-                                                                    long ledgerId, long entryId) {
+    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
         TopicName topicName = validateTopic(topic);
-        WebTarget path = topicPath(topicName, "subscription", subName,
-                "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
+        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
         final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
@@ -853,10 +851,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public Message<byte[]> getMessageById(String topic, String subName, long ledgerId, long entryId)
+    public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
             throws PulsarAdminException {
         try {
-            return getMessageByIdAsync(topic, subName, ledgerId, entryId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getMessageByIdAsync(topic, ledgerId, entryId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {

@@ -942,8 +942,6 @@ public interface Topics {
      * Get a message by its messageId via a topic subscription
      * @param topic
      *            Topic name
-     * @param subName
-     *            Subscription name
      * @param ledgerId
      *            Ledger id
      * @param entryId
@@ -952,21 +950,19 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    Message<byte[]> getMessageById(String topic, String subName, long ledgerId, long entryId) throws PulsarAdminException;
+    Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
      * Get a message by its messageId via a topic subscription asynchronously
      * @param topic
      *            Topic name
-     * @param subName
-     *            Subscription name
      * @param ledgerId
      *            Ledger id
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
      */
-    CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, String subName, long ledgerId, long entryId);
+    CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Create a new subscription on a topic

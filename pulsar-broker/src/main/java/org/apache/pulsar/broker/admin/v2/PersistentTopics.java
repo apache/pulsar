@@ -885,7 +885,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/ledger/{ledgerId}/entry/{entryId}")
+    @Path("/{tenant}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}")
     @ApiOperation(value = "Get message by its messageId.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -904,8 +904,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(name = "subName", value = "Subscribed message expired", required = true)
-            @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The ledger id", required = true)
             @PathParam("ledgerId") long ledgerId,
             @ApiParam(value = "The entry id", required = true)
@@ -913,7 +911,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetMessageById(decode(encodedSubName), ledgerId, entryId, authoritative);
+        return internalGetMessageById(ledgerId, entryId, authoritative);
     }
 
     @GET
