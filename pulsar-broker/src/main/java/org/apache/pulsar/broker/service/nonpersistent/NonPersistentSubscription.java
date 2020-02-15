@@ -250,12 +250,6 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Entry> getMessageById(long ledgerId, long entryId) {
-        // No-op
-        return CompletableFuture.completedFuture(null); // TODO: throw exception
-    }
-
-    @Override
     public long getNumberOfEntriesInBacklog() {
         // No-op
         return 0;

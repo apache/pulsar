@@ -80,8 +80,6 @@ public interface Subscription {
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
-    CompletableFuture<Entry> getMessageById(long ledgerId, long entryId);
-
     void expireMessages(int messageTTLInSeconds);
 
     void redeliverUnacknowledgedMessages(Consumer consumer);

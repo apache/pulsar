@@ -775,29 +775,6 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Entry> getMessageById(long ledgerId, long entryId) {
-        CompletableFuture<Entry> future = new CompletableFuture<>();
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Getting message for ledgerId {} entryId {}", topicName, subName, ledgerId, entryId);
-        }
-
-        cursor.asyncGetMessageById(ledgerId, entryId, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
-            @Override
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
-            }
-
-            @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
-                future.complete(entry);
-            }
-        }, null);
-
-        return future;
-    }
-
-    @Override
     public long getNumberOfEntriesInBacklog() {
         return cursor.getNumberOfEntriesInBacklog();
     }

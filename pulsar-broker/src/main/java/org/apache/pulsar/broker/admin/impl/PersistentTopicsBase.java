@@ -20,6 +20,13 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -37,7 +44,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,11 +58,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -1406,30 +1407,34 @@ public class PersistentTopicsBase extends AdminResource {
     protected Response internalGetMessageById(long ledgerId, long entryId, boolean authoritative) {
         verifyReadOperation(authoritative);
 
-        String subName = "get-message-id-" + UUID.randomUUID().toString();
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
         Entry entry = null;
         try {
-            PersistentSubscription subscription =
-                    (PersistentSubscription) topic.createSubscription(subName, InitialPosition.Earliest, false).get();
-            entry = subscription.getMessageById(ledgerId, entryId).get();
+            CompletableFuture<Entry> future = new CompletableFuture<>();
+            ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    future.complete(entry);
+                }
+            }, null);
+
+            entry = future.get(1000, TimeUnit.MILLISECONDS);
             return generateResponseWithEntry(entry);
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
         } catch (Exception exception) {
-            log.error("[{}] Failed to get message with ledgerId {} entryId {} from {} {}",
-                    clientAppId(), ledgerId, entryId, topicName, subName, exception);
+            log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                    clientAppId(), ledgerId, entryId, topicName, exception);
             throw new RestException(exception);
         } finally {
             if (entry != null) {
                 entry.release();
-            }
-
-            try {
-                topic.unsubscribe(subName).get();
-            } catch (Exception exception) {
-                log.error("Failed to unsubscribe from  topic {} with subscription name {}", topicName, subName);
             }
         }
     }
