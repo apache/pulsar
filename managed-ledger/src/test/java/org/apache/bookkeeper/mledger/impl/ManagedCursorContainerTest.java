@@ -275,6 +275,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void asyncGetMessageById(long ledgerId, long entryId, IndividualDeletedEntries deletedEntries,
+                                        ReadEntryCallback callback, Object ctx) {
+        }
+
+        @Override
         public void setActive() {
         }
 

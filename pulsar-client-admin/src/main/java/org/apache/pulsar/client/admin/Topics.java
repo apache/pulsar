@@ -939,6 +939,36 @@ public interface Topics {
     CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
 
     /**
+     * Get a message by its messageId via a topic subscription
+     * @param topic
+     *            Topic name
+     * @param subName
+     *            Subscription name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @return the message indexed by the messageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    Message<byte[]> getMessageById(String topic, String subName, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get a message by its messageId via a topic subscription asynchronously
+     * @param topic
+     *            Topic name
+     * @param subName
+     *            Subscription name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @return a future that can be used to track when the message is returned
+     */
+    CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, String subName, long ledgerId, long entryId);
+
+    /**
      * Create a new subscription on a topic
      *
      * @param topic

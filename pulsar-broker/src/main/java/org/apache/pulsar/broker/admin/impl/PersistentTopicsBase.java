@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1403,21 +1402,41 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected Response internalGetMessageById(String subName, long ledgerId, long entryId, boolean authoritative) {
+        verifyReadOperation(subName, authoritative);
+
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        PersistentReplicator replicator = null;
+        PersistentSubscription subscription = null;
+        Entry entry = null;
+        if (subName.startsWith(topic.getReplicatorPrefix())) {
+            replicator = getReplicatorReference(subName, topic);
+        } else {
+            subscription = (PersistentSubscription) getSubscriptionReference(subName, topic);
+        }
+        try {
+            if (subName.startsWith(topic.getReplicatorPrefix())) {
+                entry = replicator.getMessageById(ledgerId, entryId).get();
+            } else {
+            entry = subscription.getMessageById(ledgerId, entryId).get();
+            }
+            return generateResponseWithEntry(entry);
+        } catch (NullPointerException npe) {
+            throw new RestException(Status.NOT_FOUND, "Message not found");
+        } catch (Exception exception) {
+            log.error("[{}] Failed to get message with ledgerId {} entryId {} from {} {}",
+                    clientAppId(), ledgerId, entryId, topicName, subName, exception);
+            throw new RestException(exception);
+        } finally {
+            if (entry != null) {
+                entry.release();
+            }
+        }
+    }
+
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
-        }
-        validateAdminAccessForSubscriber(subName, authoritative);
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
-                    subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Skip messages on a non-persistent topic is not allowed");
-        }
+        verifyReadOperation(subName, authoritative);
+
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         PersistentReplicator repl = null;
         PersistentSubscription sub = null;
@@ -1433,48 +1452,7 @@ public class PersistentTopicsBase extends AdminResource {
             } else {
                 entry = sub.peekNthMessage(messagePosition).get();
             }
-            checkNotNull(entry);
-            PositionImpl pos = (PositionImpl) entry.getPosition();
-            ByteBuf metadataAndPayload = entry.getDataBuffer();
-
-            // moves the readerIndex to the payload
-            MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-
-            ResponseBuilder responseBuilder = Response.ok();
-            responseBuilder.header("X-Pulsar-Message-ID", pos.toString());
-            for (KeyValue keyValue : metadata.getPropertiesList()) {
-                responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
-            }
-            if (metadata.hasPublishTime()) {
-                responseBuilder.header("X-Pulsar-publish-time", DateFormatter.format(metadata.getPublishTime()));
-            }
-            if (metadata.hasEventTime()) {
-                responseBuilder.header("X-Pulsar-event-time", DateFormatter.format(metadata.getEventTime()));
-            }
-            if (metadata.hasNumMessagesInBatch()) {
-                responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
-            }
-
-            // Decode if needed
-            CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
-            ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
-
-            // Copy into a heap buffer for output stream compatibility
-            ByteBuf data = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedPayload.readableBytes(),
-                    uncompressedPayload.readableBytes());
-            data.writeBytes(uncompressedPayload);
-            uncompressedPayload.release();
-
-            StreamingOutput stream = new StreamingOutput() {
-
-                @Override
-                public void write(OutputStream output) throws IOException, WebApplicationException {
-                    output.write(data.array(), data.arrayOffset(), data.readableBytes());
-                    data.release();
-                }
-            };
-
-            return responseBuilder.entity(stream).build();
+            return generateResponseWithEntry(entry);
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Message not found");
         } catch (Exception exception) {
@@ -1486,6 +1464,64 @@ public class PersistentTopicsBase extends AdminResource {
                 entry.release();
             }
         }
+    }
+
+    private void verifyReadOperation(String subName, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        if (partitionMetadata.partitions > 0) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
+        }
+        validateAdminAccessForSubscriber(subName, authoritative);
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
+                    subName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Skip messages on a non-persistent topic is not allowed");
+        }
+    }
+
+    private Response generateResponseWithEntry(Entry entry) throws IOException {
+        checkNotNull(entry);
+        PositionImpl pos = (PositionImpl) entry.getPosition();
+        ByteBuf metadataAndPayload = entry.getDataBuffer();
+
+        // moves the readerIndex to the payload
+        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+
+        ResponseBuilder responseBuilder = Response.ok();
+        responseBuilder.header("X-Pulsar-Message-ID", pos.toString());
+        for (KeyValue keyValue : metadata.getPropertiesList()) {
+            responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
+        }
+        if (metadata.hasPublishTime()) {
+            responseBuilder.header("X-Pulsar-publish-time", DateFormatter.format(metadata.getPublishTime()));
+        }
+        if (metadata.hasEventTime()) {
+            responseBuilder.header("X-Pulsar-event-time", DateFormatter.format(metadata.getEventTime()));
+        }
+        if (metadata.hasNumMessagesInBatch()) {
+            responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
+        }
+
+        // Decode if needed
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
+        ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
+
+        // Copy into a heap buffer for output stream compatibility
+        ByteBuf data = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedPayload.readableBytes(),
+                uncompressedPayload.readableBytes());
+        data.writeBytes(uncompressedPayload);
+        uncompressedPayload.release();
+
+        StreamingOutput stream = output -> {
+            output.write(data.array(), data.arrayOffset(), data.readableBytes());
+            data.release();
+        };
+
+        return responseBuilder.entity(stream).build();
     }
 
     protected PersistentOfflineTopicStats internalGetBacklog(boolean authoritative) {

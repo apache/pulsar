@@ -131,6 +131,22 @@ public interface ManagedCursor {
     void asyncGetNthEntry(int n, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
             Object ctx);
 
+
+    /**
+     * Asynchronously get a message by its id.
+     *
+     * @param ledgerId
+     *              ledger id
+     * @param entryId
+     *              entry id
+     * @param deletedEntries
+     *              skip individual deleted entries
+     * @param callback
+     * @param ctx
+     */
+    void asyncGetMessageById(long ledgerId, long entryId, IndividualDeletedEntries deletedEntries,
+                             ReadEntryCallback callback, Object ctx);
+
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
      *

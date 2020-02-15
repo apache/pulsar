@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
@@ -78,6 +79,8 @@ public interface Subscription {
     CompletableFuture<Void> resetCursor(Position position);
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
+
+    CompletableFuture<Entry> getMessageById(long ledgerId, long entryId);
 
     void expireMessages(int messageTTLInSeconds);
 

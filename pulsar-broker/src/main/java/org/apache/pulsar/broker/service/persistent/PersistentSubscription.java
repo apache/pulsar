@@ -44,7 +44,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -761,6 +760,29 @@ public class PersistentSubscription implements Subscription {
 
         cursor.asyncGetNthEntry(messagePosition, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
 
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                future.complete(entry);
+            }
+        }, null);
+
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Entry> getMessageById(long ledgerId, long entryId) {
+        CompletableFuture<Entry> future = new CompletableFuture<>();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Getting message for ledgerId {} entryId {}", topicName, subName, ledgerId, entryId);
+        }
+
+        cursor.asyncGetMessageById(ledgerId, entryId, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
