@@ -120,7 +120,7 @@ message MessageMetadata {
     optional bool partition_key_b64_encoded = 17 [ default = false ];
     // Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
     optional bytes ordering_key = 18;
-    
+
     // Mark the message to be delivered at or after the specified timestamp
     optional int64 deliver_at_time = 19;
 
@@ -235,6 +235,12 @@ message CommandConnect {
     optional string original_auth_data = 8;
     optional string original_auth_method = 9;
 
+    // Feature flags
+    optional FeatureFlags feature_flags = 10;
+}
+
+message FeatureFlags {
+  optional bool supports_auth_refresh = 1 [default = false];
 }
 
 message CommandConnected {
@@ -290,7 +296,7 @@ message CommandSubscribe {
     // Signal wether the subscription should be backed by a
     // durable cursor or not
     optional bool durable = 8 [default = true];
-    
+
     // If specified, the subscription will position the cursor
     // markd-delete position  on the particular message id and
     // will send messages from that point
@@ -314,15 +320,15 @@ message CommandSubscribe {
     // to periodically sync the state of replicated subscriptions
     // across different clusters (when using geo-replication).
     optional bool replicate_subscription_state = 14;
-    
-    // If true, the subscribe operation will cause a topic to be 
+
+    // If true, the subscribe operation will cause a topic to be
     // created if it does not exist already (and if topic auto-creation
     // is allowed by broker.
-    // If false, the subscribe operation will fail if the topic 
+    // If false, the subscribe operation will fail if the topic
     // does not exist.
     optional bool force_topic_creation = 15 [default = true];
 
-    // If specified, the subscription will reset cursor's position back 
+    // If specified, the subscription will reset cursor's position back
     // to specified seconds and  will send messages from that point
     optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
 

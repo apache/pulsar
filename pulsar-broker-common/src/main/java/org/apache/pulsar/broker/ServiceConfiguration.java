@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import io.netty.util.internal.PlatformDependent;
@@ -680,6 +681,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Interval of time for checking for expired authentication credentials"
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
+    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Enforce authorization"
     )
@@ -741,6 +748,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
     private String anonymousUserRole = null;
+
+    @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If >0, it will reject all HTTP requests with bodies larged than the configured limit"
+    )
+    private long httpMaxRequestSize = -1;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -878,6 +891,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
+    private int bookkeeperExplicitLacIntervalInMills = 0;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -1189,7 +1205,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of load manager to use"
     )
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
-
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Supported algorithms name for namespace bundle split"
+    )
+    private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide", "topic_count_equally_divide");
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Default algorithm name for namespace bundle split"
+    )
+    private String defaultNamespaceBundleSplitAlgorithm = "range_equally_divide";
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Option to override the auto-detected network interfaces max speed"

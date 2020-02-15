@@ -147,6 +147,9 @@ public class FunctionConfigUtils {
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
             sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
         }
+        if (functionConfig.getForwardSourceMessageProperty() != null) {
+            sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
+        }
 
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
@@ -291,6 +294,7 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         if (functionDetails.hasRetryDetails()) {

@@ -281,7 +281,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty()) {
+        if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());
         }
 

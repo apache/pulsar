@@ -20,7 +20,6 @@
 package org.apache.pulsar.broker.authentication;
 
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
 
 import org.apache.pulsar.common.api.AuthData;
 
@@ -58,5 +57,26 @@ public interface AuthenticationState {
      */
     default long getStateId() {
         return -1L;
+    }
+
+    /**
+     * If the authentication state is expired, it will force the connection to be re-authenticated.
+     */
+    default boolean isExpired() {
+        return false;
+    }
+
+    /**
+     * If the authentication state supports refreshing and the credentials are expired,
+     * the auth provider will call this method ot initiate the refresh process.
+     * <p>
+     * The auth state here will return the broker side data that will be used to send
+     * a challenge to the client.
+     *
+     * @return the {@link AuthData} for the broker challenge to client
+     * @throws AuthenticationException
+     */
+    default AuthData refreshAuthentication() throws AuthenticationException {
+        return null;
     }
 }

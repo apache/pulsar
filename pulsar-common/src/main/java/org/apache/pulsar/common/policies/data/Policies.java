@@ -39,6 +39,8 @@ public class Policies {
     public BundlesData bundles;
     @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
+    @Deprecated
+    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
@@ -100,10 +102,13 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
 
+    @SuppressWarnings("checkstyle:MemberName")
+    public OffloadPolicies offload_policies = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map, publishMaxMessageRate,
+                backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
@@ -118,7 +123,8 @@ public class Policies {
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
                 schema_compatibility_strategy,
-                is_allow_auto_update_schema);
+                is_allow_auto_update_schema,
+                offload_policies);
     }
 
     @Override
@@ -128,6 +134,7 @@ public class Policies {
             return Objects.equals(auth_policies, other.auth_policies)
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
+                    && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
                     && Objects.equals(topicDispatchRate, other.topicDispatchRate)
                     && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
                     && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
@@ -154,7 +161,8 @@ public class Policies {
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
-                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema;
+                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema
+                    && Objects.equals(offload_policies, other.offload_policies);
         }
 
         return false;
@@ -182,6 +190,7 @@ public class Policies {
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
+                .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
                 .add("replicatorDispatchRate", replicatorDispatchRate)
@@ -205,6 +214,7 @@ public class Policies {
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
-                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema).toString();
+                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
+                .add("offload_policies", offload_policies).toString();
     }
 }

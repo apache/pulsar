@@ -77,10 +77,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.zookeeper.KeeperException.Code;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -92,7 +92,7 @@ import org.testng.annotations.Test;
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
-    
+
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -548,6 +548,77 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertTrue(moveStatus.get());
         assertEquals(resetPosition, cursor.getReadPosition());
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    void testResetCursor1() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
+            new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedCursor cursor = ledger.openCursor("trc1");
+        PositionImpl actualEarliest = (PositionImpl) ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+        PositionImpl lastInPrev = (PositionImpl) ledger.addEntry("dummy-entry-4".getBytes(Encoding));
+        PositionImpl firstInNext = (PositionImpl) ledger.addEntry("dummy-entry-5".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-6".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-7".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-8".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-9".getBytes(Encoding));
+        PositionImpl last = (PositionImpl) ledger.addEntry("dummy-entry-10".getBytes(Encoding));
+
+        final AtomicBoolean moveStatus = new AtomicBoolean(false);
+
+        // reset to earliest
+        PositionImpl earliest = PositionImpl.earliest;
+        try {
+            cursor.resetCursor(earliest);
+            moveStatus.set(true);
+        } catch (Exception e) {
+            log.warn("error in reset cursor", e.getCause());
+        }
+        assertTrue(moveStatus.get());
+        PositionImpl earliestPos = new PositionImpl(actualEarliest.getLedgerId(), -1);
+        assertEquals(earliestPos, cursor.getReadPosition());
+        moveStatus.set(false);
+
+        // reset to one after last entry in a ledger should point to the first entry in the next ledger
+        PositionImpl resetPosition = new PositionImpl(lastInPrev.getLedgerId(), lastInPrev.getEntryId() + 1);
+        try {
+            cursor.resetCursor(resetPosition);
+            moveStatus.set(true);
+        } catch (Exception e) {
+            log.warn("error in reset cursor", e.getCause());
+        }
+        assertTrue(moveStatus.get());
+        assertEquals(firstInNext, cursor.getReadPosition());
+        moveStatus.set(false);
+
+        // reset to a non exist larger ledger should point to the first non-exist entry in the last ledger
+        PositionImpl latest = new PositionImpl(last.getLedgerId() + 2, 0);
+        try {
+            cursor.resetCursor(latest);
+            moveStatus.set(true);
+        } catch (Exception e) {
+            log.warn("error in reset cursor", e.getCause());
+        }
+        assertTrue(moveStatus.get());
+        PositionImpl lastPos = new PositionImpl(last.getLedgerId(), last.getEntryId() + 1);
+        assertEquals(lastPos, cursor.getReadPosition());
+        moveStatus.set(false);
+
+        // reset to latest should point to the first non-exist entry in the last ledger
+        PositionImpl anotherLast = PositionImpl.latest;
+        try {
+            cursor.resetCursor(anotherLast);
+            moveStatus.set(true);
+        } catch (Exception e) {
+            log.warn("error in reset cursor", e.getCause());
+        }
+        assertTrue(moveStatus.get());
+        assertEquals(lastPos, cursor.getReadPosition());
+
         cursor.close();
         ledger.close();
     }
@@ -2873,7 +2944,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final long markDeleteLedgerId = 2L;
         final long markDeleteEntryId = -1L;
 
-        MetaStoreImplZookeeper mockMetaStore = mock(MetaStoreImplZookeeper.class);
+        MetaStore mockMetaStore = mock(MetaStore.class);
         doAnswer(new Answer<Object>() {
             public Object answer(InvocationOnMock invocation) {
                 ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
@@ -2967,6 +3038,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getMarkDeletedPosition(), positions[markDelete]);
         assertEquals(c1.getReadPosition(), positions[markDelete + 1]);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
