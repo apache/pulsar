@@ -604,6 +604,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max memory size for broker handling messages sending from producers.\n\n"
+            + " If the processing message size exceed this value, broker will stop read data"
+            + " from the connection. The processing messages means messages are sends to broker"
+            + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
+            + " It's shared across all the topics running in the same broker.\n\n"
+            + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
+    private int maxMessagePublishBufferSizeInMB = Math.max(64,
+        (int) (PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
+    )
+    private int messagePublishBufferCheckIntervalInMillis = 100;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
