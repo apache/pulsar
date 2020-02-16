@@ -36,7 +36,7 @@ import java.util.List;
 public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
 
     public MLTransactionMetadataStoreTest() {
-        super(3);
+        super(3, "15000");
     }
 
     @Test

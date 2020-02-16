@@ -34,7 +34,7 @@ import java.util.concurrent.CountDownLatch;
 public class MLTransactionTimeoutTrackerTest extends BookKeeperClusterTestCase {
 
     public MLTransactionTimeoutTrackerTest() {
-        super(3);
+        super(3, "15001");
     }
 
     @Test

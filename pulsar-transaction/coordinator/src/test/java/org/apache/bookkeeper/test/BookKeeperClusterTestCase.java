@@ -87,8 +87,9 @@ public abstract class BookKeeperClusterTestCase {
 
     protected ExecutorService executor;
 
-    public BookKeeperClusterTestCase(int numBookies) {
+    public BookKeeperClusterTestCase(int numBookies, String zkPort) {
         this.numBookies = numBookies;
+        System.setProperty("test.basePort", zkPort);
     }
 
     @BeforeMethod
