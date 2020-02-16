@@ -1691,7 +1691,7 @@ public class ServerCnx extends PulsarHandler {
             autoReadDisabledRateLimiting = isPublishRateExceeded;
 
         }
-        if (getBrokerService().isMessagePublishBufferThreshold()) {
+        if (getBrokerService().isReachMessagePublishBufferThreshold()) {
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledPublishBufferLimiting = true;
         }

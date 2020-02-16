@@ -59,6 +59,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -218,17 +219,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private Channel listenChannel;
     private Channel listenChannelTls;
 
-    private final long maxMessagePublishBufferSize;
-    private final long resumeProducerReadMessagePublishBufferSize;
-    private volatile long currentMessagePublishBufferSize;
-    private volatile boolean isMessagePublishBufferThreshold;
+    private final long maxMessagePublishBufferBytes;
+    private final long resumeProducerReadMessagePublishBufferBytes;
+    private volatile boolean reachMessagePublishBufferThreshold;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
-        this.maxMessagePublishBufferSize = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
+        this.maxMessagePublishBufferBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
             pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024 * 1024 : -1;
-        this.resumeProducerReadMessagePublishBufferSize = this.maxMessagePublishBufferSize / 2;
-        this.currentMessagePublishBufferSize = 0;
+        this.resumeProducerReadMessagePublishBufferBytes = this.maxMessagePublishBufferBytes / 2;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
@@ -453,8 +452,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     protected void startMessagePublishBufferMonitor() {
-        int interval = pulsar().getConfiguration().getMessagePublishBufferCheckIntervalInMills();
-        if (interval > 0 && maxMessagePublishBufferSize > 0) {
+        int interval = pulsar().getConfiguration().getMessagePublishBufferCheckIntervalInMillis();
+        if (interval > 0 && maxMessagePublishBufferBytes > 0) {
             messagePublishBufferMonitor.scheduleAtFixedRate(safeRun(this::checkMessagePublishBuffer),
                                                             interval, interval, TimeUnit.MILLISECONDS);
         }
@@ -2035,15 +2034,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void checkMessagePublishBuffer() {
-        currentMessagePublishBufferSize = 0;
-        foreachProducer(producer -> currentMessagePublishBufferSize += producer.getCnx().getMessagePublishBufferSize());
-        if (currentMessagePublishBufferSize >= maxMessagePublishBufferSize
-            && !isMessagePublishBufferThreshold) {
-            isMessagePublishBufferThreshold = true;
+        AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
+        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
+            && !reachMessagePublishBufferThreshold) {
+            reachMessagePublishBufferThreshold = true;
         }
-        if (currentMessagePublishBufferSize < resumeProducerReadMessagePublishBufferSize
-            && isMessagePublishBufferThreshold) {
-            isMessagePublishBufferThreshold = false;
+        if (currentMessagePublishBufferBytes.get() < resumeProducerReadMessagePublishBufferBytes
+            && reachMessagePublishBufferThreshold) {
+            reachMessagePublishBufferThreshold = false;
             forEachTopic(topic -> ((AbstractTopic) topic).enableProducerReadForPublishBufferLimiting());
         }
     }
@@ -2055,12 +2054,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
-    public boolean isMessagePublishBufferThreshold() {
-        return isMessagePublishBufferThreshold;
+    public boolean isReachMessagePublishBufferThreshold() {
+        return reachMessagePublishBufferThreshold;
     }
 
     @VisibleForTesting
     long getCurrentMessagePublishBufferSize() {
-        return currentMessagePublishBufferSize;
+        AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
+        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        return currentMessagePublishBufferBytes.get();
     }
 }

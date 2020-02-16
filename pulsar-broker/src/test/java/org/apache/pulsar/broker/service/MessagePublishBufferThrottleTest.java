@@ -47,7 +47,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Test
     public void testMessagePublishBufferThrottleDisabled() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(-1);
-        conf.setMessagePublishBufferCheckIntervalInMills(10);
+        conf.setMessagePublishBufferCheckIntervalInMillis(10);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleDisabled";
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -58,7 +58,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         Assert.assertNotNull(topicRef);
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setMessagePublishBufferSize(Long.MAX_VALUE / 2);
         Thread.sleep(20);
-        Assert.assertFalse(pulsar.getBrokerService().isMessagePublishBufferThreshold());
+        Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
         // Make sure the producer can publish succeed.
         for (int i = 0; i < 10; i++) {
@@ -76,10 +76,10 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Test
     public void testMessagePublishBufferThrottleEnable() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(1);
-        conf.setMessagePublishBufferCheckIntervalInMills(2);
+        conf.setMessagePublishBufferCheckIntervalInMillis(2);
         super.baseSetup();
         Thread.sleep(4);
-        Assert.assertFalse(pulsar.getBrokerService().isMessagePublishBufferThreshold());
+        Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleEnable";
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -89,7 +89,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         Assert.assertNotNull(topicRef);
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setMessagePublishBufferSize(Long.MAX_VALUE / 2);
         Thread.sleep(4);
-        Assert.assertTrue(pulsar.getBrokerService().isMessagePublishBufferThreshold());
+        Assert.assertTrue(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         // The first message can publish success, but the second message should be blocked
         producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);
         MessageId messageId = null;
@@ -121,10 +121,10 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Test
     public void testBlockByPublishRateLimiting() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(1);
-        conf.setMessagePublishBufferCheckIntervalInMills(2);
+        conf.setMessagePublishBufferCheckIntervalInMillis(2);
         super.baseSetup();
         Thread.sleep(4);
-        Assert.assertFalse(pulsar.getBrokerService().isMessagePublishBufferThreshold());
+        Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleEnable";
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -139,7 +139,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setAutoReadDisabledRateLimiting(true);
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setMessagePublishBufferSize(0);
         Thread.sleep(4);
-        Assert.assertFalse(pulsar.getBrokerService().isMessagePublishBufferThreshold());
+        Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         MessageId messageId = null;
         try {
             messageId = producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);

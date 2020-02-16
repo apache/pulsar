@@ -611,15 +611,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " from the connection. The processing messages means messages are sends to broker"
             + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
             + " It's shared across all the topics running in the same broker.\n\n"
-            + " Use -1 to disable the memory limitation. Default is 1/5 of direct memory.\n\n")
+            + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
-        (int) (PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+        (int) (PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
     )
-    private int messagePublishBufferCheckIntervalInMills = 100;
+    private int messagePublishBufferCheckIntervalInMillis = 100;
 
     /**** --- Messaging Protocols --- ****/
 
