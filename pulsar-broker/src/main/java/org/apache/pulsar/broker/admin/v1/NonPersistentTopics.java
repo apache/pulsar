@@ -95,7 +95,7 @@ public class NonPersistentTopics extends PersistentTopics {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats();
+        return ((NonPersistentTopic) topic).getStats(false);
     }
 
     @GET

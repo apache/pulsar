@@ -162,7 +162,7 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats();
+    TopicStats getStats(boolean getPreciseBacklog);
 
     PersistentTopicInternalStats getInternalStats();
 

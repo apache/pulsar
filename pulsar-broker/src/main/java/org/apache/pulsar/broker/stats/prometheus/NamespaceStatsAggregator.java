@@ -61,7 +61,7 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats, includeConsumerMetrics);
+                    getTopicStats(topic, topicStats, includeConsumerMetrics, pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
@@ -82,7 +82,7 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics) {
+    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics, boolean getPreciseBacklog) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -104,8 +104,8 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        stats.msgInCounter = topic.getStats().msgInCounter;
-        stats.bytesInCounter = topic.getStats().bytesInCounter;
+        stats.msgInCounter = topic.getStats(getPreciseBacklog).msgInCounter;
+        stats.bytesInCounter = topic.getStats(getPreciseBacklog).bytesInCounter;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -125,12 +125,13 @@ public class NamespaceStatsAggregator {
 
         topic.getSubscriptions().forEach((name, subscription) -> {
             stats.subscriptionsCount++;
-            stats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+            stats.msgBacklog += subscription.getNumberOfEntriesInBacklog(getPreciseBacklog);
 
             AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                     .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
-            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog();
+            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog(getPreciseBacklog);
             subsStats.msgDelayed = subscription.getNumberOfEntriesDelayed();
+            subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
 
             subscription.getConsumers().forEach(consumer -> {
 

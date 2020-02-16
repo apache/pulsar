@@ -1407,7 +1407,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, TopicStats> getTopicStats() {
         HashMap<String, TopicStats> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats()));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false)));
 
         return stats;
     }

@@ -454,7 +454,7 @@ public class ServerCnx extends PulsarHandler {
         commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.getConnectedSince());
 
         Subscription subscription = consumer.getSubscription();
-        commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
+        commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog(false));
         commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
         commandConsumerStatsResponseBuilder.setType(subscription.getTypeString());
 

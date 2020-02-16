@@ -145,7 +145,7 @@ public class BacklogQuotaManager {
             }
 
             // Calculate number of messages to be skipped using the current backlog and the skip factor.
-            long entriesInBacklog = slowestConsumer.getNumberOfEntriesInBacklog();
+            long entriesInBacklog = slowestConsumer.getNumberOfEntriesInBacklog(false);
             int messagesToSkip = (int) (messageSkipFactor * entriesInBacklog);
             try {
                 // If there are no messages to skip, break out of the loop

@@ -808,14 +808,14 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected TopicStats internalGetStats(boolean authoritative) {
+    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getStats();
+        return topic.getStats(getPreciseBacklog);
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative) {
@@ -850,7 +850,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
-            boolean perPartition) {
+            boolean perPartition, boolean getPreciseBacklog) {
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -864,7 +864,7 @@ public class PersistentTopicsBase extends AdminResource {
         for (int i = 0; i < partitionMetadata.partitions; i++) {
             try {
                 topicStatsFutureList
-                        .add(pulsar().getAdminClient().topics().getStatsAsync((topicName.getPartition(i).toString())));
+                        .add(pulsar().getAdminClient().topics().getStatsAsync((topicName.getPartition(i).toString()), getPreciseBacklog));
             } catch (PulsarServerException e) {
                 asyncResponse.resume(new RestException(e));
                 return;
