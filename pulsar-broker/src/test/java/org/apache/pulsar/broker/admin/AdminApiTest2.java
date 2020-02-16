@@ -53,12 +53,14 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -1062,4 +1064,185 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer.close();
         producer.close();
     }
+
+    @Test(timeOut = 30000)
+    public void testPreciseBacklog() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log";
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+        Message<byte[]> message = consumer.receive();
+        assertNotNull(message);
+
+        // Mock the entries added count. Default is disable the precise backlog, so the backlog is entries added count - consumed count
+        // Since message have not acked, so the backlog is 10
+        PersistentSubscription subscription = (PersistentSubscription)pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName);
+        assertNotNull(subscription);
+        ((ManagedLedgerImpl)subscription.getCursor().getManagedLedger()).setEntriesAddedCounter(10L);
+        TopicStats topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+        consumer.acknowledge(message);
+
+        // wait for ack send
+        Thread.sleep(500);
+
+        // Consumer acks the message, so the precise backlog is 0
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
+
+        topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 9);
+    }
+
+    @Test(timeOut = 30000)
+    public void testBacklogNoDelayed() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-no-delayed";
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < 10; i++) {
+            if (i > 4) {
+                producer.newMessage()
+                    .value("message-1".getBytes(StandardCharsets.UTF_8))
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+            } else {
+                producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        TopicStats topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
+
+        for (int i = 0; i < 5; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+        // Wait the ack send.
+        Thread.sleep(500);
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
+    }
+
+    @Test
+    public void testPreciseBacklogForPartitionedTopic() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-for-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+        Message<byte[]> message = consumer.receive();
+        assertNotNull(message);
+
+        // Mock the entries added count. Default is disable the precise backlog, so the backlog is entries added count - consumed count
+        // Since message have not acked, so the backlog is 10
+        for (int i = 0; i < 2; i++) {
+            PersistentSubscription subscription = (PersistentSubscription)pulsar.getBrokerService().getTopicReference(topic + "-partition-" + i).get().getSubscription(subName);
+            assertNotNull(subscription);
+            ((ManagedLedgerImpl)subscription.getCursor().getManagedLedger()).setEntriesAddedCounter(10L);
+        }
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 20);
+
+        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+    }
+
+    @Test(timeOut = 30000)
+    public void testBacklogNoDelayedForPartitionedTopic() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-no-delayed-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < 10; i++) {
+            if (i > 4) {
+                producer.newMessage()
+                    .value("message-1".getBytes(StandardCharsets.UTF_8))
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+            } else {
+                producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
+
+        for (int i = 0; i < 5; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+        // Wait the ack send.
+        Thread.sleep(500);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
+    }
+
 }

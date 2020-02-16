@@ -40,6 +40,9 @@ public class SubscriptionStats {
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
 
+    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    public long msgBacklogNoDelayed;
+
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
     public boolean blockedSubscriptionOnUnackedMsgs;
 
@@ -85,6 +88,7 @@ public class SubscriptionStats {
         msgThroughputOut = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
+        msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
         lastExpireTimestamp = 0L;
@@ -99,6 +103,7 @@ public class SubscriptionStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
+        this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
         this.isReplicated |= stats.isReplicated;

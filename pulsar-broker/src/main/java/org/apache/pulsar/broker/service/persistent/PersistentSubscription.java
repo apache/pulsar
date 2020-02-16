@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -391,7 +392,7 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
+        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
@@ -573,7 +574,7 @@ public class PersistentSubscription implements Subscription {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Backlog size before clearing: {}", topicName, subName,
-                    cursor.getNumberOfEntriesInBacklog());
+                    cursor.getNumberOfEntriesInBacklog(false));
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -581,7 +582,7 @@ public class PersistentSubscription implements Subscription {
             public void clearBacklogComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
-                            cursor.getNumberOfEntriesInBacklog());
+                            cursor.getNumberOfEntriesInBacklog(false));
                 }
                 future.complete(null);
             }
@@ -602,7 +603,7 @@ public class PersistentSubscription implements Subscription {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Skipping {} messages, current backlog {}", topicName, subName, numMessagesToSkip,
-                    cursor.getNumberOfEntriesInBacklog());
+                    cursor.getNumberOfEntriesInBacklog(false));
         }
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
@@ -610,7 +611,7 @@ public class PersistentSubscription implements Subscription {
                     public void skipEntriesComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Skipped {} messages, new backlog {}", topicName, subName,
-                                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
                     }
@@ -776,8 +777,8 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog();
+    public long getNumberOfEntriesInBacklog(boolean getPreciseBacklog) {
+        return cursor.getNumberOfEntriesInBacklog(getPreciseBacklog);
     }
 
     @Override
@@ -917,8 +918,8 @@ public class PersistentSubscription implements Subscription {
     @Override
     public void expireMessages(int messageTTLInSeconds) {
         this.lastExpireTimestamp = System.currentTimeMillis();
-        if ((getNumberOfEntriesInBacklog() == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
-                && getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
+                && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return;
@@ -934,7 +935,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats() {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -967,7 +968,8 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog();
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
+        subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
         return subStats;
@@ -1047,7 +1049,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     void topicTerminated() {
-        if (cursor.getNumberOfEntriesInBacklog() == 0) {
+        if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // notify the consumers if there are consumers connected to this topic.
             if (null != dispatcher) {
                 // Immediately notify the consumer that there are no more available messages
@@ -1195,6 +1197,11 @@ public class PersistentSubscription implements Subscription {
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(snapshot);
         }
+    }
+
+    @VisibleForTesting
+    public ManagedCursor getCursor() {
+        return cursor;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

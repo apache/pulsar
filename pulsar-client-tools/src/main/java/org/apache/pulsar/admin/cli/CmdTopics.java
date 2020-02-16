@@ -370,10 +370,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getStats(topic));
+            print(topics.getStats(topic, getPreciseBacklog));
         }
     }
 
@@ -412,10 +416,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--per-partition", description = "Get per partition stats")
         private boolean perPartition = false;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(topics.getPartitionedStats(topic, perPartition));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog));
         }
     }
 
