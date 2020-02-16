@@ -38,6 +38,7 @@ type goInstance struct {
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
 	lastHealthCheckTs int64
+	properties        map[string]string
 }
 
 // newGoInstance init goInstance and init function context
@@ -48,6 +49,7 @@ func newGoInstance() *goInstance {
 	}
 	now := time.Now()
 	goInstance.lastHealthCheckTs = now.UnixNano()
+	goInstance.properties = make(map[string]string)
 	return goInstance
 }
 
@@ -176,7 +178,7 @@ func (gi *goInstance) setupProducer() (err error) {
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
-			// set send timeout to be infinity to prevent potential deadlock with consumer
+			// Set send timeout to be infinity to prevent potential deadlock with consumer
 			// that might happen when consumer is blocked due to unacked messages
 		})
 		if err != nil {
