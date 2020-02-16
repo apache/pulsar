@@ -36,7 +36,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -71,6 +70,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -226,7 +226,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // unload ns-bundle2 as well
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
-        // let producer2 give some time to get disconnect signal and get disconencted
+        // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
         verify(producer2, atLeastOnce()).connectionClosed(any());
 
@@ -344,9 +344,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         versionField.set(cnx, 3);
 
         // (1) send non-batch message: consumer should be able to consume
+        MessageId lastNonBatchedMessageId = null;
         for (int i = 0; i < numMessagesPerBatch; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            lastNonBatchedMessageId = producer.send(message.getBytes());
         }
         Set<String> messageSet = Sets.newHashSet();
         Message<byte[]> msg = null;
@@ -363,7 +364,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer1.setClientCnx(null);
         // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
         for (int i = 0; i < numMessagesPerBatch; i++) {
-            String message = "my-message-" + i;
+            String message = "my-batch-message-" + i;
             batchProducer.sendAsync(message.getBytes());
         }
         batchProducer.flush();
@@ -379,13 +380,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(subType)
                 .subscribe();
+        consumer2.seek(lastNonBatchedMessageId);
 
         messageSet.clear();
         for (int i = 0; i < numMessagesPerBatch; i++) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
+            msg = consumer2.receive();
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
+            String expectedMessage = "my-batch-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             consumer2.acknowledge(msg);
         }
@@ -527,7 +529,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentLookupRequest(1);
             startBroker();
-            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            String lookupUrl = pulsar.getBrokerServiceUrl();
 
             @Cleanup
             PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
@@ -601,7 +603,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             startBroker();
-            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+            String lookupUrl = pulsar.getBrokerServiceUrl();
 
             pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
                     .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
@@ -655,8 +657,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
 
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         ClientCnx cnx = producer.cnx();

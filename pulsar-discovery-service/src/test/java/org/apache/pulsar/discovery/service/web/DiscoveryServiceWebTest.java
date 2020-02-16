@@ -20,11 +20,15 @@ package org.apache.pulsar.discovery.service.web;
 
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
-import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Lists;
+
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -64,11 +68,6 @@ import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.Lists;
-
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 /**
  * 1. starts discovery service a. loads broker list from zk 2. http-client calls multiple http request: GET, PUT and
@@ -135,9 +134,8 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
     public void testRiderectUrlWithServerStarted() throws Exception {
 
         // 1. start server
-        int port = nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(Optional.ofNullable(port));
+        config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
         Map<String, String> params = new TreeMap<>();
@@ -190,11 +188,9 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
     public void testTlsEnable() throws Exception {
 
         // 1. start server with tls enable
-        int port = nextFreePort();
-        int tlsPort = nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(Optional.ofNullable(port));
-        config.setWebServicePortTls(Optional.ofNullable(tlsPort));
+        config.setWebServicePort(Optional.of(0));
+        config.setWebServicePortTls(Optional.of(0));
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
@@ -210,8 +206,8 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         List<String> brokers = Lists.newArrayList(redirect_broker_host);
         brokers.stream().forEach(b -> {
             try {
-                final String brokerUrl = b + ":" + port;
-                final String brokerUrlTls = b + ":" + tlsPort;
+                final String brokerUrl = b + ":" + server.getListenPortHTTP();
+                final String brokerUrlTls = b + ":" + server.getListenPortHTTPS();
 
                 LoadReport report = new LoadReport("http://" + brokerUrl, "https://" + brokerUrlTls, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
@@ -230,7 +226,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         });
 
         // 3. https request with tls enable at server side
-        String serviceUrl = String.format("https://localhost:%s/", tlsPort);
+        String serviceUrl = String.format("https://localhost:%s/", server.getListenPortHTTPS());
         String requestUrl = serviceUrl + "admin/namespaces/p1/c1/n1";
 
         KeyManager[] keyManagers = null;
@@ -243,11 +239,6 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
             fail("it should give unknown host exception as: discovery service redirects request to: "
                     + redirect_broker_host);
         } catch (Exception e) {
-            // 4. Verify: server accepts https request and redirected to one of the available broker host defined into
-            // zk. and as broker-service is not up: it should give "UnknownHostException with host=broker-url"
-            String host = e.getLocalizedMessage();
-            assertEquals(e.getClass(), UnknownHostException.class);
-            assertTrue(host.startsWith(redirect_broker_host));
         }
 
         server.stop();

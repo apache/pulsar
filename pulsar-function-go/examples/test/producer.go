@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/apache/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -48,10 +48,12 @@ func main() {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		if err := producer.Send(ctx, pulsar.ProducerMessage{
+		msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
-		}); err != nil {
+		})
+		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Printf("the message ID is: %+v\n", msgID)
 	}
 }

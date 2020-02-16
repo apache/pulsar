@@ -21,13 +21,12 @@
 
 # SSDs for bookie journal storage
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: bookie-ssd
 provisioner: kubernetes.io/aws-ebs
 parameters:
   type: gp2
-  zones: us-east-2a
   fsType: xfs
 #  To create encrypted ebs volume using kms
 #  encrypted: "true"
@@ -36,13 +35,12 @@ reclaimPolicy: Retain
 ---
 # HDDs for bookie ledger storage
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: bookie-hdd
 provisioner: kubernetes.io/aws-ebs
 parameters:
   type: st1
-  zones: us-east-2a
   fsType: xfs
 #  To create encrypted ebs volume using kms
 #  encrypted: "true"
@@ -54,14 +52,15 @@ kind: ConfigMap
 metadata:
   name: bookie-config
 data:
-  PULSAR_MEM: "\"-Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
-  PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "2048" # Write cache size (direct memory)
-  PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "2048" # Read cache size (direct memory)
-  PULSAR_PREFIX_dbStorage_rocksDB_blockCacheSize: "4294967296"
-  PULSAR_PREFIX_journalMaxSizeMB: "2048"
-  PULSAR_PREFIX_zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  PULSAR_PREFIX_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
-  PULSAR_PREFIX_useHostNameAsBookieID: "true"
+  BOOKIE_MEM: "\"-Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest -Xms28g -Xmx28g -XX:MaxDirectMemorySize=28g\""
+  BOOKIE_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
+  dbStorage_writeCacheMaxSizeMb: "2048" # Write cache size (direct memory)
+  dbStorage_readAheadCacheMaxSizeMb: "2048" # Read cache size (direct memory)
+  dbStorage_rocksDB_blockCacheSize: "4294967296"
+  journalMaxSizeMB: "2048"
+  zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+  useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
@@ -203,9 +202,9 @@ spec:
                         name: bookie-config
                 env:
                     ## Configure for lower mem usage
-                  - name: PULSAR_MEM
+                  - name: BOOKIE_MEM
                     value: "\" -Xmx256m \""
-                  - name: PULSAR_GC
+                  - name: BOOKIE_GC
                     value: "\"  \""
 # Uncomment the following if bookie should be deployed on a specific instance type
 #            nodeSelector:

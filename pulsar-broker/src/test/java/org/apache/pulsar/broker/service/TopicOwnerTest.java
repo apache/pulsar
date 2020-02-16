@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
-import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -37,7 +35,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.net.URL;
 import java.util.Optional;
 
 public class TopicOwnerTest {
@@ -45,10 +42,6 @@ public class TopicOwnerTest {
     private static final Logger log = LoggerFactory.getLogger(TopicOwnerTest.class);
 
     LocalBookkeeperEnsemble bkEnsemble;
-    protected final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    protected int[] brokerWebServicePorts = new int[BROKER_COUNT];
-    protected int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
-    protected URL[] brokerUrls = new URL[BROKER_COUNT];
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     protected static final int BROKER_COUNT = 5;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
@@ -58,21 +51,17 @@ public class TopicOwnerTest {
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            brokerWebServicePorts[i] = PortManager.nextFreePort();
-            brokerNativeBrokerPorts[i] = PortManager.nextFreePort();
-
             ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
+            config.setBrokerServicePort(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.ofNullable(brokerWebServicePorts[i]));
-            config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
+            config.setWebServicePort(Optional.of(0));
+            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             configurations[i] = config;
@@ -81,15 +70,16 @@ public class TopicOwnerTest {
             pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
 
-            brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
+            pulsarAdmins[i] = PulsarAdmin.builder()
+                    .serviceHttpUrl(pulsarServices[i].getWebServiceAddress())
+                    .build();
         }
         Thread.sleep(1000);
     }
 
     @Test
     public void testConnectToInvalidateBundleCacheBroker() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(brokerUrls[0].toString()));
+        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
         pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
@@ -113,7 +103,7 @@ public class TopicOwnerTest {
         // All brokers will invalidate bundles cache after namespace bundle split
         pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
-                true);
+                true, null);
 
         PulsarClient client = PulsarClient.builder().
                 serviceUrl(serviceUrlForTopic1)

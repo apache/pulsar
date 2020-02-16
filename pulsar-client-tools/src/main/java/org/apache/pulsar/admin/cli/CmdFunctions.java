@@ -257,6 +257,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean DEPRECATED_retainOrdering;
         @Parameter(names = "--retain-ordering", description = "Function consumes and processes messages in order")
         protected Boolean retainOrdering;
+        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
+        protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
@@ -299,9 +301,9 @@ public class CmdFunctions extends CmdBase {
         protected Long timeoutMs;
         @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
         protected Integer maxMessageRetries;
-        @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
-        protected String customRuntimeOptions;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        protected String customRuntimeOptions;
+        @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
@@ -389,8 +391,12 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
 
-            if (retainOrdering != null) {
+            if (null != retainOrdering) {
                 functionConfig.setRetainOrdering(retainOrdering);
+            }
+
+            if (null != forwardSourceMessageProperty) {
+                functionConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
 
             if (isNotBlank(subsName)) {

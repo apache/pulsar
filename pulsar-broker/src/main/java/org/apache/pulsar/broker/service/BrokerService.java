@@ -75,7 +75,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -83,7 +82,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -123,6 +121,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -405,7 +404,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected void startInactivityMonitor() {
         if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
             int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
-            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(interval)), interval, interval,
+            int maxInactiveDurationInSec = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(maxInactiveDurationInSec)), interval, interval,
                     TimeUnit.SECONDS);
         }
 
@@ -465,7 +465,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // schedule task that sums up publish-rate across all cnx on a topic
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
                             topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
                             TimeUnit.SECONDS);
                 }
@@ -504,7 +504,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         brokerTickTimeMs,
                         brokerTickTimeMs,
                         TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limitting bucket
+                    // schedule task that refreshes rate-limiting bucket
                     brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
                         safeRun(() -> refreshBrokerPublishRate()),
                         1,
@@ -983,7 +983,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             policies.ifPresent(p -> {
                     long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
                     if (p.offload_deletion_lag_ms != null) {
@@ -1097,8 +1098,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return lookupRequestSemaphore.get();
     }
 
-    public void checkGC(int gcIntervalInSeconds) {
-        forEachTopic(topic -> topic.checkGC(gcIntervalInSeconds));
+    public void checkGC(int maxInactiveDurationInSec) {
+        forEachTopic(topic -> topic.checkGC(maxInactiveDurationInSec,
+            pulsar.getConfiguration().getBrokerDeleteInactiveTopicsMode()));
     }
 
     public void checkMessageExpiry() {
@@ -1200,7 +1202,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
-            log.debug(String.format("Failed to check the ownership of the topic: %s", topicName), e);
+            log.debug("Failed to check the ownership of the topic: {}", topicName, e);
             throw new RuntimeException(new ServerMetadataException(e));
         }
 
@@ -1216,9 +1218,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * Unload all the topic served by the broker service under the given service unit
      *
      * @param serviceUnit
+     * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect and forcefully close managed-ledger
      * @return
      */
-    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit) {
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Integer> result = new CompletableFuture<Integer>();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
@@ -1227,7 +1230,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close() : CompletableFuture.completedFuture(null)));
+                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect) : CompletableFuture.completedFuture(null)));
             }
         });
         CompletableFuture<Void> aggregator = FutureUtil.waitForAll(closeFutures);
@@ -1821,10 +1824,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     partitionedTopicPath(topicName), content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
-                            // we wait for the data to be synced in all quorums and the observers
-                            executor().schedule(
-                                    SafeRunnable.safeRun(() -> partitionedTopicFuture.complete(configMetadata)),
-                                    PersistentTopicsBase.PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS, TimeUnit.MILLISECONDS);
+                            // Sync data to all quorums and the observers
+                            pulsar.getGlobalZkCache().getZooKeeper().sync(partitionedTopicPath(topicName),
+                                (rc2, path2, ctx2) -> {
+                                    if (rc2 == KeeperException.Code.OK.intValue()) {
+                                        partitionedTopicFuture.complete(configMetadata);
+                                    } else {
+                                        partitionedTopicFuture.completeExceptionally(KeeperException.create(rc2));
+                                    }
+                            }, null);
                         } else {
                             partitionedTopicFuture.completeExceptionally(KeeperException.create(rc));
                         }
@@ -1865,7 +1873,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     /**
-     * If per-broker unack message reached to limit then it blocks dispatcher if its unack message limit has been
+     * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}
      *
      * @param dispatcher

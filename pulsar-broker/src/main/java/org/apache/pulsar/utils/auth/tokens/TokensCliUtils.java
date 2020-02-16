@@ -304,8 +304,9 @@ public class TokensCliUtils {
                 System.exit(1);
             }
         } catch (Exception e) {
-            jcommander.usage();
             System.err.println(e);
+            String chosenCommand = jcommander.getParsedCommand();
+            jcommander.usage(chosenCommand);
             System.exit(1);
         }
 

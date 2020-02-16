@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -33,11 +35,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-
-import com.google.common.util.concurrent.MoreExecutors;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 
 
 public class BaseDiscoveryTestSetup {
@@ -50,8 +47,8 @@ public class BaseDiscoveryTestSetup {
 
     protected void setup() throws Exception {
         config = new ServiceConfig();
-        config.setServicePort(Optional.ofNullable(nextFreePort()));
-        config.setServicePortTls(Optional.ofNullable(nextFreePort()));
+        config.setServicePort(Optional.of(0));
+        config.setServicePortTls(Optional.of(0));
         config.setBindOnLocalhost(true);
 
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);

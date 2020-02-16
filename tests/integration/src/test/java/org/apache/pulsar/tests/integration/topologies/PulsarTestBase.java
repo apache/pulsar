@@ -124,7 +124,6 @@ public class PulsarTestBase {
 
                 for (int i = 0; i < numMessages; i++) {
                     Message<String> m = consumer.receive();
-                    System.out.println(i);
                     assertEquals("smoke-message-" + i, m.getValue());
                 }
             }

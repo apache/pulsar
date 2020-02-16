@@ -27,8 +27,10 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Date;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -51,10 +53,8 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.chrono.ISOChronology;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -90,7 +90,7 @@ public class AvroSchemaTest {
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
-        DateTime timestampMillis;
+        Instant timestampMillis;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
         LocalTime timeMillis;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
@@ -117,7 +117,7 @@ public class AvroSchemaTest {
             validator.validate(
                 schema1,
                 Arrays.asList(
-                    new Schema.Parser().parse(schemaDef2)
+                    new Schema.Parser().setValidateDefaults(false).parse(schemaDef2)
                 )
             );
             fail("Should fail on validating incompatible schemas");
@@ -144,13 +144,17 @@ public class AvroSchemaTest {
         }
     }
 
+    public void assertJSONEquals(String s1, String s2) throws JSONException {
+        JSONAssert.assertEquals(s1, s2, false);
+    }
+
     @Test
-    public void testNotAllowNullSchema() {
+    public void testNotAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_AVRO_NOT_ALLOW_NULL);
+        assertJSONEquals(schemaJson, SCHEMA_AVRO_NOT_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -167,12 +171,13 @@ public class AvroSchemaTest {
     }
 
     @Test
-    public void testAllowNullSchema() {
+    public void testAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
+        assertJSONEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -250,7 +255,7 @@ public class AvroSchemaTest {
 
         SchemaLogicalType schemaLogicalType = new SchemaLogicalType();
         schemaLogicalType.setTimestampMicros(System.currentTimeMillis()*1000);
-        schemaLogicalType.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
+        schemaLogicalType.setTimestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"));
         schemaLogicalType.setDecimal(new BigDecimal("12.34"));
         schemaLogicalType.setDate(LocalDate.now());
         schemaLogicalType.setTimeMicros(System.currentTimeMillis()*1000);
@@ -292,9 +297,9 @@ public class AvroSchemaTest {
     NasaMission nasaMission = NasaMission.newBuilder()
         .setId(1001)
         .setName("one")
-        .setCreateYear(new LocalDate(new Date().getTime()))
-        .setCreateTime(new LocalTime(new Date().getTime()))
-        .setCreateTimestamp(new DateTime(new Date().getTime()))
+        .setCreateYear(LocalDate.now())
+        .setCreateTime(LocalTime.now())
+        .setCreateTimestamp(Instant.now())
         .build();
 
     byte[] bytes = avroSchema.encode(nasaMission);

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.zookeeper;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.zookeeper.ZooKeeperClientAspectJTest.ZookeeperServerTest;
 import org.testng.annotations.AfterMethod;
@@ -27,15 +26,14 @@ import org.testng.annotations.Test;
 
 public class ClusterMetadataSetupTest {
     private ZookeeperServerTest localZkS;
-    private final int LOCAL_ZOOKEEPER_PORT = PortManager.nextFreePort();
 
     // test SetupClusterMetadata several times, all should be suc
     @Test
     public void testReSetupClusterMetadata() throws Exception {
         String[] args = {
             "--cluster", "testReSetupClusterMetadata-cluster",
-            "--zookeeper", "127.0.0.1:" + LOCAL_ZOOKEEPER_PORT,
-            "--configuration-store", "127.0.0.1:" + LOCAL_ZOOKEEPER_PORT,
+            "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
             "--web-service-url", "http://127.0.0.1:8080",
             "--web-service-url-tls", "https://127.0.0.1:8443",
             "--broker-service-url", "pulsar://127.0.0.1:6650",
@@ -48,7 +46,7 @@ public class ClusterMetadataSetupTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
+        localZkS = new ZookeeperServerTest(0);
         localZkS.start();
     }
 

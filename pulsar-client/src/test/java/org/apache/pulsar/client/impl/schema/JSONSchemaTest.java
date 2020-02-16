@@ -71,6 +71,7 @@ public class JSONSchemaTest {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
         Assert.assertEquals(schemaJson, SCHEMA_JSON_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);

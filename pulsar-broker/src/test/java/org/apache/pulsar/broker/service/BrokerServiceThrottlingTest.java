@@ -23,10 +23,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
-import java.net.URI;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,9 +48,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
  */
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
@@ -65,7 +65,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     /**
-     * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
      *
      * @throws Exception
      */
@@ -89,8 +89,9 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
@@ -130,8 +131,9 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
 
         int newPermits = 1;
@@ -174,6 +176,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         assertNotEquals(successfulConsumers.size(), totalConsumers);
     }
 
+
     /**
      * This testcase make sure that once consumer lost connection with broker, it always reconnects with broker by
      * retrying on throttling-error exception also.
@@ -189,11 +192,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();
 
-        final String topicName = "persistent://prop/ns-abc/newTopic";
-
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
         List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
@@ -215,9 +218,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         latch.await();
 
-        stopBroker();
-        conf.setMaxConcurrentLookupRequest(1);
-        startBroker();
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", "1");
+        admin.topics().unload(topicName);
 
         // wait strategically for all consumers to reconnect
         retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
@@ -256,5 +258,4 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
     }
-
 }

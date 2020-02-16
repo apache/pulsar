@@ -132,9 +132,9 @@
   	</dependency>
 
     <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-      <scope>test</scope>
+      <groupId>com.rabbitmq</groupId>
+      <artifactId>amqp-client</artifactId>
+      <version>${rabbitmq-client.version}</version>
     </dependency>
 
     <dependency>

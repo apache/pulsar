@@ -83,7 +83,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -93,6 +92,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -948,14 +948,21 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // order trim and reset operations on a ledger
         ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
-            if (ledger.isValidPosition(newPosition) || newPosition.equals(PositionImpl.earliest)
-                    || newPosition.equals(PositionImpl.latest)) {
-                internalResetCursor(newPosition, callback);
-            } else {
-                // caller (replay) should handle this error and retry cursor reset
-                callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(newPosition.toString()),
-                        newPosition);
+            PositionImpl actualPosition = newPosition;
+
+            if (!ledger.isValidPosition(actualPosition) &&
+                !actualPosition.equals(PositionImpl.earliest) &&
+                !actualPosition.equals(PositionImpl.latest)) {
+                actualPosition = ledger.getNextValidPosition(actualPosition);
+
+                if (actualPosition == null) {
+                    // next valid position would only return null when newPos
+                    // is larger than all available positions, then it's latest in effect.
+                    actualPosition = PositionImpl.latest;
+                }
             }
+
+            internalResetCursor(actualPosition, callback);
         }));
     }
 

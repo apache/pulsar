@@ -35,9 +35,10 @@ metadata:
 spec:
   ports:
 {{ toYaml .Values.grafana.service.ports | indent 2 }}
-  clusterIP: None
   selector:
     app: {{ template "pulsar.name" . }}
     release: {{ .Release.Name }}
     component: {{ .Values.grafana.component }}
+  type: ClusterIP
+  sessionAffinity: None
 {{- end }}

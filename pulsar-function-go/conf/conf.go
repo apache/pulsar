@@ -24,14 +24,13 @@ import (
 	"flag"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"time"
 
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"gopkg.in/yaml.v2"
 )
 
-const ConfigPath = "github.com/apache/pulsar/pulsar-function-go/conf/conf.yaml"
+const ConfigPath = "conf/conf.yaml"
 
 type Conf struct {
 	PulsarServiceURL string        `json:"pulsarServiceURL" yaml:"pulsarServiceURL"`
@@ -70,8 +69,9 @@ type Conf struct {
 	Ram  int64   `json:"ram" yaml:"ram"`
 	Disk int64   `json:"disk" yaml:"disk"`
 	//retryDetails config
-	MaxMessageRetries int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
-	DeadLetterTopic   string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
+	MaxMessageRetries           int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
+	DeadLetterTopic             string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
+	ExpectedHealthCheckInterval int32  `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
 }
 
 var (
@@ -100,10 +100,10 @@ func (c *Conf) GetConf() *Conf {
 				log.Errorf("unmarshal yaml file error:%s", err.Error())
 				return nil
 			}
-		} else if err != nil && os.IsNotExist(err) && confContent == "" {
+		} else if os.IsNotExist(err) && confContent == "" {
 			log.Errorf("conf file not found, no config content provided, err:%s", err.Error())
 			return nil
-		} else if err != nil && !os.IsNotExist(err) {
+		} else if !os.IsNotExist(err) {
 			log.Errorf("load conf file failed, err:%s", err.Error())
 			return nil
 		}
@@ -121,19 +121,12 @@ func (c *Conf) GetConf() *Conf {
 }
 
 func init() {
-	var homeDir string
-	usr, err := user.Current()
-	if err == nil {
-		homeDir = usr.HomeDir
+	var defaultPath string
+	if err := os.Chdir("../"); err == nil {
+		defaultPath = ConfigPath
 	}
+	log.Infof("The default config file path is: %s", defaultPath)
 
-	// Fall back to standard HOME environment variable that works
-	// for most POSIX OSes if the directory from the Go standard
-	// lib failed.
-	if err != nil || homeDir == "" {
-		homeDir = os.Getenv("HOME")
-	}
-	defaultPath := homeDir + "/" + ConfigPath
 	flag.BoolVar(&help, "help", false, "print help cmd")
 	flag.StringVar(&confFilePath, "instance-conf-path", defaultPath, "config conf.yml filepath")
 	flag.StringVar(&confContent, "instance-conf", "", "the string content of Conf struct")

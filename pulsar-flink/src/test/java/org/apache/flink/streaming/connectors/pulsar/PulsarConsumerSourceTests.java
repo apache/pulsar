@@ -308,7 +308,7 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
-        PulsarClient createClient() {
+        PulsarClient getClient() {
             return mock(PulsarClient.class);
         }
 

@@ -48,7 +48,7 @@ public class MessageIdSerialization {
         MessageId.fromByteArray(null);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    @Test(expectedExceptions = RuntimeException.class)
     void testProtobufSerializationEmpty() throws Exception {
         MessageId.fromByteArray(new byte[0]);
     }

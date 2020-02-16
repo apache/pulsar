@@ -124,6 +124,7 @@
                                     <include>org.apache.pulsar:pulsar-client-original</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-original</include>
                                     <include>org.apache.pulsar:managed-ledger</include>
+                                    <include>org.apache.pulsar:pulsar-metadata</include>
 
                                     <include>org.glassfish.jersey*:*</include>
                                     <include>javax.ws.rs:*</include>
