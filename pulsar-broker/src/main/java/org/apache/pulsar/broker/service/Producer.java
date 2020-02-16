@@ -147,7 +147,7 @@ public class Producer {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(Commands.newSendError(producerId, highestSequenceId, ServerError.MetadataError,
                         "Invalid lowest or highest sequence id"));
-                cnx.completedSendOperation(isNonPersistentTopic);
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return;
         }
@@ -160,7 +160,7 @@ public class Producer {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.PersistenceError,
                         "Producer is closed"));
-                cnx.completedSendOperation(isNonPersistentTopic);
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
 
             return;
@@ -170,7 +170,7 @@ public class Producer {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(
                         Commands.newSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker"));
-                cnx.completedSendOperation(isNonPersistentTopic);
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return;
         }
@@ -187,7 +187,7 @@ public class Producer {
                 cnx.ctx().channel().eventLoop().execute(() -> {
                     cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
                             "Messages must be encrypted"));
-                    cnx.completedSendOperation(isNonPersistentTopic);
+                    cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
                 });
                 return;
             }
@@ -353,7 +353,7 @@ public class Producer {
                         producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, callBackSequenceId,
                                 serverError, exception.getMessage()));
                     }
-                    producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
+                    producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
                     producer.publishOperationCompleted();
                     recycle();
                 });
@@ -385,7 +385,7 @@ public class Producer {
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, sequenceId, highestSequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());
-            producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
+            producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             producer.publishOperationCompleted();
             recycle();
         }
