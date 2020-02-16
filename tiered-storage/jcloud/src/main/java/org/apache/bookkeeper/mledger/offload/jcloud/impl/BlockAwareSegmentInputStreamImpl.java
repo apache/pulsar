@@ -21,21 +21,18 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-
+import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,8 +126,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
                 int entryLength = buf.readableBytes();
                 long entryId = entry.getEntryId();
 
-                CompositeByteBuf entryBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer(2);
-                ByteBuf entryHeaderBuf = PulsarByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
+                CompositeByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.compositeBuffer(2);
+                ByteBuf entryHeaderBuf = PooledByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
 
                 entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
                 entryBuf.addComponents(true, entryHeaderBuf, buf);
@@ -215,7 +212,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
     public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
                                          long firstEntryToWrite, long entryBytesAlreadyWritten) {
-        return (int)Math.min(
+        return (int) Math.min(
             maxBlockSize,
             (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
                 + (readHandle.getLength() - entryBytesAlreadyWritten)
