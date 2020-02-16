@@ -1414,7 +1414,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -1435,7 +1435,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 topicStatsHelper.aggMsgRateOut += subMsgRateOut;
                 topicStatsHelper.aggMsgThroughputOut += subMsgThroughputOut;
-                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
@@ -1487,7 +1487,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return lastUpdatedAvgPublishRateInByte;
     }
 
-    public TopicStats getStats() {
+    public TopicStats getStats(boolean getPreciseBacklog) {
 
         TopicStats stats = new TopicStats();
 
@@ -1510,7 +1510,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesInCounter = getBytesInCounter();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats();
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1620,7 +1620,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean hasBacklogs() {
-        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog() > 0);
+        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(false) > 0);
     }
 
     @Override

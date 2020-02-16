@@ -175,14 +175,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertFalse(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(cursor.readEntries(100), new ArrayList<Entry>());
 
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
         assertTrue(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
         List<Entry> entries = cursor.readEntries(100);
@@ -242,7 +242,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
         assertFalse(cursor.hasMoreEntries());
 
         assertEquals(ledger.getNumberOfEntries(), 2);
@@ -251,7 +251,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertFalse(cursor.hasMoreEntries());
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
@@ -266,7 +266,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getTotalSize(), "dummy-entry-1".getBytes(Encoding).length * 2);
 
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertTrue(cursor.hasMoreEntries());
 
         entries = cursor.readEntries(100);
@@ -2313,7 +2313,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
 
         assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
-        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog(false));
 
         ledger.close();
 

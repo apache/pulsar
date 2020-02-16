@@ -54,6 +54,7 @@ public class AggregatedNamespaceStatsTest {
         subStats1.msgBacklog = 50;
         subStats1.msgRateRedeliver = 1.5;
         subStats1.unackedMessages = 2;
+        subStats1.msgBacklogNoDelayed = 30;
         topicStats1.subscriptionStats.put(namespace, subStats1);
 
         TopicStats topicStats2 = new TopicStats();
@@ -81,6 +82,7 @@ public class AggregatedNamespaceStatsTest {
         subStats2.msgBacklog = 27;
         subStats2.msgRateRedeliver = 0.7;
         subStats2.unackedMessages = 0;
+        subStats2.msgBacklogNoDelayed = 20;
         topicStats2.subscriptionStats.put(namespace, subStats2);
 
         AggregatedNamespaceStats nsStats = new AggregatedNamespaceStats();
@@ -111,6 +113,7 @@ public class AggregatedNamespaceStatsTest {
         AggregatedSubscriptionStats nsSubStats = nsStats.subscriptionStats.get(namespace);
         assertNotNull(nsSubStats);
         assertEquals(nsSubStats.msgBacklog, 77);
+        assertEquals(nsSubStats.msgBacklogNoDelayed, 50);
         assertEquals(nsSubStats.msgRateRedeliver, 2.2);
         assertEquals(nsSubStats.unackedMessages, 2);
     }
