@@ -34,8 +34,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private String[] fieldNames;
     private Integer[] positionIndices;
     private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
-    public final static String KEY_SCHEMA_COLUMN_PREFIX = "key.";
-    public final static String VALUE_SCHEMA_COLUMN_PREFIX = "value.";
+    public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
@@ -80,8 +79,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     public static String getColumnName(PulsarColumnHandle.HandleKeyValueType handleKeyValueType, String name) {
         if (Objects.equals(PulsarColumnHandle.HandleKeyValueType.KEY, handleKeyValueType)) {
             return KEY_SCHEMA_COLUMN_PREFIX + name;
-        } else if (Objects.equals(PulsarColumnHandle.HandleKeyValueType.VALUE, handleKeyValueType)) {
-            return VALUE_SCHEMA_COLUMN_PREFIX + name;
         }
         return name;
     }
