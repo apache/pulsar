@@ -697,7 +697,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -714,7 +714,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
                 topicStats.aggMsgRateOut += subMsgRateOut;
                 topicStats.aggMsgThroughputOut += subMsgThroughputOut;
-                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
@@ -751,7 +751,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.endObject();
     }
 
-    public NonPersistentTopicStats getStats() {
+    public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 

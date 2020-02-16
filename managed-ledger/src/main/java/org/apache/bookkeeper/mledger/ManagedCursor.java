@@ -193,9 +193,10 @@ public interface ManagedCursor {
      *
      * <p/>This method has linear time complexity on the number of ledgers included in the managed ledger.
      *
+     * @param isPrecise set to true to get precise backlog count
      * @return the number of entries
      */
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean isPrecise);
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
