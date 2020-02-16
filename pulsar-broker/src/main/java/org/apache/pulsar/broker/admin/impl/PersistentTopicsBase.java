@@ -655,12 +655,63 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalUnloadTopic(boolean authoritative) {
+    protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        unloadTopic(topicName, authoritative);
+
+        getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
+            if (meta.partitions > 0) {
+                final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                for (int i = 0; i < meta.partitions; i++) {
+                    TopicName topicNamePartition = topicName.getPartition(i);
+                    try {
+                        futures.add(pulsar().getAdminClient().topics().unloadAsync(topicNamePartition.toString()));
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicNamePartition, e);
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+                }
+
+                FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                    if (exception != null) {
+                        Throwable th = exception.getCause();
+                        if (th instanceof NotFoundException) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                        } else {
+                            log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, exception);
+                            asyncResponse.resume(new RestException(exception));
+                        }
+                        return null;
+                    }
+
+                    asyncResponse.resume(Response.noContent().build());
+                    return null;
+                });
+            } else {
+                validateAdminAccessForTenant(topicName.getTenant());
+                validateTopicOwnership(topicName, authoritative);
+
+                Topic topic = getTopicReference(topicName);
+                topic.close(false).whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex.getMessage(), ex);
+                        asyncResponse.resume(new RestException(ex));
+
+                    } else {
+                        log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+            }
+        }).exceptionally(t -> {
+            Throwable th = t.getCause();
+            asyncResponse.resume(new RestException(th));
+            return null;
+        });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force) {
@@ -1891,22 +1942,6 @@ public class PersistentTopicsBase extends AdminResource {
             return null;
         });
         return result;
-    }
-
-    protected void unloadTopic(TopicName topicName, boolean authoritative) {
-        validateSuperUserAccess();
-        validateTopicOwnership(topicName, authoritative);
-        try {
-            Topic topic = getTopicReference(topicName);
-            topic.close(false).get();
-            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
-        } catch (NullPointerException e) {
-            log.error("[{}] topic {} not found", clientAppId(), topicName);
-            throw new RestException(Status.NOT_FOUND, "Topic does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, e.getMessage(), e);
-            throw new RestException(e);
-        }
     }
 
     // as described at : (PR: #836) CPP-client old client lib should not be allowed to connect on partitioned-topic.
