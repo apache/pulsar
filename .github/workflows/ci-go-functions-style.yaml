@@ -58,7 +58,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
-          go build ./pf
+          go build ./...
 
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'
