@@ -52,13 +52,6 @@ import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-<<<<<<< HEAD
-import org.jclouds.osgi.ApiRegistry;
-import org.jclouds.osgi.ProviderRegistry;
-import org.jclouds.s3.S3ApiMetadata;
-import org.jclouds.s3.reference.S3Constants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tiered Storage Offloader that is backed by a JCloud Blob Store.

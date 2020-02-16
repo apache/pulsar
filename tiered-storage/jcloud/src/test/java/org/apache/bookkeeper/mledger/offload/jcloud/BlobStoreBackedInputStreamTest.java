@@ -42,8 +42,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
-
+public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
+    
     class RandomInputStream extends InputStream {
         final Random r;
         int bytesRemaining;
