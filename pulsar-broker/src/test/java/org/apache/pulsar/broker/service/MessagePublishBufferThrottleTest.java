@@ -68,8 +68,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         for (CompletableFuture<MessageId> future : futures) {
             Assert.assertNotNull(future.get());
         }
-        Thread.sleep(4);
-        Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L);
+        Thread.sleep(20);
+        Assert.assertFalse(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
         super.internalCleanup();
     }
 
