@@ -565,7 +565,7 @@ public interface Topics {
      *
      * @param topic
      *            topic name
-     * @param isPreciseBacklog
+     * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      * @return the topic statistics
      *
@@ -576,7 +576,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic, boolean isPreciseBacklog) throws PulsarAdminException;
+    TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException;
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
         return getStats(topic, false);
@@ -588,13 +588,13 @@ public interface Topics {
      *
      * @param topic
      *            topic name
-     * @param isPreciseBacklog
+     * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      *
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean isPreciseBacklog);
+    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
         return getStatsAsync(topic, false);
@@ -728,7 +728,7 @@ public interface Topics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean isPreciseBacklog) throws PulsarAdminException;
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog) throws PulsarAdminException;
 
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
         return getPartitionedStats(topic, perPartition, false);
@@ -743,7 +743,7 @@ public interface Topics {
      *            flag to get stats per partition
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
-    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition, boolean isPreciseBacklog);
+    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition, boolean getPreciseBacklog);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
         return getPartitionedStatsAsync(topic, perPartition, false);

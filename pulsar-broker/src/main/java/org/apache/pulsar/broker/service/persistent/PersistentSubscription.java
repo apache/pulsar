@@ -777,8 +777,8 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog(boolean isPreciseBacklog) {
-        return cursor.getNumberOfEntriesInBacklog(isPreciseBacklog);
+    public long getNumberOfEntriesInBacklog(boolean getPreciseBacklog) {
+        return cursor.getNumberOfEntriesInBacklog(getPreciseBacklog);
     }
 
     @Override
@@ -935,7 +935,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean isPreciseBacklog) {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -968,7 +968,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(isPreciseBacklog);
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();

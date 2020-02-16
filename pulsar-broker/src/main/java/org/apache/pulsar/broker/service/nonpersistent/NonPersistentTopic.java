@@ -751,7 +751,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.endObject();
     }
 
-    public NonPersistentTopicStats getStats(boolean isPreciseBacklog) {
+    public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 

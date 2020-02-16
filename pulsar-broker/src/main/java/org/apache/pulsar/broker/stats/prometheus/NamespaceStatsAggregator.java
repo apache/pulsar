@@ -82,7 +82,7 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics, boolean isPreciseBacklog) {
+    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics, boolean getPreciseBacklog) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -104,8 +104,8 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        stats.msgInCounter = topic.getStats(isPreciseBacklog).msgInCounter;
-        stats.bytesInCounter = topic.getStats(isPreciseBacklog).bytesInCounter;
+        stats.msgInCounter = topic.getStats(getPreciseBacklog).msgInCounter;
+        stats.bytesInCounter = topic.getStats(getPreciseBacklog).bytesInCounter;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -125,11 +125,11 @@ public class NamespaceStatsAggregator {
 
         topic.getSubscriptions().forEach((name, subscription) -> {
             stats.subscriptionsCount++;
-            stats.msgBacklog += subscription.getNumberOfEntriesInBacklog(isPreciseBacklog);
+            stats.msgBacklog += subscription.getNumberOfEntriesInBacklog(getPreciseBacklog);
 
             AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                     .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
-            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog(isPreciseBacklog);
+            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog(getPreciseBacklog);
             subsStats.msgDelayed = subscription.getNumberOfEntriesDelayed();
             subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
 

@@ -1508,7 +1508,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return lastUpdatedAvgPublishRateInByte;
     }
 
-    public TopicStats getStats(boolean isPreciseBacklog) {
+    public TopicStats getStats(boolean getPreciseBacklog) {
 
         TopicStats stats = new TopicStats();
 
@@ -1531,7 +1531,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesInCounter = getBytesInCounter();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(isPreciseBacklog);
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;

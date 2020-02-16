@@ -145,7 +145,7 @@ The stats for the topic and its connected producers and consumers can be fetched
 ```shell
 $ pulsar-admin topics stats \
   persistent://test-tenant/namespace/topic \
-  --is-precise-backlog
+  --get-precise-backlog
 ```
 
 #### REST API
