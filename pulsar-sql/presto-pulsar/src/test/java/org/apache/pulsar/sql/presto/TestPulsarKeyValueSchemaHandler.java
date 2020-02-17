@@ -68,6 +68,8 @@ public class TestPulsarKeyValueSchemaHandler {
 
     private final static Boo boo;
 
+    private final Integer KEY_FIELD_NAME_PREFIX_LENGTH = PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX.length();
+
     static {
         foo = new Foo();
         foo.field1 = "field1-value";
@@ -86,7 +88,7 @@ public class TestPulsarKeyValueSchemaHandler {
         final Integer valueData = 10;
         List<ColumnMetadata> columnMetadataList =
                 PulsarMetadata.getPulsarColumns(topicName, schema1.getSchemaInfo(),
-                        true, null);
+                        true,   null);
         int keyCount = 0;
         int valueCount = 0;
         for (ColumnMetadata columnMetadata : columnMetadataList) {
@@ -151,9 +153,9 @@ public class TestPulsarKeyValueSchemaHandler {
         Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object), keyData);
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
-                foo.getValue(columnHandleList.get(1).getName().substring(6)));
+                foo.getValue(columnHandleList.get(1).getName()));
         Assert.assertEquals(keyValueSchemaHandler.extractField(2, object),
-                foo.getValue(columnHandleList.get(2).getName().substring(6)));
+                foo.getValue(columnHandleList.get(2).getName()));
     }
 
     @Test
@@ -198,11 +200,11 @@ public class TestPulsarKeyValueSchemaHandler {
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema3);
         Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object).toString(),
-                boo.getValue(columnHandleList.get(0).getName().substring(4)));
+                boo.getValue(columnHandleList.get(0).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
-                boo.getValue(columnHandleList.get(1).getName().substring(4)));
+                boo.getValue(columnHandleList.get(1).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(2, object),
-                boo.getValue(columnHandleList.get(2).getName().substring(4)));
+                boo.getValue(columnHandleList.get(2).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(3, object), valueData);
     }
 
@@ -242,15 +244,15 @@ public class TestPulsarKeyValueSchemaHandler {
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema4);
         Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object).toString(),
-                boo.getValue(columnHandleList.get(0).getName().substring(4)));
+                boo.getValue(columnHandleList.get(0).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
-                boo.getValue(columnHandleList.get(1).getName().substring(4)));
+                boo.getValue(columnHandleList.get(1).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(2, object),
-                boo.getValue(columnHandleList.get(2).getName().substring(4)));
+                boo.getValue(columnHandleList.get(2).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(3, object).toString(),
-                foo.getValue(columnHandleList.get(3).getName().substring(6)));
+                foo.getValue(columnHandleList.get(3).getName()));
         Assert.assertEquals(keyValueSchemaHandler.extractField(4, object).toString(),
-                foo.getValue(columnHandleList.get(4).getName().substring(6)) + "");
+                foo.getValue(columnHandleList.get(4).getName()) + "");
     }
 
     private List<PulsarColumnHandle> getColumnHandlerList(List<ColumnMetadata> columnMetadataList) {
