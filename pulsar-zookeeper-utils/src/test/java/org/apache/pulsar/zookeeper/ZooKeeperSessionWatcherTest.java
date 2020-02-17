@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
@@ -56,7 +55,20 @@ public class ZooKeeperSessionWatcherTest {
     void setup() {
         zkClient = MockZooKeeper.newInstance();
         shutdownService = new MockShutdownService();
-        sessionWatcher = new ZooKeeperSessionWatcher(zkClient, 1000, shutdownService);
+        sessionWatcher = new ZooKeeperSessionWatcher(zkClient, 1000, new ZookeeperSessionExpiredHandler() {
+
+            private ZooKeeperSessionWatcher watcher;
+            @Override
+            public void onSessionExpired() {
+                watcher.close();
+                shutdownService.shutdown(-1);
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+                this.watcher = watcher;
+            }
+        });
     }
 
     @AfterMethod
@@ -115,7 +127,20 @@ public class ZooKeeperSessionWatcherTest {
 
     @Test
     void testRun1() throws Exception {
-        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 1000, shutdownService);
+        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 1000,
+            new ZookeeperSessionExpiredHandler() {
+                private ZooKeeperSessionWatcher watcher;
+                @Override
+                public void onSessionExpired() {
+                    watcher.close();
+                    shutdownService.shutdown(-1);
+                }
+
+                @Override
+                public void setWatcher(ZooKeeperSessionWatcher watcher) {
+                    this.watcher = watcher;
+                }
+            });
         sessionWatcherZkNull.run();
         assertFalse(sessionWatcherZkNull.isShutdownStarted());
         assertEquals(sessionWatcherZkNull.getKeeperState(), KeeperState.Disconnected);
@@ -125,7 +150,21 @@ public class ZooKeeperSessionWatcherTest {
 
     @Test
     void testRun2() throws Exception {
-        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 0, shutdownService);
+        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 0,
+            new ZookeeperSessionExpiredHandler() {
+
+                private ZooKeeperSessionWatcher watcher;
+                @Override
+                public void onSessionExpired() {
+                    watcher.close();
+                    shutdownService.shutdown(-1);
+                }
+
+                @Override
+                public void setWatcher(ZooKeeperSessionWatcher watcher) {
+                    this.watcher = watcher;
+                }
+            });
         sessionWatcherZkNull.run();
         assertTrue(sessionWatcherZkNull.isShutdownStarted());
         assertEquals(sessionWatcherZkNull.getKeeperState(), KeeperState.Disconnected);

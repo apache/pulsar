@@ -1214,4 +1214,27 @@ public class NamespaceService {
         }
         return isNameSpaceRegistered;
     }
+
+    public void registerOwnedBundles() {
+        List<OwnedBundle> ownedBundles = new ArrayList<>(ownershipCache.getOwnedBundles().values());
+        ownershipCache.invalidateLocalOwnerCache();
+        ownedBundles.forEach(ownedBundle -> {
+            String path = ServiceUnitZkUtils.path(ownedBundle.getNamespaceBundle());
+            try {
+                if (!pulsar.getLocalZkCache().checkRegNodeAndWaitExpired(path)) {
+                    ownershipCache.tryAcquiringOwnership(ownedBundle.getNamespaceBundle());
+                }
+            } catch (Exception e) {
+                try {
+                    ownedBundle.handleUnloadRequest(pulsar, 5, TimeUnit.MINUTES);
+                } catch (IllegalStateException ex) {
+                    // The owned bundle is not in active state.
+                } catch (Exception ex) {
+                    LOG.error("Unexpected exception occur when register owned bundle {}. Shutdown broker now !!!",
+                        ownedBundle.getNamespaceBundle(), ex);
+                    pulsar.getShutdownService().shutdown(-1);
+                }
+            }
+        });
+    }
 }
