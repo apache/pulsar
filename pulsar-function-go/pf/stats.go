@@ -198,7 +198,9 @@ func NewStatWithLabelValues(metricsLabels ...string) statWithLabelValues {
 	return statObj
 }
 
-func filter(ss []*io_prometheus_client.MetricFamily, test func(*io_prometheus_client.MetricFamily) bool) (ret []*io_prometheus_client.MetricFamily) {
+func filter(
+	ss []*io_prometheus_client.MetricFamily,
+	test func(*io_prometheus_client.MetricFamily) bool) (ret []*io_prometheus_client.MetricFamily) {
 	for _, s := range ss {
 		if test(s) {
 			ret = append(ret, s)
@@ -207,7 +209,9 @@ func filter(ss []*io_prometheus_client.MetricFamily, test func(*io_prometheus_cl
 	return
 }
 
-func getFirstMatch(metrics []*io_prometheus_client.Metric, test func(*io_prometheus_client.LabelPair) bool) *io_prometheus_client.Metric {
+func getFirstMatch(
+	metrics []*io_prometheus_client.Metric,
+	test func(*io_prometheus_client.LabelPair) bool) *io_prometheus_client.Metric {
 	for _, met := range metrics {
 		for _, lbl := range met.Label {
 			if test(lbl) {

@@ -47,7 +47,7 @@ type goInstance struct {
 func (gi *goInstance) getMetricsLabels() []string {
 	// e.g. metrics_labels = []string{"test-tenant","test-tenant/test-namespace", "test-name", "1234", "test-cluster",
 	//	"test-tenant/test-namespace/test-name"}
-	metrics_labels := []string{
+	metricsLabels := []string{
 		gi.context.GetFuncTenant(),
 		gi.context.GetTenantAndNamespace(),
 		gi.context.GetFuncName(),
@@ -55,7 +55,7 @@ func (gi *goInstance) getMetricsLabels() []string {
 		gi.context.GetClusterName(),
 		gi.context.GetTenantAndNamespaceAndName(),
 	}
-	return metrics_labels
+	return metricsLabels
 }
 
 // newGoInstance init goInstance and init function context
@@ -411,19 +411,19 @@ func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
 func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 	status := pb.FunctionStatus{}
 	status.Running = true
-	total_received := gi.getTotalReceived()
-	total_processed_successfully := gi.getTotalProcessedSuccessfully()
-	total_user_exceptions := gi.getTotalUserExceptions()
-	total_sys_exceptions := gi.getTotalSysExceptions()
-	avg_process_latency_ms := gi.getAvgProcessLatency()
-	last_invocation := gi.getLastInvocation()
+	totalReceived := gi.getTotalReceived()
+	totalProcessedSuccessfully := gi.getTotalProcessedSuccessfully()
+	totalUserExceptions := gi.getTotalUserExceptions()
+	totalSysExceptions := gi.getTotalSysExceptions()
+	avgProcessLatencyMs := gi.getAvgProcessLatency()
+	lastInvocation := gi.getLastInvocation()
 
-	status.NumReceived = int64(total_received)
-	status.NumSuccessfullyProcessed = int64(total_processed_successfully)
-	status.NumUserExceptions = int64(total_user_exceptions)
+	status.NumReceived = int64(totalReceived)
+	status.NumSuccessfullyProcessed = int64(totalProcessedSuccessfully)
+	status.NumUserExceptions = int64(totalUserExceptions)
 	status.InstanceId = strconv.Itoa(gi.context.instanceConf.instanceID)
 
-	status.NumUserExceptions = int64(total_user_exceptions)
+	status.NumUserExceptions = int64(totalUserExceptions)
 	for _, exPair := range gi.stats.latestUserException {
 		toAdd := pb.FunctionStatus_ExceptionInformation{}
 		toAdd.ExceptionString = exPair.exception.Error()
@@ -431,45 +431,45 @@ func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 		status.LatestUserExceptions = append(status.LatestUserExceptions, &toAdd)
 	}
 
-	status.NumSystemExceptions = int64(total_sys_exceptions)
+	status.NumSystemExceptions = int64(totalSysExceptions)
 	for _, exPair := range gi.stats.latestSysException {
 		toAdd := pb.FunctionStatus_ExceptionInformation{}
 		toAdd.ExceptionString = exPair.exception.Error()
 		toAdd.MsSinceEpoch = exPair.timestamp
 		status.LatestSystemExceptions = append(status.LatestSystemExceptions, &toAdd)
 	}
-	status.AverageLatency = float64(avg_process_latency_ms)
-	status.LastInvocationTime = int64(last_invocation)
+	status.AverageLatency = float64(avgProcessLatencyMs)
+	status.LastInvocationTime = int64(lastInvocation)
 	return &status
 }
 
 func (gi *goInstance) getMetrics() *pb.MetricsData {
-	total_received := gi.getTotalReceived()
-	total_processed_successfully := gi.getTotalProcessedSuccessfully()
-	total_user_exceptions := gi.getTotalUserExceptions()
-	total_sys_exceptions := gi.getTotalSysExceptions()
-	avg_process_latency_ms := gi.getAvgProcessLatency()
-	last_invocation := gi.getLastInvocation()
+	totalReceived := gi.getTotalReceived()
+	totalProcessedSuccessfully := gi.getTotalProcessedSuccessfully()
+	totalUserExceptions := gi.getTotalUserExceptions()
+	totalSysExceptions := gi.getTotalSysExceptions()
+	avgProcessLatencyMs := gi.getAvgProcessLatency()
+	lastInvocation := gi.getLastInvocation()
 
-	total_received_1min := gi.getTotalReceived1min()
-	total_processed_successfully_1min := gi.getTotalProcessedSuccessfully1min()
-	total_user_exceptions_1min := gi.getTotalUserExceptions1min()
-	total_sys_exceptions_1min := gi.getTotalSysExceptions1min()
+	totalReceived1min := gi.getTotalReceived1min()
+	totalProcessedSuccessfully1min := gi.getTotalProcessedSuccessfully1min()
+	totalUserExceptions1min := gi.getTotalUserExceptions1min()
+	totalSysExceptions1min := gi.getTotalSysExceptions1min()
 	//avg_process_latency_ms_1min := gi.get_avg_process_latency_1min()
 
-	metrics_data := pb.MetricsData{}
+	metricsData := pb.MetricsData{}
 	// total metrics
-	metrics_data.ReceivedTotal = int64(total_received)
-	metrics_data.ProcessedSuccessfullyTotal = int64(total_processed_successfully)
-	metrics_data.SystemExceptionsTotal = int64(total_sys_exceptions)
-	metrics_data.UserExceptionsTotal = int64(total_user_exceptions)
-	metrics_data.AvgProcessLatency = float64(avg_process_latency_ms)
-	metrics_data.LastInvocation = int64(last_invocation)
+	metricsData.ReceivedTotal = int64(totalReceived)
+	metricsData.ProcessedSuccessfullyTotal = int64(totalProcessedSuccessfully)
+	metricsData.SystemExceptionsTotal = int64(totalSysExceptions)
+	metricsData.UserExceptionsTotal = int64(totalUserExceptions)
+	metricsData.AvgProcessLatency = float64(avgProcessLatencyMs)
+	metricsData.LastInvocation = int64(lastInvocation)
 	// 1min metrics
-	metrics_data.ReceivedTotal_1Min = int64(total_received_1min)
-	metrics_data.ProcessedSuccessfullyTotal_1Min = int64(total_processed_successfully_1min)
-	metrics_data.SystemExceptionsTotal_1Min = int64(total_sys_exceptions_1min)
-	metrics_data.UserExceptionsTotal_1Min = int64(total_user_exceptions_1min)
+	metricsData.ReceivedTotal_1Min = int64(totalReceived1min)
+	metricsData.ProcessedSuccessfullyTotal_1Min = int64(totalProcessedSuccessfully1min)
+	metricsData.SystemExceptionsTotal_1Min = int64(totalSysExceptions1min)
+	metricsData.UserExceptionsTotal_1Min = int64(totalUserExceptions1min)
 	//metrics_data.AvgProcessLatency_1Min = avg_process_latency_ms_1min
 
 	// get any user metrics
@@ -480,7 +480,7 @@ func (gi *goInstance) getMetrics() *pb.MetricsData {
 	     metrics_data.userMetrics[metric_name] = value
 	*/
 
-	return &metrics_data
+	return &metricsData
 }
 
 func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
@@ -491,7 +491,7 @@ func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
 
 func (gi *goInstance) resetMetrics() *empty.Empty {
 	gi.stats.reset()
-	return nil
+	return &empty.Empty{}
 }
 
 // This method is used to get the required metrics for Prometheus.
@@ -507,7 +507,7 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *io_prometheus_client.Lab
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) io_prometheus_client.Metric {
 	metricFamilies, err := reg.Gather()
 	if err != nil {
-		// Handle this.
+		log.Error("Something went wrong when calling reg.Gather() in getMatchingMetricFromRegistry(..) for " + metricName)
 	}
 	matchFamilyFunc := func(vect *io_prometheus_client.MetricFamily) bool {
 		return *vect.Name == metricName
@@ -556,9 +556,8 @@ func (gi *goInstance) getAvgProcessLatency() float32 {
 	sum := metric.GetSummary().SampleSum
 	if *count <= 0.0 {
 		return 0.0
-	} else {
-		return float32(*sum) / float32(*count)
 	}
+	return float32(*sum) / float32(*count)
 }
 
 func (gi *goInstance) getLastInvocation() float32 {

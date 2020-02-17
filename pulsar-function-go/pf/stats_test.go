@@ -44,7 +44,8 @@ import (
 	metrics_labels := []string{"test-tenant","test-tenant/test-namespace", "test-name", "1234", "test-cluster",
 		"test-tenant/test-namespace/test-name"}
 	// 1234 is instanceId
-	// ['test-tenant', 'test-tenant/test-namespace', 'test-name',1234, 'test-cluster', 'test-tenant/test-namespace/test-name']
+	// ['test-tenant', 'test-tenant/test-namespace', 'test-name',1234,
+    //    'test-cluster', 'test-tenant/test-namespace/test-name']
 	//var _stat_process_latency_ms = stat_process_latency_ms.WithLabelValues(metrics_labels...)
 	//process_latency_ms_count := stat._stat_process_latency_ms._count.get()
 	//process_latency_ms_sum := stat._stat_process_latency_ms._sum.get()
