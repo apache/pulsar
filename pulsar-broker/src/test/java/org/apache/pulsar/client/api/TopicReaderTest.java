@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -30,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -760,5 +762,44 @@ public class TopicReaderTest extends ProducerConsumerBase {
             readers.get(i).get().close();
             producers.get(i).close();
         }
+    }
+
+    @Test
+    public void testReaderStartInMiddleOfBatch() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderStartInMiddleOfBatch";
+        final int numOfMessage = 100;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .create();
+
+        CountDownLatch latch = new CountDownLatch(100);
+
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+
+        latch.await();
+
+        for (MessageId id : allIds) {
+            Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                    .startMessageId(id).startMessageIdInclusive().create();
+            MessageId idGot = reader.readNext().getMessageId();
+            assertEquals(idGot, id);
+            reader.close();
+        }
+
+        producer.close();
     }
 }
