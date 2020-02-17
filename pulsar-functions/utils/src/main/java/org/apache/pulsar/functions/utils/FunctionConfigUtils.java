@@ -176,6 +176,13 @@ public class FunctionConfigUtils {
                     FunctionCommon.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
 
+        if (functionConfig.getCustomProperties() != null && !functionConfig.getCustomProperties().isEmpty()) {
+            List<String> customProperties = functionConfig.getCustomProperties();
+            for (String property : customProperties) {
+                functionDetailsBuilder.addCustomProperties(property);
+            }
+        }
+
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             Function.RetryDetails.Builder retryBuilder = Function.RetryDetails.newBuilder();
             retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
@@ -344,6 +351,10 @@ public class FunctionConfigUtils {
 
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
+        }
+
+        if (!functionDetails.getCustomPropertiesList().isEmpty()) {
+            functionConfig.setCustomProperties(functionDetails.getCustomPropertiesList());
         }
 
         return functionConfig;

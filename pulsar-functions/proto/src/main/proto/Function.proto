@@ -81,6 +81,7 @@ message FunctionDetails {
     string runtimeFlags = 17;
     ComponentType componentType = 18;
     string customRuntimeOptions = 19;
+    repeated string customProperties = 20;
 }
 
 message ConsumerSpec {

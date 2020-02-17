@@ -21,6 +21,7 @@ package org.apache.pulsar.common.functions;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import lombok.AllArgsConstructor;
@@ -94,6 +95,7 @@ public class FunctionConfig {
     // secrets provider. The type of an value here can be found by the
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
+    private List<String> customProperties;
     private Runtime runtime;
     private Boolean autoAck;
     private Integer maxMessageRetries;
