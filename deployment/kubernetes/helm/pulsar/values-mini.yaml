@@ -146,7 +146,8 @@ bookkeeper:
   ## templates/bookkeeper-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
+    BOOKIE_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem\""
+    BOOKIE_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
     PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "32"
     PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "32"
     PULSAR_PREFIX_journalMaxSizeMB: "2048"
