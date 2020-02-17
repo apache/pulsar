@@ -146,7 +146,7 @@ type LatestException struct {
 }
 
 // Be sure to use the constructor method: NewStatWithLabelValues
-type statWithLabelValues struct {
+type StatWithLabelValues struct {
 	statTotalProcessedSuccessfully     prometheus.Gauge
 	statTotalSysExceptions             prometheus.Gauge
 	statTotalUserExceptions            prometheus.Gauge
@@ -164,7 +164,7 @@ type statWithLabelValues struct {
 	metricsLabels         []string
 }
 
-func NewStatWithLabelValues(metricsLabels ...string) statWithLabelValues {
+func NewStatWithLabelValues(metricsLabels ...string) StatWithLabelValues {
 	// as optimization
 	var statTotalProcessedSuccessfully = statTotalProcessedSuccessfully.WithLabelValues(metricsLabels...)
 	var statTotalSysExceptions = statTotalSysExceptions.WithLabelValues(metricsLabels...)
@@ -178,7 +178,7 @@ func NewStatWithLabelValues(metricsLabels ...string) statWithLabelValues {
 	//var _stat_process_latency_ms_1min = stat_process_latency_ms_1min.WithLabelValues(metrics_labels...)
 	var statTotalReceived1min = statTotalReceived1min.WithLabelValues(metricsLabels...)
 
-	statObj := statWithLabelValues{
+	statObj := StatWithLabelValues{
 		statTotalProcessedSuccessfully,
 		statTotalSysExceptions,
 		statTotalUserExceptions,
@@ -222,17 +222,17 @@ func getFirstMatch(
 	return nil
 }
 
-func (stat *statWithLabelValues) setLastInvocation() {
+func (stat *StatWithLabelValues) setLastInvocation() {
 	now := time.Now()
 	stat.statLastInvocation.Set(float64(now.UnixNano()))
 }
 
-func (stat *statWithLabelValues) processTimeStart() {
+func (stat *StatWithLabelValues) processTimeStart() {
 	now := time.Now()
 	stat.processStartTime = now.UnixNano()
 }
 
-func (stat *statWithLabelValues) processTimeEnd() {
+func (stat *StatWithLabelValues) processTimeEnd() {
 	if stat.processStartTime != 0 {
 		now := time.Now()
 		duration := now.UnixNano() - stat.processStartTime
@@ -241,13 +241,13 @@ func (stat *statWithLabelValues) processTimeEnd() {
 	}
 }
 
-func (stat *statWithLabelValues) incrTotalUserExceptions(err error) {
+func (stat *StatWithLabelValues) incrTotalUserExceptions(err error) {
 	stat.statTotalUserExceptions.Inc()
 	stat.statTotalUserExceptions1min.Inc()
 	stat.addUserException(err)
 }
 
-func (stat *statWithLabelValues) addUserException(err error) {
+func (stat *StatWithLabelValues) addUserException(err error) {
 	now := time.Now()
 	ts := now.UnixNano()
 	errorTs := LatestException{err, ts}
@@ -260,24 +260,24 @@ func (stat *statWithLabelValues) addUserException(err error) {
 }
 
 //@limits(calls=5, period=60)
-func (stat *statWithLabelValues) reportUserExceptionPrometheus(exception error, ts int64) {
+func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error, ts int64) {
 	errorTs := []string{exception.Error(), strconv.FormatInt(ts, 10)}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
 	userExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 
-func (stat *statWithLabelValues) incrTotalProcessedSuccessfully() {
+func (stat *StatWithLabelValues) incrTotalProcessedSuccessfully() {
 	stat.statTotalProcessedSuccessfully.Inc()
 	stat.statTotalProcessedSuccessfully1min.Inc()
 }
 
-func (stat *statWithLabelValues) incrTotalSysExceptions(exception error) {
+func (stat *StatWithLabelValues) incrTotalSysExceptions(exception error) {
 	stat.statTotalSysExceptions.Inc()
 	stat.statTotalSysExceptions1min.Inc()
 	stat.addSysException(exception)
 }
 
-func (stat *statWithLabelValues) addSysException(exception error) {
+func (stat *StatWithLabelValues) addSysException(exception error) {
 	now := time.Now()
 	ts := now.UnixNano()
 	errorTs := LatestException{exception, ts}
@@ -290,18 +290,18 @@ func (stat *statWithLabelValues) addSysException(exception error) {
 }
 
 //@limits(calls=5, period=60)
-func (stat *statWithLabelValues) reportSystemExceptionPrometheus(exception error, ts int64) {
+func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error, ts int64) {
 	errorTs := []string{exception.Error(), strconv.FormatInt(ts, 10)}
 	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
 	systemExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 
-func (stat *statWithLabelValues) incrTotalReceived() {
+func (stat *StatWithLabelValues) incrTotalReceived() {
 	stat.statTotalReceived.Inc()
 	stat.statTotalReceived1min.Inc()
 }
 
-func (stat *statWithLabelValues) reset() {
+func (stat *StatWithLabelValues) reset() {
 	stat.statTotalProcessedSuccessfully1min.Set(0.0)
 	stat.statTotalUserExceptions1min.Set(0.0)
 	stat.statTotalSysExceptions1min.Set(0.0)

@@ -50,7 +50,7 @@ import (
 	//process_latency_ms_count := stat._stat_process_latency_ms._count.get()
 	//process_latency_ms_sum := stat._stat_process_latency_ms._sum.get()
 }
-func  (stat *statWithLabelValues) getTotalReceived() float32 {
+func  (stat *StatWithLabelValues) getTotalReceived() float32 {
 	gathering, _ := reg.Gather()
 	out := &bytes.Buffer{}
 	for _, mf := range gathering {

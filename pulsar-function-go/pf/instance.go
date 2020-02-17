@@ -41,7 +41,7 @@ type goInstance struct {
 	client            pulsar.Client
 	lastHealthCheckTs int64
 	properties        map[string]string
-	stats             statWithLabelValues
+	stats             StatWithLabelValues
 }
 
 func (gi *goInstance) getMetricsLabels() []string {
@@ -316,10 +316,10 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				}
 				gi.stats.incrTotalSysExceptions(err)
 				log.Fatal(err)
-			} else if autoAck && !atMostOnce {
-				gi.ackInputMessage(msgInput)
-				gi.stats.incrTotalProcessedSuccessfully()
 			} else {
+				if (autoAck && !atMostOnce) {
+					gi.ackInputMessage(msgInput)
+				}
 				gi.stats.incrTotalProcessedSuccessfully()
 			}
 		})
