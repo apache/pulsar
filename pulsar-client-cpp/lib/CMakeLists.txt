@@ -120,6 +120,6 @@ else()
     install(TARGETS pulsarStatic DESTINATION lib)
 endif(LINK_STATIC)
 
-install(TARGETS pulsarShared pulsarStatic LIBRARY DESTINATION lib)
-install(TARGETS pulsarShared RUNTIME DESTINATION bin)
+install(TARGETS pulsarStatic DESTINATION lib)
+install(TARGETS pulsarShared RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(DIRECTORY "../include/pulsar" DESTINATION include)
