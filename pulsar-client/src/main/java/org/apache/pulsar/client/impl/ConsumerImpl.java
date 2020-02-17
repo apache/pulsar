@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -150,39 +151,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-    enum SubscriptionMode {
-        // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
-        // position
-        Durable,
 
-        // Lightweight subscription mode that doesn't have a durable cursor associated
-        NonDurable
-    }
-
-    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-            boolean createTopicIfDoesNotExist) {
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorService listenerExecutor,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
                     subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors,
+                    startMessageId, schema, interceptors,
                     createTopicIfDoesNotExist);
         } else {
             return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
-                    subscribeFuture, subscriptionMode, startMessageId, 0 /* rollback time in sec to start msgId */,
+                    subscribeFuture, startMessageId, 0 /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);
         }
     }
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer,
-            CompletableFuture<Consumer<T>> subscribeFuture, SubscriptionMode subscriptionMode, MessageId startMessageId,
+            CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
             long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
             boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
-        this.subscriptionMode = subscriptionMode;
+        this.subscriptionMode = conf.getSubscriptionMode();
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
         this.lastDequeuedMessage = startMessageId == null ? MessageId.earliest : startMessageId;
         this.initialStartMessageId = this.startMessageId;
