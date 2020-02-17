@@ -111,6 +111,26 @@ public abstract class AbstractTopic implements Topic {
         updatePublishDispatcher(policies);
     }
 
+    /**
+     * For testing purposes. Performs linear scan of all producers in the producer group.
+     */
+    Producer getProducer(String producerName) {
+        return getProducer("", producerName);
+    }
+
+    /**
+     * For testing purposes. Performs linear scan of all producers in the producer group.
+     */
+    Producer getProducer(String groupName, String producerName) {
+        Set<Producer> producers = producerGroups.get(groupName);
+        for (Producer producer : producers) {
+            if (producer.getProducerName().equals(producerName)) {
+                return producer;
+            }
+        }
+        return null;
+    }
+
     protected boolean isProducersExceeded() {
         Policies policies;
         try {

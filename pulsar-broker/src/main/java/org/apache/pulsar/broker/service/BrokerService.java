@@ -2050,7 +2050,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void foreachProducer(Consumer<Producer> consumer) {
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(consumer));
+            topic.ifPresent(value -> value.getProducers().forEach(consumer));
         });
     }
 
