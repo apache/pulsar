@@ -74,6 +74,11 @@ public class JSONSchemaHandler implements SchemaHandler {
     }
 
     @Override
+    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
+        return null;
+    }
+
+    @Override
     public Object extractField(int index, Object currentRecord) {
         try {
             Map jsonObject = (Map) currentRecord;
