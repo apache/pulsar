@@ -67,7 +67,6 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T>
  */
-@Slf4j
 public abstract class ZooKeeperCache implements Watcher {
     public static interface Deserializer<T> {
         T deserialize(String key, byte[] content) throws Exception;
@@ -550,4 +549,6 @@ public abstract class ZooKeeperCache implements Watcher {
                 + regPath + " expired", ie);
         }
     }
+
+    private static Logger log = LoggerFactory.getLogger(ZooKeeperCache.class);
 }
