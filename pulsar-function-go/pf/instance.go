@@ -317,7 +317,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				gi.stats.incrTotalSysExceptions(err)
 				log.Fatal(err)
 			} else {
-				if (autoAck && !atMostOnce) {
+				if autoAck && !atMostOnce {
 					gi.ackInputMessage(msgInput)
 				}
 				gi.stats.incrTotalProcessedSuccessfully()
