@@ -4830,6 +4830,13 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "name" : "getPreciseBacklog",
+          "in" : "query",
+          "description" : "Is return precise backlog or imprecise backlog",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         } ],
         "responses" : {
           "307" : {
@@ -5324,6 +5331,13 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
+          "name" : "getPreciseBacklog",
+          "in" : "query",
+          "description" : "Is return precise backlog or imprecise backlog",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6971,6 +6985,13 @@
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "name" : "getPreciseBacklog",
+          "in" : "query",
+          "description" : "Is return precise backlog or imprecise backlog",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         } ],
         "responses" : {
           "307" : {
@@ -7465,6 +7486,13 @@
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        }, {
+          "name" : "getPreciseBacklog",
+          "in" : "query",
+          "description" : "Is return precise backlog or imprecise backlog",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9643,32 +9671,12 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9678,6 +9686,26 @@
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         }
       }
     },
@@ -9845,13 +9873,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -9927,6 +9955,10 @@
           "format" : "double"
         },
         "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgBacklogNoDelayed" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -10660,13 +10692,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -10834,6 +10866,10 @@
           "format" : "double"
         },
         "msgBacklog" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "msgBacklogNoDelayed" : {
           "type" : "integer",
           "format" : "int64"
         },
