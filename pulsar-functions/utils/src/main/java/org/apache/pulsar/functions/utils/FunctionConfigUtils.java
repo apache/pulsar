@@ -177,10 +177,7 @@ public class FunctionConfigUtils {
         }
 
         if (functionConfig.getCustomProperties() != null && !functionConfig.getCustomProperties().isEmpty()) {
-            List<String> customProperties = functionConfig.getCustomProperties();
-            for (String property : customProperties) {
-                functionDetailsBuilder.addCustomProperties(property);
-            }
+            functionDetailsBuilder.addAllCustomProperties(functionConfig.getCustomProperties());
         }
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
