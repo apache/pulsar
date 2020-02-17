@@ -551,17 +551,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void asyncGetMessageById(long ledgerId, long entryId, IndividualDeletedEntries deletedEntries,
-                                    ReadEntryCallback callback, Object ctx) {
-        if (isClosed()) {
-            callback.readEntryFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
-            return;
-        }
-
-        ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), callback, ctx);
-    }
-
-    @Override
     public List<Entry> readEntriesOrWait(int numberOfEntriesToRead)
             throws InterruptedException, ManagedLedgerException {
         checkArgument(numberOfEntriesToRead > 0);
