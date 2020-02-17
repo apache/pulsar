@@ -146,11 +146,11 @@ CLOSE:
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
-			gi.stats.incr_total_received()
+			gi.stats.incrTotalReceived()
 			gi.addLogTopicHandler()
 
-			gi.stats.set_last_invocation()
-			gi.stats.process_time_start()
+			gi.stats.setLastInvocation()
+			gi.stats.processTimeStart()
 
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
@@ -158,14 +158,14 @@ CLOSE:
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
 				}
-				gi.stats.incr_total_user_exceptions(err)
+				gi.stats.incrTotalUserExceptions(err)
 				return err
 			}
 
 			gi.processResult(msgInput, output)
 
-			gi.stats.process_time_end() // Should this be called here or before processResult(..)?
-			gi.stats.incr_total_processed_successfully()
+			gi.stats.processTimeEnd() // Should this be called here or before processResult(..)?
+			gi.stats.incrTotalProcessedSuccessfully()
 
 		case <-idleTimer.C:
 			close(channel)
@@ -185,7 +185,7 @@ func (gi *goInstance) setupClient() error {
 	})
 	if err != nil {
 		log.Errorf("create client error:%v", err)
-		gi.stats.incr_total_sys_exceptions(err)
+		gi.stats.incrTotalSysExceptions(err)
 		return err
 	}
 	gi.client = client
@@ -208,7 +208,7 @@ func (gi *goInstance) setupProducer() (err error) {
 			// that might happen when consumer is blocked due to unacked messages
 		})
 		if err != nil {
-			gi.stats.incr_total_sys_exceptions(err)
+			gi.stats.incrTotalSysExceptions(err)
 			log.Errorf("create producer error:%s", err.Error())
 			return err
 		}
@@ -282,7 +282,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 
 		if err != nil {
 			log.Errorf("create consumer error:%s", err.Error())
-			gi.stats.incr_total_sys_exceptions(err)
+			gi.stats.incrTotalSysExceptions(err)
 			return nil, err
 		}
 		gi.consumers[topic] = consumer
@@ -314,20 +314,20 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
 				}
-				gi.stats.incr_total_sys_exceptions(err)
+				gi.stats.incrTotalSysExceptions(err)
 				log.Fatal(err)
 			} else if autoAck && !atMostOnce {
 				gi.ackInputMessage(msgInput)
-				gi.stats.incr_total_processed_successfully()
+				gi.stats.incrTotalProcessedSuccessfully()
 			} else {
-				gi.stats.incr_total_processed_successfully()
+				gi.stats.incrTotalProcessedSuccessfully()
 			}
 		})
 	} else if autoAck && atLeastOnce {
 		gi.ackInputMessage(msgInput)
 		// Report that we processed successfully even though it's not going to an output topic?
 		// We probably shouldn't...
-		// gi.stats.incr_total_processed_successfully()
+		// gi.stats.incrTotalProcessedSuccessfully()
 	}
 }
 
@@ -411,12 +411,12 @@ func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
 func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 	status := pb.FunctionStatus{}
 	status.Running = true
-	total_received := gi.get_total_received()
-	total_processed_successfully := gi.get_total_processed_successfully()
-	total_user_exceptions := gi.get_total_user_exceptions()
-	total_sys_exceptions := gi.get_total_sys_exceptions()
-	avg_process_latency_ms := gi.get_avg_process_latency()
-	last_invocation := gi.get_last_invocation()
+	total_received := gi.getTotalReceived()
+	total_processed_successfully := gi.getTotalProcessedSuccessfully()
+	total_user_exceptions := gi.getTotalUserExceptions()
+	total_sys_exceptions := gi.getTotalSysExceptions()
+	avg_process_latency_ms := gi.getAvgProcessLatency()
+	last_invocation := gi.getLastInvocation()
 
 	status.NumReceived = int64(total_received)
 	status.NumSuccessfullyProcessed = int64(total_processed_successfully)
@@ -424,7 +424,7 @@ func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 	status.InstanceId = strconv.Itoa(gi.context.instanceConf.instanceID)
 
 	status.NumUserExceptions = int64(total_user_exceptions)
-	for _, exPair := range gi.stats.latest_user_exception {
+	for _, exPair := range gi.stats.latestUserException {
 		toAdd := pb.FunctionStatus_ExceptionInformation{}
 		toAdd.ExceptionString = exPair.exception.Error()
 		toAdd.MsSinceEpoch = exPair.timestamp
@@ -432,7 +432,7 @@ func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 	}
 
 	status.NumSystemExceptions = int64(total_sys_exceptions)
-	for _, exPair := range gi.stats.latest_sys_exception {
+	for _, exPair := range gi.stats.latestSysException {
 		toAdd := pb.FunctionStatus_ExceptionInformation{}
 		toAdd.ExceptionString = exPair.exception.Error()
 		toAdd.MsSinceEpoch = exPair.timestamp
@@ -444,17 +444,17 @@ func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
 }
 
 func (gi *goInstance) getMetrics() *pb.MetricsData {
-	total_received := gi.get_total_received()
-	total_processed_successfully := gi.get_total_processed_successfully()
-	total_user_exceptions := gi.get_total_user_exceptions()
-	total_sys_exceptions := gi.get_total_sys_exceptions()
-	avg_process_latency_ms := gi.get_avg_process_latency()
-	last_invocation := gi.get_last_invocation()
+	total_received := gi.getTotalReceived()
+	total_processed_successfully := gi.getTotalProcessedSuccessfully()
+	total_user_exceptions := gi.getTotalUserExceptions()
+	total_sys_exceptions := gi.getTotalSysExceptions()
+	avg_process_latency_ms := gi.getAvgProcessLatency()
+	last_invocation := gi.getLastInvocation()
 
-	total_received_1min := gi.get_total_received_1min()
-	total_processed_successfully_1min := gi.get_total_processed_successfully_1min()
-	total_user_exceptions_1min := gi.get_total_user_exceptions_1min()
-	total_sys_exceptions_1min := gi.get_total_sys_exceptions_1min()
+	total_received_1min := gi.getTotalReceived1min()
+	total_processed_successfully_1min := gi.getTotalProcessedSuccessfully1min()
+	total_user_exceptions_1min := gi.getTotalUserExceptions1min()
+	total_sys_exceptions_1min := gi.getTotalSysExceptions1min()
 	//avg_process_latency_ms_1min := gi.get_avg_process_latency_1min()
 
 	metrics_data := pb.MetricsData{}
@@ -523,34 +523,34 @@ func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) io_promet
 	return *matchingMetric
 }
 
-func (gi *goInstance) get_total_received() float32 {
+func (gi *goInstance) getTotalReceived() float32 {
 	// "pulsar_function_" + "received_total", NewGaugeVec.
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_RECEIVED)
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalReceived)
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
-func (gi *goInstance) get_total_processed_successfully() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED)
+func (gi *goInstance) getTotalProcessedSuccessfully() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSuccessfullyProcessed)
 	// "pulsar_function_" + "processed_successfully_total", NewGaugeVec.
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
-func (gi *goInstance) get_total_sys_exceptions() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SYSTEM_EXCEPTIONS)
+func (gi *goInstance) getTotalSysExceptions() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSystemExceptions)
 	// "pulsar_function_"+ "system_exceptions_total", NewGaugeVec.
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
 
-func (gi *goInstance) get_total_user_exceptions() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_USER_EXCEPTIONS)
+func (gi *goInstance) getTotalUserExceptions() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalUserExceptions)
 	// "pulsar_function_" + "user_exceptions_total", NewGaugeVec
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
 
-func (gi *goInstance) get_avg_process_latency() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS)
+func (gi *goInstance) getAvgProcessLatency() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + ProcessLatencyMs)
 	// "pulsar_function_" + "process_latency_ms", SummaryVec.
 	count := metric.GetSummary().SampleCount
 	sum := metric.GetSummary().SampleSum
@@ -561,29 +561,29 @@ func (gi *goInstance) get_avg_process_latency() float32 {
 	}
 }
 
-func (gi *goInstance) get_last_invocation() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + LAST_INVOCATION)
+func (gi *goInstance) getLastInvocation() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + LastInvocation)
 	// "pulsar_function_" + "last_invocation", GaugeVec.
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
 
-func (gi *goInstance) get_total_processed_successfully_1min() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED_1min)
+func (gi *goInstance) getTotalProcessedSuccessfully1min() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSuccessfullyProcessed1min)
 	// "pulsar_function_" + "processed_successfully_total_1min", GaugeVec.
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
 
-func (gi *goInstance) get_total_sys_exceptions_1min() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SYSTEM_EXCEPTIONS_1min)
+func (gi *goInstance) getTotalSysExceptions1min() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSystemExceptions1min)
 	// "pulsar_function_" + "system_exceptions_total_1min", GaugeVec
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
 
-func (gi *goInstance) get_total_user_exceptions_1min() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_USER_EXCEPTIONS_1min)
+func (gi *goInstance) getTotalUserExceptions1min() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalUserExceptions1min)
 	// "pulsar_function_" + "user_exceptions_total_1min", GaugeVec
 	val := metric.GetGauge().Value
 	return float32(*val)
@@ -602,8 +602,8 @@ func (gi *goInstance) get_avg_process_latency_1min() float32 {
 	}
 }*/
 
-func (gi *goInstance) get_total_received_1min() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_RECEIVED_1min)
+func (gi *goInstance) getTotalReceived1min() float32 {
+	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalReceived1min)
 	// "pulsar_function_" +  "received_total_1min", GaugeVec
 	val := metric.GetGauge().Value
 	return float32(*val)

@@ -49,7 +49,7 @@ import (
 	//process_latency_ms_count := stat._stat_process_latency_ms._count.get()
 	//process_latency_ms_sum := stat._stat_process_latency_ms._sum.get()
 }
-func  (stat *statWithLabelValues) get_total_received() float32 {
+func  (stat *statWithLabelValues) getTotalReceived() float32 {
 	gathering, _ := reg.Gather()
 	out := &bytes.Buffer{}
 	for _, mf := range gathering {
@@ -175,27 +175,27 @@ func TestExampleSummaryVec(t *testing.T) {
 }
 func TestExampleSummaryVec_Pulsar(t *testing.T) {
 
-	stat_process_latency_ms := prometheus.NewSummaryVec(
+	_statProcessLatencyMs1 := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: "pulsar_function_process_latency_ms",
-			Help: "Process latency in milliseconds."}, metrics_label_names)
+			Help: "Process latency in milliseconds."}, metricsLabelNames)
 
-	metrics_labels := []string{"test-tenant", "test-tenant/test-namespace", "test-name", "1234", "test-cluster",
+	metricsLabels := []string{"test-tenant", "test-tenant/test-namespace", "test-name", "1234", "test-cluster",
 		"test-tenant/test-namespace/test-name"}
 	// 1234 is instanceId
-	_stat_process_latency_ms := stat_process_latency_ms.WithLabelValues(metrics_labels...)
+	statProcessLatencyMs := _statProcessLatencyMs1.WithLabelValues(metricsLabels...)
 
 	// Simulate some observations.
 	for i := 0; i < 1000; i++ {
-		_stat_process_latency_ms.Observe(30 + math.Floor(120*math.Sin(float64(i)*0.1))/10)
-		_stat_process_latency_ms.Observe(32 + math.Floor(100*math.Cos(float64(i)*0.11))/10)
+		statProcessLatencyMs.Observe(30 + math.Floor(120*math.Sin(float64(i)*0.1))/10)
+		statProcessLatencyMs.Observe(32 + math.Floor(100*math.Cos(float64(i)*0.11))/10)
 	}
 
 	// Just for demonstration, let's check the state of the summary vector
 	// by registering it with a custom registry and then let it collect the
 	// metrics.
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(stat_process_latency_ms)
+	reg.MustRegister(_statProcessLatencyMs1)
 
 	metricFamilies, err := reg.Gather()
 	if err != nil || len(metricFamilies) != 1 {
