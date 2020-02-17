@@ -412,7 +412,7 @@ public class PulsarFunctionLocalRunTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         TopicStats stats = admin.topics().getStats(sourceTopic);
         assertTrue(stats.subscriptions.get(subscriptionName) != null
@@ -430,7 +430,7 @@ public class PulsarFunctionLocalRunTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);

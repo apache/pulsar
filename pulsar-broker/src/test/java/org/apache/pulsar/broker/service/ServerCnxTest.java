@@ -749,7 +749,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
-        assertTrue(response instanceof CommandError);
+        assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
         CommandError error = (CommandError) response;
         assertEquals(error.getError(), ServerError.ServiceNotReady);
     }

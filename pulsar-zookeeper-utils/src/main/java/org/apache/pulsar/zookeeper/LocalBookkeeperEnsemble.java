@@ -310,6 +310,9 @@ public class LocalBookkeeperEnsemble {
         // stream storage port
         conf.setProperty("storageserver.grpc.port", streamStoragePort);
 
+        // storage server settings
+        conf.setProperty("storage.range.store.dirs", bkDataDirName + "/ranges/data");
+
         // initialize the stream storage metadata
         ClusterInitializer initializer = new ZkClusterInitializer(zkServers);
         initializer.initializeCluster(metadataServiceUri, 2);

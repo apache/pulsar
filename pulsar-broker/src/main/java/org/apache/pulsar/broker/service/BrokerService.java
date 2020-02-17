@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -58,6 +59,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -121,6 +123,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -184,6 +187,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
+    private final ScheduledExecutorService messagePublishBufferMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
@@ -215,8 +219,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private Channel listenChannel;
     private Channel listenChannelTls;
 
+    private final long maxMessagePublishBufferBytes;
+    private final long resumeProducerReadMessagePublishBufferBytes;
+    private volatile boolean reachMessagePublishBufferThreshold;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
+        this.maxMessagePublishBufferBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
+            pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024 * 1024 : -1;
+        this.resumeProducerReadMessagePublishBufferBytes = this.maxMessagePublishBufferBytes / 2;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
@@ -256,6 +267,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-msg-expiry-monitor"));
         this.compactionMonitor =
             Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-compaction-monitor"));
+        this.messagePublishBufferMonitor =
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-publish-buffer-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -385,6 +398,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startInactivityMonitor();
         this.startMessageExpiryMonitor();
         this.startCompactionMonitor();
+        this.startMessagePublishBufferMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         // register listener to capture zk-latency
@@ -434,6 +448,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (interval > 0) {
             compactionMonitor.scheduleAtFixedRate(safeRun(() -> checkCompaction()),
                                                   interval, interval, TimeUnit.SECONDS);
+        }
+    }
+
+    protected void startMessagePublishBufferMonitor() {
+        int interval = pulsar().getConfiguration().getMessagePublishBufferCheckIntervalInMillis();
+        if (interval > 0 && maxMessagePublishBufferBytes > 0) {
+            messagePublishBufferMonitor.scheduleAtFixedRate(safeRun(this::checkMessagePublishBuffer),
+                                                            interval, interval, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -982,7 +1004,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             policies.ifPresent(p -> {
                     long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
                     if (p.offload_deletion_lag_ms != null) {
@@ -1200,7 +1223,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
         } catch (Exception e) {
-            log.debug(String.format("Failed to check the ownership of the topic: %s", topicName), e);
+            log.debug("Failed to check the ownership of the topic: {}", topicName, e);
             throw new RuntimeException(new ServerMetadataException(e));
         }
 
@@ -1384,7 +1407,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, TopicStats> getTopicStats() {
         HashMap<String, TopicStats> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats()));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false)));
 
         return stats;
     }
@@ -2008,5 +2031,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } else {
             return Optional.empty();
         }
+    }
+
+    private void checkMessagePublishBuffer() {
+        AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
+        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
+            && !reachMessagePublishBufferThreshold) {
+            reachMessagePublishBufferThreshold = true;
+        }
+        if (currentMessagePublishBufferBytes.get() < resumeProducerReadMessagePublishBufferBytes
+            && reachMessagePublishBufferThreshold) {
+            reachMessagePublishBufferThreshold = false;
+            forEachTopic(topic -> ((AbstractTopic) topic).enableProducerReadForPublishBufferLimiting());
+        }
+    }
+
+    private void foreachProducer(Consumer<Producer> consumer) {
+        topics.forEach((n, t) -> {
+            Optional<Topic> topic = extractTopic(t);
+            topic.ifPresent(value -> value.getProducers().values().forEach(consumer));
+        });
+    }
+
+    public boolean isReachMessagePublishBufferThreshold() {
+        return reachMessagePublishBufferThreshold;
+    }
+
+    @VisibleForTesting
+    long getCurrentMessagePublishBufferSize() {
+        AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
+        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        return currentMessagePublishBufferBytes.get();
     }
 }

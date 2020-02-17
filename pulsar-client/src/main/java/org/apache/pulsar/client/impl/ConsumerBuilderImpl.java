@@ -278,7 +278,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
         checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
-        conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
+        patternAutoDiscoveryPeriod(periodInMinutes, TimeUnit.MINUTES);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit) {
+        checkArgument(interval >= 0, "interval needs to be >= 0");
+        int intervalSeconds = (int) unit.toSeconds(interval);
+        conf.setPatternAutoDiscoveryPeriod(intervalSeconds);
         return this;
     }
 

@@ -37,6 +37,9 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
 
 You can write a simple unit test to test Pulsar Function.
 
+> #### Tip
+> Pulsar uses testng for testing.
+
 ```java
 @Test
 public void testJavaNativeExclamationFunction() {
@@ -61,6 +64,9 @@ public class ExclamationFunction implements Function<String, String> {
 ```
 
 In this situation, you can write a unit test for this function as well. Remember to mock the `Context` parameter. The following is an example.
+
+> #### Tip
+> Pulsar uses testng for testing.
 
 ```java
 @Test

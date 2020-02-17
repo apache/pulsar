@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -929,7 +930,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles) throws PulsarAdminException;
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName) throws PulsarAdminException;
 
     /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second)
@@ -1357,6 +1358,94 @@ public interface Namespaces {
     void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
 
     /**
+     * Get the maxUnackedMessagesPerConsumer for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerConsumer for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerConsumer
+     *            maxUnackedMessagesPerConsumer value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer) throws PulsarAdminException;
+
+    /**
+     * Get the maxUnackedMessagesPerSubscription for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerSubscription for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerSubscription
+     *            Max number of unacknowledged messages allowed per shared subscription.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription) throws PulsarAdminException;
+
+    /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
      * <p>
@@ -1654,4 +1743,74 @@ public interface Namespaces {
      */
     void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
             throws PulsarAdminException;
+
+    /**
+     * Set the offload configuration for all the topics in a namespace.
+     * <p/>
+     * Set the offload configuration in a namespace. This operation requires pulsar tenant access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadPolicies
+     *            Offload configuration
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+
+    /**
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException;
+
 }

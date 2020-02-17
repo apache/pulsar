@@ -336,7 +336,10 @@ public class ClientCnx extends PulsarHandler {
                     connectionFuture.completeExceptionally(writeFuture.cause());
                 }
             });
-            state = State.Connecting;
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
         } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);

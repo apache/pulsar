@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import io.netty.buffer.ByteBuf;
@@ -51,7 +52,6 @@ import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -94,6 +94,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -127,6 +128,10 @@ public class ServerCnx extends PulsarHandler {
     AuthenticationDataSource authenticationData;
     AuthenticationProvider authenticationProvider;
     AuthenticationState authState;
+    // In case of proxy, if the authentication credentials are forwardable,
+    // it will hold the credentials of the original client
+    AuthenticationState originalAuthState;
+    private boolean pendingAuthChallengeResponse = false;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -143,9 +148,13 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
-    
+
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
+    private FeatureFlags features;
+    // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
+    private volatile boolean autoReadDisabledPublishBufferLimiting = false;
+    private volatile long messagePublishBufferSize = 0;
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -445,24 +454,11 @@ public class ServerCnx extends PulsarHandler {
         commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.getConnectedSince());
 
         Subscription subscription = consumer.getSubscription();
-        commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
+        commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog(false));
         commandConsumerStatsResponseBuilder.setMsgRateExpired(subscription.getExpiredMessageRate());
         commandConsumerStatsResponseBuilder.setType(subscription.getTypeString());
 
         return commandConsumerStatsResponseBuilder;
-    }
-
-    private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
-            SSLSession sslSession) throws AuthenticationException {
-        if (authenticateOriginalAuthData) {
-            if (originalAuthData != null) {
-                originalPrincipal = getBrokerService().getAuthenticationService().authenticate(
-                        new AuthenticationDataCommand(originalAuthData, remoteAddress, sslSession), originalAuthMethod);
-            } else {
-                originalPrincipal = null;
-            }
-        }
-        return originalPrincipal;
     }
 
     // complete the connect and sent newConnected command
@@ -476,19 +472,53 @@ public class ServerCnx extends PulsarHandler {
     }
 
     // According to auth result, send newConnected or newAuthChallenge command.
-    private void doAuthentication(AuthData clientData,
-                                  int clientProtocolVersion,
-                                  String clientVersion) throws Exception {
+    private State doAuthentication(AuthData clientData,
+                                   int clientProtocolVersion,
+                                   String clientVersion) throws Exception {
+
+        // The original auth state can only be set on subsequent auth attempts (and only
+        // in presence of a proxy and if the proxy is forwarding the credentials).
+        // In this case, the re-validation needs to be done against the original client
+        // credentials.
+        boolean useOriginalAuthState = (originalAuthState != null);
+        AuthenticationState authState =  useOriginalAuthState ? originalAuthState : this.authState;
+        String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         AuthData brokerData = authState.authenticate(clientData);
-        // authentication has completed, will send newConnected command.
+
+
         if (authState.isComplete()) {
-            authRole = authState.getAuthRole();
+            // Authentication has completed. It was either:
+            // 1. the 1st time the authentication process was done, in which case we'll
+            //    a `CommandConnected` response
+            // 2. an authentication refresh, in which case we don't need to do anything else
+
+            String newAuthRole = authState.getAuthRole();
+
+            if (!useOriginalAuthState) {
+                this.authRole = newAuthRole;
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                    remoteAddress, authMethod, authRole, originalPrincipal);
+                        remoteAddress, authMethod, authRole, originalPrincipal);
             }
-            completeConnect(clientProtocolVersion, clientVersion);
-            return;
+
+            if (state != State.Connected) {
+                // First time authentication is done
+                completeConnect(clientProtocolVersion, clientVersion);
+            } else {
+                // If the connection was already ready, it means we're doing a refresh
+                if (!StringUtils.isEmpty(authRole)) {
+                    if (!authRole.equals(newAuthRole)) {
+                        log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
+                        ctx.close();
+                    } else {
+                        log.info("[{}] Refreshed authentication credentials", remoteAddress);
+                    }
+                }
+            }
+
+            return State.Connected;
         }
 
         // auth not complete, continue auth with client side.
@@ -497,8 +527,60 @@ public class ServerCnx extends PulsarHandler {
             log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
         }
-        state = State.Connecting;
-        return;
+        return State.Connecting;
+    }
+
+    public void refreshAuthenticationCredentials() {
+        AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
+
+        if (authState == null) {
+            // Authentication is disabled or there's no local state to refresh
+            return;
+        } else if (getState() != State.Connected || !isActive) {
+            // Connection is either still being established or already closed.
+            return;
+        } else if (authState != null && !authState.isExpired()) {
+            // Credentials are still valid. Nothing to do at this point
+            return;
+        } else if (originalPrincipal != null && originalAuthState == null) {
+            log.info(
+                    "[{}] Cannot revalidate user credential when using proxy and not forwarding the credentials. Closing connection",
+                    remoteAddress);
+            return;
+        }
+
+        ctx.executor().execute(SafeRun.safeRun(() -> {
+            log.info("[{}] Refreshing authentication credentials", remoteAddress);
+
+            if (!supportsAuthenticationRefresh()) {
+                log.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
+                ctx.close();
+                return;
+            }
+
+            if (pendingAuthChallengeResponse) {
+                log.warn("[{}] Closing connection after timeout on refreshing auth credentials", remoteAddress);
+                ctx.close();
+                return;
+            }
+
+            try {
+                AuthData brokerData = authState.refreshAuthentication();
+
+                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, remoteEndpointProtocolVersion));
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
+                        remoteAddress, authMethod);
+                }
+
+                pendingAuthChallengeResponse = true;
+
+            } catch (AuthenticationException e) {
+                log.warn("[{}] Failed to refresh authentication: ",
+                        remoteAddress, e.getMessage());
+                ctx.close();
+            }
+        }));
     }
 
     @Override
@@ -512,6 +594,7 @@ public class ServerCnx extends PulsarHandler {
 
         String clientVersion = connect.getClientVersion();
         int clientProtocolVersion = connect.getProtocolVersion();
+        features = connect.getFeatureFlags();
 
         if (!service.isAuthenticationEnabled()) {
             completeConnect(clientProtocolVersion, clientVersion);
@@ -551,18 +634,34 @@ public class ServerCnx extends PulsarHandler {
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
-            originalPrincipal = getOriginalPrincipal(
-                connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
-                connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
-                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
-                sslSession);
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
             authenticationData = authState.getAuthDataSource();
-            doAuthentication(clientData, clientProtocolVersion, clientVersion);
+            state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
+
+            // This will fail the check if:
+            //  1. client is coming through a proxy
+            //  2. we require to validate the original credentials
+            //  3. no credentials were passed
+            if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                AuthenticationProvider originalAuthenticationProvider = getBrokerService()
+                        .getAuthenticationService()
+                        .getAuthenticationProvider(authMethod);
+                originalAuthState = originalAuthenticationProvider.newAuthState(
+                        AuthData.of(connect.getOriginalAuthData().getBytes()),
+                        remoteAddress,
+                        sslSession);
+                originalPrincipal = originalAuthState.getAuthRole();
+            } else {
+                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+            }
         } catch (Exception e) {
             String msg = "Unable to authenticate";
-            log.warn("[{}] {} ", remoteAddress, msg, e);
+            if (e instanceof AuthenticationException) {
+                log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
+            } else {
+                log.warn("[{}] {}", remoteAddress, msg, e);
+            }
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();
         }
@@ -570,9 +669,10 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleAuthResponse(CommandAuthResponse authResponse) {
-        checkArgument(state == State.Connecting);
         checkArgument(authResponse.hasResponse());
         checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthMethodName());
+
+        pendingAuthChallengeResponse = false;
 
         if (log.isDebugEnabled()) {
             log.debug("Received AuthResponse from {}, auth method: {}",
@@ -582,10 +682,14 @@ public class ServerCnx extends PulsarHandler {
         try {
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData().toByteArray());
             doAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
+        } catch (AuthenticationException e) {
+            log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
+            close();
         } catch (Exception e) {
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
             close();
         }
     }
@@ -1056,7 +1160,7 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation(producer);
+        startSendOperation(producer, headersAndPayload.readableBytes());
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
@@ -1579,17 +1683,24 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation(Producer producer) {
+    private void startSendOperation(Producer producer, int msgSize) {
+        messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
         if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
+
+        }
+        if (getBrokerService().isReachMessagePublishBufferThreshold()) {
+            ctx.channel().config().setAutoRead(false);
+            autoReadDisabledPublishBufferLimiting = true;
         }
     }
 
-    public void completedSendOperation(boolean isNonPersistentTopic) {
+    void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
+        messagePublishBufferSize -= msgSize;
         if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
@@ -1601,16 +1712,29 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    public void enableCnxAutoRead() {
+    void enableCnxAutoRead() {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
-        if (!ctx.channel().config().isAutoRead() && autoReadDisabledRateLimiting) {
+        if (!ctx.channel().config().isAutoRead() && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
             ctx.read();
+        }
+    }
+
+    @VisibleForTesting
+    void cancelPublishRateLimiting() {
+        if (autoReadDisabledRateLimiting) {
             autoReadDisabledRateLimiting = false;
+        }
+    }
+
+    @VisibleForTesting
+    void cancelPublishBufferLimiting() {
+        if (autoReadDisabledPublishBufferLimiting) {
+            autoReadDisabledPublishBufferLimiting = false;
         }
     }
     
@@ -1626,7 +1750,7 @@ public class ServerCnx extends PulsarHandler {
         return error;
     }
 
-    private final void disableTcpNoDelayIfNeeded(String topic, String producerName) {
+    private void disableTcpNoDelayIfNeeded(String topic, String producerName) {
         if (producerName != null && producerName.startsWith(replicatorPrefix)) {
             // Re-enable nagle algorithm on connections used for replication purposes
             try {
@@ -1694,7 +1818,25 @@ public class ServerCnx extends PulsarHandler {
         return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getNumber();
     }
 
+    boolean supportsAuthenticationRefresh() {
+        return features != null && features.getSupportsAuthRefresh();
+    }
+
     public String getClientVersion() {
         return clientVersion;
+    }
+
+    public long getMessagePublishBufferSize() {
+        return this.messagePublishBufferSize;
+    }
+
+    @VisibleForTesting
+    void setMessagePublishBufferSize(long bufferSize) {
+        this.messagePublishBufferSize = bufferSize;
+    }
+
+    @VisibleForTesting
+    void setAutoReadDisabledRateLimiting(boolean isLimiting) {
+        this.autoReadDisabledRateLimiting = isLimiting;
     }
 }

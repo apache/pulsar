@@ -332,7 +332,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -352,7 +352,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
+                }, 50, 150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -384,7 +384,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150));
+                }, 50, 150));
 
                 // test getFunctionInfo
                 try {
@@ -603,7 +603,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -623,7 +623,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
+                }, 50, 150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -655,7 +655,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
 
             // test getFunctionInfo
             try {
@@ -796,7 +796,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
         }
     }
 }

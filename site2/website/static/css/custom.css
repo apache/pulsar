@@ -64,6 +64,7 @@
 #community-dropdown.hide,
 #apache-dropdown.hide,
 #restapis-dropdown.hide,
+#cli-dropdown.hide,
 #languages-dropdown.hide {
   display: none;
 }
@@ -72,6 +73,7 @@
 #community-dropdown.visible,
 #apache-dropdown.visible,
 #restapis-dropdown.visible,
+#cli-dropdown.visible,
 #languages-dropdown.visible {
   display: flex;
 }
@@ -79,6 +81,7 @@
 #community-dropdown,
 #apache-dropdown,
 #restapis-dropdown,
+#cli-dropdown,
 #languages-dropdown {
   pointer-events: none;
   position: absolute;
@@ -88,6 +91,7 @@
 #community-dropdown-items,
 #apache-dropdown-items,
 #restapis-dropdown-items,
+#cli-dropdown-items,
 #languages-dropdown-items {
   background-color: white;
   display: flex;

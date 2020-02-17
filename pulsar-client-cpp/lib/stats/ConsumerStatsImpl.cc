@@ -25,10 +25,11 @@
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
-ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, DeadlineTimerPtr timer,
+ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, ExecutorServicePtr executor,
                                      unsigned int statsIntervalInSeconds)
     : consumerStr_(consumerStr),
-      timer_(timer),
+      executor_(executor),
+      timer_(executor_->createDeadlineTimer()),
       statsIntervalInSeconds_(statsIntervalInSeconds),
       totalNumBytesRecieved_(0),
       numBytesRecieved_(0) {

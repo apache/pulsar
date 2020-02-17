@@ -250,7 +250,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog() {
+    public long getNumberOfEntriesInBacklog(boolean getPreciseBacklog) {
         // No-op
         return 0;
     }

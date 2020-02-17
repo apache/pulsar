@@ -27,6 +27,8 @@ public class AggregatedSubscriptionStats {
 
     public long msgBacklog;
 
+    public long msgBacklogNoDelayed;
+
     public boolean blockedSubscriptionOnUnackedMsgs;
 
     public double msgRateRedeliver;

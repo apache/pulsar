@@ -149,7 +149,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     @Override
     protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog();
+        return cursor.getNumberOfEntriesInBacklog(false);
     }
 
     @Override
@@ -507,7 +507,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Backlog size before clearing: {}", topicName, localCluster, remoteCluster,
-                    cursor.getNumberOfEntriesInBacklog());
+                    cursor.getNumberOfEntriesInBacklog(false));
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -515,7 +515,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             public void clearBacklogComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Backlog size after clearing: {}", topicName, localCluster, remoteCluster,
-                            cursor.getNumberOfEntriesInBacklog());
+                            cursor.getNumberOfEntriesInBacklog(false));
                 }
                 future.complete(null);
             }
@@ -535,7 +535,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Skipping {} messages, current backlog {}", topicName, localCluster, remoteCluster,
-                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
         }
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
@@ -543,7 +543,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     public void skipEntriesComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{} -> {}] Skipped {} messages, new backlog {}", topicName, localCluster,
-                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
                     }
@@ -605,7 +605,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog();
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -633,8 +633,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public void expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog() == 0)
-                || (cursor.getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
+                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return;

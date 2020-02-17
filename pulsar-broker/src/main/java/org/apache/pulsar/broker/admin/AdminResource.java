@@ -113,8 +113,8 @@ public abstract class AdminResource extends PulsarWebResource {
         ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    protected void zkCreateOptimisticAsync(String path, byte[] content, AsyncCallback.StringCallback callback) {
-        ZkUtils.asyncCreateFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+    protected void zkCreateOptimisticAsync(ZooKeeper zk, String path, byte[] content, AsyncCallback.StringCallback callback) {
+        ZkUtils.asyncCreateFullPathOptimistic(zk, path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT, callback, null);
     }
 
@@ -265,7 +265,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     private void tryCreatePartitionAsync(final int partition) {
-        zkCreateOptimisticAsync(ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
+        zkCreateOptimisticAsync(localZk(), ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0],
             (rc, s, o, s1) -> {
                 if (KeeperException.Code.OK.intValue() == rc) {
                     if (log.isDebugEnabled()) {
@@ -454,6 +454,14 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
         }
 
+        if (policies.max_unacked_messages_per_consumer == -1) {
+            policies.max_unacked_messages_per_consumer = config.getMaxUnackedMessagesPerConsumer();
+        }
+
+        if (policies.max_unacked_messages_per_subscription == -1) {
+            policies.max_unacked_messages_per_subscription = config.getMaxUnackedMessagesPerSubscription();
+        }
+
         final String cluster = config.getClusterName();
         // attach default dispatch rate polices
         if (policies.topicDispatchRate.isEmpty()) {
@@ -522,10 +530,9 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get();
-
             // Remove "global" cluster from returned list
-            clusters.remove(Constants.GLOBAL_CLUSTER);
+            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get().stream()
+                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
             throw new RestException(e);
@@ -550,6 +557,32 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected ZooKeeperChildrenCache failureDomainListCache() {
         return pulsar().getConfigurationCache().failureDomainListCache();
+    }
+
+    protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
+            TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
+        validateClusterOwnership(topicName.getCluster());
+        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+        // producer/consumer
+        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
+
+        try {
+            checkConnect(topicName);
+        } catch (WebApplicationException e) {
+            validateAdminAccessForTenant(topicName.getTenant());
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
+                    clientAppId(), e.getMessage(), e);
+            return FutureUtil.failedFuture(e);
+        }
+
+        if (checkAllowAutoCreation) {
+            return pulsar().getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+        } else {
+            return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
+        }
     }
 
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,

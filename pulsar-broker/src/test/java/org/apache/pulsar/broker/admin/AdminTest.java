@@ -381,7 +381,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getTenants(), Lists.newArrayList());
         verify(properties, times(1)).validateSuperUserAccess();
 
+        // create local cluster
+        clusters.createCluster(configClusterName, new ClusterData());
+
         Set<String> allowedClusters = Sets.newHashSet();
+        allowedClusters.add(configClusterName);
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
         properties.createTenant("test-property", tenantInfo);
         verify(properties, times(2)).validateSuperUserAccess();
@@ -489,7 +493,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getTenants(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
-        clusters.createCluster("use", new ClusterData());
         newPropertyAdmin = new TenantInfo(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
         properties.createTenant("my-tenant", newPropertyAdmin);
 
@@ -511,9 +514,34 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         // Check tenantInfo is null
-        TenantInfo nullTenantInfo = new TenantInfo();
-        properties.createTenant("tenant-config-is-null", null);
-        assertEquals(properties.getTenantAdmin("tenant-config-is-null"), nullTenantInfo);
+        try {
+            properties.createTenant("tenant-config-is-null", null);
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check tenantInfo with empty cluster
+        String blankCluster = "";
+        Set<String> blankClusters = Sets.newHashSet(blankCluster);
+        TenantInfo tenantWithEmptyCluster = new TenantInfo(Sets.newHashSet("role1", "role2"), blankClusters);
+        try {
+            properties.createTenant("tenant-config-is-empty", tenantWithEmptyCluster);
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check tenantInfo contains empty cluster
+        Set<String> containBlankClusters = Sets.newHashSet(blankCluster);
+        containBlankClusters.add(configClusterName);
+        TenantInfo tenantContainEmptyCluster = new TenantInfo(Sets.newHashSet(), containBlankClusters);
+        try {
+            properties.createTenant("tenant-config-contain-empty", tenantContainEmptyCluster);
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
 
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false);
@@ -521,7 +549,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
         properties.deleteTenant("my-tenant");
-        properties.deleteTenant("tenant-config-is-null");
     }
 
     @Test

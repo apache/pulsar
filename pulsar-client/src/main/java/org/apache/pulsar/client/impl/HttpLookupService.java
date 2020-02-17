@@ -24,6 +24,7 @@ import io.netty.channel.EventLoopGroup;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -46,9 +47,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.yahoo.sketches.Util.bytesToLong;
-
-class HttpLookupService implements LookupService {
+public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
@@ -152,7 +151,7 @@ class HttpLookupService implements LookupService {
         if (version != null) {
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
-                    bytesToLong(version));
+                    ByteBuffer.wrap(version).getLong());
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
