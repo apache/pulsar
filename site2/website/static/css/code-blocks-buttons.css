@@ -37,3 +37,10 @@ pre .btnIcon:hover {
 .btnClipboard {
   right: 10px;
 }
+
+.version_select {
+  width: 200px;
+  height: 30px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+}
