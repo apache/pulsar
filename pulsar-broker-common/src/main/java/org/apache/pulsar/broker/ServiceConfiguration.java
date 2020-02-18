@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import io.netty.util.internal.PlatformDependent;
@@ -602,6 +603,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max memory size for broker handling messages sending from producers.\n\n"
+            + " If the processing message size exceed this value, broker will stop read data"
+            + " from the connection. The processing messages means messages are sends to broker"
+            + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
+            + " It's shared across all the topics running in the same broker.\n\n"
+            + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
+    private int maxMessagePublishBufferSizeInMB = Math.max(64,
+        (int) (PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
+    )
+    private int messagePublishBufferCheckIntervalInMillis = 100;
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1204,7 +1222,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of load manager to use"
     )
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
-
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Supported algorithms name for namespace bundle split"
+    )
+    private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide", "topic_count_equally_divide");
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Default algorithm name for namespace bundle split"
+    )
+    private String defaultNamespaceBundleSplitAlgorithm = "range_equally_divide";
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Option to override the auto-detected network interfaces max speed"
@@ -1346,6 +1375,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
+
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Enable expose the precise backlog stats.\n" +
+            " Set false to use published counter and consumed counter to calculate,\n" +
+            " this would be more efficient but may be inaccurate. Default is false."
+    )
+    private boolean exposePreciseBacklogInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(

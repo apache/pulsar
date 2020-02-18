@@ -515,10 +515,15 @@ public class CmdNamespaces extends CmdBase {
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
 
+        @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split namespace bundle.\n" +
+            " Valid options are: [range_equally_divide, topic_count_equally_divide].\n" +
+            " Use broker side config if absent", required = false)
+        private String splitAlgorithmName;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload);
+            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload, splitAlgorithmName);
         }
     }
 

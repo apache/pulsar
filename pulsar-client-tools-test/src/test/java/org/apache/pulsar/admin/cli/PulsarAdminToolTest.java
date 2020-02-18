@@ -310,7 +310,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff");
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
-        verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false);
+        verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
 
         namespaces.run(split("get-backlog-quotas myprop/clust/ns1"));
         verify(mockNamespaces).getBacklogQuotaMap("myprop/clust/ns1");
@@ -642,7 +642,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1");
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -651,7 +651,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false);
 
         cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");

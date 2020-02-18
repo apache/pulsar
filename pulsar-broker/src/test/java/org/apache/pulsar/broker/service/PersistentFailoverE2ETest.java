@@ -187,7 +187,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
 
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         // 3. consumer1 should have all the messages while consumer2 should have no messages
@@ -204,7 +204,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // 4. messages deleted on individual acks
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
@@ -241,7 +241,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         // 8. unsubscribe not allowed if multiple consumers connected
         try {
@@ -517,7 +517,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         // wait for all messages to be dequeued
         int retry = 20;
         for (int i = 0; i < retry; i++) {
-            if (receivedMessages.size() >= numMsgs && subRef.getNumberOfEntriesInBacklog() == 0) {
+            if (receivedMessages.size() >= numMsgs && subRef.getNumberOfEntriesInBacklog(false) == 0) {
                 break;
             } else if (i != retry - 1) {
                 Thread.sleep(100);
@@ -526,7 +526,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // check if message duplication has occurred
         assertEquals(receivedMessages.size(), numMsgs);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
         for (int i = 0; i < receivedMessages.size(); i++) {
             Assert.assertNotNull(receivedMessages.get(i));
             Assert.assertEquals(new String(receivedMessages.get(i).getData()), "my-message-" + i);

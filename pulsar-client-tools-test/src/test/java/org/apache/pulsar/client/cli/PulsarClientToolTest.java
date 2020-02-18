@@ -29,7 +29,6 @@ import java.util.concurrent.Executors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.cli.PulsarClientTool;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -60,7 +59,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         String tenantName = UUID.randomUUID().toString();
 
-        admin.tenants().createTenant(tenantName, new TenantInfo());
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant(tenantName, tenantInfo);
 
         String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
 

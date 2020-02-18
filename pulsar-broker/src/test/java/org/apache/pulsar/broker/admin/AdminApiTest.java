@@ -41,6 +41,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +91,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -995,7 +997,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1008,6 +1010,95 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
+    }
+
+    @Test
+    public void testNamespaceSplitBundleWithTopicCountEquallyDivideAlgorithm() throws Exception {
+        // Force to create a topic
+        final String namespace = "prop-xyz/ns1";
+        List<String> topicNames = Lists.newArrayList(
+            (new StringBuilder("persistent://")).append(namespace).append("/topicCountEquallyDivideAlgorithum-1").toString(),
+            (new StringBuilder("persistent://")).append(namespace).append("/topicCountEquallyDivideAlgorithum-2").toString());
+
+        List<Producer<byte[]>> producers = new ArrayList<>(2);
+        for (String topicName : topicNames) {
+            Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+            producers.add(producer);
+            producer.send("message".getBytes());
+        }
+
+        assertTrue(admin.topics().getList(namespace).containsAll(topicNames));
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                NamespaceBundleSplitAlgorithm.topicCountEquallyDivideName);
+        } catch (Exception e) {
+            fail("split bundle shouldn't have thrown exception");
+        }
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(TopicName.get(topicNames.get(0)));
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topicNames.get(1)));
+        assertNotEquals(bundle1, bundle2);
+        String[] splitRange = { namespace + "/0x00000000_0x7fffffff", namespace + "/0x7fffffff_0xffffffff" };
+        for (int i = 0; i < bundles.getBundles().size(); i++) {
+            assertNotEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
+        }
+        producers.forEach(Producer::closeAsync);
+    }
+
+    @Test
+    public void testNamespaceSplitBundleWithInvalidAlgorithm() throws Exception {
+        // Force to create a topic
+        final String namespace = "prop-xyz/ns1";
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                "invalid_test");
+            fail("unsupported namespace bundle split algorithm");
+        } catch (PulsarAdminException ignored) {
+        }
+    }
+
+    @Test
+    public void testNamespaceSplitBundleWithDefaultTopicCountEquallyDivideAlgorithm() throws Exception {
+        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.topicCountEquallyDivideName);
+        // Force to create a topic
+        final String namespace = "prop-xyz/ns1";
+        List<String> topicNames = Lists.newArrayList(
+            (new StringBuilder("persistent://")).append(namespace).append("/topicCountEquallyDivideAlgorithum-1").toString(),
+            (new StringBuilder("persistent://")).append(namespace).append("/topicCountEquallyDivideAlgorithum-2").toString());
+
+        List<Producer<byte[]>> producers = new ArrayList<>(2);
+        for (String topicName : topicNames) {
+            Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+            producers.add(producer);
+            producer.send("message".getBytes());
+        }
+
+        assertTrue(admin.topics().getList(namespace).containsAll(topicNames));
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
+        } catch (Exception e) {
+            fail("split bundle shouldn't have thrown exception");
+        }
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(TopicName.get(topicNames.get(0)));
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topicNames.get(1)));
+        assertNotEquals(bundle1, bundle2);
+        String[] splitRange = { namespace + "/0x00000000_0x7fffffff", namespace + "/0x7fffffff_0xffffffff" };
+        for (int i = 0; i < bundles.getBundles().size(); i++) {
+            assertNotEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
+        }
+        producers.forEach(Producer::closeAsync);
+        conf.setDefaultNamespaceBundleSplitAlgorithm(NamespaceBundleSplitAlgorithm.rangeEquallyDivideName);
     }
 
     @Test
@@ -1025,7 +1116,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1042,11 +1133,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 2 bundles at the same time. spilt: 0x00000000_0x7fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 2 bundles at the same time. spilt: 0x7fffffff_0xffffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null);
                 return null;
             }));
         } catch (Exception e) {
@@ -1064,19 +1155,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 4 bundles at the same time. spilt: 0x00000000_0x3fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0x3fffffff_0x7fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0x7fffffff_0xbfffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0xbfffffff_0xffffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false);
+                admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null);
                 return null;
             }));
         } catch (Exception e) {

@@ -70,7 +70,7 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
      * background invoking async handlers as they are finished and result is available from
      * io_service
      */
-    boost::asio::detail::thread worker_;
+    std::thread worker_;
 };
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;

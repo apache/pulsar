@@ -59,6 +59,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
+        functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
@@ -92,6 +93,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
+        functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
@@ -419,6 +421,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
+        functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);

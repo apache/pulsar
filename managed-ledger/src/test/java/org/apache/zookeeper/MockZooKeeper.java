@@ -354,7 +354,7 @@ public class MockZooKeeper extends ZooKeeper {
                     }
 
                     String child = item.substring(path.length() + 1);
-                    if (!child.contains("/")) {
+                    if (item.charAt(path.length()) == '/' && !child.contains("/")) {
                         children.add(child);
                     }
                 }

@@ -343,7 +343,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             ledger.addEntry("entry".getBytes());
             fail("should fail");
         } catch (ManagedLedgerFencedException e) {
-            assertEquals(e.getCause().getCause().getClass(), org.apache.zookeeper.KeeperException.BadVersionException.class);
+            assertEquals(e.getCause().getClass(), ManagedLedgerException.BadVersionException.class);
             // ok
         }
 
@@ -366,7 +366,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // With one single error, the write should succeed
         ledger.addEntry("entry-1".getBytes());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
         zkc.failNow(Code.CONNECTIONLOSS);
@@ -385,7 +385,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             // ok
         }
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
 
         // Signal that ManagedLedger has recovered from write error and will be availbe for writes again
         ledger.readyToCreateNewLedger();
@@ -393,7 +393,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // Next add should succeed, and the previous write should not appear
         ledger.addEntry("entry-4".getBytes());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
 
         List<Entry> entries = cursor.readEntries(10);
         assertEquals(entries.size(), 2);
@@ -435,7 +435,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         counter.await();
         assertNull(ex.get());
 
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
 
         // Ensure that we are only creating one new ledger
         // even when there are multiple (here, 2) add entry failed ops
