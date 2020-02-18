@@ -78,10 +78,10 @@ window.addEventListener('load', function () {
         '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="restapis-dropdown" class="hide">' +
         '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api?version=' + version + '">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api?version=' + version + '">Functions </a></li>' +
-        '<li><a href="/source-rest-api?version=' + version + '">Sources </a></li>' +
-        '<li><a href="/sink-rest-api?version=' + version + '">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=v1">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=v1">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '&apiversion=v1">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=v1">Sinks </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -192,7 +192,6 @@ window.addEventListener('load', function () {
     const versionSelect = document.querySelectorAll('.version_select')[0];
     let aversion = window.location.search.split('&')[1].split('=')[1];
     let versionOption = versionSelect.querySelectorAll('option');
-    
     versionOption.forEach(ele => {
         if (ele.value == aversion) {
             ele.selected = true;
