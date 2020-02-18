@@ -254,7 +254,9 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             for (String customProperty : instanceConfig.getFunctionDetails().getCustomPropertiesList()) {
-                args.add(String.format("-D%s", customProperty));
+                String[] propEntry = customProperty.split("=");
+                String propValue = System.getProperty(propEntry[1]);
+                args.add(String.format("-D%s=%s", propEntry[0], propValue));
             }
             args.add("-cp");
 
