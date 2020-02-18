@@ -22,6 +22,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
@@ -32,11 +33,12 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
 
     public MLTransactionMetadataStoreTest() {
-        super(3, "15000");
+        super(3);
     }
 
     @Test
@@ -167,6 +169,91 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 Thread.sleep(100);
             }
         }
+    }
 
+    @Test
+    public void testTimeoutTracker() throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new MLTransactionTimeoutTrackerFactory());
+        while (true) {
+            if (transactionMetadataStore.checkIfReady()) {
+                for (int i = 0; i < 1000; i ++) {
+                    transactionMetadataStore.newTransactionAsync(5).get();
+                }
+                transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) -> {
+                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.OPEN);
+                });
+                Thread.sleep(6000L);
+                transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) -> {
+                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.ABORTING);
+                });
+                Assert.assertEquals(1000, transactionMetadataStore.getTxnMetaMap().size());
+                break;
+            }
+        }
+    }
+
+    @Test
+    public void testTimeoutTrackerMultiThreading() throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new MLTransactionTimeoutTrackerFactory());
+
+        while(true) {
+            if (transactionMetadataStore.checkIfReady()) {
+                CountDownLatch countDownLatch = new CountDownLatch(3);
+
+                new Thread(() -> {
+                    for (int i = 0; i < 1000; i ++) {
+                        try {
+                            transactionMetadataStore.newTransactionAsync(1).get();
+                        } catch (Exception e) {
+                            //no operation
+                        }
+                    }
+                    countDownLatch.countDown();
+                }).start();
+
+                new Thread(() -> {
+                    for (int i = 0; i < 1000; i ++) {
+                        try {
+                            transactionMetadataStore.newTransactionAsync(3).get();
+                        } catch (Exception e) {
+                            //no operation
+                        }
+                    }
+                    countDownLatch.countDown();
+                }).start();
+
+                new Thread(() -> {
+                    for (int i = 0; i < 1000; i ++) {
+                        try {
+                            transactionMetadataStore.newTransactionAsync(2).get();
+                        } catch (Exception e) {
+                            //no operation
+                        }
+                    }
+                    countDownLatch.countDown();
+                }).start();
+                countDownLatch.await();
+                Thread.sleep(4000L);
+                transactionMetadataStore.getTxnMetaMap().forEach((txnID, txnMeta) ->{
+                    Assert.assertEquals(txnMeta.status(), PulsarApi.TxnStatus.ABORTING);
+                });
+                Assert.assertEquals(3000, transactionMetadataStore.getTxnMetaMap().size());
+                break;
+            }
+        }
     }
 }
