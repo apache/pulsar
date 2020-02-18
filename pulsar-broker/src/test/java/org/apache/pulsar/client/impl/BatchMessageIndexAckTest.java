@@ -46,6 +46,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }

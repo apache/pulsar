@@ -161,7 +161,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             BitSetRecyclable lastBitSet = this.lastCumulativeAckSet;
             if (msgId.compareTo(lastCumlativeAck) > 0) {
                 if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId) && LAST_CUMULATIVE_ACK_SET_UPDATER.compareAndSet(this, lastBitSet, bitSet)) {
-                    lastBitSet.recycle();
+                    if (lastBitSet != null) {
+                        lastBitSet.recycle();
+                    }
                     // Successfully updated the last cumulative ack. Next flush iteration will send this to broker.
                     cumulativeAckFlushRequired = true;
                     return;
