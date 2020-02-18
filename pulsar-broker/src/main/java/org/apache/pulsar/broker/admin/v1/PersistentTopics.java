@@ -545,12 +545,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't java admin permission"),
             @ApiResponse(code = 404, message = "Topic, subscription or the messageId does not exist")
     })
-    public Response getMessageByID(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("ledgerId") Long ledgerId, @PathParam("entryId") Long entryId,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetMessageById(ledgerId, entryId, authoritative);
+    public void getMessageByID(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+                @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                @PathParam("topic") @Encoded String encodedTopic, @PathParam("ledgerId") Long ledgerId,
+                @PathParam("entryId") Long entryId, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET

@@ -1404,7 +1404,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected Response internalGetMessageById(long ledgerId, long entryId, boolean authoritative) {
+    protected void internalGetMessageById(AsyncResponse asyncResponse, long ledgerId, long entryId,
+                                              boolean authoritative) {
         verifyReadOperation(authoritative);
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
@@ -1415,23 +1416,24 @@ public class PersistentTopicsBase extends AdminResource {
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
+                    asyncResponse.resume(new RestException(exception));
                 }
 
                 @Override
                 public void readEntryComplete(Entry entry, Object ctx) {
-                    future.complete(entry);
+                    try {
+                        asyncResponse.resume(generateResponseWithEntry(entry));
+                    } catch (IOException exception) {
+                        asyncResponse.resume(new RestException(exception));
+                    }
                 }
             }, null);
-
-            entry = future.get(1000, TimeUnit.MILLISECONDS);
-            return generateResponseWithEntry(entry);
         } catch (NullPointerException npe) {
-            throw new RestException(Status.NOT_FOUND, "Message not found");
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
         } catch (Exception exception) {
             log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                     clientAppId(), ledgerId, entryId, topicName, exception);
-            throw new RestException(exception);
+            asyncResponse.resume(new RestException(exception));
         } finally {
             if (entry != null) {
                 entry.release();

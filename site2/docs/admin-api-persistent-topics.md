@@ -474,6 +474,30 @@ int numMessages = 1;
 admin.persistentTopics().peekMessages(topic, subName, numMessages);
 ```
 
+### Get message by ID
+
+It fetches the message with given ledger id and entry id.
+
+#### pulsar-admin
+
+```shell
+$ ./bin/pulsar-admin topics get-message-by-id \
+  persistent://public/default/my-topic \
+  -l 10 -e 0
+```
+
+#### REST API
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
+
+#### Java
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+long ledgerId = 10;
+long entryId = 10;
+admin.persistentTopics().getMessageById(topic, ledgerId, entryId);
+```
+
 ### Skip messages
 
 It skips N messages for a specific subscription of a given topic.
