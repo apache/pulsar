@@ -1410,9 +1410,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
-        Entry entry = null;
         try {
-            CompletableFuture<Entry> future = new CompletableFuture<>();
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
@@ -1434,10 +1432,6 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
                     clientAppId(), ledgerId, entryId, topicName, exception);
             asyncResponse.resume(new RestException(exception));
-        } finally {
-            if (entry != null) {
-                entry.release();
-            }
         }
     }
 
