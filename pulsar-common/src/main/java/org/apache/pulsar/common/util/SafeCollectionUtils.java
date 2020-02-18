@@ -29,7 +29,8 @@ import java.util.stream.Collectors;
 public class SafeCollectionUtils {
 
     public static List<Long> longArrayToList(long[] array) {
-        return array == null || array.length == 0 ? Collections.emptyList() : Arrays.stream(array).boxed().collect(Collectors.toList());
+        return array == null || array.length == 0 ? Collections.emptyList()
+            : Arrays.stream(array).boxed().collect(Collectors.toList());
     }
 
     public static long[] longListToArray(List<Long> list) {
