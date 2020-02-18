@@ -177,6 +177,12 @@ public class FunctionConfigUtils {
         }
 
         if (functionConfig.getCustomProperties() != null && !functionConfig.getCustomProperties().isEmpty()) {
+            for (String propEntry : functionConfig.getCustomProperties()) {
+                String[] props = propEntry.split("=");
+                if (StringUtils.isEmpty(System.getProperty(props[1]))) {
+                    throw new IllegalArgumentException(String.format("custom property %s is not set on broker/worker", props[0]));
+                }
+            }
             functionDetailsBuilder.addAllCustomProperties(functionConfig.getCustomProperties());
         }
 

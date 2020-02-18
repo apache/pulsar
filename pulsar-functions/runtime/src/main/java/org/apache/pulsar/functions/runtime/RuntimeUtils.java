@@ -256,6 +256,10 @@ public class RuntimeUtils {
             for (String customProperty : instanceConfig.getFunctionDetails().getCustomPropertiesList()) {
                 String[] propEntry = customProperty.split("=");
                 String propValue = System.getProperty(propEntry[1]);
+                if (StringUtils.isEmpty(propValue)) {
+                    throw new IllegalArgumentException(String.format("The custom property %s is not set", propEntry[0]));
+                }
+
                 args.add(String.format("-D%s=%s", propEntry[0], propValue));
             }
             args.add("-cp");
