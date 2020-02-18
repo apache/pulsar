@@ -57,6 +57,7 @@
     <module>redis</module>
     <module>solr</module>
     <module>influxdb</module>
+    <module>ignite</module>
   </modules>
 
 </project>
