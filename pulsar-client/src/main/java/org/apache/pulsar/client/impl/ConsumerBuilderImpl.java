@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -190,6 +191,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setSubscriptionType(subscriptionType);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionMode(@NonNull SubscriptionMode subscriptionMode) {
+        conf.setSubscriptionMode(subscriptionMode);
+        return this;
+    }
+
 
     @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
