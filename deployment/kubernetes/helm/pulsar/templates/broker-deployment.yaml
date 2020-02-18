@@ -17,6 +17,7 @@
 # under the License.
 #
 
+{{- $ensembleSize := .Values.broker.configData.PULSAR_PREFIX_managedLedgerDefaultEnsembleSize }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -54,6 +55,9 @@ spec:
       tolerations:
 {{ toYaml .Values.broker.tolerations | indent 8 }}
     {{- end }}
+      {{- if .Values.extra.functionsAsPods }}
+      serviceAccount: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.functions.component }}"
+      {{- end }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -83,6 +87,18 @@ spec:
         args:
           - >-
             until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} ls /admin/clusters/{{ template "pulsar.fullname" . }}; do
+              sleep 3;
+            done;
+      # This init container will wait for bookkeeper to be ready before
+      # deploying the broker
+      - name: wait-bookkeeper-ready
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+          - >-
+            bin/apply-config-from-env.py conf/bookkeeper.conf &&
+            until bin/bookkeeper shell simpletest -ensemble {{$ensembleSize}}; do
               sleep 3;
             done;
       containers:

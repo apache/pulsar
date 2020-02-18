@@ -336,7 +336,10 @@ public class ClientCnx extends PulsarHandler {
                     connectionFuture.completeExceptionally(writeFuture.cause());
                 }
             });
-            state = State.Connecting;
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
         } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
@@ -593,7 +596,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleError(CommandError error) {
-        checkArgument(state == State.Ready);
+        checkArgument(state == State.SentConnectFrame || state == State.Ready);
 
         log.warn("{} Received error from server: {}", ctx.channel(), error.getMessage());
         long requestId = error.getRequestId();

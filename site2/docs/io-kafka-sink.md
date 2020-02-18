@@ -18,7 +18,7 @@ The configuration of the Kafka sink connector has the following parameters.
 | Name | Type| Required | Default | Description 
 |------|----------|---------|-------------|-------------|
 |  `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |
-|`ack`|String|true|" " (empty string) |The number of acknowledgments that the producer requires the leader to receive before a request completes. <br/>This controls the durability of the sent records.
+|`acks`|String|true|" " (empty string) |The number of acknowledgments that the producer requires the leader to receive before a request completes. <br/>This controls the durability of the sent records.
 |`batchsize`|long|false|16384L|The batch size that a Kafka producer attempts to batch records together before sending them to brokers.
 |`maxRequestSize`|long|false|1048576L|The maximum size of a Kafka request in bytes.
 |`topic`|String|true|" " (empty string) |The Kafka topic which receives messages from Pulsar.

@@ -212,6 +212,16 @@ public interface Topics {
     void createNonPartitionedTopic(String topic) throws PulsarAdminException;
 
     /**
+     * Create missed partitions for partitioned topic.
+     * <p>
+     * When disable topic auto creation, use this method to try create missed partitions while
+     * partitions create failed or users already have partitioned topic without partitions.
+     *
+     * @param topic partitioned topic name
+     */
+    void createMissedPartitions(String topic) throws PulsarAdminException;
+
+    /**
      * Create a partitioned topic asynchronously.
      * <p>
      * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
@@ -232,6 +242,16 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> createNonPartitionedTopicAsync(String topic);
+
+    /**
+     * Create missed partitions for partitioned topic asynchronously.
+     * <p>
+     * When disable topic auto creation, use this method to try create missed partitions while
+     * partitions create failed or users already have partitioned topic without partitions.
+     *
+     * @param topic partitioned topic name
+     */
+    CompletableFuture<Void> createMissedPartitionsAsync(String topic);
 
     /**
      * Update number of partitions of a non-global partitioned topic.
@@ -545,6 +565,8 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -554,7 +576,11 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic) throws PulsarAdminException;
+    TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException;
+
+    default TopicStats getStats(String topic) throws PulsarAdminException {
+        return getStats(topic, false);
+    }
 
     /**
      * Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
@@ -562,11 +588,17 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      *
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<TopicStats> getStatsAsync(String topic);
+    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog);
+
+    default CompletableFuture<TopicStats> getStatsAsync(String topic) {
+        return getStatsAsync(topic, false);
+    }
 
     /**
      * Get the internal stats for the topic.
@@ -696,7 +728,11 @@ public interface Topics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException;
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog) throws PulsarAdminException;
+
+    default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
+        return getPartitionedStats(topic, perPartition, false);
+    }
 
     /**
      * Get the stats for the partitioned topic asynchronously
@@ -707,7 +743,11 @@ public interface Topics {
      *            flag to get stats per partition
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
-    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition);
+    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition, boolean getPreciseBacklog);
+
+    default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
+        return getPartitionedStatsAsync(topic, perPartition, false);
+    }
 
     /**
      * Get the stats for the partitioned topic

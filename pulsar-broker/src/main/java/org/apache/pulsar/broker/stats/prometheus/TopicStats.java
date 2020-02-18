@@ -34,6 +34,8 @@ class TopicStats {
     double rateOut;
     double throughputIn;
     double throughputOut;
+    long msgInCounter;
+    long bytesInCounter;
 
     long storageSize;
     public long msgBacklog;
@@ -63,6 +65,8 @@ class TopicStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
 
         storageSize = 0;
         msgBacklog = 0;
@@ -130,6 +134,7 @@ class TopicStats {
 
         stats.subscriptionStats.forEach((n, subsStats) -> {
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log", subsStats.msgBacklog);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log_no_delayed", subsStats.msgBacklogNoDelayed);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_delayed", subsStats.msgDelayed);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_redeliver", subsStats.msgRateRedeliver);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_unacked_messages", subsStats.unackedMessages);
@@ -162,6 +167,9 @@ class TopicStats {
                         replStats.replicationBacklog);
             });
         }
+
+        metric(stream, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
+        metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {

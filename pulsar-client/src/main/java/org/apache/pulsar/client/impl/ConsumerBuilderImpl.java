@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -53,6 +56,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 
+@Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private final PulsarClientImpl client;
@@ -189,6 +193,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> subscriptionMode(@NonNull SubscriptionMode subscriptionMode) {
+        conf.setSubscriptionMode(subscriptionMode);
+        return this;
+    }
+
+
+    @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
         return this;
@@ -275,7 +286,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
         checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
-        conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
+        patternAutoDiscoveryPeriod(periodInMinutes, TimeUnit.MINUTES);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit) {
+        checkArgument(interval >= 0, "interval needs to be >= 0");
+        int intervalSeconds = (int) unit.toSeconds(interval);
+        conf.setPatternAutoDiscoveryPeriod(intervalSeconds);
         return this;
     }
 
@@ -338,10 +357,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-    public ConsumerConfigurationData<T> getConf() {
-        return conf;
-    }
-    
     @Override
     public String toString() {
         return conf != null ? conf.toString() : null;

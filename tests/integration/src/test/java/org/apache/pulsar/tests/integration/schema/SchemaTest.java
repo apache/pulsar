@@ -35,14 +35,13 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.chrono.ISOChronology;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -187,7 +186,7 @@ public class SchemaTest extends PulsarTestSuite {
         AvroLogicalType messageForSend = AvroLogicalType.builder()
                 .decimal(new BigDecimal("12.34"))
                 .timestampMicros(System.currentTimeMillis() * 1000)
-                .timestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()))
+                .timestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"))
                 .timeMillis(LocalTime.now())
                 .timeMicros(System.currentTimeMillis() * 1000)
                 .date(LocalDate.now())

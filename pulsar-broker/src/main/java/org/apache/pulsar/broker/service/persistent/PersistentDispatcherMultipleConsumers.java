@@ -82,7 +82,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final RedeliveryTracker redeliveryTracker;
 
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
-    private final boolean isDelayedDeliveryEnabled;
 
     private volatile boolean havePendingRead = false;
     private volatile boolean havePendingReplayRead = false;
@@ -95,7 +94,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
     private volatile int totalUnackedMessages = 0;
-    private final int maxUnackedMessages;
     private volatile int blockedDispatcherOnUnackedMsgs = FALSE;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
@@ -117,10 +115,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
-        this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
-                .getMaxUnackedMessagesPerSubscription();
-        this.isDelayedDeliveryEnabled = topic.getBrokerService().pulsar().getConfiguration()
-                .isDelayedDeliveryEnabled();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
     }
 
@@ -213,6 +207,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 messagesToRedeliver.clear();
+                redeliveryTracker.clear();
                 if (closeFuture != null) {
                     log.info("[{}] All consumers removed. Subscription is disconnected", name);
                     closeFuture.complete(null);
@@ -224,6 +219,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, none) -> {
                     messagesToRedeliver.add(ledgerId, entryId);
+                    redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 readMoreEntries();
@@ -330,7 +326,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, maxUnackedMessages);
+                        totalUnackedMessages, topic.maxUnackedMessagesOnSubscription);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -456,14 +452,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        if (entries == null || entries.size() == 0) {
-            return;
-        }
+
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
-        int start = 0;
+
         int entriesToDispatch = entries.size();
+        // Trigger read more messages
+        if (entriesToDispatch == 0) {
+            readMoreEntries();
+            return;
+        }
+        int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
 
@@ -540,7 +540,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long waitTimeMillis = readFailureBackoff.next();
 
         if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog() == 0) {
+            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 consumerList.forEach(Consumer::reachedEndOfTopic);
@@ -637,7 +637,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         positions.forEach(position -> {
             messagesToRedeliver.add(position.getLedgerId(), position.getEntryId());
-            redeliveryTracker.incrementAndGetRedeliveryCount(position);
+            redeliveryTracker.addIfAbsent(position);
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
@@ -647,10 +647,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
+        int maxUnackedMessages = topic.maxUnackedMessagesOnSubscription;
+        if (maxUnackedMessages == -1) {
+            maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
+                    .getMaxUnackedMessagesPerSubscription();
+        }
         // don't block dispatching if maxUnackedMessages = 0
         if (maxUnackedMessages <= 0) {
             return;
         }
+
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
         if (unAckedMessages >= maxUnackedMessages
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
@@ -718,7 +724,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-        if (!isDelayedDeliveryEnabled) {
+        if (!topic.delayedDeliveryEnabled) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
@@ -730,6 +736,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
 
+            delayedDeliveryTracker.get().resetTickTime(topic.delayedDeliveryTickTimeMillis);
             return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
         }
     }
@@ -739,6 +746,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
+            delayedDeliveryTracker.get().resetTickTime(topic.delayedDeliveryTickTimeMillis);
             return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
         } else {
             return Collections.emptySet();

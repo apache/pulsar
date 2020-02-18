@@ -128,12 +128,6 @@
     </dependency>
 
     <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
       <groupId>net.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
     </dependency>
@@ -157,6 +151,13 @@
       <version>${project.parent.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.skyscreamer</groupId>
+      <artifactId>jsonassert</artifactId>
+      <version>${skyscreamer.version}</version>
+      <scope>test</scope>
+    </dependency> 
   </dependencies>
 
   <build>

@@ -188,4 +188,18 @@ public class OverloadShedderTest {
         assertFalse(bundlesToUnload.isEmpty());
         assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
     }
+
+    @Test
+    public void testPrintResourceUsage() {
+        LocalBrokerData data = new LocalBrokerData();
+
+        data.setCpu(new ResourceUsage(10, 100));
+        data.setMemory(new ResourceUsage(50, 100));
+        data.setDirectMemory(new ResourceUsage(90, 100));
+        data.setBandwidthIn(new ResourceUsage(30, 100));
+        data.setBandwidthOut(new ResourceUsage(20, 100));
+
+        assertEquals(data.printResourceUsage(),
+                "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
+    }
 }

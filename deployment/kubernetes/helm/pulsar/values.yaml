@@ -49,6 +49,8 @@ extra:
   bastion: yes
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
+  # Configure Kubernetes runtime for Functions
+  functionsAsPods: no
 
 ## Which pulsar image to use
 image:
@@ -70,7 +72,7 @@ zookeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -80,8 +82,12 @@ zookeeper:
     data:
       name: data
       size: 20Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -136,7 +142,7 @@ bookkeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -146,8 +152,12 @@ bookkeeper:
     journal:
       name: journal
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -156,8 +166,12 @@ bookkeeper:
     ledgers:
       name: ledgers
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -167,7 +181,8 @@ bookkeeper:
   ## templates/bookkeeper-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\"-Xms15g -Xmx15g -XX:MaxDirectMemorySize=15g -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
+    BOOKIE_MEM: "\"-Xms15g -Xmx15g -XX:MaxDirectMemorySize=15g -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
+    BOOKIE_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
     PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "2048"
     PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "2048"
     PULSAR_PREFIX_dbStorage_rocksDB_blockCacheSize: "268435456"
@@ -201,7 +216,7 @@ broker:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -234,6 +249,11 @@ broker:
   pdb:
     usePolicy: yes
     maxUnavailable: 1
+  ## Broker rbac
+  ## templates/broker-rbac.yaml
+  ##
+  functions:
+    component: functions-worker
 
 ## Pulsar Extra: Proxy
 ## templates/proxy-deployment.yaml
@@ -246,7 +266,7 @@ proxy:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -288,7 +308,7 @@ autoRecovery:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -310,7 +330,7 @@ dashboard:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-dashboard
@@ -331,7 +351,13 @@ dashboard:
   ingress:
     enabled: false
     annotations: {}
-    tls: {}
+    tls:
+      enabled: false
+
+      ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+      secretName: ""
+
+    ## Required if ingress is enabled
     hostname: ""
     path: "/"
     port: 80
@@ -346,7 +372,7 @@ bastion:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -367,7 +393,7 @@ prometheus:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: prom/prometheus
@@ -381,8 +407,12 @@ prometheus:
     data:
       name: data
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-standard
@@ -406,7 +436,7 @@ grafana:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-grafana
@@ -424,6 +454,31 @@ grafana:
     ports:
     - name: server
       port: 3000
+  plugins: []
+  ## Grafana ingress
+  ## templates/grafana-ingress.yaml
+  ##
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # nginx.ingress.kubernetes.io/rewrite-target: /$1
+      # ingress.kubernetes.io/force-ssl-redirect: "true"
+      ingress.kubernetes.io/rewrite-target: /
+    labels: {}
+
+    tls: []
+
+    ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+    #- secretName: ""
+
+    ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
+    extraPaths: []
+    ## Required if ingress is enabled
+    hostname: ""
+    protocol: http
+    path: /grafana
+    port: 80
 
 ## Components Stack: pulsar_manager
 ## templates/pulsar-manager.yaml
@@ -435,7 +490,7 @@ pulsar_manager:
   # nodeSelector:
   # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-manager
@@ -445,6 +500,15 @@ pulsar_manager:
     requests:
       memory: 250Mi
       cpu: 0.1
+  configData:
+    REDIRECT_HOST: "http://127.0.0.1"
+    REDIRECT_PORT: "9527"
+    DRIVER_CLASS_NAME: org.postgresql.Driver
+    URL: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
+    LOG_LEVEL: DEBUG
+    ## If you enabled authentication support
+    #JWT_TOKEN: <token>
+    #SECRET_KEY: data:base64,<secret key>
   ## Pulsar manager service
   ## templates/pulsar-manager-service.yaml
   ##
@@ -457,4 +521,3 @@ pulsar_manager:
   admin:
     user: pulsar
     password: pulsar
-

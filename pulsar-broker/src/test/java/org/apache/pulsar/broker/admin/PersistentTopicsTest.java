@@ -35,6 +35,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
@@ -51,7 +52,10 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -115,8 +119,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(nonPersistentTopic).clientAuthData();
 
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
-        admin.clusters().createCluster("test", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
+        admin.clusters().createCluster("test", new ClusterData("http://broker-use.com:8080"));
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
@@ -155,17 +159,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 3) Create the partitioned topic
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3);
 
-        // 4) Confirm that the topic partitions has not been created yet
-        response = mock(AsyncResponse.class);
-        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
-                true);
-        errorCaptor = ArgumentCaptor.forClass(RestException.class);
-        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
-        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
-                Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Topic partitions were not yet created");
-
-        // 5) Create a subscription
+        // 4) Create a subscription
         response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
                 (MessageIdImpl) MessageId.earliest, false);
@@ -173,26 +167,26 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        // 6) Confirm that the subscription exists
+        // 5) Confirm that the subscription exists
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
         verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
 
-        // 7) Delete the subscription
+        // 6) Delete the subscription
         response = mock(AsyncResponse.class);
         persistentTopics.deleteSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        // 8) Confirm that the subscription does not exist
+        // 7) Confirm that the subscription does not exist
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
         verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
 
-        // 9) Delete the partitioned topic
+        // 8) Delete the partitioned topic
         response = mock(AsyncResponse.class);
         persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -282,18 +276,46 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnloadTopic() {
         final String topicName = "standard-topic-to-be-unload";
+        final String partitionTopicName = "partition-topic-to-be-unload";
+
+        // 1) not exist topic
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, "topic-not-exist", true);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+
+        // 2) create non partitioned topic and unload
+        response = mock(AsyncResponse.class);
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
-        persistentTopics.unloadTopic(testTenant, testNamespace, topicName, true);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 3) create partitioned topic and unload
+        response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionTopicName, 6);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 4) delete partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, partitionTopicName, true, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test(expectedExceptions = RestException.class)
+    @Test
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
-        try {
-            persistentTopics.unloadTopic(testTenant, testNamespace,"non-existent-topic", true);
-        } catch (RestException e) {
-            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
-            throw e;
-        }
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.unloadTopic(response, testTenant, testNamespace,"non-existent-topic", true);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
     }
 
     @Test
@@ -311,5 +333,77 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         List<String> nonPersistentPartitionedTopics = nonPersistentTopic.getPartitionedTopicList(testTenant, testNamespace);
         Assert.assertEquals(nonPersistentPartitionedTopics.size(), 1);
         Assert.assertEquals(TopicName.get(nonPersistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.non_persistent.value());
+    }
+
+    @Test
+    public void testGrantNonPartitionedTopic() {
+        final String topicName = "non-partitioned-topic";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        persistentTopics.grantPermissionsOnTopic(testTenant, testNamespace, topicName, role, expectActions);
+        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace, topicName);
+        Assert.assertEquals(permissions.get(role), expectActions);
+    }
+
+    @Test
+    public void testGrantPartitionedTopic() {
+        final String partitionedTopicName = "partitioned-topic";
+        final int numPartitions = 5;
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
+
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        persistentTopics.grantPermissionsOnTopic(testTenant, testNamespace, partitionedTopicName, role, expectActions);
+        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
+                partitionedTopicName);
+        Assert.assertEquals(permissions.get(role), expectActions);
+        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
+                partitionedTopicName);
+        for (int i = 0; i < numPartitions; i++) {
+            TopicName partition = topicName.getPartition(i);
+            Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
+                    testNamespace, partition.getEncodedLocalName());
+            Assert.assertEquals(partitionPermissions.get(role), expectActions);
+        }
+    }
+
+    @Test
+    public void testRevokeNonPartitionedTopic() {
+        final String topicName = "non-partitioned-topic";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        persistentTopics.grantPermissionsOnTopic(testTenant, testNamespace, topicName, role, expectActions);
+        persistentTopics.revokePermissionsOnTopic(testTenant, testNamespace, topicName, role);
+        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace, topicName);
+        Assert.assertEquals(permissions.get(role), null);
+    }
+
+    @Test
+    public void testRevokePartitionedTopic() {
+        final String partitionedTopicName = "partitioned-topic";
+        final int numPartitions = 5;
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
+
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        persistentTopics.grantPermissionsOnTopic(testTenant, testNamespace, partitionedTopicName, role, expectActions);
+        persistentTopics.revokePermissionsOnTopic(testTenant, testNamespace, partitionedTopicName, role);
+        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
+                partitionedTopicName);
+        Assert.assertEquals(permissions.get(role), null);
+        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
+                partitionedTopicName);
+        for (int i = 0; i < numPartitions; i++) {
+            TopicName partition = topicName.getPartition(i);
+            Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
+                    testNamespace, partition.getEncodedLocalName());
+            Assert.assertEquals(partitionPermissions.get(role), null);
+        }
     }
 }

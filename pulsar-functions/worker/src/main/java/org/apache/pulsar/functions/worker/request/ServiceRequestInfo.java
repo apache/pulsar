@@ -19,10 +19,7 @@
 package org.apache.pulsar.functions.worker.request;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.MessageId;
 
@@ -31,9 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 @Data
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class ServiceRequestInfo {
     private final ServiceRequest serviceRequest;

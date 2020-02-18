@@ -29,7 +29,6 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
-import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemConfigurationData;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.hadoop.conf.Configuration;
@@ -39,6 +38,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +69,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
+    private OffloadPolicies offloadPolicies;
+
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
     }
@@ -77,11 +79,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return driverName;
     }
 
-    public static FileSystemManagedLedgerOffloader create(FileSystemConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+    public static FileSystemManagedLedgerOffloader create(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
         return new FileSystemManagedLedgerOffloader(conf, scheduler);
     }
 
-    private FileSystemManagedLedgerOffloader(FileSystemConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+    private FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
+        this.offloadPolicies = conf;
         this.configuration = new Configuration();
         if (conf.getFileSystemProfilePath() != null) {
             String[] paths = conf.getFileSystemProfilePath().split(",");
@@ -110,7 +113,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 .name("offload-assignment").build();
     }
     @VisibleForTesting
-    public FileSystemManagedLedgerOffloader(FileSystemConfigurationData conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
+    public FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
+        this.offloadPolicies = conf;
         this.configuration = new Configuration();
         this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         this.configuration.set("fs.defaultFS", testHDFSPath);
@@ -327,5 +331,21 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         }
 
         return builder.build().toByteArray();
+    }
+
+    @Override
+    public OffloadPolicies getOffloadPolicies() {
+        return offloadPolicies;
+    }
+
+    @Override
+    public void close() {
+        if (fileSystem != null) {
+            try {
+                fileSystem.close();
+            } catch (Exception e) {
+                log.error("FileSystemManagedLedgerOffloader close failed!", e);
+            }
+        }
     }
 }

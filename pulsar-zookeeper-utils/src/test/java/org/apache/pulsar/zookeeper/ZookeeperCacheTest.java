@@ -109,6 +109,7 @@ public class ZookeeperCacheTest {
         zkClient.create("/my_test", value.getBytes(), null, null);
 
         assertEquals(zkCache.get("/my_test").get(), value);
+        assertEquals(zkCache.getDataIfPresent("/my_test"), value);
 
         String newValue = "test2";
 
@@ -501,11 +502,11 @@ public class ZookeeperCacheTest {
         assertEquals(zkCache.getAsync(key1).get().get(), value);
         zkExecutor.shutdown();
     }
-    
+
     /**
      * This tests verifies that {{@link ZooKeeperDataCache} invalidates the cache if the get-operation time-out on that
      * path.
-     * 
+     *
      * @throws Exception
      */
     @Test

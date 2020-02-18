@@ -141,7 +141,7 @@ public class NarClassLoader extends URLClassLoader {
         File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
         try {
             return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader());
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
     }
@@ -151,7 +151,7 @@ public class NarClassLoader extends URLClassLoader {
         File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
         try {
             return new NarClassLoader(unpacked, additionalJars, parent);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
     }

@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-PULSAR_HOME=`cd $BINDIR/..;pwd`
+PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml

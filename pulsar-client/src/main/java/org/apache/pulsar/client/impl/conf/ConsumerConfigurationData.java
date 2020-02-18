@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
@@ -58,6 +59,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
     private MessageListener<T> messageListener;
@@ -92,7 +95,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private int patternAutoDiscoveryPeriod = 1;
+    private int patternAutoDiscoveryPeriod = 60;
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 

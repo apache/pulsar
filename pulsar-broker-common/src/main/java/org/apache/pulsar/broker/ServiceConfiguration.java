@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import io.netty.util.internal.PlatformDependent;
@@ -33,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -254,6 +256,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How often to check for inactive topics"
     )
     private int brokerDeleteInactiveTopicsFrequencySeconds = 60;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
+        + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active producers\n"
+        + "'delete_when_subscriptions_caught_up' mode only delete the topic that all subscriptions has no backlogs(caught up)"
+        + "and no active producers/consumers"
+    )
+    private InactiveTopicDeleteMode brokerDeleteInactiveTopicsMode = InactiveTopicDeleteMode.delete_when_no_subscriptions;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Max duration of topic inactivity in seconds, default is not present\n"
+        + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
+        + "Topics that are inactive for longer than this value will be deleted"
+    )
+    private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -584,6 +604,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max memory size for broker handling messages sending from producers.\n\n"
+            + " If the processing message size exceed this value, broker will stop read data"
+            + " from the connection. The processing messages means messages are sends to broker"
+            + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
+            + " It's shared across all the topics running in the same broker.\n\n"
+            + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
+    private int maxMessagePublishBufferSizeInMB = Math.max(64,
+        (int) (PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
+    )
+    private int messagePublishBufferCheckIntervalInMillis = 100;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
@@ -661,6 +698,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
 
     @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Interval of time for checking for expired authentication credentials"
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
+    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Enforce authorization"
     )
@@ -722,6 +765,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
     private String anonymousUserRole = null;
+
+    @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If >0, it will reject all HTTP requests with bodies larged than the configured limit"
+    )
+    private long httpMaxRequestSize = -1;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -860,6 +909,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
+    private int bookkeeperExplicitLacIntervalInMills = 0;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
@@ -986,6 +1038,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " and the ledger being deleted from bookkeeper"
     )
     private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The number of bytes before triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -1165,7 +1222,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of load manager to use"
     )
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
-
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Supported algorithms name for namespace bundle split"
+    )
+    private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide", "topic_count_equally_divide");
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_LOAD_BALANCER,
+        doc = "Default algorithm name for namespace bundle split"
+    )
+    private String defaultNamespaceBundleSplitAlgorithm = "range_equally_divide";
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Option to override the auto-detected network interfaces max speed"
@@ -1308,6 +1376,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Enable expose the precise backlog stats.\n" +
+            " Set false to use published counter and consumed counter to calculate,\n" +
+            " this would be more efficient but may be inaccurate. Default is false."
+    )
+    private boolean exposePreciseBacklogInPrometheus = false;
+
     /**** --- Functions --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
@@ -1442,6 +1518,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isDefaultTopicTypePartitioned() {
         return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+    }
+
+    public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
+        if (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds == null) {
+            return brokerDeleteInactiveTopicsFrequencySeconds;
+        } else {
+            return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
+        }
     }
 
     enum TopicType {

@@ -68,6 +68,9 @@ for conf_filename in conf_files:
         if k not in keys:
             print('[%s] Adding config %s = %s' % (conf_filename, k, v))
             lines.append('%s=%s\n' % (k, v))
+        else:
+            print('[%s] Updating config %s = %s' %(conf_filename, k, v))
+            lines[keys[k]] = '%s=%s\n' % (k, v)
 
     # Store back the updated config in the same file
     f = open(conf_filename, 'w')

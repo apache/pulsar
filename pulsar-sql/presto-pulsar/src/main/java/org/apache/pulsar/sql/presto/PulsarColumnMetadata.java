@@ -21,6 +21,7 @@ package org.apache.pulsar.sql.presto;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Description of the column metadata.
@@ -32,15 +33,19 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private String nameWithCase;
     private String[] fieldNames;
     private Integer[] positionIndices;
+    private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
+    public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
-                                String[] fieldNames, Integer[] positionIndices) {
+                                String[] fieldNames, Integer[] positionIndices,
+                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
+        this.handleKeyValueType = handleKeyValueType;
     }
 
     public String getNameWithCase() {
@@ -59,6 +64,25 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return positionIndices;
     }
 
+    public PulsarColumnHandle.HandleKeyValueType getHandleKeyValueType() {
+        return handleKeyValueType;
+    }
+
+    public boolean isKey() {
+        return Objects.equals(handleKeyValueType, PulsarColumnHandle.HandleKeyValueType.KEY);
+    }
+
+    public boolean isValue() {
+        return Objects.equals(handleKeyValueType, PulsarColumnHandle.HandleKeyValueType.VALUE);
+    }
+
+    public static String getColumnName(PulsarColumnHandle.HandleKeyValueType handleKeyValueType, String name) {
+        if (Objects.equals(PulsarColumnHandle.HandleKeyValueType.KEY, handleKeyValueType)) {
+            return KEY_SCHEMA_COLUMN_PREFIX + name;
+        }
+        return name;
+    }
+
     @Override
     public String toString() {
         return "PulsarColumnMetadata{"
@@ -66,6 +90,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
             + ", nameWithCase='" + nameWithCase + '\''
             + ", fieldNames=" + Arrays.toString(fieldNames)
             + ", positionIndices=" + Arrays.toString(positionIndices)
+            + ", handleKeyValueType=" + handleKeyValueType
             + '}';
     }
 
@@ -92,7 +117,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
             return false;
         }
-        return Arrays.deepEquals(positionIndices, that.positionIndices);
+        if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
+            return false;
+        }
+        return Objects.equals(handleKeyValueType, that.handleKeyValueType);
     }
 
     @Override
@@ -102,6 +130,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
+        result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
 }
