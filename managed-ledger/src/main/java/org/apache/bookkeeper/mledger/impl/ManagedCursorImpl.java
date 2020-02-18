@@ -46,6 +46,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -93,6 +94,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -2360,35 +2362,29 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
-        lock.readLock().lock();
-        try {
-            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
-                return Collections.emptyList();
-            }
-            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-                .newBuilder();
-            MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
-                .newBuilder();
-            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
-            for (Map.Entry<PositionImpl, BitSet> entry : batchDeletedIndexes.entrySet()) {
-                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
-                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
-                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
-                long[] array = entry.getValue().toLongArray();
-                List<Long> deleteSet = new ArrayList<>(array.length);
-                for (long l : array) {
-                    deleteSet.add(l);
-                }
-                batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
-                result.add(batchDeletedIndexInfoBuilder.build());
-                if (result.size() >= config.getMaxBatchDeletedIndexToPersist()) {
-                    break;
-                }
-            }
-            return result;
-        } finally {
-            lock.readLock().unlock();
+        if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
+            return Collections.emptyList();
         }
+        MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
+            .newBuilder();
+        MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
+            .newBuilder();
+        List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
+        Iterator<Map.Entry<PositionImpl, BitSet>> iterator = batchDeletedIndexes.entrySet().iterator();
+        while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
+            Map.Entry<PositionImpl, BitSet> entry = iterator.next();
+            nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
+            nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
+            batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
+            long[] array = entry.getValue().toLongArray();
+            List<Long> deleteSet = new ArrayList<>(array.length);
+            for (long l : array) {
+                deleteSet.add(l);
+            }
+            batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
+            result.add(batchDeletedIndexInfoBuilder.build());
+        }
+        return result;
     }
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
@@ -2781,13 +2777,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
-        lock.readLock().lock();
-        try {
-            BitSet bitSet = batchDeletedIndexes.get(position);
-            return bitSet == null ? null : bitSet.toLongArray();
-        } finally {
-            lock.readLock().unlock();
-        }
+        BitSet bitSet = batchDeletedIndexes.get(position);
+        return bitSet == null ? null : bitSet.toLongArray();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

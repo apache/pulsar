@@ -16,23 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.common.util.collections;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-/**
- * Safe collection utils.
- */
-public class SafeCollectionUtils {
+public class ConcurrentBitSetRecyclableTest {
 
-    public static List<Long> longArrayToList(long[] array) {
-        return array == null || array.length == 0 ? Collections.emptyList() : Arrays.stream(array).boxed().collect(Collectors.toList());
-    }
-
-    public static long[] longListToArray(List<Long> list) {
-        return list == null || list.size() == 0 ? new long[0] : list.stream().mapToLong(l->l).toArray();
+    @Test
+    public void testRecycle() {
+        ConcurrentBitSetRecyclable bitset1 = ConcurrentBitSetRecyclable.create();
+        bitset1.set(3);
+        bitset1.recycle();
+        ConcurrentBitSetRecyclable bitset2 = ConcurrentBitSetRecyclable.create();
+        ConcurrentBitSetRecyclable bitset3 = ConcurrentBitSetRecyclable.create();
+        Assert.assertSame(bitset2, bitset1);
+        Assert.assertFalse(bitset2.get(3));
+        Assert.assertNotSame(bitset3, bitset1);
     }
 }

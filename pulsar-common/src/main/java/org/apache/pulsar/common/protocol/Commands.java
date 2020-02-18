@@ -119,6 +119,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
@@ -864,7 +865,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiMessageAck(long consumerId, List<Triple<Long, Long, BitSet>> entries) {
+    public static ByteBuf newMultiMessageAck(long consumerId, List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
@@ -873,7 +874,7 @@ public class Commands {
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
-            BitSet bitSet = entries.get(i).getRight();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
             MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
             messageIdDataBuilder.setLedgerId(ledgerId);
             messageIdDataBuilder.setEntryId(entryId);
@@ -883,6 +884,7 @@ public class Commands {
             MessageIdData messageIdData = messageIdDataBuilder.build();
             ackBuilder.addMessageId(messageIdData);
 
+            bitSet.recycle();
             messageIdDataBuilder.recycle();
         }
 
