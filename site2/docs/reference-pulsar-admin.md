@@ -1714,6 +1714,7 @@ Subcommands
 * `expire-messages-all-subscriptions`
 * `peek-messages`
 * `reset-cursor`
+* `get-message-by-id`
 
 
 ### `compact`
@@ -2090,6 +2091,20 @@ Options
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
 |`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
+
+### `get-message-by-id`
+Get message by ledger id and entry id
+
+Usage
+```bash
+$ pulsar-admin topics get-message-by-id topic options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-l`, `--ledgerId`| The ledger id |0|
+|`-e`, `--entryId`| The entry id |0|
 
 
 ## `tenants`
