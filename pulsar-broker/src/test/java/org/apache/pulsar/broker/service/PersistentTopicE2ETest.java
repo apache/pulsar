@@ -161,7 +161,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(subRef.getDispatcher().isConsumerConnected());
         rolloverPerIntervalStats();
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs * 2);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs * 2);
 
         // 2. messages pushed before client receive
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -179,7 +179,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 4. messages deleted on individual acks
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
         for (int i = 0; i < numMsgs; i++) {
             msg = consumer.receive();
@@ -192,7 +192,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 5. messages deleted on cumulative acks
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         // 6. consumer unsubscribe
         consumer.unsubscribe();
@@ -365,7 +365,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         // 1. cumulatively all threads drain the backlog
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         // 2. flow control works the same as single consumer single thread
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -848,13 +848,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs));
         runMessageExpiryCheck();
 
         // 1. check all messages expired for this unconnected subscription
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
 
         // clean-up
         producer.close();
@@ -895,17 +895,17 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs));
         runMessageExpiryCheck();
 
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), numMsgs);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs / 2));
         runMessageExpiryCheck();
 
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
     }
 
     @Test

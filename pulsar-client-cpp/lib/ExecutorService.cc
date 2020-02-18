@@ -29,7 +29,14 @@ ExecutorService::ExecutorService()
       work_(new BackgroundWork(*io_service_)),
       worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
 
-ExecutorService::~ExecutorService() { close(); }
+ExecutorService::~ExecutorService() {
+    close();
+    // If the worker_ is still not joinable at this point just detach
+    // the thread so its destructor does not terminate the app
+    if (worker_.joinable()) {
+        worker_.detach();
+    }
+}
 
 void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) { io_service_->run(); }
 
@@ -59,11 +66,12 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
 }
 
 void ExecutorService::close() {
-    // Ensure this service has not already been closed. This is
-    // because worker_.join() is not re-entrant on Windows
-    if (work_) {
-        io_service_->stop();
-        work_.reset();
+    io_service_->stop();
+    work_.reset();
+    // If this thread is attempting to join itself, do not. The destructor's
+    // call to close will handle joining if it does not occur here. This also ensures
+    // join is not called twice since it is not re-entrant on windows
+    if (std::this_thread::get_id() != worker_.get_id() && worker_.joinable()) {
         worker_.join();
     }
 }

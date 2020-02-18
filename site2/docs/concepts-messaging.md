@@ -176,11 +176,17 @@ Topic name component | Description
 
 A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
-## Subscription modes
+## Subscriptions
 
 A subscription is a named configuration rule that determines how messages are delivered to consumers. There are four available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These modes are illustrated in the figure below.
 
 ![Subscription modes](assets/pulsar-subscription-modes.png)
+
+> #### Pub-Sub, Queuing, or Both
+> There is a lot of flexibility in how to combine subscriptions:
+> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, you can make each consumer have a unique subscription name (exclusive)
+> * If you want to achieve "message queuing" among consumers, you can make multiple consumers have the same subscription name (shared, failover, key_shared)
+> * If you want to do both simultaneously, you can have some consumers with exclusive subscriptions while others do not
 
 ### Exclusive
 

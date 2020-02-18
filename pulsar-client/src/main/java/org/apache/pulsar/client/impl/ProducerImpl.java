@@ -70,7 +70,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -114,6 +113,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private volatile long lastSequenceIdPublished;
     protected volatile long lastSequenceIdPushed;
+    private volatile boolean isLastSequenceIdPotentialDuplicated;
 
     private MessageCrypto msgCrypto = null;
 
@@ -397,6 +397,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         // should trigger complete the batch message, new message will add to a new batch and new batch
                         // sequence id use the new message, so that broker can handle the message duplication
                         if (sequenceId <= lastSequenceIdPushed) {
+                            isLastSequenceIdPotentialDuplicated = true;
                             if (sequenceId <= lastSequenceIdPublished) {
                                 log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
                             } else {
@@ -405,14 +406,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             }
                             doBatchSendAndAdd(msg, callback, payload);
                         } else {
-                            // handle boundary cases where message being added would exceed
-                            // batch size and/or max message size
-                            boolean isBatchFull = batchMessageContainer.add(msg, callback);
-                            lastSendFuture = callback.getFuture();
-                            payload.release();
-                            if (isBatchFull) {
-                                batchMessageAndSend();
+                            // Should flush the last potential duplicated since can't combine potential duplicated messages
+                            // and non-duplicated messages into a batch.
+                            if (isLastSequenceIdPotentialDuplicated) {
+                                doBatchSendAndAdd(msg, callback, payload);
+                            } else {
+                                // handle boundary cases where message being added would exceed
+                                // batch size and/or max message size
+                                boolean isBatchFull = batchMessageContainer.add(msg, callback);
+                                lastSendFuture = callback.getFuture();
+                                payload.release();
+                                if (isBatchFull) {
+                                    batchMessageAndSend();
+                                }
                             }
+                            isLastSequenceIdPotentialDuplicated = false;
                         }
                     } else {
                         doBatchSendAndAdd(msg, callback, payload);
