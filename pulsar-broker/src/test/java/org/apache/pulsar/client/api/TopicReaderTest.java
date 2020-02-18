@@ -33,11 +33,14 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,15 +70,15 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public static Object[][] variationsForExpectedPos() {
         return new Object[][] {
                 // batching / start-inclusive / num-of-messages
-                {true, true, 10 },
-                {true, false, 10 },
-                {false, true, 10 },
-                {false, false, 10 },
+                {true,  true,  10,  "1"},
+                {true,  true,  100, "2"},
+                {true,  false, 10,  "3"},
+                {true,  false, 100, "4"},
 
-                {true, true, 100 },
-                {true, false, 100 },
-                {false, true, 100 },
-                {false, false, 100 },
+                {false, true,  10,  "5"},
+                {false, true,  100, "6"},
+                {false, false, 10,  "7"},
+                {false, false, 100, "8"},
         };
     }
 
@@ -690,9 +693,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "variationsForExpectedPos")
-    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
+    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages, String suffix)
             throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos";
+        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos" + suffix;
         final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
         final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
 
@@ -701,17 +704,33 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .enableBatching(batching)
                 .create();
 
-        MessageId resetPos = null;
+        CountDownLatch latch = new CountDownLatch(numOfMessages);
+
+        final AtomicReference<MessageId> resetPos = new AtomicReference<>();
+
         for (int i = 0; i < numOfMessages; i++) {
-            MessageId msgId = producer.send(String.format("msg num %d", i).getBytes());
-            if (resetIndex == i) {
-                resetPos = msgId;
-            }
+
+            final int j = i;
+
+            producer.sendAsync(String.format("msg num %d", i).getBytes())
+                    .thenCompose(messageId -> FutureUtils.value(Pair.of(j, messageId)))
+                    .whenComplete((p, e) -> {
+                        if (e != null) {
+                            fail("send msg failed due to " + e.getMessage());
+                        } else {
+                            if (p.getLeft() == resetIndex) {
+                                resetPos.set(p.getRight());
+                            }
+                        }
+                        latch.countDown();
+                    });
         }
+
+        latch.await();
 
         ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader()
                 .topic(topicName)
-                .startMessageId(resetPos);
+                .startMessageId(resetPos.get());
 
         if (startInclusive) {
             readerBuilder.startMessageIdInclusive();
