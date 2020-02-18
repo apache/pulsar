@@ -1092,7 +1092,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private boolean isNonDurableAndSameEntryAndLedger(MessageIdData messageId) {
-        return subscriptionMode == SubscriptionMode.NonDurable && startMessageId != null
+        return startMessageId != null
                 && messageId.getLedgerId() == startMessageId.getLedgerId()
                 && messageId.getEntryId() == startMessageId.getEntryId();
     }
