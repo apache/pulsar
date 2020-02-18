@@ -160,8 +160,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     };
     private final LongPairRangeSet<PositionImpl> individualDeletedMessages;
 
-    // Maintain the indexes deleted status of batch messages that not deleted completely
-    // (ledgerId, entryId) -> deleted indexes
+    // Maintain the deletion status for batch messages
+    // (ledgerId, entryId) -> deletion indexes
     private final ConcurrentSkipListMap<PositionImpl, BitSet> batchDeletedIndexes;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -234,7 +234,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.individualDeletedMessages = config.isUnackedRangesOpenCacheSetEnabled()
                 ? new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter)
                 : new LongPairRangeSet.DefaultRangeSet<>(positionRangeConverter);
-        if (config.isBatchIndexDeleteEnabled()) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             this.batchDeletedIndexes = new ConcurrentSkipListMap<>();
         } else {
             this.batchDeletedIndexes = null;
@@ -386,8 +386,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
                     recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
                 }
-                if (config.isBatchIndexDeleteEnabled() && positionInfo.getBatchDeletedIndexesCount() > 0) {
-                    recoverBatchDeletedIndexes(positionInfo.getBatchDeletedIndexesList());
+                if (config.isDeletionAtBatchIndexLevelEnabled() && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
+                    recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
                 }
                 recoveredCursor(position, recoveredProperties, lh);
                 callback.operationComplete();
@@ -408,15 +408,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoverBatchDeletedIndexes (List<MLDataFormats.BatchDeletedIndexInfo> batchDeletedIndexInfoList) {
+    private void recoverBatchDeletedIndexes (List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList) {
         lock.writeLock().lock();
         try {
             this.batchDeletedIndexes.clear();
             batchDeletedIndexInfoList.forEach(batchDeletedIndexInfo -> {
-                if (batchDeletedIndexInfo.getAckBitSetCount() > 0) {
-                    long[] array = new long[batchDeletedIndexInfo.getAckBitSetCount()];
-                    for (int i = 0; i < batchDeletedIndexInfo.getAckBitSetList().size(); i++) {
-                        array[i] = batchDeletedIndexInfo.getAckBitSetList().get(i);
+                if (batchDeletedIndexInfo.getDeleteSetCount() > 0) {
+                    long[] array = new long[batchDeletedIndexInfo.getDeleteSetCount()];
+                    for (int i = 0; i < batchDeletedIndexInfo.getDeleteSetList().size(); i++) {
+                        array[i] = batchDeletedIndexInfo.getDeleteSetList().get(i);
                     }
                     this.batchDeletedIndexes.put(PositionImpl.get(batchDeletedIndexInfo.getPosition().getLedgerId(),
                         batchDeletedIndexInfo.getPosition().getEntryId()), BitSet.valueOf(array));
@@ -936,7 +936,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(),
                             null, null);
                     individualDeletedMessages.clear();
-                    if (config.isBatchIndexDeleteEnabled()) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.clear();
                     }
 
@@ -1529,7 +1529,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         PositionImpl newPosition = (PositionImpl) position;
 
-        if (config.isBatchIndexDeleteEnabled()) {
+        if (config.isDeletionAtBatchIndexLevelEnabled()) {
             if (newPosition.ackSet != null) {
                 batchDeletedIndexes.put(newPosition, newPosition.ackSet);
                 newPosition = ledger.getPreviousPosition(newPosition);
@@ -1631,7 +1631,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     individualDeletedMessages.removeAtMost(mdEntry.newPosition.getLedgerId(),
                             mdEntry.newPosition.getEntryId());
-                    if (config.isBatchIndexDeleteEnabled()) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.subMap(PositionImpl.earliest, false, PositionImpl.get(mdEntry.newPosition.getLedgerId(), mdEntry.newPosition.getEntryId()), true).clear();
                     }
                 } finally {
@@ -1768,7 +1768,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())
                     || position.compareTo(markDeletePosition) <= 0) {
-                    if (config.isBatchIndexDeleteEnabled()) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.remove(position);
                     }
                     if (log.isDebugEnabled()) {
@@ -1777,7 +1777,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     continue;
                 }
                 if (position.ackSet == null) {
-                    if (config.isBatchIndexDeleteEnabled()) {
+                    if (config.isDeletionAtBatchIndexLevelEnabled()) {
                         batchDeletedIndexes.remove(position);
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will make
@@ -1791,7 +1791,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.debug("[{}] [{}] Individually deleted messages: {}", ledger.getName(), name,
                             individualDeletedMessages);
                     }
-                } else if (config.isBatchIndexDeleteEnabled()) {
+                } else if (config.isDeletionAtBatchIndexLevelEnabled()) {
                     BitSet bitSet = batchDeletedIndexes.computeIfAbsent(position, (v) -> BitSet.valueOf(position.ackSet.toLongArray()));
                     bitSet.and(position.ackSet);
                     if (bitSet.isEmpty()) {
@@ -2112,8 +2112,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         info.addAllProperties(buildPropertiesMap(properties));
         if (persistIndividualDeletedMessageRanges) {
             info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
-            if (config.isBatchIndexDeleteEnabled()) {
-                info.addAllBatchDeletedIndexes(buildBatchDeletedIndexInfoList());
+            if (config.isDeletionAtBatchIndexLevelEnabled()) {
+                info.addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList());
             }
         }
 
@@ -2359,27 +2359,27 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private List<MLDataFormats.BatchDeletedIndexInfo> buildBatchDeletedIndexInfoList() {
+    private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
         lock.readLock().lock();
         try {
-            if (!config.isBatchIndexDeleteEnabled() || batchDeletedIndexes.isEmpty()) {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
                 return Collections.emptyList();
             }
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                 .newBuilder();
-            MLDataFormats.BatchDeletedIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchDeletedIndexInfo
+            MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats.BatchedEntryDeletionIndexInfo
                 .newBuilder();
-            List<MLDataFormats.BatchDeletedIndexInfo> result = Lists.newArrayList();
+            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
             for (Map.Entry<PositionImpl, BitSet> entry : batchDeletedIndexes.entrySet()) {
                 nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
                 nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
                 batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
                 long[] array = entry.getValue().toLongArray();
-                List<Long> ackBitSet = new ArrayList<>(array.length);
+                List<Long> deleteSet = new ArrayList<>(array.length);
                 for (long l : array) {
-                    ackBitSet.add(l);
+                    deleteSet.add(l);
                 }
-                batchDeletedIndexInfoBuilder.addAllAckBitSet(ackBitSet);
+                batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
                 result.add(batchDeletedIndexInfoBuilder.build());
                 if (result.size() >= config.getMaxBatchDeletedIndexToPersist()) {
                     break;
@@ -2396,7 +2396,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
                 .addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges())
-                .addAllBatchDeletedIndexes(buildBatchDeletedIndexInfoList())
+                .addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList())
                 .addAllProperties(buildPropertiesMap(mdEntry.properties)).build();
 
 
@@ -2780,7 +2780,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public long[] getDeletedBatchIndexesLongArray(PositionImpl position) {
+    public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
         lock.readLock().lock();
         try {
             BitSet bitSet = batchDeletedIndexes.get(position);

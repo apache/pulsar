@@ -3066,19 +3066,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         assertEquals(cursor.getNumberOfEntries(), totalEntries);
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(2).setEnd(4).build()));
-        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[0]), 10);
+        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
         Assert.assertEquals(1, deletedIndexes.size());
         Assert.assertEquals(2, deletedIndexes.get(0).getStart());
         Assert.assertEquals(4, deletedIndexes.get(0).getEnd());
 
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(8).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[0]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
         Assert.assertEquals(1, deletedIndexes.size());
         Assert.assertEquals(2, deletedIndexes.get(0).getStart());
         Assert.assertEquals(8, deletedIndexes.get(0).getEnd());
 
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(0).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[0]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
         Assert.assertEquals(2, deletedIndexes.size());
         Assert.assertEquals(0, deletedIndexes.get(0).getStart());
         Assert.assertEquals(0, deletedIndexes.get(0).getEnd());
@@ -3087,24 +3087,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(1).setEnd(1).build()));
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(9).setEnd(9).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[0]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[0]), 10);
         Assert.assertNull(deletedIndexes);
         Assert.assertEquals(positions[0], cursor.getMarkDeletedPosition());
 
         deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
         cursor.delete(positions[1]);
         deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(6).setEnd(8).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[1]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[1]), 10);
         Assert.assertNull(deletedIndexes);
 
         deleteBatchIndex(cursor, positions[2], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
         cursor.markDelete(positions[3]);
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[2]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[2]), 10);
         Assert.assertNull(deletedIndexes);
 
         deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(5).build()));
         cursor.resetCursor(positions[0]);
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[3]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[3]), 10);
         Assert.assertNull(deletedIndexes);
     }
 
@@ -3129,13 +3129,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ledger = factory.open("test_batch_indexes_deletion_persistent");
         cursor = ledger.openCursor("c1");
-        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[5]), 10);
+        List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
         Assert.assertEquals(deletedIndexes.size(), 1);
         Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
         Assert.assertEquals(deletedIndexes.get(0).getEnd(), 6);
         Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[4]);
         deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
-        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesLongArray((PositionImpl) positions[5]), 10);
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
         Assert.assertNull(deletedIndexes);
         Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[5]);
     }

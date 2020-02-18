@@ -328,7 +328,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public long[] getDeletedBatchIndexesLongArray(PositionImpl position) {
+        public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
             return new long[0];
         }
 

@@ -32,7 +32,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -106,7 +105,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 totalBytes += metadataAndPayload.readableBytes();
                 batchSizes.setBatchSize(i, batchSize);
                 if (indexesAcks != null && cursor != null) {
-                    long[] ackSet = cursor.getDeletedBatchIndexesLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
                         indexesAcks.setIndexesAcks(Pair.of(batchSize, ackSet));
                     } else {

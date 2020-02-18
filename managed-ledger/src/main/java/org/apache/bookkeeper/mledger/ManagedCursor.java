@@ -613,5 +613,5 @@ public interface ManagedCursor {
     /**
      * Get deleted batch indexes list for a batch message.
      */
-    long[] getDeletedBatchIndexesLongArray(PositionImpl position);
+    long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
 }

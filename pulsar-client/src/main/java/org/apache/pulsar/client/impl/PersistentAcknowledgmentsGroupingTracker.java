@@ -62,13 +62,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Latest cumulative ack sent to broker
      */
     private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
-    private volatile ConcurrentBitSet lastCumulativeAckSet = null;
+    private volatile BitSet lastCumulativeAckSet = null;
     private volatile boolean cumulativeAckFlushRequired = false;
 
     private static final AtomicReferenceFieldUpdater<PersistentAcknowledgmentsGroupingTracker, MessageIdImpl> LAST_CUMULATIVE_ACK_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(PersistentAcknowledgmentsGroupingTracker.class, MessageIdImpl.class, "lastCumulativeAck");
-    private static final AtomicReferenceFieldUpdater<PersistentAcknowledgmentsGroupingTracker, ConcurrentBitSet> LAST_CUMULATIVE_ACK_SET_UPDATER = AtomicReferenceFieldUpdater
-        .newUpdater(PersistentAcknowledgmentsGroupingTracker.class, ConcurrentBitSet.class, "lastCumulativeAckSet");
+    private static final AtomicReferenceFieldUpdater<PersistentAcknowledgmentsGroupingTracker, BitSet> LAST_CUMULATIVE_ACK_SET_UPDATER = AtomicReferenceFieldUpdater
+        .newUpdater(PersistentAcknowledgmentsGroupingTracker.class, BitSet.class, "lastCumulativeAckSet");
 
 
     /**
@@ -135,7 +135,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties);
         } else if (ackType == AckType.Cumulative) {
-            ConcurrentBitSet bitSet = new ConcurrentBitSet(batchSize);
+            BitSet bitSet = new BitSet(batchSize);
             bitSet.set(0, batchSize);
             bitSet.clear(0, batchIndex + 1);
             doCumulativeAck(msgId, bitSet);
@@ -154,11 +154,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private void doCumulativeAck(MessageIdImpl msgId, ConcurrentBitSet bitSet) {
+    private void doCumulativeAck(MessageIdImpl msgId, BitSet bitSet) {
         // Handle concurrent updates from different threads
         while (true) {
             MessageIdImpl lastCumlativeAck = this.lastCumulativeAck;
-            ConcurrentBitSet lastBitSet = this.lastCumulativeAckSet;
+            BitSet lastBitSet = this.lastCumulativeAckSet;
             if (msgId.compareTo(lastCumlativeAck) > 0) {
                 if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId) && LAST_CUMULATIVE_ACK_SET_UPDATER.compareAndSet(this, lastBitSet, bitSet)) {
                     // Successfully updated the last cumulative ack. Next flush iteration will send this to broker.

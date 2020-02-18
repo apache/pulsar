@@ -1134,7 +1134,7 @@ public final class PulsarApi {
     boolean hasBatchIndex();
     int getBatchIndex();
     
-    // repeated int64 ackSet = 5;
+    // repeated int64 ack_set = 5;
     java.util.List<java.lang.Long> getAckSetList();
     int getAckSetCount();
     long getAckSet(int index);
@@ -1214,8 +1214,8 @@ public final class PulsarApi {
       return batchIndex_;
     }
     
-    // repeated int64 ackSet = 5;
-    public static final int ACKSET_FIELD_NUMBER = 5;
+    // repeated int64 ack_set = 5;
+    public static final int ACK_SET_FIELD_NUMBER = 5;
     private java.util.List<java.lang.Long> ackSet_;
     public java.util.List<java.lang.Long>
         getAckSetList() {
@@ -1665,7 +1665,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated int64 ackSet = 5;
+      // repeated int64 ack_set = 5;
       private java.util.List<java.lang.Long> ackSet_ = java.util.Collections.emptyList();;
       private void ensureAckSetIsMutable() {
         if (!((bitField0_ & 0x00000010) == 0x00000010)) {
