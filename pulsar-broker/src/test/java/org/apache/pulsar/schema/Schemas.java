@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.schema.compatibility;
+package org.apache.pulsar.schema;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,36 +29,36 @@ public class Schemas {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PersonOne{
-        int id;
+        public int id;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PersonTwo{
-        int id;
+        public int id;
 
         @AvroDefault("\"Tom\"")
-        String name;
+        public String name;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PersonThree{
-        int id;
+        public int id;
 
-        String name;
+        public String name;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PersonFour{
-        int id;
+        public int id;
 
-        String name;
+        public String name;
 
-        int age;
+        public int age;
     }
 }

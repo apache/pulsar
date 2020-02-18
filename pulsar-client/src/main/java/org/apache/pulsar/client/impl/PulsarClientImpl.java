@@ -70,6 +70,9 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -764,7 +767,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @SuppressWarnings("unchecked")
-    protected CompletableFuture<Void> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
+    protected CompletableFuture<Schema> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
                                                                       Schema schema,
                                                                       String topicName) {
         if (schema != null && schema.supportSchemaVersioning()) {
@@ -775,11 +778,12 @@ public class PulsarClientImpl implements PulsarClient {
                 log.error("Failed to load schema info provider for topic {}", topicName, e);
                 return FutureUtil.failedFuture(e.getCause());
             }
-
+            schema = cloneSchema(schema);
             if (schema.requireFetchingSchemaInfo()) {
+                Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        if (!(schema instanceof AutoConsumeSchema)) {
+                        if (!(finalSchema instanceof AutoConsumeSchema)) {
                             // no schema info is found
                             return FutureUtil.failedFuture(
                                     new PulsarClientException.NotFoundException(
@@ -788,18 +792,18 @@ public class PulsarClientImpl implements PulsarClient {
                     }
                     try {
                         log.info("Configuring schema for topic {} : {}", topicName, schemaInfo);
-                        schema.configureSchemaInfo(topicName, "topic", schemaInfo);
+                        finalSchema.configureSchemaInfo(topicName, "topic", schemaInfo);
                     } catch (RuntimeException re) {
                         return FutureUtil.failedFuture(re);
                     }
-                    schema.setSchemaInfoProvider(schemaInfoProvider);
-                    return CompletableFuture.completedFuture(null);
+                    finalSchema.setSchemaInfoProvider(schemaInfoProvider);
+                    return CompletableFuture.completedFuture(finalSchema);
                 });
             } else {
                 schema.setSchemaInfoProvider(schemaInfoProvider);
             }
         }
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(schema);
     }
 
     //
@@ -811,6 +815,24 @@ public class PulsarClientImpl implements PulsarClient {
     // @Override
     public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Schema cloneSchema(Schema schema){
+
+        if (schema instanceof AvroSchema) {
+            return AvroSchema.of(schema.getSchemaInfo());
+        } else if (schema instanceof KeyValueSchema) {
+            return KeyValueSchema.of(cloneSchema(((KeyValueSchema) schema).getKeySchema()),
+                    cloneSchema(((KeyValueSchema) schema).getValueSchema()),
+                    ((KeyValueSchema) schema).getKeyValueEncodingType());
+        } else if (schema instanceof GenericAvroSchema) {
+            return GenericAvroSchema.of(schema.getSchemaInfo(),
+                    ((GenericAvroSchema) schema).getUseProvidedSchemaAsReaderSchema());
+        } else if (schema instanceof AutoConsumeSchema) {
+            return Schema.AUTO_CONSUME();
+        }
+        return schema;
     }
 
 }

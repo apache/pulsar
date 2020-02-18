@@ -77,4 +77,8 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
         }
     }
 
+    public boolean getUseProvidedSchemaAsReaderSchema() {
+        return useProvidedSchemaAsReaderSchema;
+    }
+
 }

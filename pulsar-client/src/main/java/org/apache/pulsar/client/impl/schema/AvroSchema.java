@@ -88,6 +88,10 @@ public class AvroSchema<T> extends StructSchema<T> {
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
+    public static <T> AvroSchema<T> of(SchemaInfo schemaInfo) {
+        return new AvroSchema<>(schemaInfo);
+    }
+
     @Override
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
