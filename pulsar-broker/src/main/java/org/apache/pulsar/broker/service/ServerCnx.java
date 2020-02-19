@@ -1442,18 +1442,10 @@ public class ServerCnx extends PulsarHandler {
         }, null);
 
         CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-            int[] sizeHolder = new int[1];
-            try {
-                MessageParser.parseMessage(TopicName.get(topic.getName()), entry.getLedgerId(), entry.getEntryId(),
-                        entry.getDataBuffer(), (message) -> {
-                            sizeHolder[0] = ((RawMessageImpl) message).getBatchSize();
-                            message.release();
-                        }, Commands.DEFAULT_MAX_MESSAGE_SIZE);
-                entry.release();
-            } catch (IOException e) {
-                throw new CompletionException(e);
-            }
-            return sizeHolder[0];
+            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+            int batchSize = metadata.getNumMessagesInBatch();
+            entry.release();
+            return batchSize;
         });
 
         try {
