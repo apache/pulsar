@@ -50,6 +50,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A function container implemented using java thread.
@@ -339,12 +342,22 @@ class ProcessRuntime implements Runtime {
     private void startProcess() {
         deathException = null;
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
+            // substitute environment variable to actual value
+            Pattern p = Pattern.compile("\\$\\{([A-Za-z0-9_-]+)\\}");
+            List<String> actualProcessArgs = processArgs.stream().map(cmd -> {
+                Matcher m = p.matcher(cmd);
+                while (m.find()) {
+                    cmd = cmd.replace(m.group(0), System.getenv(m.group(1)));
+                }
+                return cmd;
+            }).collect(Collectors.toList());
+
+            ProcessBuilder processBuilder = new ProcessBuilder(actualProcessArgs).inheritIO();
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 processBuilder.environment().put("PYTHONPATH", "${PYTHONPATH}:" + extraDependenciesDir);
             }
             secretsProviderConfigurator.configureProcessRuntimeSecretsProvider(processBuilder, instanceConfig.getFunctionDetails());
-            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
+            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processArgs));
             process = processBuilder.start();
         } catch (Exception ex) {
             log.error("Starting process failed", ex);
@@ -359,6 +372,8 @@ class ProcessRuntime implements Runtime {
             log.info("Started process successfully");
         }
     }
+
+
 
     @Override
     public boolean isAlive() {

@@ -241,6 +241,7 @@ public class FunctionConfigUtils {
 
         if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
             String customOptions = functionConfig.getCustomRuntimeOptions();
+            // validate environment variable is set properly
             Pattern p = Pattern.compile("\\$\\{([A-Za-z0-9_-]+)\\}");
             Matcher m = p.matcher(customOptions);
             while (m.find()) {
@@ -248,7 +249,6 @@ public class FunctionConfigUtils {
                 if (StringUtils.isEmpty(envValue)) {
                     throw new IllegalArgumentException("environment variable " + m.group(1) + " is not set");
                 }
-                customOptions = customOptions.replace(m.group(0), envValue);
             }
             functionDetailsBuilder.setCustomRuntimeOptions(customOptions);
         }
