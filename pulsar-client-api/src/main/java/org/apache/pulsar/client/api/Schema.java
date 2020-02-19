@@ -136,7 +136,12 @@ public interface Schema<T> {
         // no-op
     }
 
-    default Schema<T> clone() {
+    /**
+     * Clone schema.
+     *
+     * @return cloned schema.
+     */
+    default Schema<T> cloneSchema() {
         return this;
     }
 

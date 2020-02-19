@@ -133,7 +133,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public Schema<GenericRecord> clone() {
+    public Schema<GenericRecord> cloneSchema() {
         return Schema.AUTO_CONSUME();
     }
 

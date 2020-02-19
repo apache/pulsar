@@ -778,7 +778,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.error("Failed to load schema info provider for topic {}", topicName, e);
                 return FutureUtil.failedFuture(e.getCause());
             }
-            schema = schema.clone();
+            schema = schema.cloneSchema();
             if (schema.requireFetchingSchemaInfo()) {
                 Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {

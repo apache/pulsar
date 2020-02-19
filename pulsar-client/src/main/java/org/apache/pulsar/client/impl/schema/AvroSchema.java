@@ -77,7 +77,7 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     @Override
-    public Schema<T> clone() {
+    public Schema<T> cloneSchema() {
         return new AvroSchema<>(schemaInfo);
     }
 
