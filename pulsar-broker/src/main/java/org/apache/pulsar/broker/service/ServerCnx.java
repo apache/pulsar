@@ -34,11 +34,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
+import java.io.IOException;
 import java.net.SocketAddress;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -46,7 +49,11 @@ import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
@@ -59,6 +66,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
@@ -68,6 +76,8 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
+import org.apache.pulsar.common.api.raw.MessageParser;
+import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -1396,6 +1406,7 @@ public class ServerCnx extends PulsarHandler {
             Topic topic = consumer.getSubscription().getTopic();
             Position position = topic.getLastMessageId();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            int largestBatchIndex = getLargestBatchIndex(topic, (PositionImpl) position, requestId);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
                     topic.getName(), consumer.getSubscription().getName(), position, partitionIndex);
@@ -1404,12 +1415,58 @@ public class ServerCnx extends PulsarHandler {
                 .setLedgerId(((PositionImpl)position).getLedgerId())
                 .setEntryId(((PositionImpl)position).getEntryId())
                 .setPartition(partitionIndex)
+                .setBatchIndex(largestBatchIndex)
                 .build();
 
             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
         } else {
             ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(), ServerError.MetadataError, "Consumer not found"));
         }
+    }
+
+    private int getLargestBatchIndex(Topic topic, PositionImpl position, long requestId) {
+        PersistentTopic persistentTopic = (PersistentTopic) topic;
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+
+        CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
+        ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entryFuture.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                entryFuture.completeExceptionally(exception);
+            }
+        }, null);
+
+        CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
+            int[] sizeHolder = new int[1];
+            try {
+                MessageParser.parseMessage(TopicName.get(topic.getName()), entry.getLedgerId(), entry.getEntryId(),
+                        entry.getDataBuffer(), (message) -> {
+                            sizeHolder[0] = ((RawMessageImpl) message).getBatchSize();
+                            message.release();
+                        }, Commands.DEFAULT_MAX_MESSAGE_SIZE);
+                entry.release();
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            }
+            return sizeHolder[0];
+        });
+
+        try {
+            int batchSize =  batchSizeFuture.get();
+            if (batchSize > 0) {
+                return batchSize - 1;
+            } else {
+                return -1;
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, "Failed to open entry for batch size check"));;
+        }
+        return -1;
     }
 
     @Override
