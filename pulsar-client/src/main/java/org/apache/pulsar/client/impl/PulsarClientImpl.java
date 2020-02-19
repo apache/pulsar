@@ -334,7 +334,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         return preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic())
-            .thenCompose(ignored -> doSingleTopicSubscribeAsync(conf, schema, interceptors));
+            .thenCompose(schemaClone -> doSingleTopicSubscribeAsync(conf, schemaClone, interceptors));
     }
 
     private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
@@ -767,8 +767,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @SuppressWarnings("unchecked")
-    protected CompletableFuture<Schema> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
-                                                                      Schema schema,
+    protected <T> CompletableFuture<Schema<T>> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
+                                                                      Schema<T> schema,
                                                                       String topicName) {
         if (schema != null && schema.supportSchemaVersioning()) {
             final SchemaInfoProvider schemaInfoProvider;
