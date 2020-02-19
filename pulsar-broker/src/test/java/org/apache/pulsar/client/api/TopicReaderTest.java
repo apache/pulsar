@@ -574,6 +574,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         latch.await();
 
+        allIds.sort(null); // make sure the largest mid appears at last.
+
         for (MessageId id : allIds) {
             Reader<byte[]> reader;
 
