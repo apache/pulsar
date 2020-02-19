@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -83,6 +84,17 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 // start-inclusive / num-of-messages
                 {true, 20},
                 {false, 20}
+        };
+    }
+
+    @DataProvider
+    public static Object[][] variationsForHasMessageAvailable() {
+        return new Object[][] {
+                // batching / start-inclusive
+                {true,  true},
+                {true,  false},
+                {false, true},
+                {false, false},
         };
     }
 
@@ -524,6 +536,66 @@ public class TopicReaderTest extends ProducerConsumerBase {
             assertFalse(reader.hasMessageAvailable());
         }
 
+    }
+
+    @Test(dataProvider = "variationsForHasMessageAvailable")
+    public void testHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/HasMessageAvailable";
+        final int numOfMessage = 100;
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topicName);
+
+        if (enableBatch) {
+            producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxMessages(10);
+        } else {
+            producerBuilder
+                    .enableBatching(false);
+        }
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        CountDownLatch latch = new CountDownLatch(100);
+
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    Assert.fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+
+        latch.await();
+
+        for (MessageId id : allIds) {
+            Reader<byte[]> reader;
+
+            if (startInclusive) {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).startMessageIdInclusive().create();
+            } else {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).create();
+            }
+
+            if (startInclusive) {
+                assertTrue(reader.hasMessageAvailable());
+            } else if (id != allIds.get(allIds.size() - 1)) {
+                assertTrue(reader.hasMessageAvailable());
+            } else {
+                assertFalse(reader.hasMessageAvailable());
+            }
+            reader.close();
+        }
+
+        producer.close();
     }
 
     @Test

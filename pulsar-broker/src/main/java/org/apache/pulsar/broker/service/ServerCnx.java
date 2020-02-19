@@ -1458,7 +1458,7 @@ public class ServerCnx extends PulsarHandler {
 
         try {
             int batchSize =  batchSizeFuture.get();
-            if (batchSize > 0) {
+            if (batchSize > 1) {
                 return batchSize - 1;
             } else {
                 return -1;
