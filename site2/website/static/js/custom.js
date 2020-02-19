@@ -19,14 +19,11 @@ window.addEventListener('load', function () {
         '</ul>' +
       '</div>' +
       '</li>';
-  
     community.innerHTML = communityMenu;
-  
     const communityMenuItem = document.getElementById("community-menu");
     const communityDropDown = document.getElementById("community-dropdown");
     communityMenuItem.addEventListener("click", function(event) {
       event.preventDefault();
-  
       if (communityDropDown.className == 'hide') {
         communityDropDown.className = 'visible';
       } else {
@@ -78,10 +75,10 @@ window.addEventListener('load', function () {
         '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="restapis-dropdown" class="hide">' +
         '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=v1">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=v1">Functions </a></li>' +
-        '<li><a href="/source-rest-api?version=' + version + '&apiversion=v1">Sources </a></li>' +
-        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=v1">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '">Sinks </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -169,45 +166,5 @@ window.addEventListener('load', function () {
             textEl.textContent = 'Copy';
         }, 2000);
     });
-
-    // setup input of api version
-    const wrapperDiv = document.querySelectorAll('.wrapper')[1];
-    versionMenu = `<select name="apiVersion" class="version_select">
-                        <option value="v1">v1</option>
-                        <option value="v2">v2</option>
-                        <option value="v3">v3</option>
-                    </select>`;
-
-    let pathName = window.location.pathname;
-    if (pathName === '/admin-rest-api' 
-        || pathName === '/functions-rest-api' 
-        || pathName === '/source-rest-api' 
-        || pathName === '/sink-rest-api') {
-        wrapperDiv.innerHTML = versionMenu;
-    } else {
-        return;
-    }
-    
-
-    const versionSelect = document.querySelectorAll('.version_select')[0];
-    let aversion = window.location.search.split('&')[1].split('=')[1];
-    let versionOption = versionSelect.querySelectorAll('option');
-    versionOption.forEach(ele => {
-        if (ele.value == aversion) {
-            ele.selected = true;
-        } else {
-            ele.selected = false;
-        }
-    });
-
-    versionSelect.addEventListener('change', (e) => {
-        console.log(window.location);
-        let optionValue = e.target.value;
-        let changeValueDom = document.createElement('a');
-        changeValueDom.href = pathName + '?version=' + version + '&apiversion=' + optionValue;
-        this.document.querySelectorAll('body')[0].appendChild(changeValueDom);
-        changeValueDom.click();
-
-    })
 
 });
