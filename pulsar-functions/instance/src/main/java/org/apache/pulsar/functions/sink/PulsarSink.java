@@ -234,7 +234,6 @@ public class PulsarSink<T> implements Sink<T> {
             CompletableFuture<MessageId> future = msg.sendAsync();
 
             future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
-            future.join();
         }
     }
 
