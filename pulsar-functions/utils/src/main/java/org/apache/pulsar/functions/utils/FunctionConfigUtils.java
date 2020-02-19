@@ -35,6 +35,8 @@ import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
@@ -176,16 +178,6 @@ public class FunctionConfigUtils {
                     FunctionCommon.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
 
-        if (functionConfig.getCustomProperties() != null && !functionConfig.getCustomProperties().isEmpty()) {
-            for (String propEntry : functionConfig.getCustomProperties()) {
-                String[] props = propEntry.split("=");
-                if (StringUtils.isEmpty(System.getProperty(props[1]))) {
-                    throw new IllegalArgumentException(String.format("custom property %s is not set on broker/worker", props[0]));
-                }
-            }
-            functionDetailsBuilder.addAllCustomProperties(functionConfig.getCustomProperties());
-        }
-
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             Function.RetryDetails.Builder retryBuilder = Function.RetryDetails.newBuilder();
             retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
@@ -248,7 +240,17 @@ public class FunctionConfigUtils {
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
 
         if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
-            functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
+            String customOptions = functionConfig.getCustomRuntimeOptions();
+            Pattern p = Pattern.compile("\\$\\{([A-Za-z0-9_-]+)\\}");
+            Matcher m = p.matcher(customOptions);
+            while (m.find()) {
+                String envValue = System.getenv(m.group(1));
+                if (StringUtils.isEmpty(envValue)) {
+                    throw new IllegalArgumentException("environment variable " + m.group(1) + " is not set");
+                }
+                customOptions = customOptions.replace(m.group(0), envValue);
+            }
+            functionDetailsBuilder.setCustomRuntimeOptions(customOptions);
         }
 
         return functionDetailsBuilder.build();
@@ -354,10 +356,6 @@ public class FunctionConfigUtils {
 
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
-        }
-
-        if (!functionDetails.getCustomPropertiesList().isEmpty()) {
-            functionConfig.setCustomProperties(functionDetails.getCustomPropertiesList());
         }
 
         return functionConfig;

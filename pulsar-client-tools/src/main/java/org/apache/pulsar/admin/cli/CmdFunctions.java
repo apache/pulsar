@@ -233,8 +233,6 @@ public class CmdFunctions extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
         protected String customSchemaInputString;
-        @Parameter(names = "--custom-property", description = "`key=value` pair to set the System property used when executing the function")
-        protected List<String> customProperties;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -399,10 +397,6 @@ public class CmdFunctions extends CmdBase {
 
             if (null != forwardSourceMessageProperty) {
                 functionConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
-            }
-
-            if (null != customProperties) {
-                functionConfig.setCustomProperties(customProperties);
             }
 
             if (isNotBlank(subsName)) {
