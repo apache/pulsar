@@ -6,6 +6,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Producer;
@@ -25,8 +26,7 @@ import java.net.SocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_CTX_KEY;
-import static org.apache.pulsar.protocols.grpc.Constants.REMOTE_ADDRESS_CTX_KEY;
+import static org.apache.pulsar.protocols.grpc.Constants.*;
 
 public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
@@ -82,6 +82,10 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
     @Override
     public StreamObserver<CommandSend> produce(StreamObserver<SendResult> responseObserver) {
         CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
+        String authRole = AUTH_ROLE_CTX_KEY.get();
+        AuthenticationDataSource authenticationData = AUTH_DATA_CTX_KEY.get();
+        SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
+
         final String topic = cmdProducer.getTopic();
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
@@ -92,14 +96,7 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         final Map<String, String> metadata = cmdProducer.getMetadataMap();
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
-
-        SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
-        log.info("################# init 2" + Thread.currentThread().getName());
-
-        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, responseObserver);
-
-        // TODO: handle auth
-        String authRole = "admin";
+        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, authRole, authenticationData, responseObserver);
 
         TopicName topicName;
         try {

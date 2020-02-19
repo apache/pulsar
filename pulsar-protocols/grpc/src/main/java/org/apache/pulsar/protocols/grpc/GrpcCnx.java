@@ -23,6 +23,8 @@ public class GrpcCnx implements ServerCnx {
 
     private final BrokerService service;
     private final SocketAddress remoteAddress;
+    private final String authRole;
+    private final AuthenticationDataSource authenticationData;
     private final ServerCallStreamObserver<SendResult> responseObserver;
 
     // Max number of pending requests per produce RPC
@@ -35,11 +37,13 @@ public class GrpcCnx implements ServerCnx {
     private volatile boolean autoReadDisabledRateLimiting = false;
     private final AutoReadAwareOnReadyHandler onReadyHandler = new AutoReadAwareOnReadyHandler();
 
-    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, StreamObserver<SendResult> responseObserver) {
+    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, String authRole, AuthenticationDataSource authenticationData, StreamObserver<SendResult> responseObserver) {
         this.service = service;
         this.remoteAddress = remoteAddress;
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
             .getMaxConcurrentNonPersistentMessagePerConnection();
+        this.authRole = authRole;
+        this.authenticationData = authenticationData;
         this.responseObserver = (ServerCallStreamObserver<SendResult>) responseObserver;
         this.responseObserver.disableAutoInboundFlowControl();
         this.responseObserver.setOnReadyHandler(onReadyHandler);
@@ -67,7 +71,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public String getRole() {
-        return null;
+        return authRole;
     }
 
     @Override
@@ -77,7 +81,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public AuthenticationDataSource getAuthenticationData() {
-        return null;
+        return authenticationData;
     }
 
     @Override
