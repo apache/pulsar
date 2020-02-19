@@ -778,7 +778,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.error("Failed to load schema info provider for topic {}", topicName, e);
                 return FutureUtil.failedFuture(e.getCause());
             }
-            schema = cloneSchema(schema);
+            schema = schema.clone();
             if (schema.requireFetchingSchemaInfo()) {
                 Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
@@ -815,24 +815,6 @@ public class PulsarClientImpl implements PulsarClient {
     // @Override
     public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Schema cloneSchema(Schema schema){
-
-        if (schema instanceof AvroSchema) {
-            return AvroSchema.of(schema.getSchemaInfo());
-        } else if (schema instanceof KeyValueSchema) {
-            return KeyValueSchema.of(cloneSchema(((KeyValueSchema) schema).getKeySchema()),
-                    cloneSchema(((KeyValueSchema) schema).getValueSchema()),
-                    ((KeyValueSchema) schema).getKeyValueEncodingType());
-        } else if (schema instanceof GenericAvroSchema) {
-            return GenericAvroSchema.of(schema.getSchemaInfo(),
-                    ((GenericAvroSchema) schema).getUseProvidedSchemaAsReaderSchema());
-        } else if (schema instanceof AutoConsumeSchema) {
-            return Schema.AUTO_CONSUME();
-        }
-        return schema;
     }
 
 }

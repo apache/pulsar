@@ -132,6 +132,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
+    @Override
+    public Schema<GenericRecord> clone() {
+        return Schema.AUTO_CONSUME();
+    }
+
     private GenericSchema generateSchema(SchemaInfo schemaInfo) {
         if (schemaInfo.getType() != SchemaType.AVRO
             && schemaInfo.getType() != SchemaType.JSON) {

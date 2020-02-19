@@ -136,6 +136,10 @@ public interface Schema<T> {
         // no-op
     }
 
+    default Schema<T> clone() {
+        return this;
+    }
+
     /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */

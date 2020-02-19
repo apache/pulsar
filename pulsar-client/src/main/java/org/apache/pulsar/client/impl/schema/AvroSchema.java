@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
@@ -75,6 +76,11 @@ public class AvroSchema<T> extends StructSchema<T> {
         return true;
     }
 
+    @Override
+    public Schema<T> clone() {
+        return new AvroSchema<>(schemaInfo);
+    }
+
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
@@ -86,10 +92,6 @@ public class AvroSchema<T> extends StructSchema<T> {
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
-    }
-
-    public static <T> AvroSchema<T> of(SchemaInfo schemaInfo) {
-        return new AvroSchema<>(schemaInfo);
     }
 
     @Override

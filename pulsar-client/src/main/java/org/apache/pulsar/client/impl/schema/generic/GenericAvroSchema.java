@@ -55,6 +55,11 @@ public class GenericAvroSchema extends GenericSchemaImpl {
     }
 
     @Override
+    public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
+        return GenericAvroSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
+    }
+
+    @Override
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
          SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
          if (schemaInfo != null) {
