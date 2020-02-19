@@ -52,17 +52,17 @@ if (MSVC)
 endif(MSVC)
 
 
-set(LIB_NAME_SHARED ${LIB_NAME})
+set(LIB_NAME_STATIC ${LIB_NAME})
 if (WIN32)
-    string(APPEND LIB_NAME_SHARED dll)
+    string(APPEND LIB_NAME_STATIC static)
 endif()
 
 add_library(pulsarShared SHARED ${PULSAR_SOURCES})
-set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME_SHARED} VERSION ${LIBRARY_VERSION})
+set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
 
 add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
-set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
+set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME_STATIC} VERSION ${LIBRARY_VERSION})
 target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
 
 if (MSVC)
