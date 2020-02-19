@@ -40,4 +40,5 @@
     <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java" />
     
     <suppress checks=".*" files="MLDataFormats.java" />
+    <suppress checks=".*" files="BitSetRecyclable.java" />
 </suppressions>

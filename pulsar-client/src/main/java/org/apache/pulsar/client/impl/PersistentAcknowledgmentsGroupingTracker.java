@@ -40,7 +40,6 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 
 /**
@@ -195,7 +194,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (cnx == null) {
             return false;
         }
-        ConcurrentBitSet bitSet = new ConcurrentBitSet(batchSize);
+        BitSetRecyclable bitSet = BitSetRecyclable.create();
         bitSet.set(0, batchSize);
         if (ackType == AckType.Cumulative) {
             bitSet.clear(0, batchIndex + 1);

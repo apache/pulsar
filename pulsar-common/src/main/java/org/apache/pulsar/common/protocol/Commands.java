@@ -30,7 +30,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +118,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -901,12 +901,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSet ackSet, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, 0, 0);
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSet ackSet, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -937,6 +937,7 @@ public class Commands {
 
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
         ack.recycle();
+        ackSet.recycle();
         ackBuilder.recycle();
         messageIdDataBuilder.recycle();
         messageIdData.recycle();

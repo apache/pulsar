@@ -21,7 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class BitSetRecyclableTest {
+public class BitSetRecyclableRecyclableTest {
 
     @Test
     public void testRecycle() {
@@ -33,5 +33,16 @@ public class BitSetRecyclableTest {
         Assert.assertSame(bitset2, bitset1);
         Assert.assertFalse(bitset2.get(3));
         Assert.assertNotSame(bitset3, bitset1);
+    }
+
+    @Test
+    public void testResetWords() {
+        BitSetRecyclable bitset1 = BitSetRecyclable.create();
+        BitSetRecyclable bitset2 = BitSetRecyclable.create();
+        bitset1.set(256);
+        bitset2.set(128);
+        bitset1.resetWords(bitset2.toLongArray());
+        Assert.assertTrue(bitset1.get(128));
+        Assert.assertFalse(bitset1.get(256));
     }
 }

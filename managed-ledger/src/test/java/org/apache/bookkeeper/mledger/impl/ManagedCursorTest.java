@@ -3149,7 +3149,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         deleteIndexes.forEach(intRange -> {
             bitSet.clear(intRange.getStart(), intRange.getEnd() + 1);
         });
-        pos.ackSet = bitSet;
+        pos.ackSet = bitSet.toLongArray();
 
         cursor.asyncDelete(pos,
             new DeleteCallback() {

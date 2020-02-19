@@ -375,7 +375,7 @@ public class Consumer {
             if (ack.getMessageIdCount() == 1) {
                 MessageIdData msgId = ack.getMessageId(0);
                 if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), BitSet.valueOf(SafeCollectionUtils.longListToArray(msgId.getAckSetList())));
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
@@ -388,7 +388,7 @@ public class Consumer {
                 MessageIdData msgId = ack.getMessageId(i);
                 PositionImpl position;
                 if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), BitSet.valueOf(SafeCollectionUtils.longListToArray(msgId.getAckSetList())));
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
