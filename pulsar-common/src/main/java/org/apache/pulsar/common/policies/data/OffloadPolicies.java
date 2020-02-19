@@ -44,6 +44,8 @@ public class OffloadPolicies {
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
     private String managedLedgerOffloadDriver = null;
     private int managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
+    private long managedLedgerOffloadTreshold = -1;
+    private Long managedLedgerOffloadDeletionLagMs = null;
 
     // s3 config, set by service configuration or cli
     private String s3ManagedLedgerOffloadRegion = null;
@@ -68,9 +70,12 @@ public class OffloadPolicies {
     private String fileSystemURI = null;
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
-                                         int maxBlockSizeInBytes, int readBufferSizeInBytes) {
+                                         int maxBlockSizeInBytes, int readBufferSizeInBytes, long offloadTreshold,
+                                         Long offloadDeletionLagMs) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
+        offloadPolicies.setManagedLedgerOffloadTreshold(offloadTreshold);
+        offloadPolicies.setManagedLedgerOffloadDeletionLagMs(offloadDeletionLagMs);
         if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
             offloadPolicies.setS3ManagedLedgerOffloadRegion(region);
             offloadPolicies.setS3ManagedLedgerOffloadBucket(bucket);
@@ -153,6 +158,8 @@ public class OffloadPolicies {
         return Objects.hash(
                 managedLedgerOffloadDriver,
                 managedLedgerOffloadMaxThreads,
+                managedLedgerOffloadTreshold,
+                managedLedgerOffloadDeletionLagMs,
                 s3ManagedLedgerOffloadRegion,
                 s3ManagedLedgerOffloadBucket,
                 s3ManagedLedgerOffloadServiceEndpoint,
@@ -180,6 +187,8 @@ public class OffloadPolicies {
         OffloadPolicies other = (OffloadPolicies) obj;
         return Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
+                && Objects.equals(managedLedgerOffloadTreshold, other.getManagedLedgerOffloadTreshold())
+                && Objects.equals(managedLedgerOffloadDeletionLagMs, other.getManagedLedgerOffloadDeletionLagMs())
                 && Objects.equals(s3ManagedLedgerOffloadRegion, other.getS3ManagedLedgerOffloadRegion())
                 && Objects.equals(s3ManagedLedgerOffloadBucket, other.getS3ManagedLedgerOffloadBucket())
                 && Objects.equals(s3ManagedLedgerOffloadServiceEndpoint,
@@ -208,6 +217,8 @@ public class OffloadPolicies {
         return MoreObjects.toStringHelper(this)
                 .add("managedLedgerOffloadDriver", managedLedgerOffloadDriver)
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
+                .add("managedLedgerOffloadTreshold", managedLedgerOffloadTreshold)
+                .add("managedLedgerOffloadDeletionLagMs", managedLedgerOffloadDeletionLagMs)
                 .add("s3ManagedLedgerOffloadRegion", s3ManagedLedgerOffloadRegion)
                 .add("s3ManagedLedgerOffloadBucket", s3ManagedLedgerOffloadBucket)
                 .add("s3ManagedLedgerOffloadServiceEndpoint", s3ManagedLedgerOffloadServiceEndpoint)

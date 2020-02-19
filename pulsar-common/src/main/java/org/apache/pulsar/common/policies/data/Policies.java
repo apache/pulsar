@@ -83,10 +83,6 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
-    @SuppressWarnings("checkstyle:MemberName")
-    public long offload_threshold = -1;
-    @SuppressWarnings("checkstyle:MemberName")
-    public Long offload_deletion_lag_ms = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
@@ -118,8 +114,7 @@ public class Policies {
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
-                compaction_threshold, offload_threshold,
-                offload_deletion_lag_ms,
+                compaction_threshold,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
                 schema_compatibility_strategy,
@@ -143,8 +138,7 @@ public class Policies {
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
-                    && Objects.equals(message_ttl_in_seconds,
-                            other.message_ttl_in_seconds)
+                    && Objects.equals(message_ttl_in_seconds, other.message_ttl_in_seconds)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
@@ -156,8 +150,6 @@ public class Policies {
                     && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
                     && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
-                    && offload_threshold == other.offload_threshold
-                    && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
@@ -209,8 +201,6 @@ public class Policies {
                 .add("max_unacked_messages_per_consumer", max_unacked_messages_per_consumer)
                 .add("max_unacked_messages_per_subscription", max_unacked_messages_per_subscription)
                 .add("compaction_threshold", compaction_threshold)
-                .add("offload_threshold", offload_threshold)
-                .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
