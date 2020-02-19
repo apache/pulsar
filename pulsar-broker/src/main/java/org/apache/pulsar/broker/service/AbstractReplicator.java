@@ -64,7 +64,7 @@ public abstract class AbstractReplicator {
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-            BrokerService brokerService) throws NamingException {
+          BrokerService brokerService) throws NamingException {
         validatePartitionedTopic(topicName, brokerService);
         this.brokerService = brokerService;
         this.topicName = topicName;
@@ -100,51 +100,61 @@ public abstract class AbstractReplicator {
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
-        if (STATE_UPDATER.get(this) == State.Stopping) {
-            long waitTimeMs = backOff.next();
-            if (log.isDebugEnabled()) {
-                log.debug(
+        prepareStartProducer().thenAccept(v -> {
+            if (STATE_UPDATER.get(this) == State.Stopping) {
+                long waitTimeMs = backOff.next();
+                if (log.isDebugEnabled()) {
+                    log.debug(
                         "[{}][{} -> {}] waiting for producer to close before attempting to reconnect, retrying in {} s",
                         topicName, localCluster, remoteCluster, waitTimeMs / 1000.0);
-            }
-            // BackOff before retrying
-            brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-            return;
-        }
-        State state = STATE_UPDATER.get(this);
-        if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
-            if (state == State.Started) {
-                // Already running
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{} -> {}] Replicator was already running", topicName, localCluster, remoteCluster);
                 }
-            } else {
-                log.info("[{}][{} -> {}] Replicator already being started. Replicator state: {}", topicName,
-                        localCluster, remoteCluster, state);
-            }
-
-            return;
-        }
-
-        log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            readEntries(producer);
-        }).exceptionally(ex -> {
-            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
-                long waitTimeMs = backOff.next();
-                log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
-                        localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
-
                 // BackOff before retrying
                 brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-            } else {
-                log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
-                        localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+                return;
             }
+            State state = STATE_UPDATER.get(this);
+            if (!STATE_UPDATER.compareAndSet(this, State.Stopped, State.Starting)) {
+                if (state == State.Started) {
+                    // Already running
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{} -> {}] Replicator was already running", topicName, localCluster, remoteCluster);
+                    }
+                } else {
+                    log.info("[{}][{} -> {}] Replicator already being started. Replicator state: {}", topicName,
+                        localCluster, remoteCluster, state);
+                }
+
+                return;
+            }
+
+            log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
+            producerBuilder.createAsync().thenAccept(producer -> {
+                readEntries(producer);
+            }).exceptionally(ex -> {
+                retryCreateProducer(ex);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            retryCreateProducer(ex);
             return null;
         });
-
     }
+
+    private void retryCreateProducer(Throwable ex) {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+            long waitTimeMs = backOff.next();
+            log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
+                localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+
+            // BackOff before retrying
+            brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+        } else {
+            log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
+                localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+        }
+    }
+
+    protected abstract CompletableFuture<Void> prepareStartProducer();
 
     protected synchronized CompletableFuture<Void> closeProducerAsync() {
         if (producer == null) {

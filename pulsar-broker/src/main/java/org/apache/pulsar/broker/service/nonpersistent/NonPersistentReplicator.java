@@ -252,6 +252,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
+    protected CompletableFuture<Void> prepareStartProducer() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public boolean isConnected() {
         ProducerImpl<?> producer = this.producer;
         return producer != null && producer.isConnected();
