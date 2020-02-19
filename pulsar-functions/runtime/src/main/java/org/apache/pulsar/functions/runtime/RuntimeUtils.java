@@ -253,6 +253,9 @@ public class RuntimeUtils {
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
+            if (StringUtils.isNotEmpty(instanceConfig.getFunctionDetails().getCustomRuntimeOptions())) {
+                args.add(instanceConfig.getFunctionDetails().getCustomRuntimeOptions());
+            }
             args.add("-cp");
 
             String classpath = instanceFile;
