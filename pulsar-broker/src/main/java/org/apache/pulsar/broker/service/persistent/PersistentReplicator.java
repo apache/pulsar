@@ -133,7 +133,6 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         this.replicatorName = replicatorName;
         this.ledger = ledger;
         this.topic = topic;
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
@@ -192,6 +191,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     @Override
     protected synchronized CompletableFuture<Void> prepareStartProducer() {
         if (cursor != null) {
+            if (expiryMonitor == null) {
+                this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+            }
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> res = new CompletableFuture<>();
@@ -199,6 +201,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 PersistentReplicator.this.cursor = cursor;
+                PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
                 res.complete(null);
             }
 
@@ -654,7 +657,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         msgExpired.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        if (expiryMonitor != null) {
+            stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        }
     }
 
     public ReplicatorStats getStats() {
@@ -692,7 +697,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             // don't do anything for almost caught-up connected subscriptions
             return;
         }
-        expiryMonitor.expireMessages(messageTTLInSeconds);
+        if (expiryMonitor != null) {
+            expiryMonitor.expireMessages(messageTTLInSeconds);
+        }
     }
 
     @Override
