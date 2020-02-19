@@ -1775,7 +1775,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId())
                     || position.compareTo(markDeletePosition) <= 0) {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
-                        batchDeletedIndexes.remove(position).recycle();
+                        BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
+                        if (bitSetRecyclable != null) {
+                            bitSetRecyclable.recycle();
+                        }
                     }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Position was already deleted {}", ledger.getName(), name, position);
@@ -1784,7 +1787,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 if (position.ackSet == null) {
                     if (config.isDeletionAtBatchIndexLevelEnabled()) {
-                        batchDeletedIndexes.remove(position).recycle();
+                        BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
+                        if (bitSetRecyclable != null) {
+                            bitSetRecyclable.recycle();
+                        }
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will make
                     // the RangeSet recognize the "continuity" between adjacent Positions
@@ -1807,7 +1813,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(), previousPosition.getEntryId(),
                             position.getLedgerId(), position.getEntryId());
                         ++messagesConsumedCounter;
-                        batchDeletedIndexes.remove(position).recycle();
+                        BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
+                        if (bitSetRecyclable != null) {
+                            bitSetRecyclable.recycle();
+                        }
                     }
                 }
             }
