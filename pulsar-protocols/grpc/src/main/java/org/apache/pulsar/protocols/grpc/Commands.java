@@ -32,6 +32,15 @@ public class Commands {
         return newStatusException(status, exception.getMessage(), exception, code);
     }
 
+    public static CommandAuthChallenge newAuthChallenge(String authMethod, org.apache.pulsar.common.api.AuthData brokerData) {
+        CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
+        challengeBuilder.setChallenge(AuthData.newBuilder()
+                .setAuthData(ByteString.copyFrom(brokerData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .build());
+        return challengeBuilder.build();
+    }
+
     public static SendResult newProducerSuccess(String producerName, long lastSequenceId,
                                                 SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();

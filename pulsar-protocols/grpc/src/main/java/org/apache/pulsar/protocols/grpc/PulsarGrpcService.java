@@ -3,7 +3,6 @@ package org.apache.pulsar.protocols.grpc;
 import com.google.common.base.Strings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -97,7 +96,7 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         log.info("################# init 2" + Thread.currentThread().getName());
 
-        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, (ServerCallStreamObserver<SendResult>) responseObserver);
+        GrpcCnx cnx = new GrpcCnx(service, remoteAddress, responseObserver);
 
         // TODO: handle auth
         String authRole = "admin";

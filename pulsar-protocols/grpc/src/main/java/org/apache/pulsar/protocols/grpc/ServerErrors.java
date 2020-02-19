@@ -1,9 +1,6 @@
 package org.apache.pulsar.protocols.grpc;
 
-import io.grpc.Metadata;
 import org.apache.pulsar.protocols.grpc.api.ServerError;
-
-import static org.apache.pulsar.protocols.grpc.Constants.ERROR_CODE_METADATA_KEY;
 
 public class ServerErrors {
 

@@ -1,0 +1,214 @@
+package org.apache.pulsar.protocols.grpc;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import io.grpc.*;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.protocols.grpc.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
+import java.net.SocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static org.apache.pulsar.protocols.grpc.Constants.*;
+
+public class AuthenticationInterceptor implements ServerInterceptor {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationInterceptor.class);
+
+    private BrokerService service;
+    private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();
+
+    private static final long SASL_ROLE_TOKEN_LIVE_SECONDS = 3600;
+    // A signer for role token, with random secret.
+    private RoleTokenSigner signer;
+
+    public AuthenticationInterceptor(BrokerService service) {
+        this.service = service;
+        byte[] secret = new byte[32];
+        new SecureRandom().nextBytes(secret);
+        this.signer = new RoleTokenSigner(secret);
+    }
+
+    @Override
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall, Metadata metadata, ServerCallHandler<ReqT, RespT> serverCallHandler) {
+        Context ctx = Context.current();
+
+        SocketAddress remoteAddress = serverCall.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+        SSLSession sslSession = serverCall.getAttributes().get(Grpc.TRANSPORT_ATTR_SSL_SESSION);
+
+        try {
+            if (metadata.containsKey(AUTH_ROLE_TOKEN_METADATA_KEY)) {
+                AuthRoleToken token = AuthRoleToken.parseFrom(metadata.get(AUTH_ROLE_TOKEN_METADATA_KEY));
+                byte[] signature = signer.computeSignature(token.getRoleInfo().toByteArray());
+                if (!Arrays.equals(signature, token.getSignature().toByteArray())) {
+                    throw new AuthenticationException("Invalid signature");
+                }
+                long expires = token.getRoleInfo().getExpires();
+                if (expires != -1 && expires < System.currentTimeMillis()) {
+                    // role token expired, send role token expired to client.
+                    throw new AuthenticationException("Role token expired");
+                }
+                // role token OK to use
+                ctx.withValue(AUTH_ROLE_CTX_KEY, token.getRoleInfo().getRole());
+                // TODO: no authData to pass, should add auth data to token ? authData is not used anyway...
+                ctx.withValue(AUTH_DATA_CTX_KEY, new AuthenticationDataCommand(null, remoteAddress, sslSession));
+            } else if (metadata.containsKey(AUTH_METADATA_KEY)) {
+                CommandConnect connect = CommandConnect.parseFrom(metadata.get(AUTH_METADATA_KEY));
+                AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
+                String authMethod = connect.hasAuthMethodName() ?  connect.getAuthMethodName() : "none";
+                AuthenticationProvider authenticationProvider = service.getAuthenticationService()
+                    .getAuthenticationProvider(authMethod);
+
+                // Not find provider named authMethod. Most used for tests.
+                // In AuthenticationDisabled, it will set authMethod "none".
+                if (authenticationProvider == null) {
+                    String authRole = service.getAuthenticationService().getAnonymousUserRole()
+                        .orElseThrow(() ->
+                            new AuthenticationException("No anonymous role, and no authentication provider configured"));
+                    ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
+                } else {
+                    AuthenticationState authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+                    AuthData brokerData = authState.authenticate(clientData);
+                    if (authState.isComplete()) {
+                        String authRole = authState.getAuthRole();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Client successfully authenticated with {} role {}",
+                                remoteAddress, authMethod, authRole);
+                        }
+                        ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
+                        ctx.withValue(AUTH_DATA_CTX_KEY, authState.getAuthDataSource());
+                    } else {
+                        authStates.put(authState.getStateId(), authState);
+                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData);
+                        return closeWithSingleHeader(serverCall, AUTHCHALLENGE_METADATA_KEY, challenge.toByteArray());
+                    }
+                }
+            } else if (metadata.containsKey(AUTHRESPONSE_METADATA_KEY)) {
+                CommandAuthResponse authResponse = CommandAuthResponse.parseFrom(metadata.get(AUTHRESPONSE_METADATA_KEY));
+                String authMethod = authResponse.getResponse().getAuthMethodName();
+                long authStateId = authResponse.getResponse().getAuthStateId();
+                AuthenticationState authState = authStates.get(authStateId);
+
+                if (authState == null) {
+                    throw new AuthenticationException("Auth state id not found");
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("Received AuthResponse from {}, auth method: {}",
+                        remoteAddress, authMethod);
+                }
+
+                try {
+                    AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData().toByteArray());
+                    AuthData brokerData = authState.authenticate(clientData);
+                    if (authState.isComplete()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Client successfully authenticated with {} role {}",
+                                remoteAddress, authMethod, authState.getAuthRole());
+                        }
+                        String authRole = authState.getAuthRole();
+                        AuthRoleToken authToken = createAuthRoleToken(authRole, authState.getStateId());
+
+                        // auth completed, no need to keep authState
+                        authStates.remove(authState.getStateId());
+                        return closeWithSingleHeader(serverCall, AUTH_ROLE_TOKEN_METADATA_KEY, authToken.toByteArray());
+                    } else {
+                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData);
+                        return closeWithSingleHeader(serverCall, AUTHCHALLENGE_METADATA_KEY, challenge.toByteArray());
+                    }
+
+                } catch (Exception e) {
+                    String msg = "Unable to handleAuthResponse";
+                    log.warn("[{}] {} ", remoteAddress, msg, e);
+                    throw new AuthenticationException(msg);
+                }
+            }
+        } catch (AuthenticationException | InvalidProtocolBufferException e) {
+            serverCall.close(Status.UNAUTHENTICATED.withDescription(e.getMessage()), new Metadata());
+            return new ServerCall.Listener<ReqT>() {};
+        }
+
+        // TODO: handle original principal
+
+        ctx = ctx.withValue(REMOTE_ADDRESS_CTX_KEY, remoteAddress);
+        return Contexts.interceptCall(ctx, serverCall, metadata, serverCallHandler);
+    }
+
+    private <ReqT, RespT> ServerCall.Listener<ReqT> closeWithSingleHeader(ServerCall<ReqT, RespT> serverCall,
+                                                                          Metadata.Key<byte[]> key, byte[] bytes) {
+        Metadata metadata = new Metadata();
+        metadata.put(key, bytes);
+        serverCall.close(Status.UNAUTHENTICATED, metadata);
+        return new ServerCall.Listener<ReqT>() { };
+    }
+
+    private AuthRoleToken createAuthRoleToken(String role, long sessionId) {
+        long expireAtMs = System.currentTimeMillis() + SASL_ROLE_TOKEN_LIVE_SECONDS * 1000; // 1 hour
+        AuthRoleTokenInfo roleTokenInfo = AuthRoleTokenInfo.newBuilder()
+            .setRole(role)
+            .setSessionId(sessionId)
+            .setExpires(expireAtMs)
+            .build();
+
+        byte[] signature = signer.computeSignature(roleTokenInfo.toByteArray());
+
+        if (log.isDebugEnabled()) {
+            log.debug("create role token role: {} session :{}, expires:{}",
+                role, sessionId, expireAtMs);
+        }
+
+        return AuthRoleToken.newBuilder()
+            .setRoleInfo(roleTokenInfo)
+            .setSignature(ByteString.copyFrom(signature))
+            .build();
+    }
+
+    private static class RoleTokenSigner {
+
+        private static final String HMAC_SHA256 = "HmacSHA256";
+        private SecretKeySpec secret;
+
+        /**
+         * Creates a RoleTokenSigner instance using the specified secret.
+         *
+         * @param secret secret to use for creating the digest.
+         */
+        public RoleTokenSigner(byte[] secret) {
+
+            if (secret == null) {
+                throw new IllegalArgumentException("secret cannot be NULL");
+            }
+            this.secret = new SecretKeySpec(secret.clone(), HMAC_SHA256);
+        }
+
+        /**
+         * Returns the signature of a string.
+         *
+         * @param data data to sign.
+         * @return the signature for the payload.
+         */
+        public byte[] computeSignature(byte[] data) {
+            try {
+                Mac mac = Mac.getInstance(HMAC_SHA256);
+                mac.init(secret);
+                return mac.doFinal(data);
+            } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
+                throw new RuntimeException("It should not happen, " + ex.getMessage(), ex);
+            }
+        }
+    }
+
+}

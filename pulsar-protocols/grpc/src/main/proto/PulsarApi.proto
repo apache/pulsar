@@ -25,7 +25,7 @@ option java_multiple_files = true;
 
 service Pulsar {
     rpc produce(stream CommandSend) returns (stream SendResult) {}
-    // rpc consume(stream pulsar.protocols.grpc.BaseCommand) returns (stream pulsar.protocols.grpc.BaseCommand) {}
+    // rpc consume(stream BaseCommand) returns (stream BaseCommand) {}
     rpc get_schema(CommandGetSchema) returns (CommandGetSchemaResponse) {}
 }
 
@@ -193,27 +193,39 @@ message CommandConnect {
 }
 
 message CommandConnected {
-    required string server_version = 1;
+    required string server_version  = 1;
     optional int32 protocol_version = 2 [default = 0];
     optional int32 max_message_size = 3;
 }
 
 message CommandAuthResponse {
-    optional string client_version = 1;
-    optional AuthData response = 2;
+    optional string client_version  = 1;
+    optional AuthData response      = 2;
     optional int32 protocol_version = 3 [default = 0];
 }
 
 message CommandAuthChallenge {
-    optional string server_version = 1;
-    optional AuthData challenge = 2;
+    optional string server_version  = 1;
+    optional AuthData challenge     = 2;
     optional int32 protocol_version = 3 [default = 0];
 }
 
 // To support mutual authentication type, such as Sasl, reuse this command to mutual auth.
 message AuthData {
     optional string auth_method_name = 1;
-    optional bytes auth_data = 2;
+    optional int64 auth_state_id     = 2;
+    optional bytes auth_data         = 3;
+}
+
+message AuthRoleTokenInfo {
+    required string role      = 1;
+    optional int64 expires    = 2 [default = -1];
+    optional int64 session_id = 3;
+}
+
+message AuthRoleToken {
+    required AuthRoleTokenInfo roleInfo  = 1;
+    required bytes signature         = 2;
 }
 
 enum KeySharedMode {
@@ -223,28 +235,28 @@ enum KeySharedMode {
 
 message KeySharedMeta {
     required KeySharedMode keySharedMode = 1;
-    repeated IntRange hashRanges = 3;
+    repeated IntRange hashRanges         = 3;
 }
 
 message CommandSubscribe {
     enum SubType {
-        Exclusive = 0;
-        Shared    = 1;
-        Failover  = 2;
+        Exclusive  = 0;
+        Shared     = 1;
+        Failover   = 2;
         Key_Shared = 3;
     }
-    required string topic        = 1;
-    required string subscription = 2;
-    required SubType subType     = 3;
+    required string topic         = 1;
+    required string subscription  = 2;
+    required SubType subType      = 3;
 
-    required uint64 consumer_id  = 4;
-    required uint64 request_id   = 5;
+    required uint64 consumer_id   = 4;
+    required uint64 request_id    = 5;
     optional string consumer_name = 6;
     optional int32 priority_level = 7;
 
     // Signal wether the subscription should be backed by a
     // durable cursor or not
-    optional bool durable = 8 [default = true];
+    optional bool durable         = 8 [default = true];
     
     // If specified, the subscription will position the cursor
     // markd-delete position  on the particular message id and
@@ -252,11 +264,11 @@ message CommandSubscribe {
     optional MessageIdData start_message_id = 9;
 
     /// Add optional metadata key=value to this consumer
-    repeated KeyValue metadata = 10;
+    repeated KeyValue metadata    = 10;
 
-    optional bool read_compacted = 11;
+    optional bool read_compacted  = 11;
 
-    optional Schema schema = 12;
+    optional Schema schema        = 12;
     enum InitialPosition {
         Latest   = 0;
         Earliest = 1;
@@ -285,16 +297,16 @@ message CommandSubscribe {
 }
 
 message CommandPartitionedTopicMetadata {
-    required string topic            = 1;
-    required uint64 request_id       = 2;
+    required string topic                = 1;
+    required uint64 request_id           = 2;
     // TODO - Remove original_principal, original_auth_data, original_auth_method
     // Original principal that was verified by
     // a Pulsar proxy.
-    optional string original_principal = 3;
+    optional string original_principal   = 3;
 
     // Original auth role and auth Method that was passed
     // to the proxy.
-    optional string original_auth_data = 4;
+    optional string original_auth_data   = 4;
     optional string original_auth_method = 5;
 }
 
@@ -402,7 +414,6 @@ message SendResult {
         CommandSendReceipt send_receipt         = 2;
         CommandSendError send_error             = 3;
     }
-
 }
 
 message CommandMessage {

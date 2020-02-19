@@ -35,14 +35,14 @@ public class GrpcCnx implements ServerCnx {
     private volatile boolean autoReadDisabledRateLimiting = false;
     private final AutoReadAwareOnReadyHandler onReadyHandler = new AutoReadAwareOnReadyHandler();
 
-    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, ServerCallStreamObserver<SendResult> responseObserver) {
+    public GrpcCnx(BrokerService service, SocketAddress remoteAddress, StreamObserver<SendResult> responseObserver) {
         this.service = service;
         this.remoteAddress = remoteAddress;
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
             .getMaxConcurrentNonPersistentMessagePerConnection();
-        this.responseObserver = responseObserver;
-        responseObserver.disableAutoInboundFlowControl();
-        responseObserver.setOnReadyHandler(onReadyHandler);
+        this.responseObserver = (ServerCallStreamObserver<SendResult>) responseObserver;
+        this.responseObserver.disableAutoInboundFlowControl();
+        this.responseObserver.setOnReadyHandler(onReadyHandler);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class GrpcCnx implements ServerCnx {
 
     @Override
     public boolean isBatchMessageCompatibleVersion() {
-        return false;
+        return true;
     }
 
     @Override

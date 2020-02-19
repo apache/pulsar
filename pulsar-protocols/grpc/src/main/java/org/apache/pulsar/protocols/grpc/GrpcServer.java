@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.pulsar.protocols.grpc.Constants.PRODUCER_PARAMS_METADATA_KEY;
 
-// TODO: Message metadata is internal to Pulsar so must be removed from gRPC
 
 public class GrpcServer {
 
