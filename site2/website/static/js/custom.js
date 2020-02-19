@@ -78,10 +78,10 @@ window.addEventListener('load', function () {
         '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="restapis-dropdown" class="hide">' +
         '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api?version=' + version + '">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api?version=' + version + '">Functions </a></li>' +
-        '<li><a href="/source-rest-api?version=' + version + '">Sources </a></li>' +
-        '<li><a href="/sink-rest-api?version=' + version + '">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=v1">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=v1">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '&apiversion=v1">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=v1">Sinks </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -113,56 +113,6 @@ window.addEventListener('load', function () {
         '</li>';
 
     cli.innerHTML = cliMenu;
-
-    const cliMenuItem = document.getElementById("cli-menu");
-    const cliDropDown = document.getElementById("cli-dropdown");
-    cliMenuItem.addEventListener("click", function (event) {
-        event.preventDefault();
-
-        if (cliDropDown.className == 'hide') {
-            cliDropDown.className = 'visible';
-        } else {
-            cliDropDown.className = 'hide';
-        }
-    });
-
-    function button(label, ariaLabel, icon, className) {
-        const btn = document.createElement('button');
-        btn.classList.add('btnIcon', className);
-        btn.setAttribute('type', 'button');
-        btn.setAttribute('aria-label', ariaLabel);
-        btn.innerHTML =
-            '<div class="btnIcon__body">' +
-            icon +
-            '<strong class="btnIcon__label">' +
-            label +
-            '</strong>' +
-            '</div>';
-        return btn;
-    }
-
-    function addButtons(codeBlockSelector, btn) {
-        document.querySelectorAll(codeBlockSelector).forEach(function (code) {
-            code.parentNode.appendChild(btn.cloneNode(true));
-        });
-    }
-
-    // setup cli menu items in nav bar
-    const cli = document.querySelector("a[href='#cli']").parentNode;
-    const cliMenu =
-        '<li>' +
-        '<a id="cli-menu" href="#">Cli <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
-        '<div id="cli-dropdown" class="hide">' +
-        '<ul id="cli-dropdown-items">' +
-        '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
-        '</ul>' +
-        '</div>' +
-        '</li>';
-
-    addButtons(
-        '.hljs',
-        button('Copy', 'Copy code to clipboard', copyIcon, 'btnClipboard')
-    );
 
     const cliMenuItem = document.getElementById("cli-menu");
     const cliDropDown = document.getElementById("cli-dropdown");
@@ -229,15 +179,15 @@ window.addEventListener('load', function () {
                     </select>`;
 
     let pathName = window.location.pathname;
-    if (pathName === '/admin-rest-api'
-        || pathName === '/functions-rest-api'
-        || pathName === '/source-rest-api'
+    if (pathName === '/admin-rest-api' 
+        || pathName === '/functions-rest-api' 
+        || pathName === '/source-rest-api' 
         || pathName === '/sink-rest-api') {
         wrapperDiv.innerHTML = versionMenu;
     } else {
         return;
     }
-
+    
 
     const versionSelect = document.querySelectorAll('.version_select')[0];
     let aversion = window.location.search.split('&')[1].split('=')[1];
