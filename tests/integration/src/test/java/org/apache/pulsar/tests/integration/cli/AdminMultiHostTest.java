@@ -24,6 +24,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -59,21 +60,34 @@ public class AdminMultiHostTest {
     public void testAdminMultiHost() throws Exception {
         String hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();
-        // all brokers alive
-        Assert.assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), 3);
+        try {
+            admin.namespaces().getNamespaces("public");
+            admin.topics().getList("public/default");
+        } catch (PulsarAdminException pae) {
+            Assert.fail("Should not throw any exceptions", pae);
+        }
 
         // kill one broker admin should be usable
         BrokerContainer one = pulsarCluster.getBroker(0);
-        // admin.brokers().
         one.stop();
         waitBrokerDown(admin, 2, 60);
-        Assert.assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), 2);
+        try {
+            admin.namespaces().getNamespaces("public");
+            admin.topics().getList("public/default");
+        } catch (PulsarAdminException pae) {
+            Assert.fail("Should not throw any exceptions", pae);
+        }
 
         // kill another broker
         BrokerContainer two = pulsarCluster.getBroker(1);
         two.stop();
         waitBrokerDown(admin, 1, 60);
-        Assert.assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), 1);
+        try {
+            admin.namespaces().getNamespaces("public");
+            admin.topics().getList("public/default");
+        } catch (PulsarAdminException pae) {
+            Assert.fail("Should not throw any exceptions", pae);
+        }
     }
 
     // Because zookeeper session timeout is 30ms and ticktime is 2ms, so we need wait more than 32ms
