@@ -32,6 +32,9 @@ MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
+option(BUILD_EXAMPLES "Build examples" ON)
+MESSAGE(STATUS "BUILD_EXAMPLES:  " ${BUILD_EXAMPLES})
+
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
@@ -297,8 +300,10 @@ set(CLIENT_LIBS
 )
 
 add_subdirectory(lib)
-add_subdirectory(perf)
-add_subdirectory(examples)
+if (BUILD_EXAMPLES) 
+    add_subdirectory(perf)
+    add_subdirectory(examples)
+endif()
 
 if (BUILD_TESTS)
     add_subdirectory(tests)
