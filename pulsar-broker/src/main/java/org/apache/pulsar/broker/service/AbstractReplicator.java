@@ -100,13 +100,12 @@ public abstract class AbstractReplicator {
     // This method needs to be synchronized with disconnects else if there is a disconnect followed by startProducer
     // the end result can be disconnect.
     public synchronized void startProducer() {
-        log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
         if (STATE_UPDATER.get(this) == State.Stopping) {
             long waitTimeMs = backOff.next();
             if (log.isDebugEnabled()) {
                 log.debug(
-                    "[{}][{} -> {}] waiting for producer to close before attempting to reconnect, retrying in {} s",
-                    topicName, localCluster, remoteCluster, waitTimeMs / 1000.0);
+                        "[{}][{} -> {}] waiting for producer to close before attempting to reconnect, retrying in {} s",
+                        topicName, localCluster, remoteCluster, waitTimeMs / 1000.0);
             }
             // BackOff before retrying
             brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
@@ -121,10 +120,12 @@ public abstract class AbstractReplicator {
                 }
             } else {
                 log.info("[{}][{} -> {}] Replicator already being started. Replicator state: {}", topicName,
-                    localCluster, remoteCluster, state);
+                        localCluster, remoteCluster, state);
             }
             return;
         }
+
+        log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
         openCursorAsync().thenAccept(v ->
             producerBuilder.createAsync()
                 .thenAccept(this::readEntries)
