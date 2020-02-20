@@ -447,7 +447,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
-            .thenCompose(ignored -> doCreateReaderAsync(conf, schema));
+            .thenCompose(schemaClone -> doCreateReaderAsync(conf, schemaClone));
     }
 
     <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
