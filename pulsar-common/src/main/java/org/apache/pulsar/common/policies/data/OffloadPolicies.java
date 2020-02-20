@@ -39,13 +39,15 @@ public class OffloadPolicies {
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem"};
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
+    public final static long DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD = -1;
+    public final static Long DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS = null;
 
     // common config
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
     private String managedLedgerOffloadDriver = null;
     private int managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
-    private long managedLedgerOffloadTreshold = -1;
-    private Long managedLedgerOffloadDeletionLagMs = null;
+    private long managedLedgerOffloadTreshold = DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD;
+    private Long managedLedgerOffloadDeletionLagMs = DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS;
 
     // s3 config, set by service configuration or cli
     private String s3ManagedLedgerOffloadRegion = null;
