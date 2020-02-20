@@ -12,14 +12,9 @@ import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import java.net.SocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,13 +29,11 @@ public class AuthenticationInterceptor implements ServerInterceptor {
 
     private static final long SASL_ROLE_TOKEN_LIVE_SECONDS = 3600;
     // A signer for role token, with random secret.
-    private RoleTokenSigner signer;
+    private HmacSigner signer;
 
     public AuthenticationInterceptor(BrokerService service) {
         this.service = service;
-        byte[] secret = new byte[32];
-        new SecureRandom().nextBytes(secret);
-        this.signer = new RoleTokenSigner(secret);
+        this.signer = new HmacSigner();
     }
 
     @Override
@@ -174,41 +167,6 @@ public class AuthenticationInterceptor implements ServerInterceptor {
             .setRoleInfo(roleTokenInfo)
             .setSignature(ByteString.copyFrom(signature))
             .build();
-    }
-
-    private static class RoleTokenSigner {
-
-        private static final String HMAC_SHA256 = "HmacSHA256";
-        private SecretKeySpec secret;
-
-        /**
-         * Creates a RoleTokenSigner instance using the specified secret.
-         *
-         * @param secret secret to use for creating the digest.
-         */
-        public RoleTokenSigner(byte[] secret) {
-
-            if (secret == null) {
-                throw new IllegalArgumentException("secret cannot be NULL");
-            }
-            this.secret = new SecretKeySpec(secret.clone(), HMAC_SHA256);
-        }
-
-        /**
-         * Returns the signature of a string.
-         *
-         * @param data data to sign.
-         * @return the signature for the payload.
-         */
-        public byte[] computeSignature(byte[] data) {
-            try {
-                Mac mac = Mac.getInstance(HMAC_SHA256);
-                mac.init(secret);
-                return mac.doFinal(data);
-            } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
-                throw new RuntimeException("It should not happen, " + ex.getMessage(), ex);
-            }
-        }
     }
 
 }
