@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -387,4 +388,12 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder clock(Clock clock);
+
+    /**
+     * The DNS resolver builder used by the pulsar client.
+     *
+     * @param builder the DNS resolver builder used by the pulsar client to resolve inet names
+     * @return the client builder instance
+     */
+    ClientBuilder dns(DnsNameResolverBuilder builder);
 }

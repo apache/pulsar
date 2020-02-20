@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -214,13 +214,13 @@ public class ClientBuilderImpl implements ClientBuilder {
     	conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }
-    
+
     @Override
     public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
     	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }
-    
+
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
     }
@@ -228,6 +228,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder clock(Clock clock) {
         conf.setClock(clock);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder dns(DnsNameResolverBuilder builder) {
+        conf.setDnsNameResolverBuilder(builder);
         return this;
     }
 }

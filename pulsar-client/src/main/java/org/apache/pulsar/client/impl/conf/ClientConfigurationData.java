@@ -19,16 +19,16 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
+import java.io.Serializable;
 import java.time.Clock;
+import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -69,6 +69,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+
+    private DnsNameResolverBuilder dnsNameResolverBuilder = null;
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();

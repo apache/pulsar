@@ -44,6 +44,10 @@
             <artifactId>pulsar-transaction-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-resolver-dns</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

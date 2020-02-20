@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
@@ -29,7 +28,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -42,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -84,7 +81,11 @@ public class ConnectionPool implements Closeable {
             throw new PulsarClientException(e);
         }
 
-        this.dnsResolver = new DnsNameResolverBuilder(eventLoopGroup.next()).traceEnabled(true)
+        DnsNameResolverBuilder builder = conf.getDnsNameResolverBuilder();
+        if (builder == null) {
+            builder = new DnsNameResolverBuilder();
+        }
+        this.dnsResolver = builder.eventLoop(eventLoopGroup.next()).traceEnabled(true)
                 .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup)).build();
     }
 
