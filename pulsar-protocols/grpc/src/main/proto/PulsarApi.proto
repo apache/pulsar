@@ -190,7 +190,7 @@ message CommandConnect {
 }
 
 message CommandAuth {
-    required string auth_method = 1;
+    optional string auth_method = 1;
     optional bytes auth_data    = 2;
 }
 

@@ -32,12 +32,13 @@ public class Commands {
         return newStatusException(status, exception.getMessage(), exception, code);
     }
 
-    public static CommandAuthChallenge newAuthChallenge(String authMethod, org.apache.pulsar.common.api.AuthData brokerData) {
+    public static CommandAuthChallenge newAuthChallenge(String authMethod, org.apache.pulsar.common.api.AuthData brokerData, long stateId) {
         CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
         challengeBuilder.setChallenge(AuthData.newBuilder()
-                .setAuthData(ByteString.copyFrom(brokerData.getBytes()))
-                .setAuthMethodName(authMethod)
-                .build());
+            .setAuthData(ByteString.copyFrom(brokerData.getBytes()))
+            .setAuthMethodName(authMethod)
+            .setAuthStateId(stateId)
+            .build());
         return challengeBuilder.build();
     }
 
@@ -134,8 +135,8 @@ public class Commands {
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-                                      long epoch, boolean userProvidedProducerName) {
+                                              boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                              long epoch, boolean userProvidedProducerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setEpoch(epoch);
@@ -157,12 +158,12 @@ public class Commands {
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                      Map<String, String> metadata) {
+                                              Map<String, String> metadata) {
         return newProducer(topic, producerName, false, metadata);
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                      boolean encrypted, Map<String, String> metadata) {
+                                              boolean encrypted, Map<String, String> metadata) {
         return newProducer(topic, producerName, encrypted, metadata, null, 0, false);
     }
 

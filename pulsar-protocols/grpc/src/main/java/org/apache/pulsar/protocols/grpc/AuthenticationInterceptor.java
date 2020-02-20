@@ -24,16 +24,20 @@ public class AuthenticationInterceptor implements ServerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationInterceptor.class);
 
-    private AuthenticationService service;
+    private final AuthenticationService service;
+    private final HmacSigner signer;
     private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();
 
     private static final long SASL_ROLE_TOKEN_LIVE_SECONDS = 3600;
     // A signer for role token, with random secret.
-    private HmacSigner signer;
 
     public AuthenticationInterceptor(AuthenticationService service) {
+        this(service, new HmacSigner());
+    }
+
+    public AuthenticationInterceptor(AuthenticationService service, HmacSigner signer) {
         this.service = service;
-        this.signer = new HmacSigner();
+        this.signer = signer;
     }
 
     @Override
@@ -84,7 +88,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                         ctx = ctx.withValue(AUTH_DATA_CTX_KEY, authState.getAuthDataSource());
                     } else {
                         authStates.put(authState.getStateId(), authState);
-                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData);
+                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData, authState.getStateId());
                         return closeWithSingleHeader(serverCall, AUTHCHALLENGE_METADATA_KEY, challenge.toByteArray());
                     }
                 }
@@ -117,7 +121,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                         authStates.remove(authState.getStateId());
                         return closeWithSingleHeader(serverCall, AUTH_ROLE_TOKEN_METADATA_KEY, authToken.toByteArray());
                     } else {
-                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData);
+                        CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData, authState.getStateId());
                         return closeWithSingleHeader(serverCall, AUTHCHALLENGE_METADATA_KEY, challenge.toByteArray());
                     }
 
@@ -134,7 +138,6 @@ public class AuthenticationInterceptor implements ServerInterceptor {
 
         // TODO: handle original principal
 
-        ctx = ctx.withValue(REMOTE_ADDRESS_CTX_KEY, remoteAddress);
         return Contexts.interceptCall(ctx, serverCall, metadata, serverCallHandler);
     }
 
