@@ -60,11 +60,19 @@ public class KeyValue<K, V> {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("(key = \"")
-          .append(key)
-          .append("\", value = \"")
-          .append(value)
-          .append("\")");
+        sb.append("(");
+        if (null == key) {
+            sb.append("key is null, ");
+        } else {
+            sb.append("key = \"").append(key).append("\", ");
+        }
+
+        if (null == value) {
+            sb.append("value is null");
+        } else {
+            sb.append("value = \"").append(value).append("\"");
+        }
+        sb.append(")");
         return sb.toString();
     }
 
@@ -98,8 +106,24 @@ public class KeyValue<K, V> {
                                        V value, Schema<V> valueWriter) {
         byte [] keyBytes = keyWriter.encode(key);
         byte [] valueBytes = valueWriter.encode(value);
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
-        byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
+
+        int keyLength = 1 + (null == keyBytes ? 0 : 4 + keyBytes.length);
+        int valueLength = 1 + (null == valueBytes ? 0 : 4 + valueBytes.length);
+
+        ByteBuffer byteBuffer = ByteBuffer.allocate(keyLength + valueLength);
+
+        if (null == keyBytes) {
+            byteBuffer.put((byte) 1);
+        } else {
+            byteBuffer.put((byte) 0).putInt(keyLength).put(keyBytes);
+        }
+
+        if (null == valueBytes) {
+            byteBuffer.put((byte) 1);
+        } else {
+            byteBuffer.put((byte) 0).putInt(valueLength).put(valueBytes);
+        }
+
         return byteBuffer.array();
     }
 
@@ -112,13 +136,22 @@ public class KeyValue<K, V> {
      */
     public static <K, V> KeyValue<K, V> decode(byte[] data, KeyValueDecoder<K, V> decoder) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        int keyLength = byteBuffer.getInt();
-        byte[] keyBytes = new byte[keyLength];
-        byteBuffer.get(keyBytes);
 
-        int valueLength = byteBuffer.getInt();
-        byte[] valueBytes = new byte[valueLength];
-        byteBuffer.get(valueBytes);
+        byte[] keyBytes = null;
+        byte isKeyNull = byteBuffer.get();
+        if (isKeyNull == (byte) 0) {
+            int keyLength = byteBuffer.getInt();
+            keyBytes = new byte[keyLength];
+            byteBuffer.get(keyBytes);
+        }
+
+        byte[] valueBytes = null;
+        byte isValueNull = byteBuffer.get();
+        if (isValueNull == (byte) 0) {
+            int valueLength = byteBuffer.getInt();
+            valueBytes = new byte[valueLength];
+            byteBuffer.get(valueBytes);
+        }
 
         return decoder.decode(keyBytes, valueBytes);
     }

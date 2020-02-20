@@ -144,9 +144,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
-                msgMetadataBuilder.setPartitionKey(
-                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
-                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                if (kv.getKey() != null) {
+                    msgMetadataBuilder.setPartitionKey(
+                            Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                    msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                }
                 // set value as the payload
                 this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
                 return this;
