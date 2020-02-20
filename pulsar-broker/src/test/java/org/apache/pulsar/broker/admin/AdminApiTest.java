@@ -1302,6 +1302,46 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
     }
 
+    @Test(dataProvider = "topicName")
+    public void testDeleteSubscription(String topicName) throws Exception {
+        final String subName = topicName;
+        final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        // create a topic and produce some messages
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 5);
+        assertEquals(admin.topics().getList("prop-xyz/ns1"),
+            Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
+
+        // create consumer and subscription
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsar.getWebServiceAddress())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Exclusive).subscribe();
+
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
+
+        // try to delete the subscription with a connected consumer
+        try {
+            admin.topics().deleteSubscription(persistentTopicName, subName);
+            fail("should have failed");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // failed to delete the subscription
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
+
+        // try to delete the subscription with a connected consumer forcefully
+        admin.topics().deleteSubscription(persistentTopicName, subName, true);
+
+        // delete the subscription successfully
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName).size(), 0);
+
+        client.close();
+    }
+
     @Test(dataProvider = "bundling")
     public void testClearBacklogOnNamespace(Integer numBundles) throws Exception {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);

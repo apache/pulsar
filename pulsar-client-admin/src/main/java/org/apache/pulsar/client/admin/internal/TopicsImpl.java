@@ -619,9 +619,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
+    public void deleteSubscription(String topic, String subName, boolean force) throws PulsarAdminException {
         try {
-            deleteSubscriptionAsync(topic, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            deleteSubscriptionAsync(topic, subName, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -633,10 +633,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName) {
+    public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
+        deleteSubscription(topic, subName, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName, boolean force) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 

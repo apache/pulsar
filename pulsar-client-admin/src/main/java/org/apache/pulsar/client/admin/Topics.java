@@ -779,6 +779,30 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
+     * @param force
+     *            Delete topic forcefully
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PreconditionFailedException
+     *             Subscription has active consumers
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteSubscription(String topic, String subName, boolean force) throws PulsarAdminException;
+
+    /**
+     * Delete a subscription.
+     * <p>
+     * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
+     * <p>
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -801,10 +825,12 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
+     * @param force
+     *            Delete topic forcefully
      *
      * @return a future that can be used to track when the subscription is deleted
      */
-    CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName);
+    CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName, boolean force);
 
     /**
      * Skip all messages on a topic subscription.
