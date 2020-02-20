@@ -169,15 +169,12 @@ enum ProtocolVersion {
 }
 
 message CommandConnect {
-    required string client_version = 1;
-    optional AuthMethod auth_method = 2; // Deprecated. Use "auth_method_name" instead.
-    optional string auth_method_name = 5;
-    optional bytes auth_data = 3;
-    optional int32 protocol_version = 4 [default = 0];
+    optional string auth_method_name = 1;
+    optional bytes auth_data = 2;
 
     // Client can ask to be proxyied to a specific broker
     // This is only honored by a Pulsar proxy
-    optional string proxy_to_broker_url = 6;
+    optional string proxy_to_broker_url = 3;
 
     // Original principal that was verified by
     // a Pulsar proxy. In this case the auth info above
@@ -190,6 +187,11 @@ message CommandConnect {
     optional string original_auth_data = 8;
     optional string original_auth_method = 9;
 
+}
+
+message CommandAuth {
+    required string auth_method = 1;
+    optional bytes auth_data    = 2;
 }
 
 message CommandConnected {

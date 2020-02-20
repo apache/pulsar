@@ -21,7 +21,6 @@ public class Constants {
 
     public static final Context.Key<CommandProducer> PRODUCER_PARAMS_CTX_KEY = Context.key("ProducerParams");
     public static final Context.Key<SocketAddress> REMOTE_ADDRESS_CTX_KEY = Context.key("RemoteAddress");
-    public static final Context.Key<SSLSession> SSL_SESSION_CTX_KEY = Context.key("SSLSession");
     public static final Context.Key<String> AUTH_ROLE_CTX_KEY = Context.key("AuthRole");
     public static final Context.Key<AuthenticationDataSource> AUTH_DATA_CTX_KEY = Context.key("AuthenticationData");
 

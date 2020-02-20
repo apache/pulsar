@@ -5,8 +5,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.*;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
@@ -24,14 +24,14 @@ public class AuthenticationInterceptor implements ServerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationInterceptor.class);
 
-    private BrokerService service;
+    private AuthenticationService service;
     private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();
 
     private static final long SASL_ROLE_TOKEN_LIVE_SECONDS = 3600;
     // A signer for role token, with random secret.
     private HmacSigner signer;
 
-    public AuthenticationInterceptor(BrokerService service) {
+    public AuthenticationInterceptor(AuthenticationService service) {
         this.service = service;
         this.signer = new HmacSigner();
     }
@@ -56,23 +56,21 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                     throw new AuthenticationException("Role token expired");
                 }
                 // role token OK to use
-                ctx.withValue(AUTH_ROLE_CTX_KEY, token.getRoleInfo().getRole());
-                // TODO: no authData to pass, should add auth data to token ? authData is not used anyway...
-                ctx.withValue(AUTH_DATA_CTX_KEY, new AuthenticationDataCommand(null, remoteAddress, sslSession));
+                ctx = ctx.withValue(AUTH_ROLE_CTX_KEY, token.getRoleInfo().getRole());
+                ctx = ctx.withValue(AUTH_DATA_CTX_KEY, new AuthenticationDataCommand(null, remoteAddress, sslSession));
             } else if (metadata.containsKey(AUTH_METADATA_KEY)) {
-                CommandConnect connect = CommandConnect.parseFrom(metadata.get(AUTH_METADATA_KEY));
-                AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
-                String authMethod = connect.hasAuthMethodName() ?  connect.getAuthMethodName() : "none";
-                AuthenticationProvider authenticationProvider = service.getAuthenticationService()
-                    .getAuthenticationProvider(authMethod);
+                CommandAuth auth = CommandAuth.parseFrom(metadata.get(AUTH_METADATA_KEY));
+                AuthData clientData = AuthData.of(auth.getAuthData().toByteArray());
+                String authMethod = auth.hasAuthMethod() ?  auth.getAuthMethod() : "none";
+                AuthenticationProvider authenticationProvider = service.getAuthenticationProvider(authMethod);
 
                 // Not find provider named authMethod. Most used for tests.
                 // In AuthenticationDisabled, it will set authMethod "none".
                 if (authenticationProvider == null) {
-                    String authRole = service.getAuthenticationService().getAnonymousUserRole()
+                    String authRole = service.getAnonymousUserRole()
                         .orElseThrow(() ->
                             new AuthenticationException("No anonymous role, and no authentication provider configured"));
-                    ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
+                    ctx = ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
                 } else {
                     AuthenticationState authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
                     AuthData brokerData = authState.authenticate(clientData);
@@ -82,8 +80,8 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                             log.debug("[{}] Client successfully authenticated with {} role {}",
                                 remoteAddress, authMethod, authRole);
                         }
-                        ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
-                        ctx.withValue(AUTH_DATA_CTX_KEY, authState.getAuthDataSource());
+                        ctx = ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
+                        ctx = ctx.withValue(AUTH_DATA_CTX_KEY, authState.getAuthDataSource());
                     } else {
                         authStates.put(authState.getStateId(), authState);
                         CommandAuthChallenge challenge = Commands.newAuthChallenge(authMethod, brokerData);
