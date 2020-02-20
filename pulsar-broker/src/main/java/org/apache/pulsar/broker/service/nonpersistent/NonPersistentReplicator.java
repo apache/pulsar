@@ -252,7 +252,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    protected CompletableFuture<Void> prepareStartProducer() {
+    protected CompletableFuture<Void> openCursorAsync() {
         return CompletableFuture.completedFuture(null);
     }
 

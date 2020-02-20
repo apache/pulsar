@@ -189,8 +189,10 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     @Override
-    protected synchronized CompletableFuture<Void> prepareStartProducer() {
+    protected synchronized CompletableFuture<Void> openCursorAsync() {
+        log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
         if (cursor != null) {
+            log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
             if (expiryMonitor == null) {
                 this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
             }
@@ -200,6 +202,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         ledger.asyncOpenCursor(replicatorName, InitialPosition.Earliest, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                log.info("[{}][{} -> {}] Open cursor succeed for replicator", topicName, localCluster, remoteCluster);
                 PersistentReplicator.this.cursor = cursor;
                 PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
                 res.complete(null);
@@ -207,6 +210,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
             @Override
             public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{} -> {}] Open cursor failed for replicator", topicName, localCluster, remoteCluster, exception);
                 res.completeExceptionally(new PersistenceException(exception));
             }
 
