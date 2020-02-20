@@ -147,6 +147,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 msgMetadataBuilder.setPartitionKey(
                         Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
                 msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                msgMetadataBuilder.setValueSet(Boolean.TRUE);
                 // set value as the payload
                 this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
                 return this;
