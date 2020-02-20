@@ -34,14 +34,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
-import java.io.IOException;
 import java.net.SocketAddress;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -76,8 +73,6 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
-import org.apache.pulsar.common.api.raw.MessageParser;
-import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -1406,28 +1401,40 @@ public class ServerCnx extends PulsarHandler {
             Topic topic = consumer.getSubscription().getTopic();
             Position position = topic.getLastMessageId();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
-            int largestBatchIndex = getLargestBatchIndex(topic, (PositionImpl) position, requestId);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
-                    topic.getName(), consumer.getSubscription().getName(), position, partitionIndex);
-            }
-            MessageIdData messageId = MessageIdData.newBuilder()
-                .setLedgerId(((PositionImpl)position).getLedgerId())
-                .setEntryId(((PositionImpl)position).getEntryId())
-                .setPartition(partitionIndex)
-                .setBatchIndex(largestBatchIndex)
-                .build();
 
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+            getLargestBatchIndexWhenPossible(
+                    topic,
+                    (PositionImpl) position,
+                    partitionIndex,
+                    requestId,
+                    consumer.getSubscription().getName());
+
         } else {
             ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(), ServerError.MetadataError, "Consumer not found"));
         }
     }
 
-    private int getLargestBatchIndex(Topic topic, PositionImpl position, long requestId) {
+    private void getLargestBatchIndexWhenPossible(
+            Topic topic,
+            PositionImpl position,
+            int partitionIndex,
+            long requestId,
+            String subscriptionName) {
+
         PersistentTopic persistentTopic = (PersistentTopic) topic;
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
+        // If it's not pointing to a valid entry, respond messageId of the current position.
+        if (position.getEntryId() == -1) {
+            MessageIdData messageId = MessageIdData.newBuilder()
+                    .setLedgerId(position.getLedgerId())
+                    .setEntryId(position.getEntryId())
+                    .setPartition(partitionIndex).build();
+
+            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+        }
+
+        // For a valid position, we read the entry out and parse the batch size from its metadata.
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
         ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
@@ -1448,17 +1455,27 @@ public class ServerCnx extends PulsarHandler {
             return batchSize;
         });
 
-        try {
-            int batchSize =  batchSizeFuture.get();
-            if (batchSize > 1) {
-                return batchSize - 1;
+        batchSizeFuture.whenComplete((batchSize, e) -> {
+            if (e != null) {
+                ctx.writeAndFlush(Commands.newError(
+                        requestId, ServerError.MetadataError, "Failed to get batch size for entry " + e.getMessage()));
             } else {
-                return -1;
+                int largestBatchIndex = batchSize > 1 ? batchSize - 1 : -1;
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
+                            topic.getName(), subscriptionName, position, partitionIndex);
+                }
+
+                MessageIdData messageId = MessageIdData.newBuilder()
+                        .setLedgerId(position.getLedgerId())
+                        .setEntryId(position.getEntryId())
+                        .setPartition(partitionIndex)
+                        .setBatchIndex(largestBatchIndex).build();
+
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
             }
-        } catch (InterruptedException | ExecutionException e) {
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, "Failed to open entry for batch size check"));;
-        }
-        return -1;
+        });
     }
 
     @Override
