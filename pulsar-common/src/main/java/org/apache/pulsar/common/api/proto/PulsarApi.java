@@ -3599,6 +3599,10 @@ public final class PulsarApi {
     // optional uint64 highest_sequence_id = 24 [default = 0];
     boolean hasHighestSequenceId();
     long getHighestSequenceId();
+
+    // optional bool value_set = 25 [default = false];
+    boolean hasValueSet();
+    boolean getValueSet();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3969,6 +3973,16 @@ public final class PulsarApi {
       return highestSequenceId_;
     }
     
+    // optional bool value_set = 25 [default = false];
+    public static final int VALUE_SET_FIELD_NUMBER = 25;
+    private boolean valueSet_;
+    public boolean hasValueSet() {
+      return ((bitField0_ & 0x00080000) == 0x00080000);
+    }
+    public boolean getValueSet() {
+      return valueSet_;
+    }
+
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -3992,6 +4006,7 @@ public final class PulsarApi {
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
       highestSequenceId_ = 0L;
+      valueSet_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4100,6 +4115,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
         output.writeUInt64(24, highestSequenceId_);
       }
+      if (((bitField0_ & 0x00080000) == 0x00080000)) {
+        output.writeBool(25, valueSet_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4200,6 +4218,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(24, highestSequenceId_);
+      }
+      if (((bitField0_ & 0x00080000) == 0x00080000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(25, valueSet_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4358,6 +4380,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00100000);
         highestSequenceId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00200000);
+        valueSet_ = false;
+        bitField0_ = (bitField0_ & ~0x00400000);
         return this;
       }
       
@@ -4483,6 +4507,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00040000;
         }
         result.highestSequenceId_ = highestSequenceId_;
+        if (((from_bitField0_ & 0x00400000) == 0x00400000)) {
+          to_bitField0_ |= 0x00080000;
+        }
+        result.valueSet_ = valueSet_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4575,6 +4603,9 @@ public final class PulsarApi {
         }
         if (other.hasHighestSequenceId()) {
           setHighestSequenceId(other.getHighestSequenceId());
+        }
+        if (other.hasValueSet()) {
+          setValueSet(other.getValueSet());
         }
         return this;
       }
@@ -4743,6 +4774,11 @@ public final class PulsarApi {
             case 192: {
               bitField0_ |= 0x00200000;
               highestSequenceId_ = input.readUInt64();
+              break;
+            }
+            case 200: {
+              bitField0_ |= 0x00400000;
+              valueSet_ = input.readBool();
               break;
             }
           }
@@ -5431,7 +5467,7 @@ public final class PulsarApi {
       public Builder clearTxnidMostBits() {
         bitField0_ = (bitField0_ & ~0x00100000);
         txnidMostBits_ = 0L;
-        
+
         return this;
       }
       
@@ -5456,6 +5492,27 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional bool value_set = 25 [default = false];
+      private boolean valueSet_ ;
+      public boolean hasValueSet() {
+        return ((bitField0_ & 0x00400000) == 0x00400000);
+      }
+      public boolean getValueSet() {
+        return valueSet_;
+      }
+      public Builder setValueSet(boolean value) {
+        bitField0_ |= 0x00400000;
+        valueSet_ = value;
+
+        return this;
+      }
+      public Builder clearValueSet() {
+        bitField0_ = (bitField0_ & ~0x00400000);
+        valueSet_ = false;
+
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     

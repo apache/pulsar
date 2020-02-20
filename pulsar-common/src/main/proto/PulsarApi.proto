@@ -135,6 +135,9 @@ message MessageMetadata {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 24 [default = 0];
+
+    // Indicate if the message payload value is set
+    optional bool value_set = 25 [ default = false ];
 }
 
 message SingleMessageMetadata {

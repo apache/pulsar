@@ -234,6 +234,10 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public byte[] getData() {
+        checkNotNull(msgMetadataBuilder);
+        if (!msgMetadataBuilder.getValueSet()) {
+            return null;
+        }
         if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
             return payload.array();
         } else {
@@ -259,6 +263,10 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public T getValue() {
+        checkNotNull(msgMetadataBuilder);
+        if (!msgMetadataBuilder.getValueSet()) {
+            return null;
+        }
         if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();

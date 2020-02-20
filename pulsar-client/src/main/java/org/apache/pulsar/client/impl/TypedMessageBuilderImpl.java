@@ -152,6 +152,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 return this;
             }
         }
+        this.msgMetadataBuilder.setValueSet(Boolean.TRUE);
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
