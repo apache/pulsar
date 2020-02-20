@@ -107,7 +107,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     // Only for test
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
-        BrokerService brokerService) throws NamingException {
+            BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
         this.replicatorName = cursor.getName();
         this.ledger = cursor.getManagedLedger();
@@ -128,7 +128,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public PersistentReplicator(PersistentTopic topic, String replicatorName, String localCluster, String remoteCluster,
-        BrokerService brokerService, ManagedLedger ledger) throws NamingException {
+            BrokerService brokerService, ManagedLedger ledger) throws NamingException {
         super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
         this.replicatorName = replicatorName;
         this.ledger = ledger;
