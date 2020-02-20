@@ -2122,7 +2122,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected long internalGetOffloadThreshold() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).offload_threshold;
+        return getNamespacePolicies(namespaceName).offload_policies.getManagedLedgerOffloadTreshold();
     }
 
     protected void internalSetOffloadThreshold(long newThreshold) {
@@ -2134,11 +2134,11 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.offload_threshold = newThreshold;
+            policies.offload_policies.setManagedLedgerOffloadTreshold(newThreshold);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
-                     clientAppId(), namespaceName, policies.offload_threshold);
+                     clientAppId(), namespaceName, policies.offload_policies.getManagedLedgerOffloadTreshold());
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update offloadThreshold configuration for namespace {}: does not exist",
@@ -2159,7 +2159,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected Long internalGetOffloadDeletionLag() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).offload_deletion_lag_ms;
+        return getNamespacePolicies(namespaceName).offload_policies.getManagedLedgerOffloadDeletionLagMs();
     }
 
     protected void internalSetOffloadDeletionLag(Long newDeletionLagMs) {
@@ -2171,11 +2171,11 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.offload_deletion_lag_ms = newDeletionLagMs;
+            policies.offload_policies.setManagedLedgerOffloadDeletionLagMs(newDeletionLagMs);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadDeletionLagMs configuration: namespace={}, value={}",
-                     clientAppId(), namespaceName, policies.offload_deletion_lag_ms);
+                     clientAppId(), namespaceName, policies.offload_policies.getManagedLedgerOffloadDeletionLagMs());
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update offloadDeletionLagMs configuration for namespace {}: does not exist",

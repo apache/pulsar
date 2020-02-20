@@ -1848,7 +1848,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getOffloadAutoTriggerSizeThresholdBytes() >= 0) {
+        if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold() >= 0) {
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
     }
@@ -1868,7 +1868,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 });
 
-            long threshold = config.getOffloadAutoTriggerSizeThresholdBytes();
+            long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold();
             long sizeSummed = 0;
             long alreadyOffloadedSize = 0;
             long toOffloadSize = 0;
@@ -1923,7 +1923,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private boolean isOffloadedNeedsDelete(OffloadContext offload) {
         long elapsedMs = clock.millis() - offload.getTimestamp();
         return offload.getComplete() && !offload.getBookkeeperDeleted()
-                && elapsedMs > config.getOffloadLedgerDeletionLagMillis();
+                && elapsedMs > config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadDeletionLagMs();
     }
 
     /**

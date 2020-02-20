@@ -56,8 +56,6 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
-    private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
-    private long offloadAutoTriggerSizeThresholdBytes = -1;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
@@ -417,7 +415,7 @@ public class ManagedLedgerConfig {
      * @param unit timeunit for lagTime
      */
     public ManagedLedgerConfig setOffloadLedgerDeletionLag(long lagTime, TimeUnit unit) {
-        this.offloadLedgerDeletionLagMs = unit.toMillis(lagTime);
+        this.getLedgerOffloader().getOffloadPolicies().setManagedLedgerOffloadDeletionLagMs(unit.toMillis(lagTime));
         return this;
     }
 
@@ -427,7 +425,7 @@ public class ManagedLedgerConfig {
      * @return the offload ledger deletion lag time in milliseconds
      */
     public long getOffloadLedgerDeletionLagMillis() {
-        return offloadLedgerDeletionLagMs;
+        return this.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadDeletionLagMs();
     }
 
     /**
@@ -439,7 +437,7 @@ public class ManagedLedgerConfig {
      * @param threshold Threshold in bytes at which offload is automatically triggered
      */
     public ManagedLedgerConfig setOffloadAutoTriggerSizeThresholdBytes(long threshold) {
-        this.offloadAutoTriggerSizeThresholdBytes = threshold;
+        this.getLedgerOffloader().getOffloadPolicies().setManagedLedgerOffloadTreshold(threshold);
         return this;
     }
 
@@ -448,7 +446,7 @@ public class ManagedLedgerConfig {
      * @return the trigger threshold, in bytes
      */
     public long getOffloadAutoTriggerSizeThresholdBytes() {
-        return this.offloadAutoTriggerSizeThresholdBytes;
+        return this.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold();
     }
 
     /**
