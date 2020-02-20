@@ -70,15 +70,15 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public static Object[][] variationsForExpectedPos() {
         return new Object[][] {
                 // batching / start-inclusive / num-of-messages
-                {true,  true,  10,  "1"},
-                {true,  true,  100, "2"},
-                {true,  false, 10,  "3"},
-                {true,  false, 100, "4"},
+                {true, true, 10 },
+                {true, false, 10 },
+                {false, true, 10 },
+                {false, false, 10 },
 
-                {false, true,  10,  "5"},
-                {false, true,  100, "6"},
-                {false, false, 10,  "7"},
-                {false, false, 100, "8"},
+                {true, true, 100 },
+                {true, false, 100 },
+                {false, true, 100 },
+                {false, false, 100 },
         };
     }
 
@@ -693,9 +693,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "variationsForExpectedPos")
-    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages, String suffix)
+    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
             throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos" + suffix;
+        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos";
         final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
         final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
 

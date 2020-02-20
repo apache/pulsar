@@ -117,15 +117,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public static Object[][] variationsForExpectedPos() {
         return new Object[][] {
                 // batching / start-inclusive / num-of-messages
-                {true,  true,  10,  "1"},
-                {true,  true,  100, "2"},
-                {true,  false, 10,  "3"},
-                {true,  false, 100, "4"},
+                {true, true, 10 },
+                {true, false, 10 },
+                {false, true, 10 },
+                {false, false, 10 },
 
-                {false, true,  10,  "5"},
-                {false, true,  100, "6"},
-                {false, false, 10,  "7"},
-                {false, false, 100, "8"},
+                {true, true, 100 },
+                {true, false, 100 },
+                {false, true, 100 },
+                {false, false, 100 },
         };
     }
 
@@ -3221,9 +3221,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "variationsForExpectedPos")
-    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages, String suffix)
+    public void testConsumerStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
             throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ConsumerStartMessageIdAtExpectedPos" + suffix;
+        final String topicName = "persistent://my-property/my-ns/ConsumerStartMessageIdAtExpectedPos";
         final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
         final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
 
@@ -3246,6 +3246,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                         if (e != null) {
                             fail("send msg failed due to " + e.getMessage());
                         } else {
+                            log.info("send msg with id {}", p.getRight());
                             if (p.getLeft() == resetIndex) {
                                 resetPos.set(p.getRight());
                             }
@@ -3265,6 +3266,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = consumerBuilder.subscriptionName("my-subscriber-name").subscribe();
         consumer.seek(resetPos.get());
+        log.info("reset cursor to {}", resetPos.get());
         Set<String> messageSet = Sets.newHashSet();
         for (int i = firstMessage; i < numOfMessages; i++) {
             Message<byte[]> message = consumer.receive();
