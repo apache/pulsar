@@ -35,6 +35,9 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(BUILD_EXAMPLES "Build examples" ON)
 MESSAGE(STATUS "BUILD_EXAMPLES:  " ${BUILD_EXAMPLES})
 
+option(BUILD_PERF "Build perf clients" ON)
+MESSAGE(STATUS "BUILD_PERF:  " ${BUILD_PERF})
+
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
@@ -318,8 +321,12 @@ set(CLIENT_LIBS
 )
 
 add_subdirectory(lib)
-if (BUILD_EXAMPLES) 
+
+if (BUILD_PERF)
     add_subdirectory(perf)
+endif()
+
+if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
