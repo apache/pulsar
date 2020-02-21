@@ -48,8 +48,8 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
         config.setLedgerOffloader(offloader);
+        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
         config.setClock(clock);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -109,9 +109,9 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(5, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
         config.setOffloadLedgerDeletionLag(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -157,8 +157,8 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
-        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
         config.setLedgerOffloader(offloader);
+        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
         config.setClock(clock);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);

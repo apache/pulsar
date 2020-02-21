@@ -115,6 +115,12 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", null, null, null,
+                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS);
+
         @Override
         public String getOffloadDriverName() {
             return "mock";
@@ -149,7 +155,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public OffloadPolicies getOffloadPolicies() {
-            return null;
+            return offloadPolicies;
         }
 
         @Override
