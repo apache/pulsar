@@ -148,8 +148,8 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">定义了topic类型。 Pulsar支持两种不同topic：<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage">持久</a>和 <a href="#non-persistent-topics">非持久</a>（默认是持久类型，如果你没有指明类型，topic将会是持久类型）。 持久topic的所有消息都会<a href="/docs/zh-CN/2.1.0-incubating/concepts-architecture-overview#persistent-storage"></a>持久化</a>到硬盘上（这意味着多块硬盘，除非是单机模式的broker），反之，<a href="#non-persistent-topics">非持久</a>topic的数据不会存储到硬盘上。</td></tr>
-<tr><td style="text-align:left"><code>tenant</code></td><td style="text-align:left">实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。</td></tr>
-<tr><td style="text-align:left"><code>namespace</code></td><td style="text-align:left">Topic的管理单元，充当关联topic组的管理机制。 大多数的topic配置在<a href="#namespaces">namespace</a>层面生效。 每个tenant可以有多个namespace。</td></tr>
+<tr><td style="text-align:left"><code>租户</code></td><td style="text-align:left">实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。</td></tr>
+<tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">Topic的管理单元，充当关联topic组的管理机制。 大多数的topic配置在<a href="#namespaces">namespace</a>层面生效。 每个tenant可以有多个namespace。</td></tr>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">名称的最后组成部分，topic的命名很自由，没有什么特殊的含义。</td></tr>
 </tbody>
 </table>

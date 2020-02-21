@@ -75,8 +75,8 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Set up a standalone Pulsar in Docker</h1></header><article><div><span><p>可以在本地机器的 Docker 容器中运行单机模式的 Pulsar，进行本地开发和测试。</p>
-<p>如果你没有安装Docker，你可以下载<a href="https://www.docker.com/community-edition">社区版本</a>并按照操作系统的说明进行操作。</p>
-<h2><a class="anchor" aria-hidden="true" id="在docker中启动pulsar"></a><a href="#在docker中启动pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在Docker中启动Pulsar</h2>
+<p>如果没有安装 Docker，可以下载<a href="https://www.docker.com/community-edition">社区版本</a>，并按照相应操作系统的说明进行操作。</p>
+<h2><a class="anchor" aria-hidden="true" id="在-docker-中启动-pulsar"></a><a href="#在-docker-中启动-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Docker 中启动 Pulsar</h2>
 <ul>
 <li>在 Mac 和 Linux 上：</li>
 </ul>
@@ -110,7 +110,7 @@ data and metadata in the filesystem outside the container, in order not to start
     &lt;<span class="hljs-keyword">br</span> /&gt;&gt; #### Tip
     &gt; 
     &gt; When you start a <span class="hljs-keyword">local</span> standalone <span class="hljs-keyword">cluster</span>, a `public/default`
-    namespace is created automatically. 命名用于开发。 所有Pulsar的topic主题都在命名空间中进行管理。
+    namespace is created automatically. 自动创建的命名空间将会用于开发。 所有Pulsar的topic主题都在命名空间中进行管理。
     <span class="hljs-keyword">For</span> <span class="hljs-keyword">more</span> information, see [Topics](concepts-messaging.md#topics).
     
     ## <span class="hljs-keyword">Use</span> Pulsar <span class="hljs-keyword">in</span> Docker
@@ -131,9 +131,9 @@ data and metadata in the filesystem outside the container, in order not to start
     $ pip install pulsar-client
     
 
-### 消费一条消息
+### Consume 一条消息
 
-创建使用者并订阅主题：
+创建 consumer 并订阅 topic：
 
 ```python
 import pulsar
@@ -149,8 +149,8 @@ consumer = client.subscribe('my-topic',
 
 client.<span class="hljs-keyword">close</span>()
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="产生一条消息"></a><a href="#产生一条消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>产生一条消息</h3>
-<p>现在启动生产者用来发送一些测试消息：</p>
+<h3><a class="anchor" aria-hidden="true" id="produce-一条消息"></a><a href="#produce-一条消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce 一条消息</h3>
+<p>启动 producer，发送测试消息：</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
 
 client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
@@ -161,12 +161,12 @@ producer = client.create_producer(<span class="hljs-string">'my-topic'</span>)
 
 client.close()
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="获取主题统计信息"></a><a href="#获取主题统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取主题统计信息</h2>
+<h2><a class="anchor" aria-hidden="true" id="获取-topic-数据"></a><a href="#获取-topic-数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 topic 数据</h2>
 <p>In Pulsar, you can use REST, Java, or command-line tools to control every aspect of the system. For details on APIs, refer to <a href="/docs/zh-CN/2.4.2/admin-api-overview">Admin API Overview</a>.</p>
 <p>在最简单的示例中，您可以使用curl来获取特定主题的统计信息：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool</span>
 </code></pre>
-<p>输出应该是这样的：</p>
+<p>输出应如下所示：</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">0.0</span>,
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">0.0</span>,
@@ -215,7 +215,7 @@ client.close()
   }
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/standalone"><span class="arrow-prev">← </span><span>在本地运行Pulsar</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/client-libraries"><span>与客户端库一起使用 Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在docker中启动pulsar">在Docker中启动Pulsar</a><ul class="toc-headings"><li><a href="#产生一条消息">产生一条消息</a></li></ul></li><li><a href="#获取主题统计信息">获取主题统计信息</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/standalone"><span class="arrow-prev">← </span><span>在本地运行Pulsar</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/client-libraries"><span>与客户端库一起使用 Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在-docker-中启动-pulsar">在 Docker 中启动 Pulsar</a><ul class="toc-headings"><li><a href="#produce-一条消息">Produce 一条消息</a></li></ul></li><li><a href="#获取-topic-数据">获取 topic 数据</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
