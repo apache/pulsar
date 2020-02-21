@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: Execute pulsarbot command
         id:   pulsarbot
         env:
