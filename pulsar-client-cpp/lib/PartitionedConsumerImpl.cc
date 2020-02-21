@@ -426,6 +426,21 @@ void PartitionedConsumerImpl::redeliverUnacknowledgedMessages() {
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         (*i)->redeliverUnacknowledgedMessages();
     }
+    unAckedMessageTrackerPtr_->clear();
+}
+
+void PartitionedConsumerImpl::redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) {
+    if (messageIds.empty()) {
+        return;
+    }
+    if (conf_.getConsumerType() != ConsumerShared && conf_.getConsumerType() != ConsumerKeyShared) {
+        redeliverUnacknowledgedMessages();
+        return;
+    }
+    LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for partitioned consumer.");
+    for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
+        (*i)->redeliverUnacknowledgedMessages(messageIds);
+    }
 }
 
 const std::string& PartitionedConsumerImpl::getName() const { return partitionStr_; }

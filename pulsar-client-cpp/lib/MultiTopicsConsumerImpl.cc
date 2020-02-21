@@ -653,6 +653,22 @@ void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages() {
          consumer++) {
         (consumer->second)->redeliverUnacknowledgedMessages();
     }
+    unAckedMessageTrackerPtr_->clear();
+}
+
+void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) {
+    if (messageIds.empty()) {
+        return;
+    }
+    if (conf_.getConsumerType() != ConsumerShared && conf_.getConsumerType() != ConsumerKeyShared) {
+        redeliverUnacknowledgedMessages();
+        return;
+    }
+    LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for partitioned consumer.");
+    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
+         consumer++) {
+        (consumer->second)->redeliverUnacknowledgedMessages(messageIds);
+    }
 }
 
 int MultiTopicsConsumerImpl::getNumOfPrefetchedMessages() const { return messages_.size(); }
