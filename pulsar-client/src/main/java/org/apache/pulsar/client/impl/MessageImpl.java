@@ -105,7 +105,8 @@ public class MessageImpl<T> implements Message<T> {
 
         if (msgMetadata.getPropertiesCount() > 0) {
             this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                            (oldValue,newValue) -> newValue)));
         } else {
             properties = Collections.emptyMap();
         }
