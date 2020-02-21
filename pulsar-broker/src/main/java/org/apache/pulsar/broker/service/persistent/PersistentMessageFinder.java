@@ -66,7 +66,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 MessageImpl msg = null;
                 try {
                     msg = MessageImpl.deserialize(entry.getDataBuffer());
-                    return msg.getPublishTime() <= timestamp;
+                    return msg.getPublishTime() < timestamp;
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {
