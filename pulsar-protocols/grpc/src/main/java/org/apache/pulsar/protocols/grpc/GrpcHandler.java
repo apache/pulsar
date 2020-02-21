@@ -9,7 +9,6 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
@@ -74,7 +73,7 @@ public class GrpcHandler implements ProtocolHandler {
     public void start(BrokerService service) {
         try {
             grpcServer.start(service);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Couldn't start gRPC server", e);
         }
     }

@@ -82,6 +82,11 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
     @Override
     public StreamObserver<CommandSend> produce(StreamObserver<SendResult> responseObserver) {
         CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
+        if (cmdProducer == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Missing CommandProducer header").asException());
+            return NoOpStreamObserver.create();
+        }
+
         String authRole = AUTH_ROLE_CTX_KEY.get();
         AuthenticationDataSource authenticationData = AUTH_DATA_CTX_KEY.get();
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();

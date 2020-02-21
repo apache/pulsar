@@ -17,6 +17,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.*;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -59,6 +60,7 @@ public class AuthenticationInterceptorTest {
 
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
+    private BrokerService brokerService;
     private AuthenticationService authenticationService;
 
     private Server server;
@@ -77,7 +79,12 @@ public class AuthenticationInterceptorTest {
     public void setup() throws Exception {
         System.setProperty("pulsar.auth.basic.conf", BASIC_CONF_FILE_PATH);
 
+        brokerService = mock(BrokerService.class);
         authenticationService = mock(AuthenticationService.class);
+
+        doReturn(authenticationService).when(brokerService).getAuthenticationService();
+        doReturn(true).when(brokerService).isAuthenticationEnabled();
+
         signer = new HmacSigner();
 
         SslContext sslContext = GrpcSslContexts
@@ -86,7 +93,7 @@ public class AuthenticationInterceptorTest {
             .clientAuth(ClientAuth.REQUIRE)
             .build();
 
-        AuthenticationInterceptor authenticationInterceptor = new AuthenticationInterceptor(authenticationService, signer);
+        AuthenticationInterceptor authenticationInterceptor = new AuthenticationInterceptor(brokerService, signer);
 
         server = NettyServerBuilder
             .forAddress(new InetSocketAddress(localHostname, 0))
@@ -116,6 +123,24 @@ public class AuthenticationInterceptorTest {
     public void teardown() throws InterruptedException {
         server.shutdownNow();
         server.awaitTermination(30, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testAuthenticationDisabled() throws Exception {
+        doReturn(false).when(brokerService).isAuthenticationEnabled();
+        AuthenticationProvider provider = new AuthenticationProviderTls();
+        provider.initialize(null);
+        doReturn(provider).when(authenticationService).getAuthenticationProvider(provider.getAuthMethodName());
+
+        Metadata headers = new Metadata();
+        CommandAuth auth = CommandAuth.newBuilder()
+            .setAuthMethod(provider.getAuthMethodName())
+            .build();
+        headers.put(AUTH_METADATA_KEY, auth.toByteArray());
+
+        AuthGrpc.AuthBlockingStub authStub = MetadataUtils.attachHeaders(this.stub, headers);
+
+        assertEquals(authStub.getPrincipal(Empty.getDefaultInstance()).getValue(), "unauthenticated user");
     }
 
     @Test
@@ -297,6 +322,24 @@ public class AuthenticationInterceptorTest {
         CommandAuthResponse authResponse = CommandAuthResponse.newBuilder()
             .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
                 .setAuthStateId(challenge.getAuthStateId() + 1))
+            .build();
+        headers = new Metadata();
+        headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());
+
+        authStub = MetadataUtils.attachHeaders(this.stub, headers);
+
+        try {
+            authStub.getPrincipal(Empty.getDefaultInstance());
+            fail("Should have thrown unauthenticated exception");
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().getCode(), Status.Code.UNAUTHENTICATED);
+            assertNull(e.getTrailers().get(AUTH_ROLE_TOKEN_METADATA_KEY));
+        }
+
+        // Wrong method
+        authResponse = CommandAuthResponse.newBuilder()
+            .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
+                .setAuthMethodName("none"))
             .build();
         headers = new Metadata();
         headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());

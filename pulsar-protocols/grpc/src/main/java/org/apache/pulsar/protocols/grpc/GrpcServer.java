@@ -1,6 +1,7 @@
 package org.apache.pulsar.protocols.grpc;
 
 import io.grpc.*;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
@@ -10,14 +11,18 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.util.NettySslContextBuilder;
 import org.apache.pulsar.protocols.grpc.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,38 +35,77 @@ public class GrpcServer {
     private static final Logger log = LoggerFactory.getLogger(GrpcServer.class);
 
     private final ServiceConfiguration configuration;
-    private Server server;
+    private Server server = null;
+    private Server tlsServer = null;
 
     public GrpcServer(ServiceConfiguration configuration) {
         this.configuration = configuration;
     }
 
-    public void start(BrokerService service) throws IOException {
-        int port = Integer.parseInt(configuration.getProperties().getProperty("grpcServicePort", "50051"));
+    public void start(BrokerService service) throws IOException, GeneralSecurityException {
+        PulsarGrpcService pulsarGrpcService = new PulsarGrpcService(service, configuration, new NioEventLoopGroup());
+        List<ServerInterceptor> interceptors = Arrays.asList(new GrpcServerInterceptor());
+        if (service.isAuthenticationEnabled()) {
+            interceptors.add(new AuthenticationInterceptor(service));
+        }
 
-        server = ServerBuilder.forPort(port)
-            .addService(ServerInterceptors.intercept(
-                new PulsarGrpcService(service, configuration, new NioEventLoopGroup()),
-                Collections.singletonList(new GrpcServerInterceptor())
-            ))
-            .build()
-            .start();
-        log.info("############# Server started, listening on " + port);
+        Optional<Integer> grpcServicePort = Optional.ofNullable(configuration.getProperties().getProperty("grpcServicePort"))
+            .map(Integer::parseInt);
+
+        if (grpcServicePort.isPresent()) {
+            Integer port = grpcServicePort.get();
+            server = NettyServerBuilder.forPort(port)
+                .addService(ServerInterceptors.intercept(pulsarGrpcService, interceptors))
+                .build()
+                .start();
+            log.info("gRPC Service started, listening on " + port);
+        }
+
+        Optional<Integer> grpcServicePortTls = Optional.ofNullable(configuration.getProperties().getProperty("grpcServicePortTls"))
+            .map(Integer::parseInt);
+
+        if (grpcServicePortTls.isPresent()) {
+            Integer port = grpcServicePortTls.get();
+            NettySslContextBuilder sslCtxRefresher = new NettySslContextBuilder(configuration.isTlsAllowInsecureConnection(),
+                configuration.getTlsTrustCertsFilePath(), configuration.getTlsCertificateFilePath(),
+                configuration.getTlsKeyFilePath(), configuration.getTlsCiphers(), configuration.getTlsProtocols(),
+                configuration.isTlsRequireTrustedClientCertOnConnect(),
+                configuration.getTlsCertRefreshCheckDurationSec());
+
+            tlsServer = NettyServerBuilder.forPort(port)
+                .addService(ServerInterceptors.intercept(pulsarGrpcService, interceptors))
+                .sslContext(sslCtxRefresher.get())
+                .build()
+                .start();
+            log.info("gRPC TLS Service started, listening on " + port);
+        }
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-            System.err.println("############### shutting down gRPC server since JVM is shutting down");
+            System.err.println("shutting down gRPC server since JVM is shutting down");
             try {
                 GrpcServer.this.stop();
             } catch (InterruptedException e) {
                 e.printStackTrace(System.err);
             }
-            System.err.println("############### gRPC server shut down");
+            System.err.println("gRPC server shut down");
         }));
+
+
     }
 
     public void stop() throws InterruptedException {
         if (server != null) {
-            server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+            server.shutdown();
+        }
+        if (tlsServer != null) {
+            tlsServer.shutdown();
+        }
+        if (server != null) {
+            server.awaitTermination(30, TimeUnit.SECONDS);
+        }
+        if (tlsServer != null) {
+            tlsServer.awaitTermination(30, TimeUnit.SECONDS);
         }
     }
 

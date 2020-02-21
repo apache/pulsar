@@ -206,6 +206,15 @@ public class PulsarGrpcServiceTest {
     }
 
     @Test(timeOut = 30000)
+    public void testProduceMissingHeader() throws Exception {
+        TestStreamObserver<SendResult> observer = TestStreamObserver.create();
+        StreamObserver<CommandSend> request = stub.produce(observer);
+
+        Status actualStatus = Status.fromThrowable(observer.waitForError());
+        assertEquals(actualStatus.getCode(), Status.Code.INVALID_ARGUMENT);
+    }
+
+    @Test(timeOut = 30000)
     public void testSendCommand() throws Exception {
         Metadata headers = new Metadata();
         CommandProducer producerParams = Commands.newProducer(successTopicName,"prod-name", Collections.emptyMap());
@@ -412,8 +421,7 @@ public class PulsarGrpcServiceTest {
         TestStreamObserver<SendResult> observer = TestStreamObserver.create();
         StreamObserver<CommandSend> produce = producerStub.produce(observer);
 
-        Throwable error = observer.waitForError();
-        assertErrorIsStatusExceptionWithServerError(error, Status.INVALID_ARGUMENT, ServerError.MetadataError);
+        assertErrorIsStatusExceptionWithServerError(observer.waitForError(), Status.INVALID_ARGUMENT, ServerError.MetadataError);
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 0);
