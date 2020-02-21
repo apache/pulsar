@@ -28,7 +28,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
     timeoutHandlerHelper();
     ExecutorServicePtr executorService = client_->getIOExecutorProvider()->get();
     timer_ = executorService->createDeadlineTimer();
-    timer_->expires_from_now(boost::posix_time::milliseconds(timeoutMs_));
+    timer_->expires_from_now(boost::posix_time::milliseconds(tickDurationInMs_));
     timer_->async_wait([&](const boost::system::error_code& ec) {
         if (ec) {
             LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
