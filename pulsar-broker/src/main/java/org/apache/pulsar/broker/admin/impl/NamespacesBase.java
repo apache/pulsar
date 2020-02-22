@@ -1756,13 +1756,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-//    private void validateAutoTopicCreationOverride(AutoTopicCreationOverride autoTopicCreationOverride) {
-//        try {
-//            checkNotNull(autoTopicCreationOverride);
-//            checkArgument(autoTopicCreationOverride.topicType);
-//        }
-//    }
-
     protected RetentionPolicies internalGetRetention() {
         validateAdminAccessForTenant(namespaceName.getTenant());
 

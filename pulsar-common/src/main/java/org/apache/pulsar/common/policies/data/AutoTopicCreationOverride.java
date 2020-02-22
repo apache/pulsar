@@ -45,6 +45,9 @@ public class AutoTopicCreationOverride {
     }
 
     public static boolean isValidOverride(AutoTopicCreationOverride override) {
+        if (override == null) {
+            return false;
+        }
         if (override.allowAutoTopicCreation) {
             if (!TopicType.isValidTopicType(override.topicType)) {
                 return false;
