@@ -107,21 +107,20 @@ public class KeyValue<K, V> {
         byte [] keyBytes = keyWriter.encode(key);
         byte [] valueBytes = valueWriter.encode(value);
 
-        int keyLength = 1 + (null == keyBytes ? 0 : 4 + keyBytes.length);
-        int valueLength = 1 + (null == valueBytes ? 0 : 4 + valueBytes.length);
-
-        ByteBuffer byteBuffer = ByteBuffer.allocate(keyLength + valueLength);
+        int keyEncodeLength = 1 + (null == keyBytes ? 0 : 4 + keyBytes.length);
+        int valueEncodeLength = 1 + (null == valueBytes ? 0 : 4 + valueBytes.length);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(keyEncodeLength + valueEncodeLength);
 
         if (null == keyBytes) {
-            byteBuffer.put((byte) 1);
+            byteBuffer.put((byte) 0);
         } else {
-            byteBuffer.put((byte) 0).putInt(keyLength).put(keyBytes);
+            byteBuffer.put((byte) 1).putInt(keyBytes.length).put(keyBytes);
         }
 
         if (null == valueBytes) {
-            byteBuffer.put((byte) 1);
+            byteBuffer.put((byte) 0);
         } else {
-            byteBuffer.put((byte) 0).putInt(valueLength).put(valueBytes);
+            byteBuffer.put((byte) 1).putInt(valueBytes.length).put(valueBytes);
         }
 
         return byteBuffer.array();
@@ -138,16 +137,16 @@ public class KeyValue<K, V> {
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
 
         byte[] keyBytes = null;
-        byte isKeyNull = byteBuffer.get();
-        if (isKeyNull == (byte) 0) {
+        byte isKeySet = byteBuffer.get();
+        if (isKeySet == (byte) 1) {
             int keyLength = byteBuffer.getInt();
             keyBytes = new byte[keyLength];
             byteBuffer.get(keyBytes);
         }
 
         byte[] valueBytes = null;
-        byte isValueNull = byteBuffer.get();
-        if (isValueNull == (byte) 0) {
+        byte isValueSet = byteBuffer.get();
+        if (isValueSet == (byte) 1) {
             int valueLength = byteBuffer.getInt();
             valueBytes = new byte[valueLength];
             byteBuffer.get(valueBytes);
