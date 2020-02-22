@@ -26,8 +26,12 @@ import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.testng.annotations.Test;
 
@@ -96,5 +100,26 @@ public class BuildersTest {
         assertTrue(obj instanceof ReaderConfigurationData);
         assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
         assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
+        client.close();
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.earliest).startMessageFromRollbackDuration(10, TimeUnit.HOURS).create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldSetOneStartOpt() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
     }
 }
