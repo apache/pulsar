@@ -614,7 +614,13 @@ public interface Namespaces {
      * Request example:
      *
      * <pre>
-     * <code>true</code>
+     * <code>
+     *  {
+     *      "allowAutoTopicCreation" : true,
+     *      "topicType" : "partitioned",
+     *      "defaultNumPartitions": 2
+     *  }
+     * </code>
      * </pre>
      *
      * @param namespace
@@ -634,11 +640,6 @@ public interface Namespaces {
     /**
      * Removes the allowAutoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
      * <p>
-     * Request example:
-     *
-     * <pre>
-     * <code>true</code>
-     * </pre>
      *
      * @param namespace
      *            Namespace name

@@ -2099,7 +2099,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
+    private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
         pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
             try {
