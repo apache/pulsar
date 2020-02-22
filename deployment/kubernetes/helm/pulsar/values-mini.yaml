@@ -277,7 +277,7 @@ autoRecovery:
   ## templates/autorecovery-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\" -Xms64m -Xmx128m \""
+    BOOKIE_MEM: "\" -Xms64m -Xmx128m \""
 
 ## Pulsar Extra: Dashboard
 ## templates/dashboard-deployment.yaml

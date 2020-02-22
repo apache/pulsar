@@ -311,7 +311,7 @@ autoRecovery:
   ## templates/autorecovery-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\" -Xms1g -Xmx1g \""
+    BOOKIE_MEM: "\" -Xms1g -Xmx1g \""
 
 ## Pulsar Extra: Dashboard
 ## templates/dashboard-deployment.yaml
