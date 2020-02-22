@@ -51,9 +51,6 @@ public class Policies {
     public Boolean deduplicationEnabled = null;
     // If set, it will override the broker settings for allowing auto topic creation
     public AutoTopicCreationOverride autoTopicCreationOverride = null;
-//    public Boolean allowAutoTopicCreation = null;
-//    public String autoTopicCreationType = null;
-//    public Integer autoTopicCreationDefaultNumPartitions = null;
     public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -147,10 +144,6 @@ public class Policies {
                     && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
-//                    && Objects.equals(allowAutoTopicCreation, other.allowAutoTopicCreation)
-//                    && Objects.equals(autoTopicCreationType, other.autoTopicCreationType)
-//                    && Objects.equals(autoTopicCreationDefaultNumPartitions,
-//                            other.autoTopicCreationDefaultNumPartitions)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,
@@ -201,9 +194,6 @@ public class Policies {
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("autoTopicCreationOverride", autoTopicCreationOverride)
-//                .add("allowAutoTopicCreation", allowAutoTopicCreation)
-//                .add("autoTopicCreationType", autoTopicCreationType)
-//                .add("autoTopicCreationDefaultNumPartitions", autoTopicCreationDefaultNumPartitions)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)

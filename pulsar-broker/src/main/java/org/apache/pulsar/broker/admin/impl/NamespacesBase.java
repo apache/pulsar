@@ -570,9 +570,6 @@ public abstract class NamespacesBase extends AdminResource {
             policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
             policiesNode.getKey().autoTopicCreationOverride = autoTopicCreationOverride;
-//            policiesNode.getKey().allowAutoTopicCreation = autoTopicCreationOverride.allowAutoTopicCreation;
-//            policiesNode.getKey().autoTopicCreationType = autoTopicCreationOverride.topicType;
-//            policiesNode.getKey().autoTopicCreationDefaultNumPartitions = autoTopicCreationOverride.defaultNumPartitions;
 
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),
