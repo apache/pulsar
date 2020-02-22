@@ -734,12 +734,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog() {
+    public long getNumberOfEntriesInBacklog(boolean isPrecise) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Consumer {} cursor ml-entries: {} -- deleted-counter: {} other counters: mdPos {} rdPos {}",
                     ledger.getName(), name, ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger),
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
+        if (isPrecise) {
+            return getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+        }
+
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count

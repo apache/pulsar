@@ -46,8 +46,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -373,6 +371,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public void unloadTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -381,8 +380,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalUnloadTopic(authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalUnloadTopic(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE
@@ -462,9 +467,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Is return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetStats(authoritative);
+        return internalGetStats(authoritative, getPreciseBacklog);
     }
 
     @GET
@@ -535,10 +542,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Get per partition stats")
             @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Is return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

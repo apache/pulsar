@@ -49,11 +49,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
+            MessageId startMessageId, Schema<T> schema,
             ConsumerInterceptors<T> interceptors,
             boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
-                subscriptionMode, startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+                startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
     }
 
