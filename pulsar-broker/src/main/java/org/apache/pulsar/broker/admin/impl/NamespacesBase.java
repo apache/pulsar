@@ -68,6 +68,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -553,9 +554,13 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetAllowAutoTopicCreation(boolean allowAutoTopicCreation) {
+    protected void internalSetAllowAutoTopicCreationOverride(AutoTopicCreationOverride autoTopicCreationOverride) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
+
+        if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Invalid configuration for autoTopicCreationOverride");
+        }
 
         Entry<Policies, Stat> policiesNode = null;
 
@@ -563,7 +568,10 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().allowAutoTopicCreation = allowAutoTopicCreation;
+            policiesNode.getKey().autoTopicCreationOverride = autoTopicCreationOverride;
+//            policiesNode.getKey().allowAutoTopicCreation = autoTopicCreationOverride.allowAutoTopicCreation;
+//            policiesNode.getKey().autoTopicCreationType = autoTopicCreationOverride.topicType;
+//            policiesNode.getKey().autoTopicCreationDefaultNumPartitions = autoTopicCreationOverride.defaultNumPartitions;
 
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),
@@ -571,7 +579,7 @@ public abstract class NamespacesBase extends AdminResource {
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             log.info("[{}] Successfully {} on namespace {}", clientAppId(),
-                    allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
+                    autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to modify allowAutoTopicCreation status for namespace {}: does not exist", clientAppId(),
                     namespaceName);
@@ -586,6 +594,41 @@ public abstract class NamespacesBase extends AdminResource {
             log.error("[{}] Failed to modify allowAutoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void internalRemoveAllowAutoTopicCreationOverride() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().autoTopicCreationOverride = null;
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully removed override on namespace {}", clientAppId(), namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to modify allowAutoTopicCreation status for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to modify allowAutoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to modify allowAutoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+
     }
 
     protected void internalModifyDeduplication(boolean enableDeduplication) {
@@ -1692,6 +1735,13 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
         }
     }
+
+//    private void validateAutoTopicCreationOverride(AutoTopicCreationOverride autoTopicCreationOverride) {
+//        try {
+//            checkNotNull(autoTopicCreationOverride);
+//            checkArgument(autoTopicCreationOverride.topicType);
+//        }
+//    }
 
     protected RetentionPolicies internalGetRetention() {
         validateAdminAccessForTenant(namespaceName.getTenant());

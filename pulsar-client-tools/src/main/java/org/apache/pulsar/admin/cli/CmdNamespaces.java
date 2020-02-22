@@ -37,20 +37,7 @@ import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
@@ -377,40 +364,58 @@ public class CmdNamespaces extends CmdBase {
             admin.namespaces().setDeduplicationStatus(namespace, enable);
         }
     }
-//   TODO: should I have this?
-//
-//    @Parameters(commandDescription = "Get the allowAutoTopicCreation setting for a namespace")
-//    private class GetAllowAutoTopicCreation extends CliCommand {
-//        @Parameter(description = "tenant/namespace", required = true)
-//        private java.util.List<String> params;
-//
-//        @Override
-//        void run() throws PulsarAdminException {
-//            String namespace = validateNamespace(params);
-//
-//            System.out.println(admin.namespaces().getAllowAutoTopicCreation(namespace));
-//        }
-//    }
 
-    @Parameters(commandDescription = "Enable or disable allowAutoTopicCreation for a namespace")
-    private class SetAllowAutoTopicCreation extends CliCommand {
+    @Parameters(commandDescription = "Enable or disable allowAutoTopicCreation for a namespace, overriding broker settings")
+    private class SetAllowAutoTopicCreationOverride extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoTopicCreation")
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoTopicCreation on namespace")
         private boolean enable = false;
 
-        @Parameter(names = { "--disable", "-d" }, description = "Disable allowAutoTopicCreation")
+        @Parameter(names = { "--disable", "-d" }, description = "Disable allowAutoTopicCreation on namespace")
         private boolean disable = false;
+
+        @Parameter(names = { "--type", "-t" }, description = "Type of topic to be auto-created. " +
+                "Possible values: (partitioned, non-partitioned)")
+        private String type;
+
+        @Parameter(names = { "--num-partitions", "-n" }, description = "Default number of partitions of topic to be auto-created," +
+                " applicable to partitioned topics only", required = false)
+        private Integer defaultNumPartitions = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            type = type.toLowerCase().trim();
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            if (enable) {
+                if (!TopicType.isValidTopicType(type)) {
+                    throw new ParameterException("Must specify type of topic to be created. " +
+                            "Possible values: (partitioned, non-partitioned)");
+                }
+
+                if (TopicType.PARTITIONED.toString().equals(type) && !(defaultNumPartitions > 0)) {
+                    throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
+                }
+            }
+            admin.namespaces().setAllowAutoTopicCreationOverride(namespace, new AutoTopicCreationOverride(enable, type, defaultNumPartitions));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of allowAutoTopicCreation for a namespace")
+    private class RemoveAllowAutoTopicCreationOverride extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
 
-            if (enable == disable) {
-                throw new ParameterException("Need to specify either --enable or --disable");
-            }
-            admin.namespaces().setAllowAutoTopicCreation(namespace, enable);
+            admin.namespaces().removeAllowAutoTopicCreationOverride(namespace);
         }
     }
 
@@ -1540,7 +1545,8 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
 
-        jcommander.addCommand("set-allow-auto-topic-creation", new SetAllowAutoTopicCreation());
+        jcommander.addCommand("set-allow-auto-topic-creation-override", new SetAllowAutoTopicCreationOverride());
+        jcommander.addCommand("remove-allow-auto-topic-creation-override", new RemoveAllowAutoTopicCreationOverride());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());

@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -373,11 +374,24 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setAllowAutoTopicCreation(String namespace, boolean allowAutoTopicCreation) throws PulsarAdminException {
+    public void setAllowAutoTopicCreationOverride(String namespace,
+                                                  AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "allowAutoTopicCreation");
-            request(path).post(Entity.entity(allowAutoTopicCreation, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "allowAutoTopicCreationOverride");
+            request(path).post(Entity.entity(autoTopicCreationOverride,
+                    MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void removeAllowAutoTopicCreationOverride(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "allowAutoTopicCreationOverride");
+            request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

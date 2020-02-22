@@ -45,6 +45,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -299,14 +300,25 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/allowAutoTopicCreation")
-    @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")
+    @Path("/{tenant}/{namespace}/allowAutoTopicCreationOverride")
+    @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
+    public void setAllowAutoTopicCreationOverride(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                                  AutoTopicCreationOverride autoTopicCreationOverride) {
+        validateNamespaceName(tenant, namespace);
+        internalSetAllowAutoTopicCreationOverride(autoTopicCreationOverride);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/allowAutoTopicCreationOverride")
+    @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public void setAllowAutoTopicCreation(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                    boolean allowAutoTopicCreation) {
+    public void removeAllowAutoTopicCreationOverride(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowAutoTopicCreation(allowAutoTopicCreation);
+        internalRemoveAllowAutoTopicCreationOverride();
     }
 
     @GET

@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -606,9 +607,9 @@ public interface Namespaces {
     void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
-     * Sets the allowAutoTopicCreation policy for a given namespace.
+     * Sets the allowAutoTopicCreation policy for a given namespace, overriding broker settings
      * <p>
-     * When allowAutoTopicCreation is enabled, new topics will be created upon connection regardless of the broker level configuration.
+     * When allowAutoTopicCreationOverride is enabled, new topics will be created upon connection regardless of the broker level configuration.
      * <p>
      * Request example:
      *
@@ -618,8 +619,8 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
-     * @param allowAutoTopicCreation
-     *            wether to enable or disable allowAutoTopicCreation
+     * @param autoTopicCreationOverride
+     *            Override policies for auto topic creation
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -628,7 +629,28 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setAllowAutoTopicCreation(String namespace, boolean allowAutoTopicCreation) throws PulsarAdminException;
+    void setAllowAutoTopicCreationOverride(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
+
+    /**
+     * Removes the allowAutoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAllowAutoTopicCreationOverride(String namespace) throws PulsarAdminException;
 
     /**
      * Get the bundles split data.

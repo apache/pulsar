@@ -119,15 +119,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1799,8 +1791,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 // If topic is already exist, creating partitioned topic is not allowed.
                                 if (metadata.partitions == 0
                                         && !topicExists
-                                        && pulsar.getConfiguration().isAllowAutoTopicCreation()
-                                        && pulsar.getConfiguration().isDefaultTopicTypePartitioned()) {
+                                        && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
+                                        && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
                                     return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
                                 } else {
                                     return CompletableFuture.completedFuture(metadata);
@@ -1811,7 +1803,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+        int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
         checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
@@ -2012,26 +2004,59 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    //TODO: does this need to be on a separate thread?
     public boolean isAllowAutoTopicCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
+        return isAllowAutoTopicCreation(topicName);
+    }
 
-        if (pulsar.getConfiguration().isAllowAutoTopicCreation()) {
-            // If the broker allows auto topic creation, we do not care about the namespace setting (TODO: is this right?)
-            return true;
+    public boolean isAllowAutoTopicCreation(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null) {
+            return autoTopicCreationOverride.allowAutoTopicCreation;
+        } else {
+            return pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
-        try {
-            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
-            // If namespace policies have the field set, it will override the broker-level setting
-            if (policies.isPresent()) {
-                return policies.get().allowAutoTopicCreation;
+    }
+
+    public boolean isDefaultTopicTypePartitioned(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null) {
+            return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.topicType);
+        } else {
+            return pulsar.getConfiguration().isDefaultTopicTypePartitioned();
+        }
+    }
+
+    public int getDefaultNumPartitions(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null && autoTopicCreationOverride.defaultNumPartitions != null) {
+            return autoTopicCreationOverride.defaultNumPartitions;
+        } else {
+            return pulsar.getConfiguration().getDefaultNumPartitions();
+        }
+    }
+
+    AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
+        CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
+        pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
+            try {
+                Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                // If namespace policies have the field set, it will override the broker-level setting
+                policies.ifPresent(value -> future.complete(value.autoTopicCreationOverride));
+            } catch (Throwable t) {
+                // Ignoring since if we don't have policies, we fallback on the default
+                log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
+                future.complete(null);
             }
-            return pulsar.getConfiguration().isAllowAutoTopicCreation();
-        } catch (Throwable t) {
-            // Ignoring since if we don't have policies, we fallback on the default
-            log.warn("Got exception when reading persistence policy for {}: {}; falling back to broker configuration", topicName, t.getMessage(), t);
-            return pulsar.getConfiguration().isAllowAutoTopicCreation();
+            future.complete(null);
+        }, (exception) -> future.completeExceptionally(exception)));
+        //TODO: does this need to be retrieved async? This usage doesn't seem to save anything, in terms of not blocking execution.
+        try {
+            return future.get();
+        } catch (Exception ex) {
+            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, ex.getMessage(), ex);
+            return null;
         }
     }
 }
