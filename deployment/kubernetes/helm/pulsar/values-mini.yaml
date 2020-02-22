@@ -49,6 +49,8 @@ extra:
   bastion: yes
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
+  # Configure Kubernetes runtime for Functions
+  functionsAsPods: no
 
 ## Which pulsar image to use
 image:
@@ -179,7 +181,8 @@ bookkeeper:
   ## templates/bookkeeper-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
+    BOOKIE_MEM: "\"-Xms128m -Xmx256m -XX:MaxDirectMemorySize=128m -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem\""
+    BOOKIE_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
     PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "32"
     PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "32"
     PULSAR_PREFIX_journalMaxSizeMB: "2048"
@@ -245,6 +248,11 @@ broker:
   pdb:
     usePolicy: yes
     maxUnavailable: 1
+  ## Broker rbac
+  ## templates/broker-rbac.yaml
+  ##
+  functions:
+    component: functions-worker
 
 ## Pulsar Extra: Proxy
 ## templates/proxy-deployment.yaml
@@ -497,6 +505,15 @@ pulsar_manager:
     requests:
       memory: 250Mi
       cpu: 0.1
+  configData:
+    REDIRECT_HOST: "http://127.0.0.1"
+    REDIRECT_PORT: "9527"
+    DRIVER_CLASS_NAME: org.postgresql.Driver
+    URL: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
+    LOG_LEVEL: DEBUG
+    ## If you enabled authentication support
+    #JWT_TOKEN: <token>
+    #SECRET_KEY: data:base64,<secret key>
   ## Pulsar manager service
   ## templates/pulsar-manager-service.yaml
   ##

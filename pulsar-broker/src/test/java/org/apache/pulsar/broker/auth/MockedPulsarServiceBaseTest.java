@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.auth;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,8 +50,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -229,6 +234,17 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
+    }
+
+    public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
+        // create local cluster if not exist
+        if (!admin.clusters().getClusters().contains(configClusterName)) {
+            admin.clusters().createCluster(configClusterName, new ClusterData());
+        }
+        Set<String> allowedClusters = Sets.newHashSet();
+        allowedClusters.add(configClusterName);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(), allowedClusters);
+        return tenantInfo;
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {

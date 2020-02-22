@@ -530,10 +530,9 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get();
-
             // Remove "global" cluster from returned list
-            clusters.remove(Constants.GLOBAL_CLUSTER);
+            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get().stream()
+                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
             throw new RestException(e);
@@ -558,6 +557,32 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected ZooKeeperChildrenCache failureDomainListCache() {
         return pulsar().getConfigurationCache().failureDomainListCache();
+    }
+
+    protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
+            TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
+        validateClusterOwnership(topicName.getCluster());
+        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+        // producer/consumer
+        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
+
+        try {
+            checkConnect(topicName);
+        } catch (WebApplicationException e) {
+            validateAdminAccessForTenant(topicName.getTenant());
+        } catch (Exception e) {
+            // unknown error marked as internal server error
+            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
+                    clientAppId(), e.getMessage(), e);
+            return FutureUtil.failedFuture(e);
+        }
+
+        if (checkAllowAutoCreation) {
+            return pulsar().getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+        } else {
+            return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
+        }
     }
 
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,

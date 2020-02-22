@@ -304,7 +304,7 @@ public class PulsarFunctionPublishTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -320,7 +320,7 @@ public class PulsarFunctionPublishTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         retryStrategically((test) -> {
             try {
@@ -329,7 +329,7 @@ public class PulsarFunctionPublishTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         for (int i = 0; i < 5; i++) {
             Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -353,7 +353,7 @@ public class PulsarFunctionPublishTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);

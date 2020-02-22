@@ -53,6 +53,8 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -142,13 +144,17 @@ public class AvroSchemaTest {
         }
     }
 
+    public void assertJSONEquals(String s1, String s2) throws JSONException {
+        JSONAssert.assertEquals(s1, s2, false);
+    }
+
     @Test
-    public void testNotAllowNullSchema() {
+    public void testNotAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_AVRO_NOT_ALLOW_NULL);
+        assertJSONEquals(schemaJson, SCHEMA_AVRO_NOT_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -165,13 +171,13 @@ public class AvroSchemaTest {
     }
 
     @Test
-    public void testAllowNullSchema() {
+    public void testAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         parser.setValidateDefaults(false);
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
-        assertEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
+        assertJSONEquals(schemaJson, SCHEMA_AVRO_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {

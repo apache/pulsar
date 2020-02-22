@@ -97,7 +97,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -108,6 +107,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
@@ -175,14 +176,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertFalse(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(cursor.readEntries(100), new ArrayList<Entry>());
 
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
         assertTrue(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
         List<Entry> entries = cursor.readEntries(100);
@@ -242,7 +243,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
         assertFalse(cursor.hasMoreEntries());
 
         assertEquals(ledger.getNumberOfEntries(), 2);
@@ -251,7 +252,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertFalse(cursor.hasMoreEntries());
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
@@ -266,7 +267,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getTotalSize(), "dummy-entry-1".getBytes(Encoding).length * 2);
 
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertTrue(cursor.hasMoreEntries());
 
         entries = cursor.readEntries(100);
@@ -1814,7 +1815,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.addEntry("msg2".getBytes());
         ml.close();
 
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
         CountDownLatch l1 = new CountDownLatch(1);
 
         // obtain the ledger info
@@ -2313,7 +2314,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
 
         assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
-        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog(false));
 
         ledger.close();
 

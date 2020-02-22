@@ -140,6 +140,8 @@ message SinkSpec {
      * Builtin schema type or custom schema class name
      */
     string schemaType = 7;
+
+    bool forwardSourceMessageProperty = 8;
 }
 
 message PackageLocationMetaData {

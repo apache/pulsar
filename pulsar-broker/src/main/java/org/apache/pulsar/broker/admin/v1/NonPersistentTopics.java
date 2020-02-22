@@ -99,7 +99,7 @@ public class NonPersistentTopics extends PersistentTopics {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats();
+        return ((NonPersistentTopic) topic).getStats(false);
     }
 
     @GET
@@ -169,16 +169,18 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    public void unloadTopic(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalUnloadTopic(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
-        unloadTopic(topicName, authoritative);
     }
 
     @GET
