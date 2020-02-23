@@ -907,10 +907,11 @@ public class PulsarService implements AutoCloseable {
                 ClientBuilder builder = PulsarClient.builder()
                     .serviceUrl(this.getConfiguration().isTlsEnabled()
                                 ? this.brokerServiceUrlTls : this.brokerServiceUrl)
-                    .enableTls(this.getConfiguration().isTlsEnabled());
+                    .enableTls(this.getConfiguration().isTlsEnabled())
+                    .allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection())
+                    .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
-                    builder.allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     builder.tlsTrustCertsFilePath(
                         isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
                             ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
@@ -919,7 +920,7 @@ public class PulsarService implements AutoCloseable {
 
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
                     builder.authentication(this.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                            this.getConfiguration().getBrokerClientAuthenticationParameters());
+                                           this.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
                 this.client = builder.build();
             } catch (Exception e) {
