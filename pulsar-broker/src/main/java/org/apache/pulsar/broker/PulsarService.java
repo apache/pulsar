@@ -919,7 +919,7 @@ public class PulsarService implements AutoCloseable {
 
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
                     builder.authentication(this.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                        this.getConfiguration().getBrokerClientAuthenticationParameters());
+                            this.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
                 this.client = builder.build();
             } catch (Exception e) {
