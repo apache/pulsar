@@ -76,7 +76,7 @@ dependencies = [
 
 if PY2:
     # Python 2 compat dependencies
-    dependencies += ['enum34']
+    dependencies += ['enum34>=1.1.9']
 
 setup(
     name="pulsar-client",
