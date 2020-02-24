@@ -922,6 +922,12 @@ public class Namespaces extends NamespacesBase {
             policies.bundles = getBundles(defaultNumberOfBundles);
         }
 
+        if (policies.offload_policies == null) {
+            policies.offload_policies = OffloadPolicies.create(
+                    config().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
+                    config().getManagedLedgerCacheEvictionTimeThresholdMillis());
+        }
+
         return policies;
     }
 

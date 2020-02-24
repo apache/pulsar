@@ -93,6 +93,13 @@ public class OffloadPolicies {
         return offloadPolicies;
     }
 
+    public static OffloadPolicies create(long offloadTreshold, Long offloadDeletionLagMs) {
+        OffloadPolicies offloadPolicies = new OffloadPolicies();
+        offloadPolicies.setManagedLedgerOffloadTreshold(offloadTreshold);
+        offloadPolicies.setManagedLedgerOffloadDeletionLagMs(offloadDeletionLagMs);
+        return offloadPolicies;
+    }
+
     public static OffloadPolicies create(Properties properties) {
         OffloadPolicies data = new OffloadPolicies();
         Field[] fields = OffloadPolicies.class.getDeclaredFields();

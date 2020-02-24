@@ -75,6 +75,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -1121,7 +1122,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // create the namespace
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
-        admin.namespaces().setOffloadThreshold(namespace, 1);
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "test", "https://test.test",
+                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS);
+        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         // assert we get the default which indicates it will fall back to default
@@ -1161,7 +1167,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // create the namespace
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
-        admin.namespaces().getOffloadPolicies(namespace).setManagedLedgerOffloadTreshold(1);
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "test", "https://test.test",
+                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD,
+                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS);
+        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         // assert we get the default which indicates it will fall back to default

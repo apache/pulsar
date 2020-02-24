@@ -60,6 +60,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -393,6 +394,12 @@ public abstract class AdminResource extends PulsarWebResource {
                     .getBundles(namespaceName);
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+
+            if (policies.offload_policies == null) {
+                policies.offload_policies = OffloadPolicies.create(
+                        config().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
+                        config().getManagedLedgerOffloadDeletionLagMs());
+            }
 
             // hydrate the namespace polices
             mergeNamespaceWithDefaults(policies, namespace, policyPath);

@@ -962,6 +962,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             serviceConfig.getDefaultRetentionSizeInMB())
             );
 
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElseGet(
+                    () -> OffloadPolicies.create(
+                            serviceConfig.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes(),
+                            serviceConfig.getManagedLedgerOffloadDeletionLagMs())
+            );
+
             ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
             managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
@@ -1003,21 +1009,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
-
-            policies.ifPresent(p -> {
-                long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
-                if (p.offload_policies.getManagedLedgerOffloadDeletionLagMs() != null) {
-                    lag = p.offload_policies.getManagedLedgerOffloadDeletionLagMs();
-                }
-                long bytes = serviceConfig.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
-                if (p.offload_policies.getManagedLedgerOffloadTreshold() != -1L) {
-                    bytes = p.offload_policies.getManagedLedgerOffloadTreshold();
-                }
-                managedLedgerConfig.getLedgerOffloader().getOffloadPolicies().setManagedLedgerOffloadDeletionLagMs(lag);
-                managedLedgerConfig.getLedgerOffloader().getOffloadPolicies().setManagedLedgerOffloadTreshold(bytes);
-            });
-
-            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
