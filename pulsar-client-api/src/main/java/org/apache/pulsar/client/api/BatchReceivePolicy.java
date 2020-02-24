@@ -46,7 +46,7 @@ public class BatchReceivePolicy {
     /**
      * Default batch receive policy.
      *
-     * <p>Max number of messages: 100
+     * <p>Max number of messages: no limit
      * Max number of bytes: 10MB
      * Timeout: 100ms<p/>
      */
