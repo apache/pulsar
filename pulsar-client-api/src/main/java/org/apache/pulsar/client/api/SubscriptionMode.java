@@ -16,19 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
-
-import io.netty.buffer.ByteBuf;
+package org.apache.pulsar.client.api;
 
 /**
- * This interface defines the methods to work with schemas.
+ * Types of subscription mode supported by Pulsar.
  */
-public interface SchemaHandler {
+public enum SubscriptionMode {
+    // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
+    // position
+    Durable,
 
-    Object deserialize(ByteBuf payload);
-
-    Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload);
-
-    Object extractField(int index, Object currentRecord);
-
+    // Lightweight subscription mode that doesn't have a durable cursor associated
+    NonDurable
 }
