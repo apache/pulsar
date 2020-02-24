@@ -464,7 +464,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     }
 
     protected boolean hasEnoughMessagesForBatchReceive() {
-        if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumMessages() <= 0) {
+        if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumBytes() <= 0) {
             return false;
         }
         return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
