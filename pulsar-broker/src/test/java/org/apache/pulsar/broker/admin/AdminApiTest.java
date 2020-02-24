@@ -1595,14 +1595,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         int receivedAfterReset = 0;
 
-        for (int i = 4; i < 10; i++) {
+        for (int i = 5; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
             assertEquals(message.getData(), expected.getBytes());
         }
-        assertEquals(receivedAfterReset, 6);
+        assertEquals(receivedAfterReset, 5);
 
         consumer.close();
 
@@ -1654,29 +1654,29 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         int receivedAfterReset = 0;
 
-        // Should received messages from 4-9
-        for (int i = 4; i < 10; i++) {
+        // Should received messages from 5-9
+        for (int i = 5; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
             assertEquals(new String(message.getData()), expected);
         }
-        assertEquals(receivedAfterReset, 6);
+        assertEquals(receivedAfterReset, 5);
 
         // Reset at 2nd timestamp
         receivedAfterReset = 0;
         admin.topics().resetCursor(topicName, "my-sub", secondTimestamp);
 
-        // Should received messages from 7-9
-        for (int i = 7; i < 10; i++) {
+        // Should received messages from 8-9
+        for (int i = 8; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
             assertEquals(new String(message.getData()), expected);
         }
-        assertEquals(receivedAfterReset, 3);
+        assertEquals(receivedAfterReset, 2);
 
         consumer.close();
         admin.topics().deleteSubscription(topicName, "my-sub");
@@ -1724,14 +1724,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         int receivedAfterReset = 0;
-        for (int i = 4; i < 10; i++) {
+        for (int i = 5; i < 10; i++) {
             Message<byte[]> message = consumerA.receive(5, TimeUnit.SECONDS);
             consumerA.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
             assertEquals(message.getData(), expected.getBytes());
         }
-        assertEquals(receivedAfterReset, 6);
+        assertEquals(receivedAfterReset, 5);
 
         // Closing consumerA activates consumerB
         consumerA.close();
@@ -1787,7 +1787,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Set<String> expectedMessages = Sets.newHashSet();
         Set<String> receivedMessages = Sets.newHashSet();
-        for (int i = 4; i < 10; i++) {
+        for (int i = 5; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
             consumer.acknowledge(message);
             expectedMessages.add("message-" + i);
