@@ -654,7 +654,7 @@ public class PersistentSubscription implements Subscription {
                             "[{}][{}] Unable to find position for timestamp {}. Resetting cursor to first position {} in ledger",
                             topicName, subName, timestamp, finalPosition);
                 } else {
-                    finalPosition = position;
+                    finalPosition = position.getNext();
                 }
                 resetCursor(finalPosition, future);
             }

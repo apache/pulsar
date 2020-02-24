@@ -754,7 +754,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.seek(l + plusTime);
 
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = halfMessages; i < numOfMessage; i++) {
+        for (int i = halfMessages + 1; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
             String receivedMessage = new String(message.getData());
             String expectedMessage = String.format("msg num %d", i);

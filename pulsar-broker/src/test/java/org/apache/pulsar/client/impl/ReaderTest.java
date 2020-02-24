@@ -245,8 +245,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             receivedMessageIds.add(msg.getMessageId());
         }
 
-        assertEquals(receivedMessageIds.size(), totalMsg + 1);
-        assertEquals(receivedMessageIds.get(0), lastMsgId);
+        assertEquals(receivedMessageIds.size(), totalMsg);
+        assertEquals(receivedMessageIds.get(0), firstMsgId);
 
         restartBroker();
 
