@@ -78,9 +78,15 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() == null) {
+        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0 ||
+                conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
             return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
+                    .failedFuture(new IllegalArgumentException(
+                            "Start message id or start message from roll back must be specified but they cannot be specified at the same time"));
+        }
+
+        if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
+            conf.setStartMessageId(MessageId.earliest);
         }
 
         return client.createReaderAsync(conf, schema);

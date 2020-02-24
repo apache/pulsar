@@ -231,7 +231,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         // (3) Create reader and set position 1 hour back so, it should only read messages which are 2 hours old which
         // published on step 2
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
         List<MessageId> receivedMessageIds = Lists.newArrayList();
