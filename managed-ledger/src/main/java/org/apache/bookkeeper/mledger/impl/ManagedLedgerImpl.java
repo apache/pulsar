@@ -1373,7 +1373,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
-        maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE) {
+            maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+        }
 
         if (!pendingAddEntries.isEmpty()) {
             // Need to create a new ledger to write pending entries

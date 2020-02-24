@@ -604,6 +604,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Set<Pair<Long, UUID>> failedOffloads = ConcurrentHashMap.newKeySet();
 
         MockLedgerOffloader offloader = new MockLedgerOffloader();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(100);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagMs(new Long(100));
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -611,6 +613,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(offloader);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
         ManagedCursor cursor = ledger.openCursor("foobar");
+
         for (int i = 0; i < 15; i++) {
             String content = "entry-" + i;
             ledger.addEntry(content.getBytes());
@@ -744,10 +747,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testAutoTriggerOffload() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(100);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setLedgerOffloader(offloader);
-        config.setOffloadAutoTriggerSizeThresholdBytes(100);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
 
@@ -779,11 +782,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                     return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
                 }
             };
-
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(100);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setLedgerOffloader(offloader);
-        config.setOffloadAutoTriggerSizeThresholdBytes(100);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
 
@@ -840,11 +842,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                     return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
                 }
             };
-
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(100);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setLedgerOffloader(offloader);
-        config.setOffloadAutoTriggerSizeThresholdBytes(100);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
 
@@ -891,11 +892,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                     return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
                 }
             };
-
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(100);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setLedgerOffloader(offloader);
-        config.setOffloadAutoTriggerSizeThresholdBytes(100);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
 
@@ -928,10 +928,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     public void offloadAsSoonAsClosed() throws Exception {
 
         MockLedgerOffloader offloader = new MockLedgerOffloader();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTreshold(0);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setLedgerOffloader(offloader);
-        config.setOffloadAutoTriggerSizeThresholdBytes(0);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
 
