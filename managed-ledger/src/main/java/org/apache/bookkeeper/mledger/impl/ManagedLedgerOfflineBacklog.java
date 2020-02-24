@@ -194,7 +194,7 @@ public class ManagedLedgerOfflineBacklog {
 
                     @Override
                     public void operationFailed(ManagedLedgerException.MetaStoreException e) {
-                        log.warn("[{}] Unable to obtain managed ledger metadata - {}", e);
+                        log.warn("[{}] Unable to obtain managed ledger metadata - {}", managedLedgerName, e);
                         mlMetaCounter.countDown();
                     }
                 });

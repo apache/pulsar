@@ -1164,7 +1164,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}]  run partitionsAutoUpdateTimerTask for multiTopicsConsumer: {}", topic);
+                log.debug("[{}] run partitionsAutoUpdateTimerTask", topic);
             }
 
             // if last auto update not completed yet, do nothing.
