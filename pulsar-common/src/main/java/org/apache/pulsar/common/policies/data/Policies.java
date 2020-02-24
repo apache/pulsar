@@ -150,7 +150,7 @@ public class Policies {
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
-                    && offload_deletion_lag_ms == other.offload_deletion_lag_ms
+                    && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy

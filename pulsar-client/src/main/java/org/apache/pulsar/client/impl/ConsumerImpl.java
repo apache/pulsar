@@ -1548,7 +1548,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
             seekFuture.completeExceptionally(
                 PulsarClientException.wrap(e.getCause(),
-                    String.format("[%s][%s] Failed to seek the subscription %s of the topic %s to the message %s",
+                    String.format("Failed to seek the subscription %s of the topic %s to the message %s",
                         subscription, topicName.toString(), messageId.toString())));
             return null;
         });
@@ -1817,6 +1817,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public int hashCode() {
         return Objects.hash(topic, subscription, consumerName);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ConsumerImpl)) return false;
+        ConsumerImpl<?> consumer = (ConsumerImpl<?>) o;
+        return consumerId == consumer.consumerId;
     }
 
     // wrapper for connection methods

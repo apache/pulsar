@@ -358,7 +358,7 @@ public class BrokersBase extends AdminResource {
                 LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
             } else {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName);
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}", clientAppId(), configName);
                 }
                 throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
             }
