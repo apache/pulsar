@@ -9299,10 +9299,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -9671,6 +9671,14 @@
           "type" : "number",
           "format" : "double"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -9698,14 +9706,6 @@
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
         }
       }
     },
@@ -9873,13 +9873,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -10692,13 +10692,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
+          "type" : "string"
+        },
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
