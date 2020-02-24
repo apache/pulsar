@@ -26,7 +26,6 @@
         <version>2.6.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>java-test-functions</artifactId>
     <name>Apache Pulsar :: Tests :: Docker Images :: Java Test Functions</name>
     <dependencies>
