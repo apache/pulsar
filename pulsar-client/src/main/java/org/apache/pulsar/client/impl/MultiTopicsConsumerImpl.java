@@ -72,9 +72,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public static final String DUMMY_TOPIC_NAME_PREFIX = "MultiTopicsConsumer-";
 
-    // All topics should be in same namespace
-    protected NamespaceName namespaceName;
-
     // Map <topic+partition, consumer>, when get do ACK, consumer will by find by topic name
     private final ConcurrentHashMap<String, ConsumerImpl<T>> consumers;
 
@@ -145,15 +142,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         if (conf.getTopicNames().isEmpty()) {
-            this.namespaceName = null;
             setState(State.Ready);
             subscribeFuture().complete(MultiTopicsConsumerImpl.this);
             return;
         }
 
-        checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
-        this.namespaceName = conf.getTopicNames().stream().findFirst()
-                .flatMap(s -> Optional.of(TopicName.get(s).getNamespaceObject())).get();
+        checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics is empty or invalid.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
                 .collect(Collectors.toList());
@@ -184,13 +178,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             "topics should contain more than 1 topic");
 
         Optional<String> result = topics.stream()
-            .filter(topic -> {
-                boolean topicInvalid = !TopicName.isValid(topic);
-                if (topicInvalid) {
-                    return true;
-                }
-                return false;
-            }).findFirst();
+                .filter(topic -> !TopicName.isValid(topic))
+                .findFirst();
 
         if (result.isPresent()) {
             log.warn("Received invalid topic name: {}", result.get());
@@ -895,9 +884,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeResult.complete(null);
                 log.info("[{}] [{}] Success subscribe new topic {} in topics consumer, partitions: {}, allTopicPartitionsNumber: {}",
                     topic, subscription, topicName, numPartitions, allTopicPartitionsNumber.get());
-                if (this.namespaceName == null) {
-                    this.namespaceName = TopicName.get(topicName).getNamespaceObject();
-                }
                 return;
             })
             .exceptionally(ex -> {
