@@ -561,7 +561,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = producerBuilder.create();
 
-        CountDownLatch latch = new CountDownLatch(100);
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
 
         List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
 
@@ -867,7 +867,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .batchingMaxMessages(10)
                 .create();
 
-        CountDownLatch latch = new CountDownLatch(100);
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
 
         List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
 

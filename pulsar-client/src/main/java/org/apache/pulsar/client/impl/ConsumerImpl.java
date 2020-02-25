@@ -1574,13 +1574,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     startMessageId.getEntryId() == Long.MAX_VALUE &&
                     startMessageId.partitionIndex == -1) {
 
-                getLastMessageIdAsync().thenApply(messageId -> seekAsync(messageId)).exceptionally(e -> {
-                    log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
-                    booleanFuture.completeExceptionally(e.getCause());
-                    return null;
-                });
+                getLastMessageIdAsync()
+                        .thenCompose(this::seekAsync)
+                        .thenApply(ignore -> booleanFuture.complete(resetIncludeHead))
+                        .exceptionally(e -> {
+                            log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                            booleanFuture.completeExceptionally(e.getCause());
+                            return null;
+                        });
 
-                booleanFuture.complete(resetIncludeHead);
                 return booleanFuture;
             }
 
