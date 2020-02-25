@@ -41,9 +41,9 @@ import java.util.Map;
  */
 public class BasicKubernetesManifestCustomizer implements KubernetesManifestCustomizer {
 
-    String RESOURCE_CPU = "cpu";
-    String RESOURCE_MEMORY = "memory";
-    String[] RESOURCES = {RESOURCE_CPU, RESOURCE_MEMORY};
+    private static final String RESOURCE_CPU = "cpu";
+    private static final String RESOURCE_MEMORY = "memory";
+    private static final String[] RESOURCES = {RESOURCE_CPU, RESOURCE_MEMORY};
 
     @Getter
     @Setter
