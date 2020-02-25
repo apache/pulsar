@@ -722,19 +722,11 @@ public class PulsarService implements AutoCloseable {
         return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
     }
 
+    /**
+     * Get default bookkeeper metadata service uri.
+     */
     public String getMetadataServiceUri() {
-        ClientConfiguration bkConf = new ClientConfiguration();
-        // init bookkeeper metadata service uri
-        String metadataServiceUri = null;
-        try {
-            String zkServers = this.getConfiguration().getZookeeperServers();
-            String ledgerManagerType = bkConf.getLedgerManagerLayoutStringFromFactoryClass();
-            metadataServiceUri = String.format("zk+%s://%s%s", ledgerManagerType,
-                zkServers.replace(",", ";"), "/ledgers");
-        } catch (ConfigurationException e) {
-            LOG.error("Failed to set bookkeeper metadata service uri", e);
-        }
-        return metadataServiceUri;
+        return bookieMetadataServiceUri(this.getConfiguration());
     }
 
     public InternalConfigurationData getInternalConfigurationData() {
@@ -1093,6 +1085,27 @@ public class PulsarService implements AutoCloseable {
 
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+    }
+
+    /**
+     * Get bookkeeper metadata service uri.
+     *
+     * @param config broker configuration
+     * @return the metadata service uri that bookkeeper is used
+     */
+    public static String bookieMetadataServiceUri(ServiceConfiguration config) {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        // init bookkeeper metadata service uri
+        String metadataServiceUri = null;
+        try {
+            String zkServers = config.getZookeeperServers();
+            String ledgerManagerType = bkConf.getLedgerManagerLayoutStringFromFactoryClass();
+            metadataServiceUri = String.format("zk+%s://%s%s", ledgerManagerType,
+                zkServers.replace(",", ";"), "/ledgers");
+        } catch (ConfigurationException e) {
+            LOG.error("Failed to get bookkeeper metadata service uri", e);
+        }
+        return metadataServiceUri;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

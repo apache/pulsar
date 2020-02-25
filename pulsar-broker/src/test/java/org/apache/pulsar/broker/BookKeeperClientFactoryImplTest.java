@@ -154,6 +154,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setZookeeperServers("localhost:2181");
         assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
         assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
@@ -163,6 +164,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetExplicitLacInterval() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setZookeeperServers("localhost:2181");
         assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
         assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 5);

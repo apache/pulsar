@@ -109,8 +109,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (StringUtils.isNotBlank(conf.getBookkeeperServiceUri())) {
             bkConf.setMetadataServiceUri(conf.getBookkeeperServiceUri());
         } else {
-            PulsarService pulsar = new PulsarService(conf);
-            String metadataServiceUri = pulsar.getMetadataServiceUri();
+            String metadataServiceUri = PulsarService.bookieMetadataServiceUri(conf);
             bkConf.setMetadataServiceUri(metadataServiceUri);
         }
 
