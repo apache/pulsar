@@ -67,8 +67,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     consumerStr_ = consumerStrStream.str();
     if (conf.getUnAckedMessagesTimeoutMs() != 0) {
         if (conf.getTickDurationInMs() > 0) {
-            unAckedMessageTrackerPtr_.reset(
-                new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), conf.getTickDurationInMs(), client, *this));
+            unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerEnabled(
+                conf.getUnAckedMessagesTimeoutMs(), conf.getTickDurationInMs(), client, *this));
         } else {
             unAckedMessageTrackerPtr_.reset(
                 new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), client, *this));

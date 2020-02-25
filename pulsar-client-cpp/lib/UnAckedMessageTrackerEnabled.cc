@@ -49,7 +49,8 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
     std::set<MessageId> msgIdsToRedeliver;
     if (!headPartition.empty()) {
         LOG_INFO(consumerReference_.getName().c_str()
-                    << ": " << headPartition.size() << " Messages were not acked within " << timePartitions.size() * tickDurationInMs_ << " time");
+                 << ": " << headPartition.size() << " Messages were not acked within "
+                 << timePartitions.size() * tickDurationInMs_ << " time");
         for (auto it = headPartition.begin(); it != headPartition.end(); it++) {
             msgIdsToRedeliver.insert(*it);
             messageIdPartitionMap.erase(*it);
@@ -65,11 +66,12 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
 
 UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr client,
                                                            ConsumerImplBase& consumer)
-    : consumerReference_(consumer){
+    : consumerReference_(consumer) {
     UnAckedMessageTrackerEnabled(timeoutMs, timeoutMs, client, consumer);
 }
 
-UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long tickDurationInMs, const ClientImplPtr client,
+UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long tickDurationInMs,
+                                                           const ClientImplPtr client,
                                                            ConsumerImplBase& consumer)
     : consumerReference_(consumer) {
     timeoutMs_ = timeoutMs;
@@ -88,7 +90,7 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long 
 bool UnAckedMessageTrackerEnabled::add(const MessageId& m) {
     std::lock_guard<std::mutex> acquire(lock_);
     if (messageIdPartitionMap.count(m) == 0) {
-        bool insert = messageIdPartitionMap.insert(std::make_pair(m, timePartitions.back())).second; 
+        bool insert = messageIdPartitionMap.insert(std::make_pair(m, timePartitions.back())).second;
         return insert && timePartitions.back().insert(m).second;
     }
     return false;
@@ -103,9 +105,9 @@ bool UnAckedMessageTrackerEnabled::remove(const MessageId& m) {
     std::lock_guard<std::mutex> acquire(lock_);
     bool removed = false;
     std::map<MessageId, std::set<MessageId>>::iterator exist = messageIdPartitionMap.find(m);
-        if (exist != messageIdPartitionMap.end()) {
-            removed = exist->second.erase(m);
-        }
+    if (exist != messageIdPartitionMap.end()) {
+        removed = exist->second.erase(m);
+    }
     return removed;
 }
 
