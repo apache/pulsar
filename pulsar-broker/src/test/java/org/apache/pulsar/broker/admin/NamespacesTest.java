@@ -1079,8 +1079,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
         String namespace =  topicName.getNamespaceObject().toString();
         System.out.println(namespace);
-        // set a default
-        pulsar.getConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(1);
+
         // create the namespace
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.topics().createNonPartitionedTopic(topicName.toString());
@@ -1089,97 +1088,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 1);
-
-        // set an override for the namespace
-        admin.namespaces().setOffloadThreshold(namespace, 100);
-        assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 100);
-
-        // set another negative value to disable
-        admin.namespaces().setOffloadThreshold(namespace, -2);
-        assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), -2);
-
-        // set back to -1 and fall back to default
-        admin.namespaces().setOffloadThreshold(namespace, -1);
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 1);
-
-        // cleanup
-        admin.topics().delete(topicName.toString(), true);
-        admin.namespaces().deleteNamespace(namespace);
-    }
-
-    @Test
-    public void testSetOffloadThresholdOnNamespacesUsingNamespaceImpl() throws Exception {
-        TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
-        String namespace =  topicName.getNamespaceObject().toString();
-        System.out.println(namespace);
-
-        // create the namespace
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "test", "https://test.test",
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD,
-                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS);
-        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
-        admin.topics().createNonPartitionedTopic(topicName.toString());
-
-        // assert we get the default which indicates it will fall back to default
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        // the ledger config should have the expected value
-        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 1);
-
-        // set an override for the namespace
-        admin.namespaces().setOffloadThreshold(namespace, 100);
-        assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 100);
-
-        // set another negative value to disable
-        admin.namespaces().setOffloadThreshold(namespace, -2);
-        assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), -2);
-
-        // set back to -1 and fall back to default
-        admin.namespaces().setOffloadThreshold(namespace, -1);
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 1);
-
-        // cleanup
-        admin.topics().delete(topicName.toString(), true);
-        admin.namespaces().deleteNamespace(namespace);
-    }
-
-    @Test
-    public void testSetOffloadThresholdOnNamespacesUsingOffloadPolicies() throws Exception {
-        TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
-        String namespace =  topicName.getNamespaceObject().toString();
-        System.out.println(namespace);
-
-        // create the namespace
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
-        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "test", "https://test.test",
-                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
-                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_THRESHOLD,
-                OffloadPolicies.DEFAULT_OFFLOAD_OFFLOAD_DELETION_LAG_MS);
-        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
-        admin.topics().createNonPartitionedTopic(topicName.toString());
-
-        // assert we get the default which indicates it will fall back to default
-        assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
-        // the ledger config should have the expected value
-        ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadTreshold(), 1);
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
