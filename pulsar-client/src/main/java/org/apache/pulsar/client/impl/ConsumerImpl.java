@@ -104,7 +104,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
-    protected volatile MessageId lastDequeuedMessage = MessageId.earliest;
+    protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
     private long subscribeTimeout;
@@ -188,7 +188,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = conf.getSubscriptionMode();
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
-        this.lastDequeuedMessage = startMessageId == null ? MessageId.earliest : startMessageId;
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
@@ -695,10 +694,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             return previousMessage;
-        } else if (!lastDequeuedMessage.equals(MessageId.earliest)) {
+        } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
-            return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessage);
+            return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessageId);
         } else {
             // No message was received or dequeued by this consumer. Next message would still be the startMessageId
             return startMessageId;
@@ -1118,7 +1117,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected synchronized void messageProcessed(Message<?> msg) {
         ClientCnx currentCnx = cnx();
         ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
-        lastDequeuedMessage = msg.getMessageId();
+        lastDequeuedMessageId = msg.getMessageId();
 
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
@@ -1555,17 +1554,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
-        // we need to seek to the last position then the last message can be received when the resetIncludeHead
-        // specified.
-        if (lastDequeuedMessage == MessageId.latest && resetIncludeHead) {
-            lastDequeuedMessage = getLastMessageId();
-            seek(lastDequeuedMessage);
-        }
         try {
-            if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessage)) {
-                return true;
-            }
-
             return hasMessageAvailableAsync().get();
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
@@ -1575,12 +1564,52 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
-        if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessage)) {
-            booleanFuture.complete(true);
-        } else {
+        // we haven't read yet. use startMessageId for comparison
+        if (lastDequeuedMessageId == MessageId.earliest) {
+            // if we are starting from latest, we should seek to the actual last message first.
+            // allow the last one to be read when read head inclusively.
+            if (startMessageId.getLedgerId() == Long.MAX_VALUE &&
+                    startMessageId.getEntryId() == Long.MAX_VALUE &&
+                    startMessageId.partitionIndex == -1) {
+
+                getLastMessageIdAsync().thenApply(messageId -> seekAsync(messageId)).exceptionally(e -> {
+                    log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                    booleanFuture.completeExceptionally(e.getCause());
+                    return null;
+                });
+
+                booleanFuture.complete(resetIncludeHead);
+                return booleanFuture;
+            }
+
+            if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
+                booleanFuture.complete(true);
+                return booleanFuture;
+            }
+
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
-                if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessage)) {
+                if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
+                    booleanFuture.complete(true);
+                } else {
+                    booleanFuture.complete(false);
+                }
+            }).exceptionally(e -> {
+                log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                booleanFuture.completeExceptionally(e.getCause());
+                return null;
+            });
+
+        } else {
+            // read before, use lastDequeueMessage for comparison
+            if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
+                booleanFuture.complete(true);
+                return booleanFuture;
+            }
+
+            getLastMessageIdAsync().thenAccept(messageId -> {
+                lastMessageIdInBroker = messageId;
+                if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
                     booleanFuture.complete(true);
                 } else {
                     booleanFuture.complete(false);
@@ -1591,22 +1620,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             });
         }
+
         return booleanFuture;
     }
 
-    private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId lastDequeuedMessage) {
-        if (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0) {
-            if (((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            // Make sure batching message can be read completely.
-            return resetIncludeHead ?
-                    lastMessageIdInBroker.compareTo(lastDequeuedMessage) >= 0:
-                    lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0;
+    private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId messageId, boolean inclusive) {
+        if (inclusive && lastMessageIdInBroker.compareTo(messageId) >= 0 &&
+                ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+            return true;
         }
+
+        if (!inclusive && lastMessageIdInBroker.compareTo(messageId) > 0 &&
+                ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+            return true;
+        }
+
+        return false;
     }
 
     @Override
