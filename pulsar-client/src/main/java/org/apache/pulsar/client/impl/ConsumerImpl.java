@@ -1492,6 +1492,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             seekMessageId = new BatchMessageIdImpl((MessageIdImpl) MessageId.earliest);
             duringSeek.set(true);
+            lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
             INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
@@ -1538,6 +1539,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             seekMessageId = new BatchMessageIdImpl((MessageIdImpl) messageId);
             duringSeek.set(true);
+            lastDequeuedMessageId = MessageId.earliest;
 
             incomingMessages.clear();
             INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
