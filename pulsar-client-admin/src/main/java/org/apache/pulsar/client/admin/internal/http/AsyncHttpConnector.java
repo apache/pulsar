@@ -31,8 +31,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -65,11 +63,13 @@ import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
 import org.glassfish.jersey.client.spi.Connector;
 
 @Slf4j
-public class AsyncHttpConnector implements Connector {
+public class AsyncHttpConnector implements Connector, AsyncConnectorCallback {
 
     @Getter
     private final AsyncHttpClient httpClient;
     private final PulsarServiceNameResolver serviceNameResolver;
+
+    private Set<InetSocketAddress> triedAddressees;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
@@ -155,77 +155,33 @@ public class AsyncHttpConnector implements Connector {
 
     @Override
     public Future<?> apply(ClientRequest jerseyRequest, AsyncConnectorCallback callback) {
-        final CompletableFuture<ClientResponse> resp = new CompletableFuture<>();
-
-
-        CompletableFuture.runAsync(() -> {
-            long startTime = System.currentTimeMillis();
-            Set<InetSocketAddress> triedAddresses = new HashSet<>();
-
-            while (true) {
-                InetSocketAddress address = serviceNameResolver.resolveHost();
-                if (triedAddresses.contains(address)) {
-                    Exception e = new ProcessingException("All addresses are tried and failed");
-                    callback.failure(e);
-                    resp.completeExceptionally(e);
-                    return;
-                }
-                triedAddresses.add(address);
-
-                URI requestUri = replaceWithNew(address, jerseyRequest.getUri());
-                ClientRequest tmpRequest = new ClientRequest(jerseyRequest);
-                tmpRequest.setUri(requestUri);
-
-                try {
-                    ClientResponse response = doRequest(tmpRequest);
-                    callback.response(response);
-                    resp.complete(response);
-                    log.info("Using url [{}] to perform the request was succeed", address.toString());
-                    return;
-                } catch (Exception e) {
-                    Throwable err = e.getCause() == null ? e : e.getCause();
-                    if (httpClient.getConfig().getRequestTimeout() > 0 &&
-                        System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
-                        Exception timeoutException = new Exception(
-                            String.format("Request timeout, the last try service url is : %s",
-                                jerseyRequest.getUri().toASCIIString()), err);
-                        callback.failure(timeoutException);
-                        resp.completeExceptionally(timeoutException);
-                        return;
-                    } else {
-                        log.warn("Using url [{}] to perform the request was failed: {}", address.toString(), e.getMessage());
-                    }
-                }
-            }
-        }).whenComplete((ignore, throwable) -> {
-            if (throwable != null) {
-                resp.completeExceptionally(throwable);
-            }
-        });
-
-        return resp;
+        final CompletableFuture<ClientResponse> respFuture = new CompletableFuture<>();
+        triedAddressees = new HashSet<>();
+        doNextRetry(jerseyRequest, callback, respFuture);
+        return respFuture;
     }
 
-    private ClientResponse doRequest(ClientRequest request) throws InterruptedException, ExecutionException, TimeoutException {
-        // The response result will return to the future and the callback, so we can handle one of them.
-        CompletableFuture<ClientResponse> resp = doRequestAsync(request, new AsyncConnectorCallback() {
-            @Override
-            public void response(ClientResponse clientResponse) {
-                // do nothing
-            }
-
-            @Override
-            public void failure(Throwable throwable) {
-                // do nothing
-            }
-        });
-
-        int timeout = httpClient.getConfig().getRequestTimeout() / 3;
-        if (timeout >= 0) {
-            return resp.get(timeout, TimeUnit.MILLISECONDS);
-        } else {
-            return resp.get();
+    private void doNextRetry(ClientRequest jerseyRequest, AsyncConnectorCallback callback, CompletableFuture<ClientResponse> respFuture) {
+        InetSocketAddress nextTriedAddress = serviceNameResolver.resolveHost();
+        log.info("Trying to use address [{}] to send request.", nextTriedAddress.toString());
+        if (triedAddressees.contains(nextTriedAddress)) {
+            Exception triedAllException = new ProcessingException("All addresses are tried and failed");
+            callback.failure(triedAllException);
+            respFuture.completeExceptionally(triedAllException);
+            return;
         }
+        triedAddressees.add(nextTriedAddress);
+        URI requestUri = replaceWithNew(nextTriedAddress, jerseyRequest.getUri());
+        ClientRequest req = new ClientRequest(jerseyRequest);
+        req.setUri(requestUri);
+        doRequestAsync(req, this).whenComplete(((clientResponse, throwable) -> {
+            if (throwable != null) {
+                doNextRetry(jerseyRequest, callback, respFuture);
+            } else {
+                callback.response(clientResponse);
+                respFuture.complete(clientResponse);
+            }
+        }));
     }
 
     private CompletableFuture<ClientResponse> doRequestAsync(ClientRequest jerseyRequest, AsyncConnectorCallback callback) {
@@ -290,4 +246,13 @@ public class AsyncHttpConnector implements Connector {
         }
     }
 
+    @Override
+    public void response(ClientResponse clientResponse) {
+        // do nothing
+    }
+
+    @Override
+    public void failure(Throwable throwable) {
+        // do nothing
+    }
 }
