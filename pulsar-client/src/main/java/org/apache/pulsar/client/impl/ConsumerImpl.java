@@ -676,7 +676,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (duringSeek.compareAndSet(true, false)) {
             return seekMessageId;
         } else if (subscriptionMode == SubscriptionMode.Durable) {
-            return null;
+            return startMessageId;
         }
 
         if (!currentMessageQueue.isEmpty()) {
