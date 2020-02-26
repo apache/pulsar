@@ -2320,4 +2320,4 @@ Options
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
-|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
+|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
