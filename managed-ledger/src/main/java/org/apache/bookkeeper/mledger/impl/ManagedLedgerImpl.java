@@ -1856,8 +1856,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getOffloadAutoTriggerSizeThresholdBytes() >= 0) {
-            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                && config.getLedgerOffloader().getOffloadPolicies() != null) {
+            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+                executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+            }
+        } else {
+            if (config.getOffloadAutoTriggerSizeThresholdBytes() >= 0) {
+                executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+            }
         }
     }
 
@@ -1877,6 +1884,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 });
 
             long threshold = config.getOffloadAutoTriggerSizeThresholdBytes();
+            if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                    && config.getLedgerOffloader().getOffloadPolicies() != null) {
+                threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes();
+            }
             long sizeSummed = 0;
             long alreadyOffloadedSize = 0;
             long toOffloadSize = 0;
@@ -1930,6 +1941,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private boolean isOffloadedNeedsDelete(OffloadContext offload) {
         long elapsedMs = clock.millis() - offload.getTimestamp();
+
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                && config.getLedgerOffloader().getOffloadPolicies() != null) {
+            return offload.getComplete() && !offload.getBookkeeperDeleted()
+                    && elapsedMs > config.getLedgerOffloader()
+                    .getOffloadPolicies().getManagedLedgerOffloadDeletionLagInMillis();
+        }
+
         return offload.getComplete() && !offload.getBookkeeperDeleted()
                 && elapsedMs > config.getOffloadLedgerDeletionLagMillis();
     }
