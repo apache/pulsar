@@ -1576,11 +1576,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 getLastMessageIdAsync()
                         .thenCompose(this::seekAsync)
-                        .thenApply(ignore -> booleanFuture.complete(resetIncludeHead))
-                        .exceptionally(e -> {
-                            log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
-                            booleanFuture.completeExceptionally(e.getCause());
-                            return null;
+                        .whenComplete((ignore, e) -> {
+                            if (e != null) {
+                                log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                                booleanFuture.completeExceptionally(e.getCause());
+                            } else {
+                                booleanFuture.complete(resetIncludeHead);
+                            }
                         });
 
                 return booleanFuture;
