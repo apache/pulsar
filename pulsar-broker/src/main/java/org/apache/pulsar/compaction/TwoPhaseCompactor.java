@@ -96,7 +96,7 @@ public class TwoPhaseCompactor extends Compactor {
                     } else {
                         log.info("Commencing phase one of compaction for {}, reading to {}",
                                  reader.getTopic(), lastMessageId);
-                        // Each entry is processed as a whole, discard the batchIndex part deliberately
+                        // Each entry is processed as a whole, discard the batchIndex part deliberately.
                         MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
                         MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(), lastImpl.getEntryId(), lastImpl.getPartitionIndex());
                         phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
