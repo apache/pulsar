@@ -133,6 +133,33 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testOffloadUsesOffoadPoliciesWhenItsDefined() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(-1);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        // Ledger will roll twice, offload will run on first ledger after second closed
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        // offload should eventually be triggered
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
+        assertEquals(offloader.offloadedLedgers(),
+                ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+    }
+
+    @Test
     public void testPositionOutOfRange() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -988,6 +1015,12 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             return deletes.keySet();
         }
 
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("S3", "", "", "",
+                OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
+                OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS);
+
         @Override
         public String getOffloadDriverName() {
             return "mock";
@@ -1029,7 +1062,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         @Override
         public OffloadPolicies getOffloadPolicies() {
-            return null;
+            return offloadPolicies;
         }
 
         @Override
