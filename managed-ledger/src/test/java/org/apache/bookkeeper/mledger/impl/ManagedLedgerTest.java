@@ -115,6 +115,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -1467,7 +1468,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
         bkc.failNow(BKException.Code.NoBookieAvailableException);
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
+
         try {
             ledger.addEntry("entry".getBytes());
             fail("Should have received exception");
