@@ -392,8 +392,8 @@ public class CmdNamespaces extends CmdBase {
         private boolean disable = false;
 
         @Parameter(names = { "--type", "-t" }, description = "Type of topic to be auto-created. " +
-                "Possible values: (partitioned, non-partitioned)")
-        private String type;
+                "Possible values: (partitioned, non-partitioned). Default value: non-partitioned")
+        private String type = "non-partitioned";
 
         @Parameter(names = { "--num-partitions", "-n" }, description = "Default number of partitions of topic to be auto-created," +
                 " applicable to partitioned topics only", required = false)
