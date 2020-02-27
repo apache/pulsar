@@ -226,7 +226,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.maxMessagePublishBufferBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
-            pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024 * 1024 : -1;
+            pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L : -1;
         this.resumeProducerReadMessagePublishBufferBytes = this.maxMessagePublishBufferBytes / 2;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
