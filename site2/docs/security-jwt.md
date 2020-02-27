@@ -67,7 +67,7 @@ PulsarClient client = PulsarClient.builder()
         AuthenticationFactory.token(() -> {
             // Read token from custom source
             return readToken();
-        })
+        }))
     .build();
 ```
 
