@@ -611,15 +611,15 @@ public class PulsarGrpcServiceTest {
         List<ACL> dummyAclList = new ArrayList<>(0);
 
         ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-            "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList, CreateMode.PERSISTENT);
+                "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList, CreateMode.PERSISTENT);
 
         zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList,
-            CreateMode.PERSISTENT);
+                CreateMode.PERSISTENT);
         return zk;
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
-                                                                 ExecutorService executor) throws Exception {
+            ExecutorService executor) throws Exception {
         return spy(new NonClosableMockBookKeeper(zookeeper, executor));
     }
 

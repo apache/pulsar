@@ -24,8 +24,8 @@ public class Commands {
         Metadata metadata  = new Metadata();
         metadata.put(ERROR_CODE_METADATA_KEY, String.valueOf(code.getNumber()));
         return status.withDescription(message)
-            .withCause(exception)
-            .asRuntimeException(metadata);
+                .withCause(exception)
+                .asRuntimeException(metadata);
     }
 
     public static StatusRuntimeException newStatusException(Status status, Throwable exception, ServerError code) {
@@ -35,39 +35,39 @@ public class Commands {
     public static CommandAuthChallenge newAuthChallenge(String authMethod, org.apache.pulsar.common.api.AuthData brokerData, long stateId) {
         CommandAuthChallenge.Builder challengeBuilder = CommandAuthChallenge.newBuilder();
         challengeBuilder.setChallenge(AuthData.newBuilder()
-            .setAuthData(ByteString.copyFrom(brokerData.getBytes()))
-            .setAuthMethodName(authMethod)
-            .setAuthStateId(stateId)
-            .build());
+                .setAuthData(ByteString.copyFrom(brokerData.getBytes()))
+                .setAuthMethodName(authMethod)
+                .setAuthStateId(stateId)
+                .build());
         return challengeBuilder.build();
     }
 
     public static SendResult newProducerSuccess(String producerName, long lastSequenceId,
-                                                SchemaVersion schemaVersion) {
+            SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(copyFrom(schemaVersion.bytes()));
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         return SendResult.newBuilder()
-            .setProducerSuccess(producerSuccess)
-            .build();
+                .setProducerSuccess(producerSuccess)
+                .build();
     }
 
     public static CommandSend newSend(long sequenceId, int numMessages, ChecksumType checksumType,
-                                      MessageMetadata messageMetadata, ByteBuf payload) {
+            MessageMetadata messageMetadata, ByteBuf payload) {
         return newSend(sequenceId, numMessages, 0, 0, checksumType, messageMetadata, payload);
     }
 
     public static CommandSend newSend(long lowestSequenceId, long highestSequenceId, int numMessages,
-                                      ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+            ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
         return newSend(lowestSequenceId, highestSequenceId, numMessages, 0, 0,
-            checksumType, messageMetadata, payload);
+                checksumType, messageMetadata, payload);
     }
 
     public static CommandSend newSend(long sequenceId, int numMessages,
-                                      long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
-                                      MessageMetadata messageData, ByteBuf payload) {
+            long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+            MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setSequenceId(sequenceId);
         if (numMessages > 1) {
@@ -87,8 +87,8 @@ public class Commands {
     }
 
     public static CommandSend newSend(long lowestSequenceId, long highestSequenceId, int numMessages,
-                                      long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
-                                      MessageMetadata messageData, ByteBuf payload) {
+            long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+            MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setSequenceId(lowestSequenceId);
         sendBuilder.setHighestSequenceId(highestSequenceId);
@@ -115,8 +115,8 @@ public class Commands {
         sendErrorBuilder.setMessage(errorMsg);
         CommandSendError sendError = sendErrorBuilder.build();
         return SendResult.newBuilder()
-            .setSendError(sendError)
-            .build();
+                .setSendError(sendError)
+                .build();
     }
 
     public static SendResult newSendReceipt(long sequenceId, long highestId, long ledgerId, long entryId) {
@@ -130,13 +130,13 @@ public class Commands {
         sendReceiptBuilder.setMessageId(messageId);
         CommandSendReceipt sendReceipt = sendReceiptBuilder.build();
         return SendResult.newBuilder()
-            .setSendReceipt(sendReceipt)
-            .build();
+                .setSendReceipt(sendReceipt)
+                .build();
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                              boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-                                              long epoch, boolean userProvidedProducerName) {
+            boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+            long epoch, boolean userProvidedProducerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setEpoch(epoch);
@@ -158,21 +158,21 @@ public class Commands {
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                              Map<String, String> metadata) {
+            Map<String, String> metadata) {
         return newProducer(topic, producerName, false, metadata);
     }
 
     public static CommandProducer newProducer(String topic, String producerName,
-                                              boolean encrypted, Map<String, String> metadata) {
+            boolean encrypted, Map<String, String> metadata) {
         return newProducer(topic, producerName, encrypted, metadata, null, 0, false);
     }
 
     private static Schema getSchema(SchemaInfo schemaInfo) {
         Schema.Builder builder = Schema.newBuilder()
-            .setName(schemaInfo.getName())
-            .setSchemaData(copyFrom(schemaInfo.getSchema()))
-            .setType(getSchemaType(schemaInfo.getType()))
-            .putAllProperties(schemaInfo.getProperties());
+                .setName(schemaInfo.getName())
+                .setSchemaData(copyFrom(schemaInfo.getSchema()))
+                .setType(getSchemaType(schemaInfo.getType()))
+                .putAllProperties(schemaInfo.getProperties());
         return builder.build();
     }
 
@@ -205,9 +205,23 @@ public class Commands {
 
     public static CommandGetSchemaResponse newGetSchemaResponse(SchemaInfo schema, SchemaVersion version) {
         CommandGetSchemaResponse.Builder schemaResponse = CommandGetSchemaResponse.newBuilder()
-            .setSchemaVersion(ByteString.copyFrom(version.bytes()))
-            .setSchema(getSchema(schema));
+                .setSchemaVersion(ByteString.copyFrom(version.bytes()))
+                .setSchema(getSchema(schema));
 
         return schemaResponse.build();
+    }
+
+    public static CommandLookupTopicResponse newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
+            CommandLookupTopicResponse.LookupType response, boolean proxyThroughServiceUrl) {
+        CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
+        commandLookupTopicResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
+        if (brokerServiceUrlTls != null) {
+            commandLookupTopicResponseBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
+        }
+        commandLookupTopicResponseBuilder.setResponse(response);
+        commandLookupTopicResponseBuilder.setAuthoritative(authoritative);
+        commandLookupTopicResponseBuilder.setProxyThroughServiceUrl(proxyThroughServiceUrl);
+
+        return commandLookupTopicResponseBuilder.build();
     }
 }

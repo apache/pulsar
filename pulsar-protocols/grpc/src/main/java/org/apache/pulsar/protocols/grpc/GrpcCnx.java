@@ -41,7 +41,7 @@ public class GrpcCnx implements ServerCnx {
         this.service = service;
         this.remoteAddress = remoteAddress;
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
-            .getMaxConcurrentNonPersistentMessagePerConnection();
+                .getMaxConcurrentNonPersistentMessagePerConnection();
         this.authRole = authRole;
         this.authenticationData = authenticationData;
         this.responseObserver = (ServerCallStreamObserver<SendResult>) responseObserver;
@@ -125,8 +125,8 @@ public class GrpcCnx implements ServerCnx {
                 final long sequenceId = send.getSequenceId();
                 final long highestSequenceId = send.getHighestSequenceId();
                 service.getTopicOrderedExecutor().executeOrdered(
-                    producer.getTopic().getName(),
-                    SafeRun.safeRun(() -> responseObserver.onNext(Commands.newSendReceipt(sequenceId, highestSequenceId, -1, -1)))
+                        producer.getTopic().getName(),
+                        SafeRun.safeRun(() -> responseObserver.onNext(Commands.newSendReceipt(sequenceId, highestSequenceId, -1, -1)))
                 );
                 producer.recordMessageDrop(send.getNumMessages());
                 return;
@@ -140,7 +140,7 @@ public class GrpcCnx implements ServerCnx {
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(producer.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                headersAndPayload, send.getNumMessages());
+                    headersAndPayload, send.getNumMessages());
         } else {
             producer.publishMessage(producer.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
         }

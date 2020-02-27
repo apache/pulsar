@@ -1,0 +1,71 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.protocols.grpc;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.pulsar.broker.BookKeeperClientFactory;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
+    private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
+
+    private final BookKeeper mockedBk;
+    private final ExecutorService executor;
+
+    public MockedBookKeeperClientFactory() {
+        try {
+            executor = Executors.newSingleThreadExecutor(
+                    new ThreadFactoryBuilder().setNameFormat("mock-bk-client-factory")
+                            .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                            .build());
+            mockedBk = new PulsarMockBookKeeper(null, executor);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties) throws IOException {
+        return mockedBk;
+    }
+
+    @Override
+    public void close() {
+        try {
+            mockedBk.close();
+        } catch (BKException | InterruptedException e) {
+        }
+        executor.shutdown();
+    }
+}

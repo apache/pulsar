@@ -19,4 +19,4 @@
 
 name: grpc
 description: grpc protocol handler
-handlerClass: org.apache.pulsar.protocols.grpc.GrpcHandler
+handlerClass: org.apache.pulsar.protocols.grpc.GrpcService

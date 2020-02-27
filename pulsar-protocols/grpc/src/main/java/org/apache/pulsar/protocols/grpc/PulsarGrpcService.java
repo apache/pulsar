@@ -2,7 +2,6 @@ package org.apache.pulsar.protocols.grpc;
 
 import com.google.common.base.Strings;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.netty.channel.EventLoopGroup;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -25,8 +24,11 @@ import org.slf4j.LoggerFactory;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 
+import static org.apache.pulsar.protocols.grpc.Commands.newStatusException;
 import static org.apache.pulsar.protocols.grpc.Constants.*;
+import static org.apache.pulsar.protocols.grpc.TopicLookup.lookupTopicAsync;
 
 public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
@@ -46,6 +48,51 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
     }
 
     @Override
+    public void lookupTopic(CommandLookupTopic lookup, StreamObserver<CommandLookupTopicResponse> responseObserver) {
+        final SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
+        final String authRole = AUTH_ROLE_CTX_KEY.get();
+        final AuthenticationDataSource authenticationData = AUTH_DATA_CTX_KEY.get();
+        final boolean authoritative = lookup.getAuthoritative();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received Lookup from {}", lookup.getTopic(), remoteAddress);
+        }
+
+        TopicName topicName;
+        try {
+            topicName = TopicName.get(lookup.getTopic());
+        } catch (Throwable t) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, lookup.getTopic(), t);
+            }
+            responseObserver.onError(newStatusException(Status.INVALID_ARGUMENT,
+                    "Invalid topic name: " + t.getMessage(), null, ServerError.InvalidTopicName));
+            return;
+        }
+
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
+            lookupTopicAsync(service.pulsar(), topicName, authoritative, authRole, authenticationData)
+                    .handle((lookupResponse, ex) -> {
+                        if (ex == null) {
+                            responseObserver.onNext(lookupResponse);
+                            responseObserver.onCompleted();
+                        } else {
+                            responseObserver.onError(ex);
+                        }
+                        lookupSemaphore.release();
+                        return null;
+                    });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed lookup due to too many lookup-requests {}", remoteAddress, topicName);
+            }
+            responseObserver.onError(newStatusException(Status.RESOURCE_EXHAUSTED,
+                    "Failed due to too many pending lookup requests", null, ServerError.TooManyRequests));
+        }
+    }
+
+    @Override
     public void getSchema(CommandGetSchema commandGetSchema, StreamObserver<CommandGetSchemaResponse> responseObserver) {
         SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
         if (log.isDebugEnabled()) {
@@ -61,40 +108,41 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         try {
             schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
         } catch (Throwable t) {
-            responseObserver.onError(Commands.newStatusException(Status.INVALID_ARGUMENT, t, ServerError.InvalidTopicName));
+            responseObserver.onError(newStatusException(Status.INVALID_ARGUMENT, t, ServerError.InvalidTopicName));
             return;
         }
 
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
-                responseObserver.onError(Commands.newStatusException(Status.INVALID_ARGUMENT, "Topic not found or no-schema",
-                    null, ServerError.TopicNotFound));
+                responseObserver.onError(newStatusException(Status.INVALID_ARGUMENT, "Topic not found or no-schema",
+                        null, ServerError.TopicNotFound));
             } else {
                 responseObserver.onNext(Commands.newGetSchemaResponse(
-                    SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+                responseObserver.onCompleted();
             }
         }).exceptionally(ex -> {
-            responseObserver.onError(Commands.newStatusException(Status.INTERNAL, ex, ServerError.UnknownError));
+            responseObserver.onError(newStatusException(Status.INTERNAL, ex, ServerError.UnknownError));
             return null;
         });
     }
 
     @Override
     public StreamObserver<CommandSend> produce(StreamObserver<SendResult> responseObserver) {
-        CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
+        final CommandProducer cmdProducer = PRODUCER_PARAMS_CTX_KEY.get();
         if (cmdProducer == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Missing CommandProducer header").asException());
             return NoOpStreamObserver.create();
         }
 
-        String authRole = AUTH_ROLE_CTX_KEY.get();
-        AuthenticationDataSource authenticationData = AUTH_DATA_CTX_KEY.get();
-        SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
+        final String authRole = AUTH_ROLE_CTX_KEY.get();
+        final AuthenticationDataSource authenticationData = AUTH_DATA_CTX_KEY.get();
+        final SocketAddress remoteAddress = REMOTE_ADDRESS_CTX_KEY.get();
 
         final String topic = cmdProducer.getTopic();
         // Use producer name provided by client if present
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
-            : service.generateUniqueProducerName();
+                : service.generateUniqueProducerName();
         final long epoch = cmdProducer.getEpoch();
         final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
@@ -110,9 +158,8 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, e);
             }
-            StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT,
-                "Invalid topic name: " + e.getMessage(), e, ServerError.InvalidTopicName);
-            responseObserver.onError(statusException);
+            responseObserver.onError(newStatusException(Status.INVALID_ARGUMENT,
+                    "Invalid topic name: " + e.getMessage(), e, ServerError.InvalidTopicName));
             return NoOpStreamObserver.create();
         }
 
@@ -121,14 +168,14 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
             // Before creating producer, check if backlog quota exceeded on topic
             if (topik.isBacklogQuotaExceeded(producerName)) {
                 IllegalStateException illegalStateException = new IllegalStateException(
-                    "Cannot create producer on topic with backlog quota exceeded");
+                        "Cannot create producer on topic with backlog quota exceeded");
                 BacklogQuota.RetentionPolicy retentionPolicy = topik.getBacklogQuota().getPolicy();
                 if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                    StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, illegalStateException, ServerError.ProducerBlockedQuotaExceededError);
-                    responseObserver.onError(statusException);
+                    responseObserver.onError(newStatusException(Status.FAILED_PRECONDITION,
+                            illegalStateException, ServerError.ProducerBlockedQuotaExceededError));
                 } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                    StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, illegalStateException, ServerError.ProducerBlockedQuotaExceededException);
-                    responseObserver.onError(statusException);
+                    responseObserver.onError(newStatusException(Status.FAILED_PRECONDITION,
+                            illegalStateException, ServerError.ProducerBlockedQuotaExceededException));
                 }
                 producerFuture.completeExceptionally(illegalStateException);
                 return;
@@ -138,23 +185,22 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
             if (topik.isEncryptionRequired() && !isEncrypted) {
                 String msg = String.format("Encryption is required in %s", topicName);
                 log.warn("[{}] {}", remoteAddress, msg);
-                StatusRuntimeException statusException = Commands.newStatusException(Status.INVALID_ARGUMENT, msg, null, ServerError.MetadataError);
-                responseObserver.onError(statusException);
+                responseObserver.onError(newStatusException(Status.INVALID_ARGUMENT, msg, null,
+                        ServerError.MetadataError));
                 return;
             }
 
             CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topik, schema, remoteAddress);
 
             schemaVersionFuture.exceptionally(exception -> {
-                StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, exception,
-                    ServerErrors.convert(BrokerServiceException.getClientErrorCode(exception)));
-                responseObserver.onError(statusException);
+                responseObserver.onError(newStatusException(Status.FAILED_PRECONDITION, exception,
+                        ServerErrors.convert(BrokerServiceException.getClientErrorCode(exception))));
                 return null;
             });
 
             schemaVersionFuture.thenAccept(schemaVersion -> {
                 Producer producer = new GrpcProducer(topik, cnx, producerName, authRole,
-                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName, eventLoopGroup.next());
+                        isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName, eventLoopGroup.next());
 
                 try {
                     // TODO : check that removeProducer is called even with early client disconnect
@@ -162,13 +208,12 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
                     log.info("[{}] Created new producer: {}", remoteAddress, producer);
                     producerFuture.complete(producer);
                     responseObserver.onNext(Commands.newProducerSuccess(producerName,
-                        producer.getLastSequenceId(), producer.getSchemaVersion()));
+                            producer.getLastSequenceId(), producer.getSchemaVersion()));
                 } catch (BrokerServiceException ise) {
                     log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
-                        ise.getMessage());
-                    StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, ise,
-                        ServerErrors.convert(BrokerServiceException.getClientErrorCode(ise)));
-                    responseObserver.onError(statusException);
+                            ise.getMessage());
+                    responseObserver.onError(newStatusException(Status.FAILED_PRECONDITION, ise,
+                            ServerErrors.convert(BrokerServiceException.getClientErrorCode(ise))));
                     producerFuture.completeExceptionally(ise);
                 }
             });
@@ -180,9 +225,8 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
             }
 
             if (producerFuture.completeExceptionally(exception)) {
-                StatusRuntimeException statusException = Commands.newStatusException(Status.FAILED_PRECONDITION, cause,
-                    ServerErrors.convert(BrokerServiceException.getClientErrorCode(cause)));
-                responseObserver.onError(statusException);
+                responseObserver.onError(newStatusException(Status.FAILED_PRECONDITION, cause,
+                        ServerErrors.convert(BrokerServiceException.getClientErrorCode(cause))));
             }
             return null;
         });
@@ -212,13 +256,13 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
     private SchemaData getSchema(Schema protocolSchema) {
         return SchemaData.builder()
-            .data(protocolSchema.getSchemaData().toByteArray())
-            .isDeleted(false)
-            .timestamp(System.currentTimeMillis())
-            .user(Strings.nullToEmpty(originalPrincipal))
-            .type(Commands.getSchemaType(protocolSchema.getType()))
-            .props(protocolSchema.getPropertiesMap())
-            .build();
+                .data(protocolSchema.getSchemaData().toByteArray())
+                .isDeleted(false)
+                .timestamp(System.currentTimeMillis())
+                .user(Strings.nullToEmpty(originalPrincipal))
+                .type(Commands.getSchemaType(protocolSchema.getType()))
+                .props(protocolSchema.getPropertiesMap())
+                .build();
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema, SocketAddress remoteAddress) {
@@ -227,11 +271,11 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
                 log.info("[{}] {} configured with schema {}",
-                    remoteAddress, topic.getName(), hasSchema);
+                        remoteAddress, topic.getName(), hasSchema);
                 CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(
-                        "Producers cannot connect or send message without a schema to topics with a schema"));
+                            "Producers cannot connect or send message without a schema to topics with a schema"));
                 } else {
                     result.complete(SchemaVersion.Empty);
                 }
@@ -242,7 +286,7 @@ public class PulsarGrpcService extends PulsarGrpc.PulsarImplBase {
 
     private void closeProduce(CompletableFuture<Producer> producerFuture, SocketAddress remoteAddress) {
         if (!producerFuture.isDone() && producerFuture
-            .completeExceptionally(new IllegalStateException("Closed producer before creation was complete"))) {
+                .completeExceptionally(new IllegalStateException("Closed producer before creation was complete"))) {
             // We have received a request to close the producer before it was actually completed, we have marked the
             // producer future as failed and we can tell the client the close operation was successful.
             log.info("[{}] Closed producer before its creation was completed", remoteAddress);

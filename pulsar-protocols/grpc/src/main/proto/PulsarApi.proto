@@ -27,6 +27,7 @@ service Pulsar {
     rpc produce(stream CommandSend) returns (stream SendResult) {}
     // rpc consume(stream BaseCommand) returns (stream BaseCommand) {}
     rpc get_schema(CommandGetSchema) returns (CommandGetSchemaResponse) {}
+    rpc lookup_topic(CommandLookupTopic) returns (CommandLookupTopicResponse) {}
 }
 
 message Schema {
@@ -326,18 +327,7 @@ message CommandPartitionedTopicMetadataResponse {
 
 message CommandLookupTopic {
     required string topic            = 1;
-    required uint64 request_id       = 2;
-    optional bool authoritative      = 3 [default = false];
-
-    // TODO - Remove original_principal, original_auth_data, original_auth_method
-    // Original principal that was verified by
-    // a Pulsar proxy.
-    optional string original_principal = 4;
-
-    // Original auth role and auth Method that was passed
-    // to the proxy.
-    optional string original_auth_data = 5;
-    optional string original_auth_method = 6;
+    optional bool authoritative      = 2 [default = false];
 }
 
 message CommandLookupTopicResponse {
@@ -350,15 +340,14 @@ message CommandLookupTopicResponse {
     optional string brokerServiceUrl      = 1; // Optional in case of error
     optional string brokerServiceUrlTls   = 2;
     optional LookupType response          = 3;
-    required uint64 request_id            = 4;
-    optional bool authoritative           = 5 [default = false];
-    optional ServerError error            = 6;
-    optional string message               = 7;
+    optional bool authoritative           = 4 [default = false];
+    optional ServerError error            = 5;
+    optional string message               = 6;
 
     // If it's true, indicates to the client that it must
     // always connect through the service url after the
     // lookup has been completed.
-    optional bool proxy_through_service_url = 8 [default = false];
+    optional bool proxy_through_service_url = 7 [default = false];
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,

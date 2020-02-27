@@ -69,14 +69,14 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                     AuthData clientData = AuthData.of(auth.getAuthData().toByteArray());
                     String authMethod = auth.hasAuthMethod() ?  auth.getAuthMethod() : "none";
                     AuthenticationProvider authenticationProvider = service.getAuthenticationService()
-                        .getAuthenticationProvider(authMethod);
+                            .getAuthenticationProvider(authMethod);
 
                     // Not find provider named authMethod. Most used for tests.
                     // In AuthenticationDisabled, it will set authMethod "none".
                     if (authenticationProvider == null) {
                         String authRole = service.getAuthenticationService().getAnonymousUserRole()
-                            .orElseThrow(() ->
-                                new AuthenticationException("No anonymous role, and no authentication provider configured"));
+                                .orElseThrow(() ->
+                                        new AuthenticationException("No anonymous role, and no authentication provider configured"));
                         ctx = ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
                     } else {
                         AuthenticationState authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
@@ -85,7 +85,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                             String authRole = authState.getAuthRole();
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Client successfully authenticated with {} role {}",
-                                    remoteAddress, authMethod, authRole);
+                                        remoteAddress, authMethod, authRole);
                             }
                             ctx = ctx.withValue(AUTH_ROLE_CTX_KEY, authRole);
                             ctx = ctx.withValue(AUTH_DATA_CTX_KEY, authState.getAuthDataSource());
@@ -112,7 +112,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                     }
                     if (log.isDebugEnabled()) {
                         log.debug("Received AuthResponse from {}, auth method: {}",
-                            remoteAddress, authMethod);
+                                remoteAddress, authMethod);
                     }
 
                     try {
@@ -121,7 +121,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                         if (authState.isComplete()) {
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Client successfully authenticated with {} role {}",
-                                    remoteAddress, authMethod, authState.getAuthRole());
+                                        remoteAddress, authMethod, authState.getAuthRole());
                             }
                             String authRole = authState.getAuthRole();
                             AuthRoleToken authToken = createAuthRoleToken(authRole, authState.getStateId());
@@ -139,6 +139,8 @@ public class AuthenticationInterceptor implements ServerInterceptor {
                         log.warn("[{}] {} ", remoteAddress, msg, e);
                         throw new AuthenticationException(msg);
                     }
+                } else {
+                    throw new AuthenticationException("Authentication missing");
                 }
             } catch (AuthenticationException | InvalidProtocolBufferException e) {
                 serverCall.close(Status.UNAUTHENTICATED.withDescription(e.getMessage()), new Metadata());
@@ -152,7 +154,7 @@ public class AuthenticationInterceptor implements ServerInterceptor {
     }
 
     private <ReqT, RespT> ServerCall.Listener<ReqT> closeWithSingleHeader(ServerCall<ReqT, RespT> serverCall,
-                                                                          Metadata.Key<byte[]> key, byte[] bytes) {
+            Metadata.Key<byte[]> key, byte[] bytes) {
         Metadata metadata = new Metadata();
         metadata.put(key, bytes);
         serverCall.close(Status.UNAUTHENTICATED, metadata);
@@ -162,22 +164,22 @@ public class AuthenticationInterceptor implements ServerInterceptor {
     private AuthRoleToken createAuthRoleToken(String role, long sessionId) {
         long expireAtMs = System.currentTimeMillis() + SASL_ROLE_TOKEN_LIVE_SECONDS * 1000; // 1 hour
         AuthRoleTokenInfo roleTokenInfo = AuthRoleTokenInfo.newBuilder()
-            .setRole(role)
-            .setSessionId(sessionId)
-            .setExpires(expireAtMs)
-            .build();
+                .setRole(role)
+                .setSessionId(sessionId)
+                .setExpires(expireAtMs)
+                .build();
 
         byte[] signature = signer.computeSignature(roleTokenInfo.toByteArray());
 
         if (log.isDebugEnabled()) {
             log.debug("create role token role: {} session :{}, expires:{}",
-                role, sessionId, expireAtMs);
+                    role, sessionId, expireAtMs);
         }
 
         return AuthRoleToken.newBuilder()
-            .setRoleInfo(roleTokenInfo)
-            .setSignature(ByteString.copyFrom(signature))
-            .build();
+                .setRoleInfo(roleTokenInfo)
+                .setSignature(ByteString.copyFrom(signature))
+                .build();
     }
 
 }

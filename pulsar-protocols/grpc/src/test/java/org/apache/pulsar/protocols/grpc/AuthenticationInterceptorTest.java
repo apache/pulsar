@@ -88,33 +88,33 @@ public class AuthenticationInterceptorTest {
         signer = new HmacSigner();
 
         SslContext sslContext = GrpcSslContexts
-            .forServer(new File(TLS_SERVER_CERT_FILE_PATH), new File(TLS_SERVER_KEY_FILE_PATH))
-            .trustManager(new File(TLS_TRUST_CERT_FILE_PATH))
-            .clientAuth(ClientAuth.REQUIRE)
-            .build();
+                .forServer(new File(TLS_SERVER_CERT_FILE_PATH), new File(TLS_SERVER_KEY_FILE_PATH))
+                .trustManager(new File(TLS_TRUST_CERT_FILE_PATH))
+                .clientAuth(ClientAuth.REQUIRE)
+                .build();
 
         AuthenticationInterceptor authenticationInterceptor = new AuthenticationInterceptor(brokerService, signer);
 
         server = NettyServerBuilder
-            .forAddress(new InetSocketAddress(localHostname, 0))
-            .sslContext(sslContext)
-            .addService(ServerInterceptors.intercept(
-                new AuthGrpcService(),
-                Collections.singletonList(authenticationInterceptor)
-            ))
-            .build();
+                .forAddress(new InetSocketAddress(localHostname, 0))
+                .sslContext(sslContext)
+                .addService(ServerInterceptors.intercept(
+                        new AuthGrpcService(),
+                        Collections.singletonList(authenticationInterceptor)
+                ))
+                .build();
 
         server.start();
 
         SslContext clientSslContext = GrpcSslContexts.forClient()
-            .trustManager(new File(TLS_TRUST_CERT_FILE_PATH))
-            .keyManager(new File(TLS_CLIENT_CERT_FILE_PATH), new File(TLS_CLIENT_KEY_FILE_PATH))
-            .build();
+                .trustManager(new File(TLS_TRUST_CERT_FILE_PATH))
+                .keyManager(new File(TLS_CLIENT_CERT_FILE_PATH), new File(TLS_CLIENT_KEY_FILE_PATH))
+                .build();
         ManagedChannel channel = NettyChannelBuilder
-            .forAddress(new InetSocketAddress(localHostname, server.getPort()))
-            .negotiationType(NegotiationType.TLS)
-            .sslContext(clientSslContext)
-            .build();
+                .forAddress(new InetSocketAddress(localHostname, server.getPort()))
+                .negotiationType(NegotiationType.TLS)
+                .sslContext(clientSslContext)
+                .build();
 
         stub = AuthGrpc.newBlockingStub(channel);
     }
@@ -134,8 +134,8 @@ public class AuthenticationInterceptorTest {
 
         Metadata headers = new Metadata();
         CommandAuth auth = CommandAuth.newBuilder()
-            .setAuthMethod(provider.getAuthMethodName())
-            .build();
+                .setAuthMethod(provider.getAuthMethodName())
+                .build();
         headers.put(AUTH_METADATA_KEY, auth.toByteArray());
 
         AuthGrpc.AuthBlockingStub authStub = MetadataUtils.attachHeaders(this.stub, headers);
@@ -152,9 +152,9 @@ public class AuthenticationInterceptorTest {
         AuthenticationDataProvider clientData = new AuthenticationDataBasic("superUser", "supepass");
         Metadata headers = new Metadata();
         CommandAuth auth = CommandAuth.newBuilder()
-            .setAuthMethod(provider.getAuthMethodName())
-            .setAuthData(ByteString.copyFromUtf8(clientData.getCommandData()))
-            .build();
+                .setAuthMethod(provider.getAuthMethodName())
+                .setAuthData(ByteString.copyFromUtf8(clientData.getCommandData()))
+                .build();
         headers.put(AUTH_METADATA_KEY, auth.toByteArray());
 
         AuthGrpc.AuthBlockingStub authStub = MetadataUtils.attachHeaders(this.stub, headers);
@@ -170,8 +170,8 @@ public class AuthenticationInterceptorTest {
 
         Metadata headers = new Metadata();
         CommandAuth auth = CommandAuth.newBuilder()
-            .setAuthMethod(provider.getAuthMethodName())
-            .build();
+                .setAuthMethod(provider.getAuthMethodName())
+                .build();
         headers.put(AUTH_METADATA_KEY, auth.toByteArray());
 
         AuthGrpc.AuthBlockingStub authStub = MetadataUtils.attachHeaders(this.stub, headers);
@@ -213,16 +213,16 @@ public class AuthenticationInterceptorTest {
     @Test
     public void testAuthenticationRoleToken() throws Exception {
         AuthRoleTokenInfo role = AuthRoleTokenInfo.newBuilder()
-            .setRole("role-token")
-            .setExpires(System.currentTimeMillis() + 3600*1000)
-            .build();
+                .setRole("role-token")
+                .setExpires(System.currentTimeMillis() + 3600*1000)
+                .build();
 
         byte[] signature = signer.computeSignature(role.toByteArray());
 
         AuthRoleToken token = AuthRoleToken.newBuilder()
-            .setRoleInfo(role)
-            .setSignature(ByteString.copyFrom(signature))
-            .build();
+                .setRoleInfo(role)
+                .setSignature(ByteString.copyFrom(signature))
+                .build();
 
         Metadata headers = new Metadata();
         headers.put(AUTH_ROLE_TOKEN_METADATA_KEY, token.toByteArray());
@@ -235,14 +235,14 @@ public class AuthenticationInterceptorTest {
     @Test
     public void testAuthenticationRoleTokenInvalidSignature() throws Exception {
         AuthRoleTokenInfo role = AuthRoleTokenInfo.newBuilder()
-            .setRole("role-token")
-            .setExpires(System.currentTimeMillis() + 3600*1000)
-            .build();
+                .setRole("role-token")
+                .setExpires(System.currentTimeMillis() + 3600*1000)
+                .build();
 
         AuthRoleToken token = AuthRoleToken.newBuilder()
-            .setRoleInfo(role)
-            .setSignature(ByteString.copyFrom(new byte[32]))
-            .build();
+                .setRoleInfo(role)
+                .setSignature(ByteString.copyFrom(new byte[32]))
+                .build();
 
         Metadata headers = new Metadata();
         headers.put(AUTH_ROLE_TOKEN_METADATA_KEY, token.toByteArray());
@@ -260,16 +260,16 @@ public class AuthenticationInterceptorTest {
     @Test
     public void testAuthenticationRoleTokenExpired() throws Exception {
         AuthRoleTokenInfo role = AuthRoleTokenInfo.newBuilder()
-            .setRole("role-token")
-            .setExpires(System.currentTimeMillis() - 3600*1000)
-            .build();
+                .setRole("role-token")
+                .setExpires(System.currentTimeMillis() - 3600*1000)
+                .build();
 
         byte[] signature = signer.computeSignature(role.toByteArray());
 
         AuthRoleToken token = AuthRoleToken.newBuilder()
-            .setRoleInfo(role)
-            .setSignature(ByteString.copyFrom(signature))
-            .build();
+                .setRoleInfo(role)
+                .setSignature(ByteString.copyFrom(signature))
+                .build();
 
         Metadata headers = new Metadata();
         headers.put(AUTH_ROLE_TOKEN_METADATA_KEY, token.toByteArray());
@@ -299,9 +299,9 @@ public class AuthenticationInterceptorTest {
         // Init
         AuthData initData1 = dataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
         CommandAuth auth = CommandAuth.newBuilder()
-            .setAuthMethod(provider.getAuthMethodName())
-            .setAuthData(ByteString.copyFrom(initData1.getBytes()))
-            .build();
+                .setAuthMethod(provider.getAuthMethodName())
+                .setAuthData(ByteString.copyFrom(initData1.getBytes()))
+                .build();
 
         Metadata headers = new Metadata();
         headers.put(AUTH_METADATA_KEY, auth.toByteArray());
@@ -320,9 +320,9 @@ public class AuthenticationInterceptorTest {
 
         // Wrong session id
         CommandAuthResponse authResponse = CommandAuthResponse.newBuilder()
-            .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
-                .setAuthStateId(challenge.getAuthStateId() + 1))
-            .build();
+                .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
+                        .setAuthStateId(challenge.getAuthStateId() + 1))
+                .build();
         headers = new Metadata();
         headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());
 
@@ -338,9 +338,9 @@ public class AuthenticationInterceptorTest {
 
         // Wrong method
         authResponse = CommandAuthResponse.newBuilder()
-            .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
-                .setAuthMethodName("none"))
-            .build();
+                .setResponse(getResponseForChallenge(challenge, initData2.getBytes())
+                        .setAuthMethodName("none"))
+                .build();
         headers = new Metadata();
         headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());
 
@@ -356,8 +356,8 @@ public class AuthenticationInterceptorTest {
 
         // Incorrect auth data
         authResponse = CommandAuthResponse.newBuilder()
-            .setResponse(getResponseForChallenge(challenge, initData1.getBytes()))
-            .build();
+                .setResponse(getResponseForChallenge(challenge, initData1.getBytes()))
+                .build();
         headers = new Metadata();
         headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());
 
@@ -373,8 +373,8 @@ public class AuthenticationInterceptorTest {
 
         // Good response
         authResponse = CommandAuthResponse.newBuilder()
-            .setResponse(getResponseForChallenge(challenge, initData2.getBytes()))
-            .build();
+                .setResponse(getResponseForChallenge(challenge, initData2.getBytes()))
+                .build();
         headers = new Metadata();
         headers.put(AUTHRESPONSE_METADATA_KEY, authResponse.toByteArray());
 
@@ -392,9 +392,9 @@ public class AuthenticationInterceptorTest {
 
     private org.apache.pulsar.protocols.grpc.api.AuthData.Builder getResponseForChallenge(org.apache.pulsar.protocols.grpc.api.AuthData challenge, byte[] authData) throws AuthenticationException {
         return org.apache.pulsar.protocols.grpc.api.AuthData.newBuilder()
-            .setAuthMethodName(challenge.getAuthMethodName())
-            .setAuthStateId(challenge.getAuthStateId())
-            .setAuthData(ByteString.copyFrom(authData));
+                .setAuthMethodName(challenge.getAuthMethodName())
+                .setAuthStateId(challenge.getAuthStateId())
+                .setAuthData(ByteString.copyFrom(authData));
     }
 
     private static class AuthGrpcService extends AuthGrpc.AuthImplBase {
@@ -434,39 +434,39 @@ public class AuthenticationInterceptorTest {
         File jaasFile = new File(kerberosWorkDir, "jaas.conf");
         try (FileWriter writer = new FileWriter(jaasFile)) {
             writer.write("\n"
-                + "PulsarBroker {\n"
-                + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
-                + "  useKeyTab=true\n"
-                + "  keyTab=\"" + keytabServer.getAbsolutePath() + "\n"
-                + "  storeKey=true\n"
-                + "  useTicketCache=false\n" // won't test useTicketCache=true on JUnit tests
-                + "  principal=\"" + principalServer + "\";\n"
-                + "};\n"
-                + "\n"
-                + "\n"
-                + "\n"
-                + "PulsarClient {\n"
-                + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
-                + "  useKeyTab=true\n"
-                + "  keyTab=\"" + keytabClient.getAbsolutePath() + "\n"
-                + "  storeKey=true\n"
-                + "  useTicketCache=false\n"
-                + "  principal=\"" + principalClient + "\";\n"
-                + "};\n"
+                    + "PulsarBroker {\n"
+                    + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
+                    + "  useKeyTab=true\n"
+                    + "  keyTab=\"" + keytabServer.getAbsolutePath() + "\n"
+                    + "  storeKey=true\n"
+                    + "  useTicketCache=false\n" // won't test useTicketCache=true on JUnit tests
+                    + "  principal=\"" + principalServer + "\";\n"
+                    + "};\n"
+                    + "\n"
+                    + "\n"
+                    + "\n"
+                    + "PulsarClient {\n"
+                    + "  com.sun.security.auth.module.Krb5LoginModule required debug=true\n"
+                    + "  useKeyTab=true\n"
+                    + "  keyTab=\"" + keytabClient.getAbsolutePath() + "\n"
+                    + "  storeKey=true\n"
+                    + "  useTicketCache=false\n"
+                    + "  principal=\"" + principalClient + "\";\n"
+                    + "};\n"
             );
         }
 
         File krb5file = new File(kerberosWorkDir, "krb5.conf");
         try (FileWriter writer = new FileWriter(krb5file)) {
             String conf = "[libdefaults]\n"
-                + " default_realm = " + kdc.getRealm() + "\n"
-                + " udp_preference_limit = 1\n" // force use TCP
-                + "\n"
-                + "\n"
-                + "[realms]\n"
-                + " " + kdc.getRealm() + "  = {\n"
-                + "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
-                + " }";
+                    + " default_realm = " + kdc.getRealm() + "\n"
+                    + " udp_preference_limit = 1\n" // force use TCP
+                    + "\n"
+                    + "\n"
+                    + "[realms]\n"
+                    + " " + kdc.getRealm() + "  = {\n"
+                    + "  kdc = " + kdc.getHost() + ":" + kdc.getPort() + "\n"
+                    + " }";
             writer.write(conf);
             log.info("krb5.conf:\n" + conf);
         }
