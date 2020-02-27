@@ -150,7 +150,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
-    <netty.version>4.1.43.Final</netty.version>
+    <netty.version>4.1.45.Final</netty.version>
     <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.20.v20190813</jetty.version>
