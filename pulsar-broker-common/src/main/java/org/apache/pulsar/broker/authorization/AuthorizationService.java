@@ -21,18 +21,31 @@ package org.apache.pulsar.broker.authorization;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.Response;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -317,5 +330,129 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                        AuthenticationDataSource authenticationData) {
         return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+    }
+
+    /**
+     * Grant authorization-action permission on a cluster to the given client
+     *
+     * @param clusterName
+     * @param operation
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when tenant not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowClusterOperation(String clusterName, ClusterOperation operation,
+                                                           String role, AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowClusterOperation(clusterName, role, operation, authData)
+                    .thenApply(authorized -> {
+                        if (!authorized) {
+                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
+                        }
+                        return authorized;
+                    });
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Grant authorization-action permission on a tenant to the given client
+     *
+     * @param tenantName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when tenant not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTenantOperation(String tenantName, TenantOperation operation,
+                                                           String originalRole, String role,
+                                                           AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowTenantOperation(tenantName, originalRole, role, operation, authData)
+                    .thenApply(authorized -> {
+                        if (!authorized) {
+                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
+                        }
+                        return authorized;
+                    });
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Grant authorization-action permission on a namespace to the given client
+     *
+     * @param namespaceName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
+                                                              String originalRole, String role,
+                                                              AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowNamespaceOperation(namespaceName, originalRole, role, operation, authData)
+                    .thenApply(authorized -> {
+                        if (!authorized) {
+                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
+                        }
+                        return authorized;
+                    });
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Grant authorization-action permission on a topic to the given client
+     *
+     * @param topicName
+     * @param operation
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTopicOperation(TopicName topicName, String role,  TopicOperation operation,
+                                                          AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowTopicOperation(topicName, role, operation, authData)
+                    .thenApply(authorized -> {
+                        if (!authorized) {
+                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
+                        }
+                        return authorized;
+                    });
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 }

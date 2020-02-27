@@ -127,4 +127,27 @@ public interface AuthenticationDataSource {
     default SocketAddress getPeerAddress() {
         return null;
     }
+
+    /**
+     * Check if subscription is defined available.
+     *
+     * @return true if this authentication data contain subscription
+     */
+    default boolean hasSubscription() {
+        return false;
+    }
+
+    /**
+     * Subscription name can be necessary for consumption
+     *
+     * @return a <code>String</code> containing the subscription name
+     */
+    default String getSubscription() { return null; }
+
+    /**
+     * Subscription name can be necessary for consumption
+     *
+     * @return a <code>String</code> containing the subscription name
+     */
+    default void setSubscription(String subscription) { };
 }
