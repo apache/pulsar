@@ -94,8 +94,12 @@ public class PulsarClientImpl implements PulsarClient {
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
 
-    enum State {
+    public enum State {
         Open, Closing, Closed
+    }
+
+    public AtomicReference<State> getState() {
+        return state;
     }
 
     private AtomicReference<State> state = new AtomicReference<>();
