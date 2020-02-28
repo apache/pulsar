@@ -19,7 +19,7 @@
 
 FROM python:3.7-stretch
 
-MAINTAINER Pulsar
+LABEL maintainer="Apache Pulsar <dev@pulsar.apache.org>"
 
 RUN apt-get update
 RUN apt-get -y install postgresql python sudo nginx supervisor
