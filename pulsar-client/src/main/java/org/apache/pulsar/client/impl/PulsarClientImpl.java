@@ -98,10 +98,6 @@ public class PulsarClientImpl implements PulsarClient {
         Open, Closing, Closed
     }
 
-    public AtomicReference<State> getState() {
-        return state;
-    }
-
     private AtomicReference<State> state = new AtomicReference<>();
     private final IdentityHashMap<ProducerBase<?>, Boolean> producers;
     private final IdentityHashMap<ConsumerBase<?>, Boolean> consumers;
@@ -169,6 +165,10 @@ public class PulsarClientImpl implements PulsarClient {
     @VisibleForTesting
     public Clock getClientClock() {
         return clientClock;
+    }
+
+    public AtomicReference<State> getState() {
+        return state;
     }
 
     @Override
