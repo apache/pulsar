@@ -43,11 +43,19 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     public AvroReader(Schema schema, ClassLoader classLoader) {
-        this.reader = new ReflectDatumReader<>(schema, schema, new ReflectData(classLoader));
+        if (classLoader != null) {
+            this.reader = new ReflectDatumReader<>(schema, schema, new ReflectData(classLoader));
+        } else {
+            this.reader = new ReflectDatumReader<>(schema);
+        }
     }
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
-        this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, new ReflectData(classLoader));
+        if (classLoader != null) {
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, new ReflectData(classLoader));
+        } else {
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
+        }
     }
 
     @Override
