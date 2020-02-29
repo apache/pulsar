@@ -65,9 +65,18 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
     }
 
+    private Class<T> decodeObjectClass;
+
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
         setReader(new AvroReader<>(schema));
+        setWriter(new AvroWriter<>(schema));
+    }
+
+    private AvroSchema(SchemaInfo schemaInfo, Class<T> clazz) {
+        super(schemaInfo);
+        this.decodeObjectClass = clazz;
+        setReader(new AvroReader<>(schema, getDecodeObjectClassLoader()));
         setWriter(new AvroWriter<>(schema));
     }
 
@@ -98,6 +107,10 @@ public class AvroSchema<T> extends StructSchema<T> {
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
+    public static <T> AvroSchema<T> ofWithClass(SchemaDefinition<T> schemaDefinition) {
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), schemaDefinition.getPojo());
+    }
+
     @Override
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
@@ -105,12 +118,21 @@ public class AvroSchema<T> extends StructSchema<T> {
             log.info("Load schema reader for version({}), schema is : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 schemaInfo.getSchemaDefinition());
-            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
+            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema,
+                    getDecodeObjectClassLoader());
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 this.schemaInfo.getSchemaDefinition());
             return reader;
+        }
+    }
+
+    private ClassLoader getDecodeObjectClassLoader() {
+        if (this.decodeObjectClass == null) {
+            return null;
+        } else {
+            return this.decodeObjectClass.getClassLoader();
         }
     }
 
