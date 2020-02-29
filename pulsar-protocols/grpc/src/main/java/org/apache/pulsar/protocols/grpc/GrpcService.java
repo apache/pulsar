@@ -44,7 +44,16 @@ public class GrpcService implements ProtocolHandler {
 
     @Override
     public String getProtocolDataToAdvertise() {
-        return "";
+        List<String> args = new ArrayList<>();
+        if (server != null) {
+            StringBuilder sb = new StringBuilder("grpcServicePort=");
+            args.add(sb.append(server.getPort()).toString());
+        }
+        if (tlsServer != null) {
+            StringBuilder sb = new StringBuilder("grpcServicePortTls=");
+            args.add(sb.append(tlsServer.getPort()).toString());
+        }
+        return String.join(";", args);
     }
 
     @Override
