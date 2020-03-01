@@ -142,7 +142,7 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.ofWithClass(SchemaDefinition.<T>builder().withPojo(clazz).build());
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case JSON:
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());

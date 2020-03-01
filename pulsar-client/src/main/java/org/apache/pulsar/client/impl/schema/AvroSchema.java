@@ -65,7 +65,7 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
     }
 
-    private Class<T> decodeObjectClass;
+    private Class<T> pojoClass;
 
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
@@ -73,10 +73,10 @@ public class AvroSchema<T> extends StructSchema<T> {
         setWriter(new AvroWriter<>(schema));
     }
 
-    private AvroSchema(SchemaInfo schemaInfo, Class<T> clazz) {
+    private AvroSchema(SchemaInfo schemaInfo, Class<T> pojoClass) {
         super(schemaInfo);
-        this.decodeObjectClass = clazz;
-        setReader(new AvroReader<>(schema, getDecodeObjectClassLoader()));
+        this.pojoClass = pojoClass;
+        setReader(new AvroReader<>(schema, getPojoClassLoader()));
         setWriter(new AvroWriter<>(schema));
     }
 
@@ -95,7 +95,11 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        if (schemaDefinition.getPojo() != null) {
+            return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), schemaDefinition.getPojo());
+        } else {
+            return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        }
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
@@ -107,10 +111,6 @@ public class AvroSchema<T> extends StructSchema<T> {
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
-    public static <T> AvroSchema<T> ofWithClass(SchemaDefinition<T> schemaDefinition) {
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), schemaDefinition.getPojo());
-    }
-
     @Override
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
@@ -119,7 +119,7 @@ public class AvroSchema<T> extends StructSchema<T> {
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 schemaInfo.getSchemaDefinition());
             return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema,
-                    getDecodeObjectClassLoader());
+                    getPojoClassLoader());
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
@@ -128,12 +128,8 @@ public class AvroSchema<T> extends StructSchema<T> {
         }
     }
 
-    private ClassLoader getDecodeObjectClassLoader() {
-        if (this.decodeObjectClass == null) {
-            return null;
-        } else {
-            return this.decodeObjectClass.getClassLoader();
-        }
+    private ClassLoader getPojoClassLoader() {
+        return this.pojoClass == null ? null : this.pojoClass.getClassLoader();
     }
 
 }
