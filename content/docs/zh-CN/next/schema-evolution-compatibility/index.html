@@ -76,30 +76,30 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Schema 进化和兼容</h1></header><article><div><span><p>通常情况下，Schema 不会在很长时间内保持不变。 相反地，它们会不断更新，以满足新的需求。</p>
-<p>本章将探讨 Pulsar Schema 如何演变以及 Pulsar Schema 的兼容性检查策略。</p>
+<p>本章将探讨 Pulsar Schema 如何进化以及 Pulsar Schema 的兼容性检查策略。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema-进化"></a><a href="#schema-进化" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 进化</h2>
-<p>在 <code>SchemaInfo</code> 的数据结构中定义了 Pulsar schema 。</p>
-<p>每个存储主题的 <code>SchemaInfo</code> 有一个版本。 版本用于管理主题内发生的 schema 更改。</p>
-<p>使用 <code>SchemaInfo</code> 生成的消息已标记为架构版本。 当消息被 Pulsar 客户端消耗时， Pulsar 客户端可以使用 schema 的版本检索对应的 <code>SchemaInfo</code> 并使用正确的 schema 信息来反序列化数据。</p>
+<p>在 <code>SchemaInfo</code> 的数据结构中定义 Pulsar schema 。</p>
+<p>每个用 topic 存储的 <code>SchemaInfo</code> 都有一个版本。 版本信息用于管理 topic 内发生的 schema 更改。</p>
+<p>使用 <code>SchemaInfo</code> 生成的消息用 schema 版本进行标记。 当消息被 Pulsar 客户端 consume 时，Pulsar 客户端可以使用 schema 版本检索相应的 <code>SchemaInfo</code>，并使用正确的 schema 信息来反序列化数据。</p>
 <h3><a class="anchor" aria-hidden="true" id="什么是-schema-进化？"></a><a href="#什么是-schema-进化？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>什么是 Schema 进化？</h3>
-<p>Schemas 存储属性和类型的详细信息。 为了满足新的业务要求，你需要随着时间的推移不可避免地更新方案，这个方案被称为 <strong>schema evolution</strong>。</p>
-<p>任何 schema 变化都会影响到下游消费者。 Schema 升级确保下游消费者能够无缝地处理以旧方案和新方案编码的数据。</p>
-<h3><a class="anchor" aria-hidden="true" id="pulsar-schema-应如何演变？"></a><a href="#pulsar-schema-应如何演变？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar schema 应如何演变？</h3>
-<p>答案是 Pulsar schema 兼容性检查战略。 它决定了schema 如何与主题中的新旧 schema 进行对比。</p>
-<p>欲了解更多信息，请参阅 <a href="#schema-compatibility-check-strategy">Schema 兼容性检查策略</a>。</p>
-<h3><a class="anchor" aria-hidden="true" id="pulsar-是如何支撑-schema-进化的？"></a><a href="#pulsar-是如何支撑-schema-进化的？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 是如何支撑 Schema 进化的？</h3>
+<p>属性和类型的详细信息存储在 Schemas 中。 为了满足新的业务要求，需要不断更新 schemas，这种更新就叫做 <strong>schema 进化</strong>。</p>
+<p>Schema 的任何变化都会影响到下游 consumers。 Schema 进化确保了下游 consumers 能够无缝地处理以旧 schemas 和以新 schemas 编码的数据。</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-schema-应如何进化？"></a><a href="#pulsar-schema-应如何进化？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar schema 应如何进化？</h3>
+<p>答案就是 Pulsar schema 兼容性检查策略。 这一策略决定了 schema 如何将 topics 中的新、旧 schema 进行比较。</p>
+<p>了解更多信息，请参阅 <a href="#schema-compatibility-check-strategy">Schema 兼容性检查策略</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="pulsar-对-schema-进化提供了怎样的支持？"></a><a href="#pulsar-对-schema-进化提供了怎样的支持？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 对 Schema 进化提供了怎样的支持？</h3>
 <ol>
-<li><p>当生产者/消费者/阅读器连接到代理时，代理会部署由 <code>schemaRegistryCompatibilityCheckers</code> 配置的 schema 兼容性检查器来执行 schema 兼容性检查。</p>
+<li><p>当 producer/consumer/ 阅读器连接到 broker 时，broker 会部署由 <code>schemaRegistryCompatibilityCheckers</code> 配置的 schema 兼容性检查器来进行 schema 兼容性检查。</p>
 <p>schema 兼容性检查是每个 schema 类型的一个实例。</p>
-<p>目前，Avro 和 JSON 有自己的兼容性检查器，而所有其他 schema 类型都共享默认兼容性检查器，禁用 schema 进化。</p></li>
-<li><p>生产者/消费者/读者将其客户 <code>SchemaInfo</code> 发送给代理。</p></li>
-<li><p>代理知道 schema 类型，并且找到此类型的 schema 兼容性检查器。</p></li>
-<li><p>代理使用检查器来检查 <code>SchemaInfo</code> 是否与主题的最新 schema 兼容，应用其兼容性检查策略。</p>
-<p>目前，兼容性检查策略是在命名空间级别配置的，适用于命名空间中的所有主题。</p></li>
+<p>目前，Avro 和 JSON 有自己的兼容性检查器，所有其他 schema 类型共享默认兼容性检查器，而此默认检查器禁用 schema 进化。</p></li>
+<li><p>Producer/consumer/ 阅读器将其客户端 <code>SchemaInfo</code> 发送到 broker。</p></li>
+<li><p>Broker 知道 schema 类型，并找到此类型的 schema 兼容性检查器。</p></li>
+<li><p>Broker 使用检查器，以兼容性检查策略来检查 <code>SchemaInfo</code> 是否与 topic 的最新 schema 兼容。</p>
+<p>目前，兼容性检查策略是在命名空间级别配置的，适用于命名空间中的所有 topics。</p></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="schema-兼容性检查策略"></a><a href="#schema-兼容性检查策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 兼容性检查策略</h2>
-<p>Pulsar 有 8种 schema 兼容性检查策略，摘要见下表。</p>
-<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
+<p>Pulsar 有 8种 schema 兼容性检查策略，如下所示。</p>
+<p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table style="table">
   <tr>
 <th>
@@ -129,7 +129,7 @@
 <p>允许所有更改</p>
 </td> 
 <td> 
-<p>所有之前的版本</p>
+<p>所有旧版本</p>
 </td> 
 <td> 
 <p>任何请求</p>
@@ -143,7 +143,7 @@
 <p>禁用 schema 进化。</p>
 </td> 
 <td> 
-<p>所有更改已禁用</p>
+<p>禁用更改</p>
 </td> 
 <td> 
 <p>无</p>
@@ -157,7 +157,7 @@
 <p><code>BACKWARD</code></p>
 </td> 
 <td> 
-<p>使用 schema V3 的消费者可以处理生产者使用 schema V3 或 V2 编写的数据。</p>
+<p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
 </td> 
 <td> 
 <ul>
@@ -177,7 +177,7 @@
 <p><code>BACKWARD_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>使用 schema V3 的消费者可以处理生产者使用 schema V3、V2 或 V1 编写的数据。</p>
+<p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
 </td> 
 <td> 
 <ul>
@@ -186,7 +186,7 @@
 </ul>
 </td> 
 <td> 
-<p>所有之前的版本</p>
+<p>所有旧版本</p>
 </td> 
 <td> 
 <p>Consumers</p>
@@ -197,7 +197,7 @@
 <p><code>FORWARD</code></p>
 </td> 
 <td> 
-<p>使用 schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
+<p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
 <ul>
@@ -217,7 +217,7 @@
 <p><code>FORWARD_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>使用 schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
+<p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
 <ul>
@@ -226,7 +226,7 @@
 </ul>
 </td> 
 <td> 
-<p>所有之前的版本</p>
+<p>所有旧版本</p>
 </td> 
 <td> 
 <p>Producers</p>
@@ -237,7 +237,7 @@
 <p><code>FULL</code></p>
 </td> 
 <td> 
-<p>架构 V3 和 V2 之间向后和向前兼容。</p>
+<p>Schema V3 和 V2 之间向后和向前兼容。</p>
 </td> 
 <td> 
 <ul>
@@ -256,7 +256,7 @@
 <p><code>FULL_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>架构 V3、V2 和 V1 之间向后和向前兼容。</p>
+<p>Schema V3、V2 和 V1 之间向后和向前兼容。</p>
 </td> 
 <td> 
 <ul>
@@ -264,7 +264,7 @@
 </ul>
 </td> 
 <td> 
-<p>所有之前的版本</p>
+<p>所有旧版本</p>
 </td> 
 <td> 
 <p>任何请求</p>
@@ -281,7 +281,7 @@
 <p>定义</p>
 </th>
 <th>
-<p>Note</p>
+<p>注</p>
 </th>
   </tr>
   <tr>
@@ -300,19 +300,19 @@
 <p><code>ALWAYS_INCOMPATIBLE</code></p>
 </td> 
 <td> 
-<p>禁用 schema 进化，即拒绝任何 schema 更改。</p>
+<p>禁用 schema 进化，即不允许 schema 更改。</p>
 </td> 
 <td> 
 <ul>
-<li><p>对于除 Avro 和 JSON 以外的所有类型的架构，默认架构兼容性检查策略是 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
-<li><p>对于Avro 和 JSON 来说，默认架构兼容性检查策略是 `FULL'。</p></li>
+<li><p>除 Avro 和 JSON 以外所有类型的 schema，其默认 schema 兼容性检查策略为 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
+<li><p>Avro 和 JSON 的默认 schema 兼容性检查策略为 `FULL'。</p></li>
 </ul>
 </td>  </tr>
 </table>
-<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<h4><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
 <li><p>示例 1</p>
-<p>在某些情况下，应用程序需要将几种不同类型的事件储存在同一个 Pulsar 主题。</p>
+<p>在某些情况下，应用程序需要将几种不同类型的事件储存在同一个 Pulsar topic 中。</p>
 <p>尤其是，当在 <code>事件来源</code> 风格中开发数据模型时， 你可能有几种影响实体状态的事件。</p>
 <p>例如，对于用户实体来说，有 <code>用户创建</code>, <code>用户地址变更</code> 和 <code>用户收到了</code> 事件。 应用程序要求这些事件总是按同样顺序阅读。</p>
 <p>因此，这些事件需要进入相同的 Pulsar 分区以维持秩序。 此应用程序可以使用 <code>ALWAYS_COMPATIBLE</code> 来允许不同类型的事件在同一主题中共存。</p></li>
@@ -329,17 +329,17 @@
 </ul></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="backward-和-backward_transitive"></a><a href="#backward-和-backward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BACKWARD 和 BACKWARD_TRANSITIVE</h3>
-<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
+<p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
 </tbody>
 </table>
 <p><code>BACKWARD</code> | 使用新 schema 的消费者可以使用 <strong>上一版 schema</strong> 处理生产者编写的数据。 | 使用 schema V3 的消费者可以处理生产者使用 schema V3 或 V2 编写的数据。 | <code>BACKWARD_TRANSITIVE</code> | 使用新 schema 的消费者可以使用 <strong>所有以前的schemas</strong> 处理生产者编写的数据。 | 使用 schema V3 的消费者可以处理生产者使用 schema V3、V2 或 V1 编写的数据。 |</p>
-<h4><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
 <li><p>示例 1</p>
 <p>删除字段。</p>
@@ -349,17 +349,17 @@
 <p>即使数据被更改，相同的 SQL 查询也必须继续工作。 为了能够使用它，你可以使用 <code>BACKWARD</code> 策略进化方案。</p></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="forward-and-forward_transitive"></a><a href="#forward-and-forward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FORWARD and FORWARD_TRANSITIVE</h3>
-<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
+<p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table>
 <thead>
-<tr><th>兼容性检查策略</th><th>定义</th><th>Description</th></tr>
+<tr><th>兼容性检查策略</th><th>定义</th><th>说明</th></tr>
 </thead>
 <tbody>
 <tr><td></td><td></td><td></td></tr>
 </tbody>
 </table>
 <p><code>FORWARD</code> | 消费者使用 <strong>前一个 schema</strong> 可以处理生产者使用新 schema 编写的数据。 即使他们可能无法充分利用新模式的全部能力。 | 使用schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。 | <code>FORWARD_TRANSITIVE</code> | 消费者使用 <strong>之前的所有 schemas</strong> 可以处理生产者使用新 scheme 编写的数据。 | 使用schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
-<h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<h4><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
 <li><p>示例 1</p>
 <p>添加字段。</p>
@@ -369,8 +369,8 @@
 <p>在这种情况下，你需要将一个新 schema 的数据投射到应用程序理解的旧 schema 上。</p>
 <p>因此， 你可以使用 <code>FORWARD</code> 策略来进化 schemas 以确保旧 schema 能够处理使用新schema 编码的数据。</p></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="full-and-full_transitive"></a><a href="#full-and-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL and FULL_TRANSITIVE</h3>
-<p>假设你有一个包含三个方案的主题 (V1、V2和V3)，V1 是最老的，V3 是最新的：</p>
+<h3><a class="anchor" aria-hidden="true" id="full-和-full_transitive"></a><a href="#full-和-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL 和 FULL_TRANSITIVE</h3>
+<p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table style="table">
   <tr>
 <th>
@@ -391,20 +391,20 @@
 <p><code>FULL</code></p>
 </td> 
 <td> 
-<p>方案既向后兼容，也向前兼容，这意味着</p>
-<p>使用最后一个方案的消费者可以处理生产者使用新方案编写的数据。</p>
-<p>和</p>
-<p>使用新模式的消费者可以处理生产者使用最后一个模式编写的数据。</p>
+<p>Schema 既向后兼容，也向前兼容，也就是说：</p>
+<p>使用最新 schema 的 consumer 可以处理 producer 使用新 schema 编写的数据。</p>
+<p>并且</p>
+<p>使用 schema 的 consumer 可以处理 producer 使用最新 schema 编写的数据。</p>
 </td> 
 <td> 
-<p>使用 schema V3 的消费者可以处理生产者使用 schema V3 或 V2 编写的数据。</p>
-<p>和</p>
-<p>使用schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
+<p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 编写的数据。</p>
+<p>并且</p>
+<p>使用 schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
 <ul>
-<li><p>对于Avro 和 JSON 来说，默认架构兼容性检查策略是 `FULL'。</p></li>
-<li><p>对于除 Avro 和 JSON 以外的所有类型的架构，默认架构兼容性检查策略是 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
+<li><p>Avro 和 JSON 的默认 schema 兼容性检查策略为 `FULL'。</p></li>
+<li><p>除 Avro 和 JSON 以外所有类型的 schema，其默认 schema 兼容性检查策略为 <code>ALWAYS_INCOMPATIBLE</code> 。</p></li>
 </ul>
 </td>
 </tr>
@@ -413,40 +413,40 @@
 <p><code>FULL_TRANSITIVE</code></p>
 </td> 
 <td> 
-<p>新的方案是可以后退的，是与所有先前注册的方案兼容的。</p>
+<p>新的 schema 可以与所有注册过的 schema 向后或向前兼容。</p>
 </td> 
 <td> 
-<p>使用 schema V3 的消费者可以处理生产者使用 schema V3、V2 或 V1 编写的数据。</p>
-<p>和</p>
-<p>使用 schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
+<p>使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 编写的数据。</p>
+<p>并且</p>
+<p>使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 编写的数据。</p>
 </td> 
 <td> 
 <p>无</p>
 </td>
   </tr>
 </table>
-<h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
-<p>在某些数据格式中，例如 Avro，你可以使用默认值定义字段。 因此，添加或删除默认值的字段是完全兼容的更改。</p>
+<h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p>在某些数据格式中（例如：Avro），可以使用默认值来定义字段。 这样，添加或删除这些字段的更改是完全可兼容的。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema-验证"></a><a href="#schema-验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 验证</h2>
-<p>当生产商或消费者试图连接到某个主题时，代理会进行一些检查来验证一个方案。</p>
+<p>当 producer 或 consumer 尝试连接到某个 topic 时，broker 会进行检查以验证 schema。</p>
 <h3><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h3>
-<p>当生产者试图连接到某个主题时(假定忽略模式自动创建)，代理会进行以下检查：</p>
+<p>当 producer 试图连接到某个 topic 时（假定忽略 schema 自动创建），broker 会进行以下检查：</p>
 <ul>
-<li><p>检查生产者携带的 schema 是否存在于 schema 注册表中。</p>
+<li><p>检查 producer 携带的 schema 是否存在于 schema 注册表中。</p>
 <ul>
-<li><p>如果 schema 已经被注册，那么生产商就与经纪人连接并生成与此 schema 方案相关的信息。</p></li>
-<li><p>如果 schema 没有注册，那么 Pulsar 会验证是否允许根据配置的兼容性检查策略对 schema 进行注册。</p></li>
+<li><p>如果 schema 已经注册，那么 producer 就与 broker 连接，并 produce 与此 schema 相关的消息。</p></li>
+<li><p>如果 schema 没有注册，那么 Pulsar 会验证是否允许基于配置的兼容性检查策略对 schema 进行注册。</p></li>
 </ul></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h3>
-<p>当消费者试图连接到某个主题时， 代理会根据配置的 schema 兼容性检查策略检查所携带的 schema 是否与注册 schema 兼容。</p>
+<p>当 consumer 尝试连接到某个 topic 时，broker 会根据配置的 schema 兼容性检查策略来检查 consumer 所携带的 schema 是否与注册的 schema 兼容。</p>
 <table style="table">
   <tr>
     <th>
       兼容性检查策略
     </th>
 <pre><code class="hljs">&lt;th&gt;
-  检查原理
+  检查逻辑
 &lt;/th&gt;
 </code></pre>
   </tr>
@@ -597,7 +597,7 @@
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
 </td>  </tr>
-</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何演变？">Pulsar schema 应如何演变？</a></li><li><a href="#pulsar-是如何支撑-schema-进化的？">Pulsar 是如何支撑 Schema 进化的？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何进化？">Pulsar schema 应如何进化？</a></li><li><a href="#pulsar-对-schema-进化提供了怎样的支持？">Pulsar 对 Schema 进化提供了怎样的支持？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-和-full_transitive">FULL 和 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
