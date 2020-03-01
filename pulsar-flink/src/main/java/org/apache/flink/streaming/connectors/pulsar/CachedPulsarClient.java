@@ -79,7 +79,13 @@ public class CachedPulsarClient {
     }
 
     public static PulsarClientImpl getOrCreate(ClientConfigurationData config) throws ExecutionException {
-        return guavaCache.get(config);
+        PulsarClientImpl instance = guavaCache.get(config);
+        if (instance.getState().get() == PulsarClientImpl.State.Open) {
+            return instance;
+        } else {
+            guavaCache.invalidate(config);
+            return guavaCache.get(config);
+        }
     }
 
     private static void close(ClientConfigurationData clientConfig, PulsarClientImpl client) {
