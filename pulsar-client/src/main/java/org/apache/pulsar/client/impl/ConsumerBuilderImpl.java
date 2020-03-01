@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -116,7 +117,16 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-
+        if(conf.isRetryEnable() == true && conf.getTopicNames().size() > 0 ) {
+            if(conf.getDeadLetterPolicy() == null) {
+                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                                        .retryLetterTopic(conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX)
+                                        .deadLetterTopic(conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX)
+                                        .build());
+            }
+            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+        }
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
                 client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
@@ -375,4 +385,11 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setKeySharedPolicy(keySharedPolicy);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> enableRetry(boolean retryEnable) {
+        conf.setRetryEnable(retryEnable);
+        return this;
+    }
+
 }
