@@ -306,6 +306,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		// Attempt to send the message and handle the response
 		p, err := gi.getProducer(topic)
 		if err != nil {
+			// check here , when getProducer get err,should exit the entire program?
 			log.Errorf("getProducer err:{%+v}", err)
 			if autoAck && atLeastOnce {
 				gi.ackInputMessage(msgInput)
