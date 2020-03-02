@@ -211,12 +211,16 @@ public class Commands {
         return schemaResponse.build();
     }
 
-    public static CommandLookupTopicResponse newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-            CommandLookupTopicResponse.LookupType response, boolean proxyThroughServiceUrl) {
+    public static CommandLookupTopicResponse newLookupResponse(String grpcServiceHost, Integer grpcServicePort,
+            Integer grpcServicePortTls, boolean authoritative, CommandLookupTopicResponse.LookupType response,
+            boolean proxyThroughServiceUrl) {
         CommandLookupTopicResponse.Builder commandLookupTopicResponseBuilder = CommandLookupTopicResponse.newBuilder();
-        commandLookupTopicResponseBuilder.setBrokerServiceUrl(brokerServiceUrl);
-        if (brokerServiceUrlTls != null) {
-            commandLookupTopicResponseBuilder.setBrokerServiceUrlTls(brokerServiceUrlTls);
+        commandLookupTopicResponseBuilder.setGrpcServiceHost(grpcServiceHost);
+        if (grpcServicePort != null) {
+            commandLookupTopicResponseBuilder.setGrpcServicePort(grpcServicePort);
+        }
+        if (grpcServicePortTls != null) {
+            commandLookupTopicResponseBuilder.setGrpcServicePortTls(grpcServicePortTls);
         }
         commandLookupTopicResponseBuilder.setResponse(response);
         commandLookupTopicResponseBuilder.setAuthoritative(authoritative);

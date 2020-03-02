@@ -1,6 +1,9 @@
 package org.apache.pulsar.protocols.grpc;
 
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
@@ -12,7 +15,10 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.protocols.grpc.api.*;
+import org.apache.pulsar.protocols.grpc.api.CommandConnect;
+import org.apache.pulsar.protocols.grpc.api.CommandLookupTopic;
+import org.apache.pulsar.protocols.grpc.api.CommandLookupTopicResponse;
+import org.apache.pulsar.protocols.grpc.api.PulsarGrpc;
 import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,15 +34,15 @@ import static org.apache.pulsar.protocols.grpc.Constants.AUTH_METADATA_KEY;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+
 public class GrpcServiceTest {
 
     private PulsarService pulsar;
-    private GrpcService grpcService;
+    private GrpcService grpcService = new GrpcService();
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
-
 
     /**
      * Test that if enableTls option is enabled, GrpcService is available both on plaintext and TLS ports.
@@ -158,9 +164,7 @@ public class GrpcServiceTest {
         String result;
         try {
             CommandLookupTopicResponse response = stub.lookupTopic(CommandLookupTopic.newBuilder().setTopic("persistent://my-property/local/my-namespace/my-topic").build());
-            result = response.getBrokerServiceUrl();
-            //CommandGetSchemaResponse schema = stub.getSchema(CommandGetSchema.newBuilder().setTopic("my-topic").build());
-            //result = schema.getSchema().getName();
+            result = response.getGrpcServiceHost();
         } finally {
             channel.shutdown();
             channel.awaitTermination(30, TimeUnit.SECONDS);
@@ -202,6 +206,8 @@ public class GrpcServiceTest {
         pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
+        Map<String, String> protocolDataToAdvertise = new HashMap<>();
+        doReturn(protocolDataToAdvertise).when(pulsar).getProtocolDataToAdvertise();
         pulsar.start();
 
         String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
@@ -233,6 +239,8 @@ public class GrpcServiceTest {
         grpcService = new GrpcService();
         grpcService.initialize(config);
         grpcService.start(pulsar.getBrokerService());
+        protocolDataToAdvertise.put(grpcService.protocolName(), grpcService.getProtocolDataToAdvertise());
+        pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
     }
 
     @AfterMethod(alwaysRun = true)

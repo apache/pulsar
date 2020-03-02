@@ -337,17 +337,16 @@ message CommandLookupTopicResponse {
         Failed   = 2;
     }
 
-    optional string brokerServiceUrl      = 1; // Optional in case of error
-    optional string brokerServiceUrlTls   = 2;
-    optional LookupType response          = 3;
-    optional bool authoritative           = 4 [default = false];
-    optional ServerError error            = 5;
-    optional string message               = 6;
+    required string grpcServiceHost         = 1;
+    optional int32 grpcServicePort          = 2;
+    optional int32 grpcServicePortTls       = 3;
+    required LookupType response            = 4;
+    required bool authoritative             = 5 [default = false];
 
     // If it's true, indicates to the client that it must
     // always connect through the service url after the
     // lookup has been completed.
-    optional bool proxy_through_service_url = 7 [default = false];
+    required bool proxy_through_service_url = 6 [default = false];
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,

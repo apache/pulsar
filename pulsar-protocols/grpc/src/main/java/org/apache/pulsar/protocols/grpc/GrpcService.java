@@ -18,12 +18,15 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.pulsar.protocols.grpc.Constants.*;
+
 public class GrpcService implements ProtocolHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcService.class);
     private static final String NAME = "grpc";
 
     private ServiceConfiguration configuration;
+    private String advertisedAddress = null;
     private Server server = null;
     private Server tlsServer = null;
 
@@ -45,13 +48,17 @@ public class GrpcService implements ProtocolHandler {
     @Override
     public String getProtocolDataToAdvertise() {
         List<String> args = new ArrayList<>();
+        if (advertisedAddress != null) {
+            StringBuilder sb = new StringBuilder(GRPC_SERVICE_HOST_PROPERTY_NAME);
+            args.add(sb.append("=").append(advertisedAddress).toString());
+        }
         if (server != null) {
-            StringBuilder sb = new StringBuilder("grpcServicePort=");
-            args.add(sb.append(server.getPort()).toString());
+            StringBuilder sb = new StringBuilder(GRPC_SERVICE_PORT_PROPERTY_NAME);
+            args.add(sb.append("=").append(server.getPort()).toString());
         }
         if (tlsServer != null) {
-            StringBuilder sb = new StringBuilder("grpcServicePortTls=");
-            args.add(sb.append(tlsServer.getPort()).toString());
+            StringBuilder sb = new StringBuilder(GRPC_SERVICE_PORT_TLS_PROPERTY_NAME);
+            args.add(sb.append("=").append(tlsServer.getPort()).toString());
         }
         return String.join(";", args);
     }
@@ -59,6 +66,7 @@ public class GrpcService implements ProtocolHandler {
     @Override
     public void start(BrokerService service) {
         try {
+            advertisedAddress = service.pulsar().getAdvertisedAddress();
             PulsarGrpcService pulsarGrpcService = new PulsarGrpcService(service, configuration, new NioEventLoopGroup());
             List<ServerInterceptor> interceptors = new ArrayList<>();
             interceptors.add(new GrpcServerInterceptor());

@@ -5,7 +5,6 @@ import io.grpc.Metadata;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.protocols.grpc.api.CommandProducer;
 
-import javax.net.ssl.SSLSession;
 import java.net.SocketAddress;
 
 import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
@@ -23,5 +22,9 @@ public class Constants {
     public static final Context.Key<SocketAddress> REMOTE_ADDRESS_CTX_KEY = Context.key("RemoteAddress");
     public static final Context.Key<String> AUTH_ROLE_CTX_KEY = Context.key("AuthRole");
     public static final Context.Key<AuthenticationDataSource> AUTH_DATA_CTX_KEY = Context.key("AuthenticationData");
+
+    public static final String GRPC_SERVICE_HOST_PROPERTY_NAME = "grpcServiceHost";
+    public static final String GRPC_SERVICE_PORT_PROPERTY_NAME = "grpcServicePort";
+    public static final String GRPC_SERVICE_PORT_TLS_PROPERTY_NAME = "grpcServicePortTls";
 
 }

@@ -23,6 +23,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -33,11 +34,17 @@ import org.apache.pulsar.protocols.grpc.api.ServerError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.StringReader;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 import static org.apache.pulsar.protocols.grpc.Commands.newLookupResponse;
 import static org.apache.pulsar.protocols.grpc.Commands.newStatusException;
+import static org.apache.pulsar.protocols.grpc.Constants.*;
 
 public class TopicLookup extends PulsarWebResource {
 
@@ -68,8 +75,9 @@ public class TopicLookup extends PulsarWebResource {
                             differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(),
                             cluster);
                 }
-                validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
-                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, false));
+                lookupTopicGrpcData(pulsarService, validationFuture, differentClusterData.getServiceUrl(),
+                        differentClusterData.getServiceUrlTls(), true, LookupType.Redirect,
+                        false);
             } else {
                 // (2) authorize client
                 try {
@@ -103,9 +111,9 @@ public class TopicLookup extends PulsarWebResource {
                                 );
                                 return;
                             }
-                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
-                                    false));
+                            lookupTopicGrpcData(pulsarService, validationFuture, peerClusterData.getServiceUrl(),
+                                    peerClusterData.getServiceUrlTls(), true, LookupType.Redirect,
+                                    false);
 
                         }).exceptionally(ex -> {
                     validationFuture.completeExceptionally(
@@ -140,51 +148,90 @@ public class TopicLookup extends PulsarWebResource {
                             LookupData lookupData = lookupResult.get().getLookupData();
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = isLeaderBroker(pulsarService);
-                                lookupfuture.complete(
-                                        newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                newAuthoritative, LookupType.Redirect, false));
+                                lookupTopicGrpcData(pulsarService, lookupfuture, lookupData.getHttpUrl(),
+                                        lookupData.getHttpUrlTls(), newAuthoritative, LookupType.Redirect,
+                                        false);
                             } else {
                                 // When running in standalone mode we want to redirect the client through the service
                                 // url, so that the advertised address configuration is not relevant anymore.
                                 boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
                                         .isRunningStandalone();
 
-                                lookupfuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
-                                        lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
-                                        redirectThroughServiceUrl));
+                                lookupTopicGrpcData(pulsarService, lookupfuture, lookupData.getHttpUrl(),
+                                        lookupData.getHttpUrlTls(), true, LookupType.Connect,
+                                        redirectThroughServiceUrl);
                             }
-                        }).exceptionally(ex -> {
-                    if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                        log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
-                                topicName.toString(), ex.getCause().getMessage());
-                    } else {
-                        log.warn("Failed to lookup {} for topic {} with error {}", clientAppId,
-                                topicName.toString(), ex.getMessage(), ex);
-                    }
-                    lookupfuture.completeExceptionally(
-                            newStatusException(Status.UNAVAILABLE, ex, ServerError.ServiceNotReady));
-                    return null;
-                });
+                        }).exceptionally(ex -> handleLookupException(topicName, clientAppId, lookupfuture, ex));
             }
 
         }).exceptionally(ex -> {
             if (ex instanceof StatusRuntimeException) {
                 lookupfuture.completeExceptionally(ex);
             } else {
-                if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                    log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
-                            ex.getCause().getMessage());
-                } else {
-                    log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
-                            ex.getMessage(), ex);
-                }
-                lookupfuture.completeExceptionally(
-                        newStatusException(Status.UNAVAILABLE, ex, ServerError.ServiceNotReady));
+                handleLookupException(topicName, clientAppId, lookupfuture, ex);
             }
             return null;
         });
 
         return lookupfuture;
+    }
+
+    private static Void handleLookupException(TopicName topicName, String clientAppId, CompletableFuture<CommandLookupTopicResponse> lookupfuture, Throwable ex) {
+        if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+            log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
+                    topicName.toString(), ex.getCause().getMessage());
+        } else {
+            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId,
+                    topicName.toString(), ex.getMessage(), ex);
+        }
+        lookupfuture.completeExceptionally(
+                newStatusException(Status.UNAVAILABLE, ex, ServerError.ServiceNotReady));
+        return null;
+    }
+
+    private static void lookupTopicGrpcData(PulsarService pulsarService,
+            CompletableFuture<CommandLookupTopicResponse> lookupfuture, String serviceUrl, String serviceUrlTls, boolean authoritative,
+            CommandLookupTopicResponse.LookupType type, boolean redirectThroughServiceUrl) {
+        try {
+            String lookupServiceUrl = serviceUrl != null ? serviceUrl : serviceUrlTls;
+            URI uri = new URI(lookupServiceUrl);
+            String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
+                    uri.getPort());
+            pulsarService.getLocalZkCache().getDataAsync(path, pulsarService.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
+                Optional<String> grpcData = reportData.flatMap(serviceLookupData -> serviceLookupData.getProtocol("grpc"));
+                if (grpcData.isPresent()) {
+                    String props = grpcData.get();
+                    Properties properties = new Properties();
+                    try {
+                        properties.load(new StringReader(props.replaceAll(";", "\n")));
+                        String grpcHost = properties.getProperty(GRPC_SERVICE_HOST_PROPERTY_NAME);
+                        String grpcServicePortProp = properties.getProperty(GRPC_SERVICE_PORT_PROPERTY_NAME);
+                        Integer grpcServicePort =
+                                grpcServicePortProp != null ? Integer.valueOf(grpcServicePortProp) : null;
+                        String grpcServicePortTlsProp = properties.getProperty(GRPC_SERVICE_PORT_TLS_PROPERTY_NAME);
+                        Integer grpcServicePortTls =
+                                grpcServicePortTlsProp != null ? Integer.valueOf(grpcServicePortTlsProp) : null;
+                        if (grpcHost != null) {
+                            lookupfuture.complete(newLookupResponse(grpcHost, grpcServicePort, grpcServicePortTls,
+                                    authoritative, type, redirectThroughServiceUrl));
+                            return;
+                        }
+
+                    } catch (Exception e) {
+                        log.error("Couldn't parse grpc data", e);
+                    }
+                }
+                lookupfuture.completeExceptionally(newStatusException(Status.UNAVAILABLE,
+                        "Couldn't get gRPC protocol data on broker owning the topic", null, ServerError.MetadataError));
+            }).exceptionally(ex -> {
+                lookupfuture.completeExceptionally(newStatusException(Status.UNAVAILABLE,
+                        "Couldn't read load report on broker owning the topic", null, ServerError.MetadataError));
+                return null;
+            });
+        } catch (URISyntaxException e) {
+            lookupfuture.completeExceptionally(newStatusException(Status.INTERNAL,
+                    "Invalid broker URL", null, ServerError.UnknownError));
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicLookup.class);
