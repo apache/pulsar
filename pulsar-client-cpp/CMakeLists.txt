@@ -116,11 +116,13 @@ if (LINK_STATIC)
     find_library(CURL_DEBUG_LIBRARIES NAMES curl_a_debug libcurl_a_debug)
     find_library(LIB_ZSTD NAMES libzstd.a)
     find_library(LIB_SNAPPY NAMES libsnappy.a)
-
     
     composeLibraryList(ZLIB_LIBRARIES ZLIB_DEBUG_LIBRARIES)
     composeLibraryList(Protobuf_LITE_LIBRARIES Protobuf_LITE_DEBUG_LIBRARIES)
     composeLibraryList(CURL_LIBRARIES CURL_DEBUG_LIBRARIES)
+
+    find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
+    find_path(ZLIB_INCLUDE_DIRS zlib.h)
 
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
@@ -175,6 +177,8 @@ else()
         find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
+
+find_path(CURL_INCLUDE_DIRS curl/curl.h)
 
 if (MSVC)
   find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
