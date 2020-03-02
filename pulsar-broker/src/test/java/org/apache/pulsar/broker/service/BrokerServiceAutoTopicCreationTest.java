@@ -104,6 +104,24 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
     }
 
+    @Test
+    public void testAutoSubscriptionCreationDisable() throws Exception{
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "persistent://prop/ns-abc/test-topic";
+        final String subscriptionName = "test-topic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try {
+            pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+            fail("Subscribe operation should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+    }
+
     /**
      * CheckAllowAutoCreation's default value is false.
      * So using getPartitionedTopicMetadata() directly will not produce partitioned topic
