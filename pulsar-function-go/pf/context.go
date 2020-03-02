@@ -57,6 +57,11 @@ func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
 }
 
+// user can choose outputTopic hera
+func (c *FunctionContext) SetOutputTopic(outputTopic string) {
+	c.instanceConf.funcDetails.GetSink().Topic = outputTopic
+}
+
 func (c *FunctionContext) GetFuncTenant() string {
 	return c.instanceConf.funcDetails.Tenant
 }

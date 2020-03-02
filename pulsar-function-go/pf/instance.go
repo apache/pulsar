@@ -22,6 +22,7 @@ package pf
 import (
 	"context"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -34,7 +35,7 @@ import (
 type goInstance struct {
 	function          function
 	context           *FunctionContext
-	producer          pulsar.Producer
+	producers         sync.Map
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
 	lastHealthCheckTs int64
@@ -166,13 +167,15 @@ func (gi *goInstance) setupClient() error {
 
 func (gi *goInstance) setupProducer() (err error) {
 	if gi.context.instanceConf.funcDetails.Sink.Topic != "" && len(gi.context.instanceConf.funcDetails.Sink.Topic) > 0 {
-		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
+		defaultOutTopic := gi.context.instanceConf.funcDetails.Sink.Topic
+		log.Debugf("Setting up producer for topic %s", defaultOutTopic)
 		properties := getProperties(getDefaultSubscriptionName(
 			gi.context.instanceConf.funcDetails.Tenant,
 			gi.context.instanceConf.funcDetails.Namespace,
 			gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
-		gi.producer, err = gi.client.CreateProducer(pulsar.ProducerOptions{
-			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
+		var defaultProvider pulsar.Producer
+		defaultProvider, err = gi.client.CreateProducer(pulsar.ProducerOptions{
+			Topic:                   defaultOutTopic,
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
@@ -183,10 +186,32 @@ func (gi *goInstance) setupProducer() (err error) {
 			log.Errorf("create producer error:%s", err.Error())
 			return err
 		}
+		gi.producers.Store(defaultOutTopic, defaultProvider)
 	}
 	return nil
 }
-
+func (gi *goInstance) getProducer(topic string) (pulsar.Producer, error) {
+	if p, ok := gi.producers.Load(topic); ok {
+		return p.(pulsar.Producer), nil
+	}
+	properties := getProperties(getDefaultSubscriptionName(
+		gi.context.instanceConf.funcDetails.Tenant,
+		gi.context.instanceConf.funcDetails.Namespace,
+		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
+	provider, err := gi.client.CreateProducer(pulsar.ProducerOptions{
+		Topic:                   topic,
+		Properties:              properties,
+		CompressionType:         pulsar.LZ4,
+		BatchingMaxPublishDelay: time.Millisecond * 10,
+		// set send timeout to be infinity to prevent potential deadlock with consumer
+		// that might happen when consumer is blocked due to unacked messages
+	})
+	if err != nil {
+		return nil, err
+	}
+	gi.producers.Store(topic, provider)
+	return provider, nil
+}
 func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	subscriptionType := pulsar.Shared
 	if int32(gi.context.instanceConf.funcDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
@@ -273,12 +298,21 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
 	autoAck := gi.context.instanceConf.funcDetails.AutoAck
 
-	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
+	topic := gi.context.instanceConf.funcDetails.Sink.Topic
+	if output != nil && topic != "" {
 		asyncMsg := pulsar.ProducerMessage{
 			Payload: output,
 		}
 		// Attempt to send the message and handle the response
-		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
+		p, err := gi.getProducer(topic)
+		if err != nil {
+			log.Errorf("getProducer err:{%+v}", err)
+			if autoAck && atLeastOnce {
+				gi.ackInputMessage(msgInput)
+			}
+			return
+		}
+		p.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
 			message *pulsar.ProducerMessage, err error) {
 			if err != nil {
 				if autoAck && atLeastOnce {
@@ -351,9 +385,11 @@ func (gi *goInstance) closeLogTopic() {
 
 func (gi *goInstance) close() {
 	log.Info("closing go instance...")
-	if gi.producer != nil {
-		gi.producer.Close()
+	f := func(k interface{}, v interface{}) bool {
+		v.(pulsar.Producer).Close()
+		return true
 	}
+	gi.producers.Range(f)
 	if gi.consumers != nil {
 		for _, consumer := range gi.consumers {
 			consumer.Close()
