@@ -66,8 +66,13 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
     if (conf.getUnAckedMessagesTimeoutMs() != 0) {
-        unAckedMessageTrackerPtr_.reset(
-            new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), client, *this));
+        if (conf.getTickDurationInMs() > 0) {
+            unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerEnabled(
+                conf.getUnAckedMessagesTimeoutMs(), conf.getTickDurationInMs(), client, *this));
+        } else {
+            unAckedMessageTrackerPtr_.reset(
+                new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), client, *this));
+        }
     } else {
         unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerDisabled());
     }
@@ -954,6 +959,18 @@ Result ConsumerImpl::resumeMessageListener() {
 void ConsumerImpl::redeliverUnacknowledgedMessages() {
     static std::set<MessageId> emptySet;
     redeliverMessages(emptySet);
+    unAckedMessageTrackerPtr_->clear();
+}
+
+void ConsumerImpl::redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) {
+    if (messageIds.empty()) {
+        return;
+    }
+    if (config_.getConsumerType() != ConsumerShared && config_.getConsumerType() != ConsumerKeyShared) {
+        redeliverUnacknowledgedMessages();
+        return;
+    }
+    redeliverMessages(messageIds);
 }
 
 void ConsumerImpl::redeliverMessages(const std::set<MessageId>& messageIds) {
