@@ -132,7 +132,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         while (reader.hasMessageAvailable()) {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         }
-        Assert.assertTrue(keys.isEmpty());
+        // start from latest with start message inclusive should only read the last message in batch
+        Assert.assertTrue(keys.size() == 9);
+        Assert.assertFalse(keys.contains("key9"));
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 
