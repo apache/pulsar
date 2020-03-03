@@ -20,7 +20,9 @@ package org.apache.pulsar.schema;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.apache.avro.reflect.AvroDefault;
 
 public class Schemas {
@@ -28,37 +30,45 @@ public class Schemas {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Getter
+    @Setter
     public static class PersonOne{
-        public int id;
+        int id;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @Getter
+    @Setter
     public static class PersonTwo{
-        public int id;
+        int id;
 
         @AvroDefault("\"Tom\"")
-        public String name;
+        String name;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @Getter
+    @Setter
     public static class PersonThree{
-        public int id;
+        int id;
 
-        public String name;
+        String name;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @Getter
+    @Setter
     public static class PersonFour{
-        public int id;
+        int id;
 
-        public String name;
+        String name;
 
-        public int age;
+        int age;
     }
 }

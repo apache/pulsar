@@ -77,8 +77,12 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     @Override
-    public Schema<T> cloneSchema() {
-        return new AvroSchema<>(schemaInfo);
+    public Schema<T> clone() {
+        Schema<T> schema = new AvroSchema<>(schemaInfo);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {

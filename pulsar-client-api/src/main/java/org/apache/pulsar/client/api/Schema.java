@@ -35,7 +35,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Message schema definition.
  */
-public interface Schema<T> {
+public interface Schema<T> extends Cloneable{
 
     /**
      * Check if the message is a valid object for this schema.
@@ -137,13 +137,11 @@ public interface Schema<T> {
     }
 
     /**
-     * Clone schema.
+     * Duplicates the schema.
      *
-     * @return cloned schema.
+     * @return The duplicated schema.
      */
-    default Schema<T> cloneSchema() {
-        return this;
-    }
+    Schema<T> clone();
 
     /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.

@@ -194,8 +194,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     }
 
     @Override
-    public Schema<KeyValue<K, V>> cloneSchema() {
-        return KeyValueSchema.of(keySchema.cloneSchema(), valueSchema.cloneSchema(), keyValueEncodingType);
+    public Schema<KeyValue<K, V>> clone() {
+        return KeyValueSchema.of(keySchema.clone(), valueSchema.clone(), keyValueEncodingType);
     }
 
     private void configureKeyValueSchemaInfo() {

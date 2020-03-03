@@ -133,8 +133,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public Schema<GenericRecord> cloneSchema() {
-        return Schema.AUTO_CONSUME();
+    public Schema<GenericRecord> clone() {
+        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+        schema.configureSchemaInfo(topicName, componentName, this.schema.getSchemaInfo());
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
     }
 
     private GenericSchema generateSchema(SchemaInfo schemaInfo) {
