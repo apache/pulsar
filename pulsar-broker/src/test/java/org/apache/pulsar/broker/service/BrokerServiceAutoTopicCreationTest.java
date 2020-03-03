@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -120,6 +121,24 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertTrue(e instanceof PulsarClientException);
         }
         assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+    }
+
+    @Test
+    public void testSubscriptionCreationWithAutoCreationDisable() throws Exception{
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "persistent://prop/ns-abc/test-topic";
+        final String subscriptionName = "test-topic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+
+        // Create the subscription by PulsarAdmin
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+
+        // Subscribe operation should be successful
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
     }
 
     /**
