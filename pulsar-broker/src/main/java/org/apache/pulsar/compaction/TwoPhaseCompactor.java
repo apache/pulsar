@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -95,7 +96,10 @@ public class TwoPhaseCompactor extends Compactor {
                     } else {
                         log.info("Commencing phase one of compaction for {}, reading to {}",
                                  reader.getTopic(), lastMessageId);
-                        phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastMessageId, latestForKey,
+                        // Each entry is processed as a whole, discard the batchIndex part deliberately.
+                        MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
+                        MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(), lastImpl.getEntryId(), lastImpl.getPartitionIndex());
+                        phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
                                 loopPromise);
                     }
                 });
