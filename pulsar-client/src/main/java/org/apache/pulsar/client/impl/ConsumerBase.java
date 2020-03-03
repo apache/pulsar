@@ -286,7 +286,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
     }
-  
+
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
@@ -506,7 +506,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         private OpBatchReceive(CompletableFuture<Messages<T>> future) {
             this.future = future;
-            this.createdAt = System.currentTimeMillis();
+            this.createdAt = System.nanoTime();
         }
 
         static <T> OpBatchReceive<T> of(CompletableFuture<Messages<T>> future) {
@@ -565,8 +565,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
             while (firstOpBatchReceive != null) {
                 // If there is at least one batch receive, calculate the diff between the batch receive timeout
-                // and the current time.
-                long diff = (firstOpBatchReceive.createdAt + batchReceivePolicy.getTimeoutMs()) - System.currentTimeMillis();
+                // and the elapsed time since the operation was created.
+                long diff = batchReceivePolicy.getTimeoutMs()
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstOpBatchReceive.createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the batch receive has been timed out.
                     // complete the OpBatchReceive and continue to check the next OpBatchReceive in pendingBatchReceives.
