@@ -2092,7 +2092,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public int getDefaultNumPartitions(final TopicName topicName) {
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
-        if (autoTopicCreationOverride != null && autoTopicCreationOverride.defaultNumPartitions != null) {
+        if (autoTopicCreationOverride != null) {
             return autoTopicCreationOverride.defaultNumPartitions;
         } else {
             return pulsar.getConfiguration().getDefaultNumPartitions();
