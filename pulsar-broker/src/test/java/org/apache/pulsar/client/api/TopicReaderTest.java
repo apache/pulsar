@@ -91,6 +91,17 @@ public class TopicReaderTest extends ProducerConsumerBase {
         };
     }
 
+    @DataProvider
+    public static Object[][] variationsForHasMessageAvailable() {
+        return new Object[][] {
+                // batching / start-inclusive
+                {true,  true},
+                {true,  false},
+                {false, true},
+                {false, false},
+        };
+    }
+
     @Test
     public void testSimpleReader() throws Exception {
         Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReader")
@@ -531,6 +542,68 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     }
 
+    @Test(dataProvider = "variationsForHasMessageAvailable")
+    public void testHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/HasMessageAvailable";
+        final int numOfMessage = 100;
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topicName);
+
+        if (enableBatch) {
+            producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxMessages(10);
+        } else {
+            producerBuilder
+                    .enableBatching(false);
+        }
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
+
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    Assert.fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+
+        latch.await();
+
+        allIds.sort(null); // make sure the largest mid appears at last.
+
+        for (MessageId id : allIds) {
+            Reader<byte[]> reader;
+
+            if (startInclusive) {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).startMessageIdInclusive().create();
+            } else {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).create();
+            }
+
+            if (startInclusive) {
+                assertTrue(reader.hasMessageAvailable());
+            } else if (id != allIds.get(allIds.size() - 1)) {
+                assertTrue(reader.hasMessageAvailable());
+            } else {
+                assertFalse(reader.hasMessageAvailable());
+            }
+            reader.close();
+        }
+
+        producer.close();
+    }
+
     @Test
     public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
@@ -794,7 +867,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .batchingMaxMessages(10)
                 .create();
 
-        CountDownLatch latch = new CountDownLatch(100);
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
 
         List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
 
