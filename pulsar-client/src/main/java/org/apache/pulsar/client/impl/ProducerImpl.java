@@ -987,7 +987,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.cmd = cmd;
             op.callback = callback;
             op.sequenceId = sequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -997,7 +997,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.cmd = cmd;
             op.callback = callback;
             op.sequenceId = sequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -1009,7 +1009,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.callback = callback;
             op.sequenceId = lowestSequenceId;
             op.highestSequenceId = highestSequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -1307,9 +1307,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
-                // If there is at least one message, calculate the diff between the message timeout and the current
-                // time.
-                long diff = (firstMsg.createdAt + conf.getSendTimeoutMs()) - System.currentTimeMillis();
+                // If there is at least one message, calculate the diff between the message timeout and the elapsed
+                // time since first message was created.
+                long diff = conf.getSendTimeoutMs()
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
@@ -1560,7 +1561,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public long getDelayInMillis() {
         OpSendMsg firstMsg = pendingMessages.peek();
         if (firstMsg != null) {
-            return System.currentTimeMillis() - firstMsg.createdAt;
+            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
         }
         return 0L;
     }
