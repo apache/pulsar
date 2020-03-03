@@ -2100,26 +2100,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
-        CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
-        pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
-            try {
-                Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                        .get(AdminResource.path(POLICIES, topicName.getNamespace()));
-                // If namespace policies have the field set, it will override the broker-level setting
-                policies.ifPresent(value -> future.complete(value.autoTopicCreationOverride));
-            } catch (Throwable t) {
-                // Ignoring since if we don't have policies, we fallback on the default
-                log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
-                future.complete(null);
-            }
-            future.complete(null);
-        }, (exception) -> future.completeExceptionally(exception)));
-        //TODO: does this need to be retrieved async? This usage doesn't seem to save anything, in terms of not blocking execution.
         try {
-            return future.get();
-        } catch (Exception ex) {
-            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, ex.getMessage(), ex);
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
+                return policies.get().autoTopicCreationOverride;
+            }
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
             return null;
         }
+        log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        return null;
     }
 }
