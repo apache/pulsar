@@ -663,7 +663,7 @@ public class PulsarClientImpl implements PulsarClient {
             Backoff backoff = new BackoffBuilder()
                     .setInitialTime(100, TimeUnit.MILLISECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(0, TimeUnit.MILLISECONDS)
+                    .setMax(1, TimeUnit.MINUTES)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {
