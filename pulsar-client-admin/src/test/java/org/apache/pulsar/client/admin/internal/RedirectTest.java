@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.glassfish.grizzly.http.server.HttpServer;
@@ -92,10 +93,10 @@ public class RedirectTest {
 	@Test
 	public void testGetRedirect() throws Exception {
 		BookResource resource = new BookResource(ClientBuilder.newClient(), new AuthenticationDisabled(), 20);
-		resource.asyncGetRequest(shop1Target.path("1"), new InvocationCallback<Object>() {
+		resource.asyncGetRequest(shop1Target.path("1"), new InvocationCallback<Book>() {
 			@Override
-			public void completed(Object b) {
-				assertEquals(((Book)b).getName(), "Awesome");
+			public void completed(Book b) {
+				assertEquals(b.getName(), "Awesome");
 			}
 
 			@Override
@@ -104,9 +105,9 @@ public class RedirectTest {
 			}
 		}).get();
 
-		resource.asyncGetRequest(shop1Target.path("2"), new InvocationCallback<Object>() {
+		resource.asyncGetRequest(shop1Target.path("2"), new InvocationCallback<Book>() {
 			@Override
-			public void completed(Object b) {
+			public void completed(Book b) {
 				fail("book with id 2 shouldn't exists in bookshop2");
 			}
 
@@ -116,7 +117,9 @@ public class RedirectTest {
 				assertTrue(cause instanceof ClientErrorException);
 				assertEquals(((ClientErrorException) cause).getResponse().getStatus(), 404);
 			}
-		}).get();
+		});
+
+		Thread.sleep(10000);
 	}
 
 	@Test
@@ -140,7 +143,9 @@ public class RedirectTest {
 		@Path("{id}")
 		@Produces(MediaType.APPLICATION_JSON)
 		public Response getBook(@PathParam("id") int id) {
-			throw new WebApplicationException(Response.temporaryRedirect(URI_2).build());
+			String a = URI_2.toString() + "/books/" + id;
+//			throw new WebApplicationException(Response.temporaryRedirect(URI.create(a)).build());
+			return Response.temporaryRedirect(URI.create(a)).build();
 		}
 
 		@POST
@@ -167,14 +172,16 @@ public class RedirectTest {
 	}
 
 	@Path("books")
-	public static class BookShop2 extends BookShop1 {
+	public static class BookShop2 {
 
 		static final AtomicInteger id = new AtomicInteger(1);
 		static final Map<Integer, Book> books =
 				new HashMap<>(Collections.singletonMap(id.get(), new Book(id.get(), "Awesome")));
 
-		@Override
-		public Response getBook(int id) {
+		@GET
+		@Path("{id}")
+		@Produces(MediaType.APPLICATION_JSON)
+		public Response getBook(@PathParam("id") int id) {
 			if (books.containsKey(id)) {
 				return Response.ok(books.get(id).toJson()).build();
 			} else {
@@ -182,23 +189,30 @@ public class RedirectTest {
 			}
 		}
 
-		@Override
-		public Response createBook(String name) {
+		@POST
+		@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+		@Produces(MediaType.APPLICATION_JSON)
+		public Response createBook(@FormParam("name") String name) {
 			Book book = new Book(id.incrementAndGet(), name);
 			books.put(book.id, book);
 			URI uri = UriBuilder.fromUri(URI_2).path("books").path("" + book.id).build();
 			return Response.created(uri).build();
 		}
 
-		@Override
-		public Response updateOrCreateBook(int id, String name) {
+		@PUT
+		@Path("{id}")
+		@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+		@Produces(MediaType.APPLICATION_JSON)
+		public Response updateOrCreateBook(@PathParam("id") int id, @FormParam("name") String name) {
 			Book book = new Book(id, name);
 			books.put(book.id, book);
 			return Response.ok().entity(book.toJson()).build();
 		}
 
-		@Override
-		public Response deleteBook(int id) {
+		@DELETE
+		@Path("{id}")
+		@Produces(MediaType.APPLICATION_JSON)
+		public Response deleteBook(@PathParam("id") int id) {
 			if (books.containsKey(id)) {
 				Book book = books.remove(id);
 				return Response.ok().entity(book.toJson()).build();
@@ -239,6 +253,7 @@ public class RedirectTest {
 	}
 
 	@Data
+	@NoArgsConstructor
 	@AllArgsConstructor
 	public static class Book {
 		int id;
