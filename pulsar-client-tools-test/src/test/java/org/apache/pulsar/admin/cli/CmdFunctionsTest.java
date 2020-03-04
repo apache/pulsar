@@ -553,7 +553,7 @@ public class CmdFunctionsTest {
 
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
-        assertEquals(INPUT_TOPIC_NAME, creater.getOutput());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         assertEquals(creater.getFunctionConfig().getResources().getCpu(), 5.0);
         // Disk/Ram should be default
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
