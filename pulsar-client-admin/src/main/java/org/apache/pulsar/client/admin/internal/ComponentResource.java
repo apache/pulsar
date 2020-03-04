@@ -29,12 +29,13 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
 public class ComponentResource extends BaseResource {
 
-    protected ComponentResource(Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    protected ComponentResource(Client client, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
     }
 
     public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {

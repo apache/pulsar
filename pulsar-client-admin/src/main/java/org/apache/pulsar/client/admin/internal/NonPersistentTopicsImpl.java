@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -45,8 +46,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     private final WebTarget adminNonPersistentTopics;
     private final WebTarget adminV2NonPersistentTopics;
 
-    public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NonPersistentTopicsImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminNonPersistentTopics = web.path("/admin");
         adminV2NonPersistentTopics = web.path("/admin/v2");
     }

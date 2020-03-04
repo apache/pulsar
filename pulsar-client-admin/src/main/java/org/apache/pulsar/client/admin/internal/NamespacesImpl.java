@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -59,8 +60,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
-    public NamespacesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NamespacesImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }

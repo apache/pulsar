@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -32,8 +33,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
-    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BookiesImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminBookies = web.path("/admin/v2/bookies");
     }
 

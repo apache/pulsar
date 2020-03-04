@@ -42,6 +42,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -83,8 +84,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TopicsImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
     }

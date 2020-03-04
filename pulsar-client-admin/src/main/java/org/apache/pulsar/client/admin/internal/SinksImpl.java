@@ -37,6 +37,7 @@ import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -54,8 +55,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     private final WebTarget sink;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SinksImpl(Client client, WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.sink = web.path("/admin/v3/sink");
         this.asyncHttpClient = asyncHttpClient;
     }

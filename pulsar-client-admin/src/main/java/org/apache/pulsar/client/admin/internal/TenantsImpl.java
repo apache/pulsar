@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.List;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -36,8 +37,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 public class TenantsImpl extends BaseResource implements Tenants, Properties {
     private final WebTarget adminTenants;
 
-    public TenantsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TenantsImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminTenants = web.path("/admin/v2/tenants");
     }
 

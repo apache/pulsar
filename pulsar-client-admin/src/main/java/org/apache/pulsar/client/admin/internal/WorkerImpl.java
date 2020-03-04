@@ -26,6 +26,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
@@ -39,8 +40,8 @@ public class WorkerImpl extends BaseResource implements Worker {
     private final WebTarget workerStats;
     private final WebTarget worker;
 
-    public WorkerImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public WorkerImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.worker = web.path("/admin/v2/worker");
         this.workerStats = web.path("/admin/v2/worker-stats");
     }

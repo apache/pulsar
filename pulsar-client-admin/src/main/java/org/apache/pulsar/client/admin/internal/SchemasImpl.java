@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 
@@ -46,8 +47,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
     private final WebTarget target;
 
-    public SchemasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SchemasImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.target = web.path("/admin/v2/schemas");
     }
 

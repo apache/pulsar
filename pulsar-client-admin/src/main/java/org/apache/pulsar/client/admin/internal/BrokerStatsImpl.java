@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -42,8 +43,8 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     private final WebTarget adminBrokerStats;
     private final WebTarget adminV2BrokerStats;
 
-    public BrokerStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BrokerStatsImpl(Client client, WebTarget target, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }

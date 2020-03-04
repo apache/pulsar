@@ -37,6 +37,7 @@ import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -54,8 +55,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     private final WebTarget source;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SourcesImpl(Client client, WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.source = web.path("/admin/v3/source");
         this.asyncHttpClient = asyncHttpClient;
     }

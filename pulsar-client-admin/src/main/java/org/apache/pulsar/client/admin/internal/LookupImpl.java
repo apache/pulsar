@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.client.admin.Lookup;
@@ -31,8 +32,8 @@ public class LookupImpl extends BaseResource implements Lookup {
     private final WebTarget v2lookup;
     private final boolean useTls;
 
-    public LookupImpl(WebTarget web, Authentication auth, boolean useTls, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public LookupImpl(Client client, WebTarget web, Authentication auth, boolean useTls, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.useTls = useTls;
         v2lookup = web.path("/lookup/v2");
     }

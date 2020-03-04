@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -36,8 +37,8 @@ import org.apache.pulsar.common.util.Codec;
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
-    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BrokersImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminBrokers = web.path("/admin/v2/brokers");
     }
 

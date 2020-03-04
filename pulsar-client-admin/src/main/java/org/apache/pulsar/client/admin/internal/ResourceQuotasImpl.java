@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -34,8 +35,8 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     private final WebTarget adminQuotas;
     private final WebTarget adminV2Quotas;
 
-    public ResourceQuotasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ResourceQuotasImpl(Client client, WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         adminQuotas = web.path("/admin/resource-quotas");
         adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }

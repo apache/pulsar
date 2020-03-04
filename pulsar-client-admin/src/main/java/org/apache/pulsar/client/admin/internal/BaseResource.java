@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -25,9 +26,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.RedirectionException;
 import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.ServiceUnavailableException;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.InvocationCallback;
@@ -55,10 +58,12 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
+    protected final Client client;
     protected final Authentication auth;
     protected final long readTimeoutMs;
 
-    protected BaseResource(Authentication auth, long readTimeoutMs) {
+    protected BaseResource(Client client, Authentication auth, long readTimeoutMs) {
+        this.client = client;
         this.auth = auth;
         this.readTimeoutMs = readTimeoutMs;
     }
@@ -126,6 +131,19 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
+                    Throwable cause = throwable.getCause();
+                    if (isTemporaryRedirect(cause)) {
+                        WebTarget newTarget = getNewTarget(target, (RedirectionException) cause);
+                        asyncPutRequest(newTarget, entity).whenComplete((ignore, e) -> {
+                            if (e != null) {
+                                future.completeExceptionally(e);
+                            } else {
+                                future.complete(null);
+                            }
+                        });
+                        return;
+                    }
+
                     log.warn("[{}] Failed to perform http put request: {}", target.getUri(), throwable.getMessage());
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
@@ -149,8 +167,21 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
+                    Throwable cause = throwable.getCause();
+                    if (isTemporaryRedirect(cause)) {
+                        WebTarget newTarget = getNewTarget(target, (RedirectionException) cause);
+                        asyncPostRequest(newTarget, entity).whenComplete((ignore, e) -> {
+                           if (e != null) {
+                               future.completeExceptionally(e);
+                           } else {
+                               future.complete(null);
+                           }
+                        });
+                        return;
+                    }
+
                     log.warn("[{}] Failed to perform http post request: {}", target.getUri(), throwable.getMessage());
-                    future.completeExceptionally(getApiException(throwable.getCause()));
+                    future.completeExceptionally(getApiException(cause));
                 }
 
             });
@@ -180,14 +211,38 @@ public abstract class BaseResource {
 
                 @Override
                 public void failed(Throwable throwable) {
+                    Throwable cause = throwable.getCause();
+                    if (isTemporaryRedirect(cause)) {
+                        WebTarget newTarget = getNewTarget(target, (RedirectionException) cause);
+                        asyncDeleteRequest(newTarget).whenComplete((ignore, e) -> {
+                            if (e != null) {
+                                future.completeExceptionally(e);
+                            } else {
+                                future.complete(null);
+                            }
+                        });
+                        return;
+                    }
+
                     log.warn("[{}] Failed to perform http delete request: {}", target.getUri(), throwable.getMessage());
-                    future.completeExceptionally(getApiException(throwable.getCause()));
+                    future.completeExceptionally(getApiException(cause));
                 }
             });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
         return future;
+    }
+
+    private boolean isTemporaryRedirect(Throwable cause) {
+        return cause instanceof RedirectionException &&
+                ((RedirectionException) cause).getResponse().getStatus()==307;
+    }
+
+    private WebTarget getNewTarget(WebTarget target, RedirectionException cause) {
+        Response response = cause.getResponse();
+        URI loc = response.getLocation();
+        return client.target(loc).path(target.getUri().getPath());
     }
 
     public PulsarAdminException getApiException(Throwable e) {

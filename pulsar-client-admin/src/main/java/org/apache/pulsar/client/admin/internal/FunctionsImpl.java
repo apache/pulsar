@@ -46,6 +46,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
@@ -69,8 +70,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     private final WebTarget functions;
     private final AsyncHttpClient asyncHttpClient;
 
-    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public FunctionsImpl(Client client, WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
+        super(client, auth, readTimeoutMs);
         this.functions = web.path("/admin/v3/functions");
         this.asyncHttpClient = asyncHttpClient;
     }
