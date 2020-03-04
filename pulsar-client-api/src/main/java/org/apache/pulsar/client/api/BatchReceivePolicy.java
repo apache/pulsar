@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,12 +42,14 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2.4.1
  */
-public class BatchReceivePolicy {
+public class BatchReceivePolicy implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /**
      * Default batch receive policy.
      *
-     * <p>Max number of messages: 100
+     * <p>Max number of messages: no limit
      * Max number of bytes: 10MB
      * Timeout: 100ms<p/>
      */

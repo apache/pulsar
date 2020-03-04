@@ -94,7 +94,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final Timer timer;
     private final ExecutorProvider externalExecutorProvider;
 
-    enum State {
+    public enum State {
         Open, Closing, Closed
     }
 
@@ -165,6 +165,10 @@ public class PulsarClientImpl implements PulsarClient {
     @VisibleForTesting
     public Clock getClientClock() {
         return clientClock;
+    }
+
+    public AtomicReference<State> getState() {
+        return state;
     }
 
     @Override
@@ -659,7 +663,7 @@ public class PulsarClientImpl implements PulsarClient {
             Backoff backoff = new BackoffBuilder()
                     .setInitialTime(100, TimeUnit.MILLISECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(0, TimeUnit.MILLISECONDS)
+                    .setMax(1, TimeUnit.MINUTES)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {

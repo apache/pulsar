@@ -910,6 +910,14 @@ public class PulsarService implements AutoCloseable {
                     .enableTls(this.getConfiguration().isTlsEnabled())
                     .allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+
+                if (this.getConfiguration().isBrokerClientTlsEnabled()) {
+                    builder.tlsTrustCertsFilePath(
+                        isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
+                            ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
+                            : this.getConfiguration().getTlsCertificateFilePath());
+                }
+
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
                     builder.authentication(this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                                            this.getConfiguration().getBrokerClientAuthenticationParameters());
