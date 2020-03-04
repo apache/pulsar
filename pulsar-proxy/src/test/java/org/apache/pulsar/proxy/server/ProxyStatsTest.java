@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -145,6 +147,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testTopicStats() throws Exception {
+        proxyService.setProxyLogLevel(2);
         final String topicName = "persistent://sample/test/local/topic-stats";
         final String topicName2 = "persistent://sample/test/local/topic-stats-2";
 
@@ -186,6 +189,22 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         consumer2.close();
         client.close();
+    }
+
+    /**
+     * Change proxy log level dynamically
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testChangeLogLevel() throws Exception {
+        Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
+        int newLogLevel = 1;
+        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/logging/" + newLogLevel)
+                .request().post(Entity.entity("", MediaType.APPLICATION_JSON));
+        Assert.assertEquals(r.getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        Assert.assertEquals(proxyService.getProxyLogLevel(), newLogLevel);
     }
 
 }
