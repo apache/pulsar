@@ -98,7 +98,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             }
             do {
                 message = incomingMessages.take();
-                lastDequeuedMessage = message.getMessageId();
+                lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (this) {

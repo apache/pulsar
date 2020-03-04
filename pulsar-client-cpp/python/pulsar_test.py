@@ -152,7 +152,7 @@ class PulsarTest(TestCase):
         producer.send(b'hello')
 
         redelivery_count = 0
-        for i in range(4):  
+        for i in range(4):
             msg = consumer.receive(TM)
             print("Received message %s" % msg.data())
             consumer.negative_acknowledge(msg)
@@ -668,13 +668,13 @@ class PulsarTest(TestCase):
         while True:
             s=doHttpGet(url).decode('utf-8')
             if 'RUNNING' in s:
-                print("Compact still running")
                 print(s)
+                print("Compact still running")
                 time.sleep(0.2)
             else:
-                self.assertTrue('SUCCESS' in s)
-                print("Compact Complete now")
                 print(s)
+                print("Compact Complete now")
+                self.assertTrue('SUCCESS' in s)
                 break
 
         # after compaction completes the compacted ledger is recorded

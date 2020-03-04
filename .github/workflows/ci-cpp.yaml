@@ -34,6 +34,9 @@ jobs:
 
       - name: checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation
         id:   docs

@@ -145,7 +145,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         while (reader.hasMessageAvailable()) {
             Assert.assertTrue(keys.remove(reader.readNext().getKey()));
         }
-        Assert.assertTrue(keys.isEmpty());
+        // start from latest with start message inclusive should only read the last message in batch
+        Assert.assertTrue(keys.size() == 9);
+        Assert.assertFalse(keys.contains("key9"));
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 
@@ -242,7 +244,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         // (3) Create reader and set position 1 hour back so, it should only read messages which are 2 hours old which
         // published on step 2
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
         List<MessageId> receivedMessageIds = Lists.newArrayList();
@@ -256,8 +258,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             receivedMessageIds.add(msg.getMessageId());
         }
 
-        assertEquals(receivedMessageIds.size(), totalMsg + 1);
-        assertEquals(receivedMessageIds.get(0), lastMsgId);
+        assertEquals(receivedMessageIds.size(), totalMsg);
+        assertEquals(receivedMessageIds.get(0), firstMsgId);
 
         restartBroker();
 

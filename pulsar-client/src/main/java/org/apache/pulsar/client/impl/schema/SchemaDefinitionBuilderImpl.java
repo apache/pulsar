@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 
@@ -98,6 +101,12 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
 
     @Override
     public  SchemaDefinition<T> build() {
+        checkArgument(StringUtils.isNotBlank(jsonDef) || clazz != null,
+                "Must specify one of the pojo or jsonDef for the schema definition.");
+
+        checkArgument(!(StringUtils.isNotBlank(jsonDef) && clazz != null),
+                "Not allowed to set pojo and jsonDef both for the schema definition.");
+
         properties.put(ALWAYS_ALLOW_NULL, this.alwaysAllowNull ? "true" : "false");
         return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning);
 
