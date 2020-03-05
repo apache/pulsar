@@ -55,6 +55,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.ApiParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.apache.pulsar.common.util.Codec.decode;
 
 /**
@@ -207,6 +210,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
+            log.error("Unexpected exception on create partitioned topic.", e);
             asyncResponse.resume(e);
         }
     }
@@ -1078,4 +1082,6 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetLastMessageId(authoritative);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }
