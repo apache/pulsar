@@ -131,6 +131,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit | -1 |
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
 |allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned|
+|allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
