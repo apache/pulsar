@@ -711,7 +711,13 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
-        validateAdminAccessForTenant(topicName.getTenant());
+        try {
+            validateAdminAccessForTenant(topicName.getTenant());
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
         if (numPartitions <= 0) {
             asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
             return;
@@ -734,8 +740,8 @@ public abstract class AdminResource extends PulsarWebResource {
                                     log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
                                     asyncResponse.resume(Response.noContent().build());
                                 } else {
-                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
-                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
+                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
+                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
                                 }
                             }, null);
                         } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
@@ -752,12 +758,12 @@ public abstract class AdminResource extends PulsarWebResource {
                     });
                 } catch (Exception e) {
                     log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-                    asyncResponse.resume(new RestException(e));
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                 }
             }
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
-            asyncResponse.resume(new RestException(ex));
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
@@ -783,5 +789,13 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                     return CompletableFuture.completedFuture(exists);
                 });
+    }
+
+    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
+        if (throwable instanceof WebApplicationException) {
+            asyncResponse.resume(throwable);
+        } else {
+            asyncResponse.resume(new RestException(throwable));
+        }
     }
 }
