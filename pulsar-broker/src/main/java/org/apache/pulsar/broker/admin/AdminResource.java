@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -706,5 +708,80 @@ public abstract class AdminResource extends PulsarWebResource {
 
         partitionedTopics.sort(null);
         return partitionedTopics;
+    }
+
+    protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
+        validateAdminAccessForTenant(topicName.getTenant());
+        if (numPartitions <= 0) {
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
+            return;
+        }
+        checkTopicExistsAsync(topicName).thenAccept(exists -> {
+            if (exists) {
+                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
+            } else {
+                try {
+                    String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                    byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
+                    zkCreateOptimisticAsync(globalZk(), path, data, (rc, s, o, s1) -> {
+                        if (KeeperException.Code.OK.intValue() == rc) {
+                            if (topicName.isPersistent()) {
+                                tryCreatePartitionsAsync(numPartitions);
+                            }
+                            globalZk().sync(path, (rc2, s2, ctx) -> {
+                                if (KeeperException.Code.OK.intValue() == rc2) {
+                                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                                    asyncResponse.resume(Response.noContent().build());
+                                } else {
+                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
+                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
+                                }
+                            }, null);
+                        } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
+                            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
+                            asyncResponse.resume(new RestException(Status.CONFLICT, "Partitioned topic already exists"));
+                        } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
+                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
+                                    topicName);
+                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                        } else {
+                            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc)));
+                            asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
+                        }
+                    });
+                } catch (Exception e) {
+                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+                    asyncResponse.resume(new RestException(e));
+                }
+            }
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+            asyncResponse.resume(new RestException(ex));
+            return null;
+        });
+    }
+
+    /**
+     * Check the exists topics contains the given topic.
+     * Since there are topic partitions and non-partitioned topics in Pulsar, must ensure both partitions
+     * and non-partitioned topics are not duplicated. So, if compare with a partition name, we should compare
+     * to the partitioned name of this partition.
+     *
+     * @param topicName given topic name
+     */
+    protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
+        return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
+                PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                .thenCompose(topics -> {
+                    boolean exists = false;
+                    for (String topic : topics) {
+                        if (topicName.getPartitionedTopicName().equals(TopicName.get(topic).getPartitionedTopicName())) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    return CompletableFuture.completedFuture(exists);
+                });
     }
 }

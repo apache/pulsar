@@ -192,6 +192,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void createPartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -200,9 +201,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
-        validateGlobalNamespaceOwnership(tenant,namespace);
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions);
+        try {
+            validateGlobalNamespaceOwnership(tenant,namespace);
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateAdminAccessForTenant(topicName.getTenant());
+            internalCreatePartitionedTopic(asyncResponse, numPartitions);
+        } catch (Exception e) {
+            asyncResponse.resume(e);
+        }
     }
 
     @PUT

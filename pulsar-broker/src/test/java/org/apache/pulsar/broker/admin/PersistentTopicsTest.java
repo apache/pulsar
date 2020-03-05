@@ -157,7 +157,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 "Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has zero partitions");
 
         // 3) Create the partitioned topic
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3);
+        response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 3);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
 
         // 4) Create a subscription
         response = mock(AsyncResponse.class);
@@ -250,7 +252,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
         doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         doReturn(ImmutableSet.of(nonPartitionTopicName1, nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, 5);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
     }
 
     @Test(expectedExceptions = RestException.class)
@@ -269,7 +273,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             return null;
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, 5);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
         persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, 10);
     }
 
@@ -295,7 +301,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 3) create partitioned topic and unload
         response = mock(AsyncResponse.class);
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionTopicName, 6);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 6);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
+        response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, partitionTopicName, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -320,10 +328,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetPartitionedTopicsList() throws KeeperException, InterruptedException, PulsarAdminException {
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "test-topic1", 3);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
 
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, "test-topic1", 3);
-
-        nonPersistentTopic.createPartitionedTopic(testTenant, testNamespace, "test-topic2", 3);
+        response = mock(AsyncResponse.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic2", 3);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
 
         List<String> persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace);
 
@@ -351,7 +362,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testGrantPartitionedTopic() {
         final String partitionedTopicName = "partitioned-topic";
         final int numPartitions = 5;
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, numPartitions);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
 
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
@@ -387,8 +400,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testRevokePartitionedTopic() {
         final String partitionedTopicName = "partitioned-topic";
         final int numPartitions = 5;
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, numPartitions);
-
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, numPartitions);
+        verify(response, timeout(5000).times(1)).resume(Response.noContent().build());
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);

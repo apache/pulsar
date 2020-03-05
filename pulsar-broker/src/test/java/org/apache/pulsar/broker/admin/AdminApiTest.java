@@ -2010,6 +2010,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof ConflictException);
         }
+
+        // Check create partitioned topic with substring topic name
+        admin.topics().createPartitionedTopic("persistent://prop-xyz/ns1/create_substring_topic", 1);
+        admin.topics().createPartitionedTopic("persistent://prop-xyz/ns1/substring_topic", 1);
     }
 
     /**
