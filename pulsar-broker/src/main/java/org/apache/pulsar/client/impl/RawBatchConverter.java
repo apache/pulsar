@@ -91,8 +91,7 @@ public class RawBatchConverter {
      * Take a batched message and a filter, and returns a message with the only the sub-messages
      * which match the filter. Returns an empty optional if no messages match.
      *
-     * This takes ownership of the passes in message, and if the returned optional is not empty,
-     * the ownership of that message is returned also.
+     *  NOTE: this message does not alter the reference count of the RawMessage argument.
      */
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
                                                       BiPredicate<String, MessageId> filter)
@@ -161,9 +160,9 @@ public class RawBatchConverter {
                 return Optional.empty();
             }
         } finally {
+            uncompressedPayload.release();
             batchBuffer.release();
             metadata.recycle();
-            msg.close();
         }
     }
 }
