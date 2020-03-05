@@ -1029,7 +1029,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         topics.add("persistent://prop/use/ns-abc/topic-1");
         topics.add("persistent://prop/use/ns-abc/topic-2");
         topics.add("persistent://prop/use/ns-abc1/topic-3");
-        admin.tenants().createTenant("prop",super.createDefaultTenantInfo());
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
         admin.namespaces().createNamespace("prop/use/ns-abc");
         admin.namespaces().createNamespace("prop/use/ns-abc1");
         Consumer consumer = pulsarClient.newConsumer()
