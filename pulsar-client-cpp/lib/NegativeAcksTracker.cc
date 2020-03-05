@@ -74,7 +74,9 @@ void NegativeAcksTracker::handleTimer(const boost::system::error_code &ec) {
         }
     }
 
-    consumer_.redeliverMessages(messagesToRedeliver);
+    if (!messagesToRedeliver.empty()) {
+        consumer_.redeliverMessages(messagesToRedeliver);
+    }
     scheduleTimer();
 }
 
