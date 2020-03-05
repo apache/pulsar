@@ -180,7 +180,8 @@ public class NonPersistentTopics extends PersistentTopics {
             validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
-            asyncResponse.resume(e);
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 

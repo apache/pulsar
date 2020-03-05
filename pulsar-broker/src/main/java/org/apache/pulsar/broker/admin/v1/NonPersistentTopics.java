@@ -131,7 +131,8 @@ public class NonPersistentTopics extends PersistentTopics {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
-            asyncResponse.resume(e);
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 

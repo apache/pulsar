@@ -210,8 +210,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
-            log.error("Unexpected exception on create partitioned topic.", e);
-            asyncResponse.resume(e);
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
