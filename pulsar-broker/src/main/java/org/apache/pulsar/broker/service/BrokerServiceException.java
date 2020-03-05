@@ -123,6 +123,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class SubscriptionNotFoundException extends BrokerServiceException {
+        public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionBusyException extends BrokerServiceException {
         public SubscriptionBusyException(String msg) {
             super(msg);

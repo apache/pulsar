@@ -1008,6 +1008,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String allowAutoTopicCreationType = "non-partitioned";
     @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        doc = "Allow automated creation of subscriptions if set to true (default value)."
+    )
+    private boolean allowAutoSubscriptionCreation = true;
+    @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "The number of partitioned topics that is allowed to be automatically created"
                     + "if allowAutoTopicCreationType is partitioned."
