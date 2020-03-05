@@ -82,6 +82,7 @@ import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -1307,10 +1308,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String subName = topicName;
         final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
 
+        // disable auto subscription creation
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
         // create a topic and produce some messages
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 5);
         assertEquals(admin.topics().getList("prop-xyz/ns1"),
             Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
+
+        // create the subscription by PulsarAdmin
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
+
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
         // create consumer and subscription
         PulsarClient client = PulsarClient.builder()
@@ -1319,8 +1328,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName(subName)
             .subscriptionType(SubscriptionType.Exclusive).subscribe();
-
-        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
         // try to delete the subscription with a connected consumer
         try {
@@ -1337,7 +1344,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().deleteSubscription(persistentTopicName, subName, true);
 
         // delete the subscription successfully
-        // assertEquals(admin.topics().getSubscriptions(persistentTopicName).size(), 0);
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName).size(), 0);
+
+        // reset to default
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
 
         client.close();
     }
