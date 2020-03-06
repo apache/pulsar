@@ -1135,7 +1135,7 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
             log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
-            if (e instanceof SubscriptionBusyException) {
+            if (e.getCause() instanceof SubscriptionBusyException) {
                 asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Subscription has active connected consumers"));
             } else if (e instanceof WebApplicationException) {
