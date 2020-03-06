@@ -66,59 +66,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-
-    <!--
-    <dependency>
-      <groupId>com.jamesmurty.utils</groupId>
-      <artifactId>java-xmlbuilder</artifactId>
-      <version>1.1</version>
-    </dependency>
-
-     we excluded the transitive dependencies above to make it work for standalone.
-         however it will cause test failures. bring following dependencies back for testing.
-         all these should be gone once we introduce NAR package for offloaders.
-    <dependency>
-      <groupId>net.iharder</groupId>
-      <artifactId>base64</artifactId>
-      <version>2.3.8</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.ws.rs</groupId>
-      <artifactId>javax.ws.rs-api</artifactId>
-      <version>2.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>aopalliance</groupId>
-      <artifactId>aopalliance</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>jaxb-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>jsr250-api</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>error_prone_annotations</artifactId>
-      <version>2.1.0</version>
-      <scope>test</scope>
-    </dependency>
-    -->
   </dependencies>
   <build>
     <plugins>
