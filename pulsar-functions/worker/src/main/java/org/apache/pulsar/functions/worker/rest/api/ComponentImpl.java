@@ -1449,10 +1449,10 @@ public abstract class ComponentImpl {
             if (clientRole != null) {
                 try {
                     TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-                    if (tenantInfo != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                    if (tenantInfo != null && worker().getAuthorizationService().isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData).get()) {
                         return true;
                     }
-                } catch (PulsarAdminException.NotFoundException e) {
+                } catch (PulsarAdminException.NotFoundException | InterruptedException | ExecutionException e) {
 
                 }
             }
