@@ -543,11 +543,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateAdminAccessForTenant(topicName.getTenant());
         } catch (Exception e) {
             log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -657,11 +653,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } catch (Exception e) {
             log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
         // If the topic name is a partition name, no need to get partition topic metadata again
@@ -722,11 +714,7 @@ public class PersistentTopicsBase extends AdminResource {
             topic = getTopicReference(topicName);
         } catch (Exception e) {
             log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
         topic.close(false).whenComplete((r, ex) -> {
@@ -782,11 +770,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -833,11 +817,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to get subscriptions for topic {}", clientAppId(), topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
         }
@@ -852,11 +832,7 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(subscriptions);
         } catch (Exception e) {
             log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
@@ -890,11 +866,7 @@ public class PersistentTopicsBase extends AdminResource {
             managedLedger = topicName.getPersistenceNamingEncoding();
         } catch (Exception e) {
             log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
         pulsar().getManagedLedgerFactory().asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
@@ -919,11 +891,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -981,11 +949,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, ex);
-            if (ex instanceof WebApplicationException) {
-                asyncResponse.resume(ex);
-            } else {
-                asyncResponse.resume(new RestException(ex));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
@@ -996,11 +960,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1042,11 +1002,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, ex);
-            if (ex instanceof WebApplicationException) {
-                asyncResponse.resume(ex);
-            } else {
-                asyncResponse.resume(new RestException(ex));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
@@ -1057,11 +1013,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1111,11 +1063,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
         }
@@ -1153,11 +1101,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to skip all messages for subscription {} on topic {}", clientAppId(), subName, topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1202,11 +1146,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to skip all messages for subscription {} on topic {}", clientAppId(), subName, topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                return null;
             });
         }
@@ -1243,11 +1183,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } catch (Exception e) {
             log.error("[{}] Failed to skip all messages for subscription {} on topic {}", clientAppId(), subName, topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
@@ -1289,11 +1225,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1336,11 +1268,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
         }
@@ -1356,11 +1284,7 @@ public class PersistentTopicsBase extends AdminResource {
             topic = (PersistentTopic) getTopicReference(topicName);
         } catch (Exception e) {
             log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, e);
-            if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else {
-                asyncResponse.resume(new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
             return;
         }
         final AtomicReference<Throwable> exception = new AtomicReference<>();
@@ -1402,11 +1326,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1484,11 +1404,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
         }
@@ -1537,11 +1453,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
                 log.error("[{}] Failed to create subscription {} on topic {}", clientAppId(), subscriptionName, topicName, e);
-                if (e instanceof WebApplicationException) {
-                    asyncResponse.resume(e);
-                } else {
-                    asyncResponse.resume(new RestException(e));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
@@ -1619,11 +1531,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to create subscription {} on topic {}", clientAppId(), subscriptionName, topicName, ex);
-                if (ex instanceof WebApplicationException) {
-                    asyncResponse.resume(ex);
-                } else {
-                    asyncResponse.resume(new RestException(ex));
-                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
         }
