@@ -138,7 +138,8 @@ void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) 
     for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end(); it++) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap.getTopicName().compare(topic) == 0) {
-            std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(msgIdInMap);
+            std::map<MessageId, std::set<MessageId>&>::iterator exist =
+                messageIdPartitionMap.find(msgIdInMap);
             if (exist != messageIdPartitionMap.end()) {
                 exist->second.erase(msgIdInMap);
             }
