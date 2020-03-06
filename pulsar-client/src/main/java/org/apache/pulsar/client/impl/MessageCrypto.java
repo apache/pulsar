@@ -147,6 +147,7 @@ public class MessageCrypto {
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
 
+                /** MD5 is not secure, recommend "SHA-512"*/
                 digest = MessageDigest.getInstance("MD5");
 
                 dataKey = null;
