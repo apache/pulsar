@@ -319,13 +319,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
-        try {
-            RawMessage m1 = reader.readNextAsync().get();
+        try (RawMessage m1 = reader.readNextAsync().get()) {
             RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
             List<ImmutablePair<MessageId,String>> idsAndKeys = RawBatchConverter.extractIdsAndKeys(m2);
             Assert.assertEquals(idsAndKeys.size(), 1);
             Assert.assertEquals(idsAndKeys.get(0).getRight(), "key2");
             m2.close();
+            Assert.assertEquals(m1.getHeadersAndPayload().refCnt(), 1);
         } finally {
             reader.closeAsync().get();
         }
