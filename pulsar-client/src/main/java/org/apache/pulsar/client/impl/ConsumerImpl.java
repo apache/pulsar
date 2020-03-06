@@ -1842,7 +1842,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @VisibleForTesting
     public ClientCnx getClientCnx() {
-        return this.connectionHandler.getClientCnx();
+        return this.connectionHandler.cnx();
     }
 
     void setClientCnx(ClientCnx clientCnx) {

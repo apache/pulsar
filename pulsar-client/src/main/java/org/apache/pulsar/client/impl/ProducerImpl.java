@@ -572,8 +572,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private ChecksumType getChecksumType() {
-        if (connectionHandler.getClientCnx() == null
-                || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+        if (connectionHandler.cnx() == null
+                || connectionHandler.cnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             return ChecksumType.Crc32c;
         } else {
             return ChecksumType.None;
@@ -782,11 +782,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public boolean isConnected() {
-        return connectionHandler.getClientCnx() != null && (getState() == State.Ready);
+        return connectionHandler.cnx() != null && (getState() == State.Ready);
     }
 
     public boolean isWritable() {
-        ClientCnx cnx = connectionHandler.getClientCnx();
+        ClientCnx cnx = connectionHandler.cnx();
         return cnx != null && cnx.channel().isWritable();
     }
 
@@ -1605,7 +1605,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     ClientCnx getClientCnx() {
-        return this.connectionHandler.getClientCnx();
+        return this.connectionHandler.cnx();
     }
 
     void setClientCnx(ClientCnx clientCnx) {
