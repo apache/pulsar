@@ -125,17 +125,13 @@ public class ConnectionHandler {
         backoff.reset();
     }
 
-    protected ClientCnx cnx() {
+    @VisibleForTesting
+    public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
     }
 
     protected boolean isRetriableError(PulsarClientException e) {
         return e instanceof PulsarClientException.LookupException;
-    }
-
-    @VisibleForTesting
-    public ClientCnx getClientCnx() {
-        return CLIENT_CNX_UPDATER.get(this);
     }
 
     protected void setClientCnx(ClientCnx clientCnx) {
