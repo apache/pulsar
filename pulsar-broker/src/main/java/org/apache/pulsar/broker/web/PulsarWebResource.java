@@ -52,6 +52,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authorization.AuthorizationProvider;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -224,7 +226,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateAdminAccessForTenant(String tenant) {
         try {
-            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant);
+            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant, clientAuthData());
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
@@ -234,7 +236,8 @@ public abstract class PulsarWebResource {
     }
 
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
-                                                       String originalPrincipal, String tenant)
+                                                       String originalPrincipal, String tenant,
+                                                       AuthenticationDataSource authenticationData)
             throws RestException, Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
@@ -259,22 +262,17 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-
                 CompletableFuture<Boolean> isProxySuperUserFuture;
                 CompletableFuture<Boolean> isOriginalPrincipalSuperUserFuture;
                 try {
-                    isProxySuperUserFuture = pulsar.getBrokerService()
-                            .getAuthorizationService()
-                            .isSuperUser(clientAppId);
+                    AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
+                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId);
 
-                    isOriginalPrincipalSuperUserFuture = pulsar.getBrokerService()
-                            .getAuthorizationService()
-                            .isSuperUser(originalPrincipal);
+                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal);
 
-                Set<String> adminRoles = tenantInfo.getAdminRoles();
-                boolean proxyAuthorized = isProxySuperUserFuture.get() || adminRoles.contains(clientAppId);
-                boolean originalPrincipalAuthorized
-                    = isOriginalPrincipalSuperUserFuture.get() || adminRoles.contains(originalPrincipal);
+                    boolean proxyAuthorized = isProxySuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get();
+                    boolean originalPrincipalAuthorized
+                    = isOriginalPrincipalSuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, originalPrincipal, tenantInfo, authenticationData).get();
                     if (!proxyAuthorized || !originalPrincipalAuthorized) {
                         throw new RestException(Status.UNAUTHORIZED,
                                 String.format("Proxy not authorized to access resource (proxy:%s,original:%s)",
@@ -290,7 +288,7 @@ public abstract class PulsarWebResource {
                         .getAuthorizationService()
                         .isSuperUser(clientAppId)
                         .join()) {
-                    if (!tenantInfo.getAdminRoles().contains(clientAppId)) {
+                    if (!pulsar.getBrokerService().getAuthorizationService().isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get()) {
                         throw new RestException(Status.UNAUTHORIZED,
                                 "Don't have permission to administrate resources on this tenant");
                     }
