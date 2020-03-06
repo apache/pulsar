@@ -919,9 +919,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().createPartitionedTopic(partitionedTopicName, 32);
             fail("Should have failed as the partitioned topic already exists");
-        } catch (PreconditionFailedException e) {
-            // Expecting PreconditionFailedException instead of ConflictException as it'll
-            // fail validation before actually try to create metadata in ZK.
+        } catch (ConflictException ignore) {
         }
 
         producer = client.newProducer(Schema.BYTES)
@@ -2010,6 +2008,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof ConflictException);
         }
+
+        // Check create partitioned topic with substring topic name
+        admin.topics().createPartitionedTopic("persistent://prop-xyz/ns1/create_substring_topic", 1);
+        admin.topics().createPartitionedTopic("persistent://prop-xyz/ns1/substring_topic", 1);
     }
 
     /**
