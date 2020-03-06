@@ -563,16 +563,24 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
             TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
-        validateClusterOwnership(topicName.getCluster());
-        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-        // producer/consumer
-        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
+        try {
+            validateClusterOwnership(topicName.getCluster());
+            // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+            // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+            // producer/consumer
+            validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
 
         try {
             checkConnect(topicName);
         } catch (WebApplicationException e) {
-            validateAdminAccessForTenant(topicName.getTenant());
+            try {
+                validateAdminAccessForTenant(topicName.getTenant());
+            } catch (Exception ex) {
+                return FutureUtil.failedFuture(ex);
+            }
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
