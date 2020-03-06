@@ -351,7 +351,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds %d bytes",
                         producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
-                callback.sendComplete(invalidMessageException);
+                completeCallbackAndReleaseSemaphore(callback, invalidMessageException);
                 return;
             }
         }
@@ -360,7 +360,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             PulsarClientException.InvalidMessageException invalidMessageException =
                 new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s can not reuse the same message", producerName, topic));
-            callback.sendComplete(invalidMessageException);
+            completeCallbackAndReleaseSemaphore(callback, invalidMessageException);
             compressedPayload.release();
             return;
         }
@@ -455,11 +455,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             }
         } catch (PulsarClientException e) {
-            semaphore.release();
-            callback.sendComplete(e);
+            completeCallbackAndReleaseSemaphore(callback, e);
         } catch (Throwable t) {
-            semaphore.release();
-            callback.sendComplete(new PulsarClientException(t));
+            completeCallbackAndReleaseSemaphore(callback, new PulsarClientException(t));
         }
     }
 
@@ -471,8 +469,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return true;
         }
         if (!isMultiSchemaEnabled(true)) {
-            callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)));
+            PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
+                    format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic));
+            completeCallbackAndReleaseSemaphore(callback, e);
             return false;
         }
         SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
@@ -870,6 +869,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void releaseSemaphoreForSendOp(OpSendMsg op) {
         semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+    }
+
+    private void completeCallbackAndReleaseSemaphore(SendCallback callback, Exception exception) {
+        semaphore.release();
+        callback.sendComplete(exception);
     }
 
     /**
