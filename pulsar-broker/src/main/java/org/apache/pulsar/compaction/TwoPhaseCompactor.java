@@ -212,77 +212,88 @@ public class TwoPhaseCompactor extends Compactor {
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
                               LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+        if (promise.isDone()) {
+            return;
+        }
         reader.readNextAsync().whenCompleteAsync(
                 (m, exception) -> {
                     if (exception != null) {
                         promise.completeExceptionally(exception);
                         return;
                     } else if (promise.isDone()) {
+                        m.close();
                         return;
                     }
-                    MessageId id = m.getMessageId();
-                    Optional<RawMessage> messageToAdd = Optional.empty();
-                    if (RawBatchConverter.isReadableBatch(m)) {
-                        try {
-                            messageToAdd = RawBatchConverter.rebatchMessage(
-                                    m, (key, subid) -> latestForKey.get(key).equals(subid));
-                        } catch (IOException ioe) {
-                            log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                                     id, ioe);
-                            messageToAdd = Optional.of(m);
-                        }
-                    } else {
-                        Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
-                        MessageId msg;
-                        if (keyAndSize == null) { // pass through messages without a key
-                            messageToAdd = Optional.of(m);
-                        } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
-                                && msg.equals(id)) { // consider message only if present into latestForKey map
-                            if (keyAndSize.getRight() <= 0) {
-                                promise.completeExceptionally(new IllegalArgumentException(
-                                        "Compaction phase found empty record from sorted key-map"));
+                    try {
+                        MessageId id = m.getMessageId();
+                        Optional<RawMessage> messageToAdd = Optional.empty();
+                        if (RawBatchConverter.isReadableBatch(m)) {
+                            try {
+                                messageToAdd = RawBatchConverter.rebatchMessage(
+                                        m, (key, subid) -> latestForKey.get(key).equals(subid));
+                            } catch (IOException ioe) {
+                                log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                                        id, ioe);
+                                messageToAdd = Optional.of(m);
                             }
-                            messageToAdd = Optional.of(m);
                         } else {
-                            m.close();
+                            Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                            MessageId msg;
+                            if (keyAndSize == null) { // pass through messages without a key
+                                messageToAdd = Optional.of(m);
+                            } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
+                                    && msg.equals(id)) { // consider message only if present into latestForKey map
+                                if (keyAndSize.getRight() <= 0) {
+                                    promise.completeExceptionally(new IllegalArgumentException(
+                                            "Compaction phase found empty record from sorted key-map"));
+                                }
+                                messageToAdd = Optional.of(m);
+                            }
                         }
-                    }
 
-                    if (messageToAdd.isPresent()) {
-                        try {
-                            outstanding.acquire();
-                            CompletableFuture<Void> addFuture = addToCompactedLedger(lh, messageToAdd.get())
-                                    .whenComplete((res, exception2) -> {
-                                        outstanding.release();
-                                        if (exception2 != null) {
-                                            promise.completeExceptionally(exception2);
+                        if (messageToAdd.isPresent()) {
+                            RawMessage message = messageToAdd.get();
+                            try {
+                                outstanding.acquire();
+                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message)
+                                        .whenComplete((res, exception2) -> {
+                                            outstanding.release();
+                                            if (exception2 != null) {
+                                                promise.completeExceptionally(exception2);
+                                            }
+                                        });
+                                if (to.equals(id)) {
+                                    addFuture.whenComplete((res, exception2) -> {
+                                        if (exception2 == null) {
+                                            promise.complete(null);
                                         }
                                     });
-                            if (to.equals(id)) {
-                                addFuture.whenComplete((res, exception2) -> {
-                                    if (exception2 == null) {
-                                        promise.complete(null);
-                                    }
-                                });
+                                }
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                promise.completeExceptionally(ie);
+                            } finally {
+                                if (message != m) {
+                                    message.close();
+                                }
                             }
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            promise.completeExceptionally(ie);
+                        } else if (to.equals(id)) {
+                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so,
+                            // not present under latestForKey. Complete the compaction.
+                            try {
+                                // make sure all inflight writes have finished
+                                outstanding.acquire(MAX_OUTSTANDING);
+                                promise.complete(null);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                promise.completeExceptionally(e);
+                            }
+                            return;
                         }
-                    } else if (to.equals(id)) {
-                        // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
-                        // present under latestForKey. Complete the compaction.
-                        try {
-                            // make sure all inflight writes have finished
-                            outstanding.acquire(MAX_OUTSTANDING);
-                            promise.complete(null);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            promise.completeExceptionally(e);
-                        }
-                        return;
+                        phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                    } finally {
+                        m.close();
                     }
-                    phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
                 }, scheduler);
     }
 
