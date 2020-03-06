@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.github.zafarkhaja.semver.Version;
@@ -390,46 +390,6 @@ public class PersistentTopicsBase extends AdminResource {
         revokePermissions(topicName.toString(), role);
     }
 
-    protected void internalCreatePartitionedTopic(int numPartitions) {
-        validateAdminAccessForTenant(topicName.getTenant());
-        if (numPartitions <= 0) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
-        }
-        validatePartitionTopicName(topicName.getLocalName());
-        try {
-            boolean topicExist = pulsar().getNamespaceService()
-                    .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
-                    .join()
-                    .contains(topicName.toString());
-            if (topicExist) {
-                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                throw new RestException(Status.CONFLICT, "This topic already exists");
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
-        }
-        try {
-            String path = ZkAdminPaths.partitionedTopicPath(topicName);
-            byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-            zkCreateOptimistic(path, data);
-            tryCreatePartitionsAsync(numPartitions);
-            // Sync data to all quorums and the observers
-            zkSync(path);
-            log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
-        } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
-        } catch (KeeperException.BadVersionException e) {
-                log.warn("[{}] Failed to create partitioned topic {}: concurrent modification", clientAppId(),
-                        topicName);
-                throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
-        }
-    }
-
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
         validateNonPartitionTopicName(topicName.getLocalName());
@@ -540,11 +500,22 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalCreateMissedPartitions() {
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
-        if (metadata != null) {
-            tryCreatePartitionsAsync(metadata.partitions);
-        }
+    protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
+        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+            if (metadata != null) {
+                tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(e -> {
+                    log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return null;
+        });
     }
 
     private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
@@ -2063,40 +2034,6 @@ public class PersistentTopicsBase extends AdminResource {
                                         "and end with numeric value and end with numeric value smaller than the new " +
                                         "number of partition. Update of partitioned topic " + topicName + " could cause conflict.");
                     }
-                } catch (NumberFormatException e) {
-                    // Do nothing, if value after partition suffix is not pure numeric value,
-                    // as it can't conflict with internal created partitioned topic's name.
-                }
-            }
-        }
-    }
-
-    /**
-     * Validate partitioned topic name.
-     * Validation will fail and throw RestException if
-     * 1) There's already a partitioned topic with same topic name and have some of its partition created.
-     * 2) There's already non partition topic with same name and contains partition suffix "-partition-"
-     * followed by numeric value. In this case internal created partition of partitioned topic could override
-     * the existing non partition topic.
-     *
-     * @param topicName
-     */
-    private void validatePartitionTopicName(String topicName) {
-        List<String> existingTopicList = internalGetList();
-        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
-        for (String existingTopicName : existingTopicList) {
-            if (existingTopicName.contains(prefix)) {
-                try {
-                    Long.parseLong(existingTopicName.substring(
-                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
-                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
-                    log.warn("[{}] Already have topic {} which contains partition " +
-                            "suffix '-partition-' and end with numeric value. Creation of partitioned topic {}"
-                            + "could cause conflict.", clientAppId(), existingTopicName, topicName);
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Already have topic " + existingTopicName + " which contains partition suffix '-partition-' " +
-                                    "and end with numeric value, Creation of partitioned topic " + topicName +
-                                    " could cause conflict.");
                 } catch (NumberFormatException e) {
                     // Do nothing, if value after partition suffix is not pure numeric value,
                     // as it can't conflict with internal created partitioned topic's name.
