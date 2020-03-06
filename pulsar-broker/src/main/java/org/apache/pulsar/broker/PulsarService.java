@@ -476,6 +476,10 @@ public class PulsarService implements AutoCloseable {
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
+            if (!this.nsService.getOwnershipCache().refreshSelfOwnerInfo()) {
+                throw new RuntimeException("Failed to refresh self owner info.");
+            }
+
             // Start the leader election service
             startLeaderElectionService();
 

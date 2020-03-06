@@ -73,7 +73,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -424,7 +423,7 @@ public class NamespaceService {
         try {
             checkNotNull(candidateBroker);
 
-            if (pulsar.getSafeWebServiceAddress().equals(candidateBroker)) {
+            if (candidateBroker.equals(pulsar.getSafeWebServiceAddress())) {
                 // invalidate namespace policies and try to load latest policies to avoid data-discrepancy if broker
                 // doesn't receive watch on policies changes
                 final String policyPath = AdminResource.path(POLICIES, bundle.getNamespaceObject().toString());
