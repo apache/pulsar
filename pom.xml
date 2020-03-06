@@ -110,9 +110,6 @@ flexible messaging model and an intuitive client API.</description>
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
 
-    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
-    <module>jclouds-shaded</module>
-
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
 
@@ -185,7 +182,7 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.1.1</jclouds.version>
+    <jclouds.version>2.2.0</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
@@ -1024,6 +1021,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.jclouds</groupId>
         <artifactId>jclouds-allblobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-blobstore</artifactId>
         <version>${jclouds.version}</version>
       </dependency>
 
