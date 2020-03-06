@@ -500,11 +500,22 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalCreateMissedPartitions() {
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
-        if (metadata != null) {
-            tryCreatePartitionsAsync(metadata.partitions);
-        }
+    protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
+        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+            if (metadata != null) {
+                tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(e -> {
+                    log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return null;
+        });
     }
 
     private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
