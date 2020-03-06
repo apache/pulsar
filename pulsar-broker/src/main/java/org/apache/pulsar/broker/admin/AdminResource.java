@@ -740,22 +740,23 @@ public abstract class AdminResource extends PulsarWebResource {
                     byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
                     zkCreateOptimisticAsync(globalZk(), path, data, (rc, s, o, s1) -> {
                         if (KeeperException.Code.OK.intValue() == rc) {
-                            tryCreatePartitionsAsync(numPartitions).thenAccept(v -> {
-                                globalZk().sync(path, (rc2, s2, ctx) -> {
-                                    if (KeeperException.Code.OK.intValue() == rc2) {
-                                        log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                            globalZk().sync(path, (rc2, s2, ctx) -> {
+                                if (KeeperException.Code.OK.intValue() == rc2) {
+                                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                                    tryCreatePartitionsAsync(numPartitions).thenAccept(v -> {
+                                        log.info("[{}] Successfully created partitions for topic {}", clientAppId(), topicName);
                                         asyncResponse.resume(Response.noContent().build());
-                                    } else {
-                                        log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
-                                        asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
-                                    }
-                                }, null);
-                            }).exceptionally(e -> {
-                                log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
-                                // The partitioned topic is created but there are some partitions create failed
-                                asyncResponse.resume(new RestException(e));
-                                return null;
-                            });
+                                    }).exceptionally(e -> {
+                                        log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
+                                        // The partitioned topic is created but there are some partitions create failed
+                                        asyncResponse.resume(new RestException(e));
+                                        return null;
+                                    });
+                                } else {
+                                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, KeeperException.create(KeeperException.Code.get(rc2)));
+                                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc2))));
+                                }
+                            }, null);
                         } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
                             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
                             asyncResponse.resume(new RestException(Status.CONFLICT, "Partitioned topic already exists"));
