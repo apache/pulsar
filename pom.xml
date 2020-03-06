@@ -1027,6 +1027,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jclouds.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-blobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
