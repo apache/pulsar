@@ -130,5 +130,10 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             info.setSchema(mapper.writeValueAsBytes(schema));
             return new OldJSONSchema<>(info, pojo, mapper);
         }
+
+        @Override
+        public Schema<T> clone() {
+            return this;
+        }
     }
 }
