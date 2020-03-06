@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.OutputRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -140,8 +141,8 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(Record<T> record, boolean failSource) {
 
             return throwable -> {
-                SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
-                Record<T> srcRecord = sinkRecord.getSourceRecord();
+                OutputRecord<?, T> sinkRecord = (OutputRecord<?, T>) record;
+                Record<?> srcRecord = sinkRecord.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
                 }
@@ -284,9 +285,9 @@ public class PulsarSink<T> implements Sink<T> {
             msg.properties(record.getProperties());
         }
 
-        SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
+        SinkRecord<?, T> sinkRecord = (SinkRecord<?, T>) record;
         if (sinkRecord.getSourceRecord() instanceof PulsarRecord) {
-            PulsarRecord<T> pulsarRecord = (PulsarRecord<T>) sinkRecord.getSourceRecord();
+            PulsarRecord<?> pulsarRecord = (PulsarRecord<?>) sinkRecord.getSourceRecord();
             // forward user properties to sink-topic
             msg.property("__pfn_input_topic__", pulsarRecord.getTopicName().get())
                .property("__pfn_input_msg_id__",

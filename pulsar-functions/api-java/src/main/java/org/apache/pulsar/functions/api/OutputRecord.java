@@ -16,25 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
-
-import lombok.Data;
-import org.apache.pulsar.functions.api.OutputRecord;
+package org.apache.pulsar.functions.api;
 
 /**
- * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
- * program if invoking via a process based invocation or using JavaInstance using a thread
- * based invocation.
+ * This small extension to the interface allows us to fetch the sourceRecord
+ * from the outputRecord
+ * @param <O> the type of the record value
  */
-@Data
-public class JavaExecutionResult {
-    private Exception userException;
-    private Exception systemException;
-    private OutputRecord result;
-
-    public void reset() {
-        setUserException(null);
-        setSystemException(null);
-        setResult(null);
-    }
+public interface OutputRecord<I, O> extends Record<O> {
+    Record<I> getSourceRecord();
 }

@@ -264,7 +264,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                result = javaInstance.handleMessage(currentRecord);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time

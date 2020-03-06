@@ -24,16 +24,18 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import org.apache.pulsar.functions.api.OutputRecord;
 import org.apache.pulsar.functions.api.Record;
 
 @Data
 @AllArgsConstructor
-public class SinkRecord<T> implements Record<T> {
+public class SinkRecord<I, O> implements OutputRecord<I, O> {
 
-    private final Record<T> sourceRecord;
-    private final T value;
+    private final Record<I> sourceRecord;
+    private final O value;
 
-    public Record<T> getSourceRecord() {
+    @Override
+    public Record<I> getSourceRecord() {
         return sourceRecord;
     }
 
@@ -48,7 +50,7 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
-    public T getValue() {
+    public O getValue() {
         return value;
     }
 

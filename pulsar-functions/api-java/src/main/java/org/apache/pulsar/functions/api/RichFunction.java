@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
-
-import lombok.Data;
-import org.apache.pulsar.functions.api.OutputRecord;
+package org.apache.pulsar.functions.api;
 
 /**
- * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
- * program if invoking via a process based invocation or using JavaInstance using a thread
- * based invocation.
+ * This interface is a more advanced version of the `Function`, which allows for more complex processing
+ * and control of the outgoing message. This enables use cases like controlling the ack behavior as well
+ * as dynamically routing the message to an output topic based on the message while
+ * still allowing the Functions API to do error handling.
+ *
+ * All instances of `Function` are wrapped with a default implementation of this interface
  */
-@Data
-public class JavaExecutionResult {
-    private Exception userException;
-    private Exception systemException;
-    private OutputRecord result;
-
-    public void reset() {
-        setUserException(null);
-        setSystemException(null);
-        setResult(null);
-    }
+public interface RichFunction<I, O> {
+    /**
+     * Process the input.
+     *
+     * @return the output, wrapped in an implementation of record
+     */
+    OutputRecord<I, O> process(Record<I> srcRecord, Context context) throws Exception;
 }

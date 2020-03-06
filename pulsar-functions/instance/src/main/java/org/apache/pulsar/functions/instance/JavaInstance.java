@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.RichFunction;
 
 import java.util.Map;
 
@@ -37,7 +38,7 @@ public class JavaInstance implements AutoCloseable {
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
-    private Function function;
+    private RichFunction function;
     private java.util.function.Function javaUtilFunction;
 
     public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
@@ -45,26 +46,22 @@ public class JavaInstance implements AutoCloseable {
         this.context = contextImpl;
 
         // create the functions
-        if (userClassObject instanceof Function) {
-            this.function = (Function) userClassObject;
+        if (userClassObject instanceof RichFunction) {
+            this.function = (RichFunction) userClassObject;
+        } else if (userClassObject instanceof Function) {
+            this.function = new DefaultRichFunctionWrapper((Function) userClassObject);
         } else {
-            this.javaUtilFunction = (java.util.function.Function) userClassObject;
+            this.function = new DefaultRichFunctionWrapper((java.util.function.Function) userClassObject);
         }
     }
 
-    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+    public JavaExecutionResult handleMessage(Record<?> record) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
-            Object output;
-            if (function != null) {
-                output = function.process(input, context);
-            } else {
-                output = javaUtilFunction.apply(input);
-            }
-            executionResult.setResult(output);
+            executionResult.setResult(this.function.process(record, context));
         } catch (Exception ex) {
             executionResult.setUserException(ex);
         }
