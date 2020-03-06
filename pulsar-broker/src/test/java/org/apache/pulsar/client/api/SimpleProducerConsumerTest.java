@@ -77,6 +77,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -3282,5 +3283,37 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
+    }
+
+    /**
+     * It verifies that message failure successfully releases semaphore and client successfully receives
+     * InvalidMessageException.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testReleaseSemaphoreOnFailMessages() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int maxPendingMessages = 10;
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().enableBatching(false)
+                .blockIfQueueFull(true).maxPendingMessages(maxPendingMessages)
+                .topic("persistent://my-property/my-ns/my-topic2");
+
+        Producer<byte[]> producer = producerBuilder.create();
+        List<Future<MessageId>> futures = Lists.newArrayList();
+
+        // Asynchronously produce messages
+        byte[] message = new byte[ClientCnx.getMaxMessageSize() + 1];
+        for (int i = 0; i < maxPendingMessages + 10; i++) {
+            Future<MessageId> future = producer.sendAsync(message);
+            try {
+                future.get();
+                fail("should fail with InvalidMessageException");
+            } catch (Exception e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.InvalidMessageException);
+            }
+        }
+        log.info("-- Exiting {} test --", methodName);
     }
 }
