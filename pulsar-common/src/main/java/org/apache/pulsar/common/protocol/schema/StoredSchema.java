@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.protocol.schema;
 
 import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class StoredSchema {
     public final byte[] data;
     public final SchemaVersion version;
 
-    StoredSchema(byte[] data, SchemaVersion version) {
+    public StoredSchema(byte[] data, SchemaVersion version) {
         this.data = data;
         this.version = version;
     }
