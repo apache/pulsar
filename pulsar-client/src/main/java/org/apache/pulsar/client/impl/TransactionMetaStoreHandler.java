@@ -140,7 +140,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Add publish partition to txn request with txnId, with partitions", txnID, partitions);
+            LOG.debug("Add publish partition {} to txn {}", partitions, txnID);
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
