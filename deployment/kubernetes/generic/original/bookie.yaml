@@ -34,7 +34,7 @@ data:
 ## cannot be moved across different nodes.
 ## For this reason, we run BK as a daemon set, one for each node in the
 ## cluster, unless restricted by label selectors
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
     name: bookie
@@ -42,6 +42,10 @@ metadata:
         app: pulsar
         component: bookkeeper
 spec:
+    selector:
+      matchLabels:
+          app: pulsar
+          component: bookkeeper
     template:
         metadata:
             labels:
