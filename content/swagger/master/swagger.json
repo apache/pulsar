@@ -4439,7 +4439,7 @@
       "post" : {
         "tags" : [ "non-persistent topic" ],
         "summary" : "Create missed partitions of an existing partitioned topic.",
-        "description" : "This is a best-effort operation for create missed partitions of existing non-global partitioned-topic and does't throw any exceptions when create failed",
+        "description" : "",
         "operationId" : "createMissedPartitions",
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -6591,7 +6591,7 @@
       "post" : {
         "tags" : [ "persistent topic" ],
         "summary" : "Create missed partitions of an existing partitioned topic.",
-        "description" : "This is a best-effort operation for create missed partitions of existing non-global partitioned-topic and does't throw any exceptions when create failed",
+        "description" : "",
         "operationId" : "createMissedPartitions",
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -9674,7 +9674,10 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -9695,17 +9698,14 @@
         "overLoaded" : {
           "type" : "boolean"
         },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
