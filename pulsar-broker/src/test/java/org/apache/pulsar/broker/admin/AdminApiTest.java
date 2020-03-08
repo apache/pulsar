@@ -1303,21 +1303,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
     }
 
-    @Test(dataProvider = "topicName")
-    public void testDeleteSubscription(String topicName) throws Exception {
-        final String subName = topicName;
-        final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
+    @Test
+    public void testDeleteSubscription() throws Exception {
+        final String subName = "test-sub";
+        final String persistentTopicName = "persistent://prop-xyz/ns1/test-sub-topic";
 
         // disable auto subscription creation
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
         // create a topic and produce some messages
-        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 5);
+        publishMessagesOnPersistentTopic(persistentTopicName, 5);
         assertEquals(admin.topics().getList("prop-xyz/ns1"),
-            Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
+            Lists.newArrayList(persistentTopicName));
 
         // create the subscription by PulsarAdmin
-        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
+        admin.topics().createSubscription(persistentTopicName, subName, MessageId.earliest);
 
         assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
