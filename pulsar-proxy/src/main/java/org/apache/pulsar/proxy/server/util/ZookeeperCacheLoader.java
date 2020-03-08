@@ -54,7 +54,7 @@ public class ZookeeperCacheLoader implements Closeable {
     private volatile List<LoadManagerReport> availableBrokers;
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
-            .name("pulsar-discovery-ordered-cache").build();
+            .name("pulsar-proxy-ordered-cache").build();
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
