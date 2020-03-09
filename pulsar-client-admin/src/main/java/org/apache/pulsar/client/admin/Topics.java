@@ -779,6 +779,29 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PreconditionFailedException
+     *             Subscription has active consumers
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteSubscription(String topic, String subName) throws PulsarAdminException;
+
+    /**
+     * Delete a subscription.
+     * <p>
+     * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
+     * Force flag deletes subscription forcefully by closing all active consumers.
+     * <p>
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
      * @param force
      *            Delete topic forcefully
      *
@@ -794,7 +817,7 @@ public interface Topics {
     void deleteSubscription(String topic, String subName, boolean force) throws PulsarAdminException;
 
     /**
-     * Delete a subscription.
+     * Delete a subscription asynchronously.
      * <p>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
      * <p>
@@ -804,21 +827,15 @@ public interface Topics {
      * @param subName
      *            Subscription name
      *
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic or subscription does not exist
-     * @throws PreconditionFailedException
-     *             Subscription has active consumers
-     * @throws PulsarAdminException
-     *             Unexpected error
+     * @return a future that can be used to track when the subscription is deleted
      */
-    void deleteSubscription(String topic, String subName) throws PulsarAdminException;
+    CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName);
 
     /**
      * Delete a subscription asynchronously.
      * <p>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
+     * Force flag deletes subscription forcefully by closing all active consumers.
      * <p>
      *
      * @param topic

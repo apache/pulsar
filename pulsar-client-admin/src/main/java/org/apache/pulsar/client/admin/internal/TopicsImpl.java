@@ -619,6 +619,20 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
+        try {
+            deleteSubscriptionAsync(topic, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public void deleteSubscription(String topic, String subName, boolean force) throws PulsarAdminException {
         try {
             deleteSubscriptionAsync(topic, subName, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -633,8 +647,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
-        deleteSubscription(topic, subName, false);
+    public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName) {
+        return deleteSubscriptionAsync(topic, subName, false);
     }
 
     @Override
