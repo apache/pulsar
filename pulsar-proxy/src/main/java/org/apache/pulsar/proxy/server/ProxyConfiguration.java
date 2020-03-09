@@ -153,7 +153,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + " 1: Parse and log any tcp channel info and command info without message body"
                     + " 2: Parse and log channel info, command info and message body"
     )
-    private Integer proxyLogLevel = 0;
+    private Optional<Integer> proxyLogLevel = Optional.ofNullable(0);
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -384,13 +384,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public Optional<Integer> getServicePort() {
         return servicePort;
-    }
-
-    public Optional<Integer> getproxyLogLevel() {
-        return Optional.ofNullable(proxyLogLevel);
-    }
-    public void setProxyLogLevel(int proxyLogLevel) {
-        this.proxyLogLevel = proxyLogLevel;
     }
 
     public Optional<Integer> getServicePortTls() {
