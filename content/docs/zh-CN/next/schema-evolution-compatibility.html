@@ -109,13 +109,13 @@
 <p>定义</p>
 </th>
 <th>
-<p>允许更改</p>
+<p>更改</p>
 </th>
 <th>
-<p>检查哪个 schema</p>
+<p>检查 Schema 版本</p>
 </th>
 <th>
-<p>提前升级</p>
+<p>优先升级</p>
 </th>
 </tr>
 <tr>
@@ -271,7 +271,7 @@
 </td> 
 </tr>
 </table>
-<p><h3>ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE</h3></p>
+<p><h3>ALWAYS_COMPATIBLE 和 ALWAYS_INCOMPATIBLE</h3></p>
 <table style="table">
 <tr>
 <th>
@@ -312,20 +312,20 @@
 <h4><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
 <li><p>示例 1</p>
-<p>在某些情况下，应用程序需要将几种不同类型的事件储存在同一个 Pulsar topic 中。</p>
-<p>尤其是，当在 <code>事件来源</code> 风格中开发数据模型时， 你可能有几种影响实体状态的事件。</p>
-<p>例如，对于用户实体来说，有 <code>用户创建</code>, <code>用户地址变更</code> 和 <code>用户收到了</code> 事件。 应用程序要求这些事件总是按同样顺序阅读。</p>
-<p>因此，这些事件需要进入相同的 Pulsar 分区以维持秩序。 此应用程序可以使用 <code>ALWAYS_COMPATIBLE</code> 来允许不同类型的事件在同一主题中共存。</p></li>
+<p>在某些情况下，应用程序需要将几种不同类型的事件存储在同一个 Pulsar topic 中。</p>
+<p>尤其是在 <code>事件来源</code> 风格中开发数据模型时，这种情况下会遇到多种影响实体状态的事件。</p>
+<p>例如，对于用户实体来说，有 <code>用户创建</code>、<code>用户地址变更</code>、<code>用户查询已收到</code> 等事件。 应用程序要求按相同顺序读取这些事件。</p>
+<p>因此，这些事件需要进入同一个 Pulsar 分区以保证顺序。 应用程序可以使用 <code>ALWAYS_COMPATIBLE</code> 策略，将不同类型的事件存储在同一个 topic 中。</p></li>
 <li><p>示例 2</p>
-<pre><code class="hljs">  有时，我们还作出不相容的改变。 
+<pre><code class="hljs">  有时，我们需要将兼容状态更改为不兼容状态。 
   
-  例如，你正在修改一个字段类型从`string`到`int`。
+  例如，将字段类型 `string` 修改为 `int`。
   
   在这种情况下，你需要：
 </code></pre>
 <ul>
-<li><p>同时将所有生产者和消费者的版本提升到新 schema 版本。</p></li>
-<li><p>可选，创建一个新主题，并开始迁移应用程序以使用新主题和新模式， 避免需要在同一主题中处理两个不兼容的版本。</p></li>
+<li><p>同时更新 producer 和 consumer 版本更新至新 schema 版本。</p></li>
+<li><p>可选操作，创建一个新的 topic，并迁移应用程序以使用新 topic 和新 schema， 避免在同一 topic 中处理两个不兼容版本的操作。</p></li>
 </ul></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="backward-和-backward_transitive"></a><a href="#backward-和-backward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BACKWARD 和 BACKWARD_TRANSITIVE</h3>
@@ -338,17 +338,17 @@
 <tr><td></td><td></td><td></td></tr>
 </tbody>
 </table>
-<p><code>BACKWARD</code> | 使用新 schema 的消费者可以使用 <strong>上一版 schema</strong> 处理生产者编写的数据。 | 使用 schema V3 的消费者可以处理生产者使用 schema V3 或 V2 编写的数据。 | <code>BACKWARD_TRANSITIVE</code> | 使用新 schema 的消费者可以使用 <strong>所有以前的schemas</strong> 处理生产者编写的数据。 | 使用 schema V3 的消费者可以处理生产者使用 schema V3、V2 或 V1 编写的数据。 |</p>
-<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p><code>BACKWARD</code> | 使用新 schema 的 consumer 可以处理 producer 使用<strong>上一版本 schema</strong> 写入的数据。 | 使用 schema V3 的 consumer 可以处理 producer 使用 schema V3 或 V2 写入的数据。 | <code>BACKWARD_TRANSITIVE</code> | 使用新 schema 的 consumer 可以处理 producer 使用<strong>所有旧版本 schema</strong> 写入的数据。 | 使用 schema V3 的 consumer 可以处理 producer 使用 schema V3、V2 或 V1 写入的数据。 |</p>
+<h4><a class="anchor" aria-hidden="true" id="示例-1"></a><a href="#示例-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
 <li><p>示例 1</p>
 <p>删除字段。</p>
-<p>为处理没有一个字段的事件而构建的消费者，可以处理使用包含该字段的旧方案编写的事件。 而消费者会忽略这个领域。</p></li>
+<p>为处理不含某一字段的事件而构建的 consumer 可以处理旧 schema 编写的、包含此字段的事件，consumer 在处理时会忽略这一字段。</p></li>
 <li><p>示例 2</p>
-<p>你想将所有 Pulsar 数据加载到 Hive 数据仓库中，并对数据运行 SQL 查询。</p>
-<p>即使数据被更改，相同的 SQL 查询也必须继续工作。 为了能够使用它，你可以使用 <code>BACKWARD</code> 策略进化方案。</p></li>
+<p>想要将所有 Pulsar 数据加载到 Hive 数据仓库中，并进行 SQL 查询。</p>
+<p>即使数据被更改，仍然可以进行相同的 SQL 查询。 可以通过 <code>BACKWARD</code> 策略进化 schema 以实现上述操作。</p></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="forward-and-forward_transitive"></a><a href="#forward-and-forward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FORWARD and FORWARD_TRANSITIVE</h3>
+<h3><a class="anchor" aria-hidden="true" id="forward-和-forward_transitive"></a><a href="#forward-和-forward_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FORWARD 和 FORWARD_TRANSITIVE</h3>
 <p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
 <table>
 <thead>
@@ -358,16 +358,16 @@
 <tr><td></td><td></td><td></td></tr>
 </tbody>
 </table>
-<p><code>FORWARD</code> | 消费者使用 <strong>前一个 schema</strong> 可以处理生产者使用新 schema 编写的数据。 即使他们可能无法充分利用新模式的全部能力。 | 使用schema V3 或 V2 的消费者可以处理生产者使用 schema V3 编写的数据。 | <code>FORWARD_TRANSITIVE</code> | 消费者使用 <strong>之前的所有 schemas</strong> 可以处理生产者使用新 scheme 编写的数据。 | 使用schema V3、V2 或 V1 的消费者可以处理生产者使用 schema V3 编写的数据。</p>
-<h4><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p><code>FORWARD</code> | 使用<strong>上一版本 schema</strong> 的 consumer 可以处理 producer 使用新 schema 写入的数据，尽管可能无法充分利用新 schema。 | 使用schema V3 或 V2 的 consumer 可以处理 producer 使用 schema V3 写入的数据。 | <code>FORWARD_TRANSITIVE</code> | 使用 <strong>所有旧版本 schema</strong> 的 consumer 可以处理 producer 使用新 scheme 写入的数据。 | 使用 schema V3、V2 或 V1 的 consumer 可以处理 producer 使用 schema V3 写入的数据。</p>
+<h4><a class="anchor" aria-hidden="true" id="示例-2"></a><a href="#示例-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h4>
 <ul>
 <li><p>示例 1</p>
 <p>添加字段。</p>
 <p>在大多数数据格式中，即使消费者收到含有新字段的新事件，他们也可以继续处理没有新字段的事件。</p></li>
 <li><p>示例 2</p>
-<p>如果一个消费者有一个应用程序逻辑与一个完整版本的架构， 当 schema升级时，应用程序逻辑可能无法立即更新。</p>
-<p>在这种情况下，你需要将一个新 schema 的数据投射到应用程序理解的旧 schema 上。</p>
-<p>因此， 你可以使用 <code>FORWARD</code> 策略来进化 schemas 以确保旧 schema 能够处理使用新schema 编码的数据。</p></li>
+<p>如果 consumer 的一个应用程序逻辑绑定了一个完整版本的 schema ，则当 schema 进化时，应用程序逻辑可能无法立即更新。</p>
+<p>在这种情况下，需要用新 schema 将数据投射到应用程序可以理解的旧 schema 上。</p>
+<p>因此，可以使用 <code>FORWARD</code> 策略来进化 schema，以确保旧 schema 能够处理新schema 编码的数据。</p></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="full-和-full_transitive"></a><a href="#full-和-full_transitive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FULL 和 FULL_TRANSITIVE</h3>
 <p>假设某 topic 包含三个 schema（V1、V2 和 V3），V1 是最旧的，V3 是最新的：</p>
@@ -380,10 +380,10 @@
 <p>定义</p>
 </th>
 <th>
-<p>Description</p>
+<p>说明</p>
 </th>
 <th>
-<p>Note</p>
+<p>注释</p>
 </th>
   </tr>
   <tr>
@@ -425,7 +425,7 @@
 </td>
   </tr>
 </table>
-<h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <p>在某些数据格式中（例如：Avro），可以使用默认值来定义字段。 这样，添加或删除这些字段的更改是完全可兼容的。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema-验证"></a><a href="#schema-验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 验证</h2>
 <p>当 producer 或 consumer 尝试连接到某个 topic 时，broker 会进行检查以验证 schema。</p>
@@ -524,7 +524,7 @@
 <p>兼容性检查策略</p>
 </th>
 <th>
-<p>提前升级</p>
+<p>优先升级</p>
 </th>
 <th>
 <p>Description</p>
@@ -597,7 +597,7 @@
 <p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
 <p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
 </td>  </tr>
-</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何进化？">Pulsar schema 应如何进化？</a></li><li><a href="#pulsar-对-schema-进化提供了怎样的支持？">Pulsar 对 Schema 进化提供了怎样的支持？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-和-full_transitive">FULL 和 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/schema-understand"><span class="arrow-prev">← </span><span>了解 Schema</span></a><a class="docs-next button" href="/docs/zh-CN/next/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-进化">Schema 进化</a><ul class="toc-headings"><li><a href="#什么是-schema-进化？">什么是 Schema 进化？</a></li><li><a href="#pulsar-schema-应如何进化？">Pulsar schema 应如何进化？</a></li><li><a href="#pulsar-对-schema-进化提供了怎样的支持？">Pulsar 对 Schema 进化提供了怎样的支持？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-和-forward_transitive">FORWARD 和 FORWARD_TRANSITIVE</a></li><li><a href="#full-和-full_transitive">FULL 和 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
