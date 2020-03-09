@@ -1094,12 +1094,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         client.getPartitionsForTopic(topicName).thenCompose(list -> {
-            int oldPartitionNumber = topics.get(topicName.toString());
+            int oldPartitionNumber = topics.get(topicName);
             int currentPartitionNumber = list.size();
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] partitions number. old: {}, new: {}",
-                    topicName.toString(), oldPartitionNumber, currentPartitionNumber);
+                    topicName, oldPartitionNumber, currentPartitionNumber);
             }
 
             if (oldPartitionNumber == currentPartitionNumber) {
@@ -1123,7 +1123,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",
-                                topicName.toString(), newConsumer.getTopic(), partitionName);
+                                topicName, newConsumer.getTopic(), partitionName);
                         }
                         return subFuture;
                     })
@@ -1140,14 +1140,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         future.complete(null);
                     })
                     .exceptionally(ex -> {
-                        log.warn("[{}] Failed to subscribe {} partition: {} - {}",
-                            topic, topicName.toString(), oldPartitionNumber, currentPartitionNumber, ex.getMessage());
+                        log.warn("[{}] Failed to subscribe {} partition: {} - {} : {}",
+                            topic, topicName, oldPartitionNumber, currentPartitionNumber, ex);
                         future.completeExceptionally(ex);
                         return null;
                     });
             } else {
                 log.error("[{}] not support shrink topic partitions. old: {}, new: {}",
-                    topicName.toString(), oldPartitionNumber, currentPartitionNumber);
+                    topicName, oldPartitionNumber, currentPartitionNumber);
                 future.completeExceptionally(new NotSupportedException("not support shrink topic partitions"));
             }
             return future;
