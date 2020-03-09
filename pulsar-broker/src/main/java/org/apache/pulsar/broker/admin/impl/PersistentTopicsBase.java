@@ -387,7 +387,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         if (!policies.auth_policies.destination_auth.containsKey(topicUri)
                 || !policies.auth_policies.destination_auth.get(topicUri).containsKey(role)) {
-            log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level",
+            log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
                     clientAppId(), role, topicUri);
             throw new RestException(Status.PRECONDITION_FAILED, "Permissions are not set at the topic level");
         }

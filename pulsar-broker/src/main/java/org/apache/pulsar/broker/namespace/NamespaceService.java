@@ -446,8 +446,7 @@ public class NamespaceService {
                         lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
                     }
                 }).exceptionally(exception -> {
-                    LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
-                            exception);
+                    LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle, exception);
                     lookupFuture.completeExceptionally(new PulsarServerException(
                             "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;

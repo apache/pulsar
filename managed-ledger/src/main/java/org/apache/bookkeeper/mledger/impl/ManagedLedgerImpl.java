@@ -302,7 +302,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Opened ledger {}: ", name, id, BKException.getMessage(rc));
+                                log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
                             }
                             if (rc == BKException.Code.OK) {
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
@@ -1986,7 +1986,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             overRetentionQuota, currentLedger.getId());
                 }
                 if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] ledger id skipped for deletion as it is currently being written to", name,
+                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
                 } else if (expired) {
@@ -2146,7 +2146,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 @Override
                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                    log.warn("[{}] Failed to delete cursor {}", name, cursor, exception);
+                    log.warn("[{}] Failed to delete cursor {} : {}", name, cursor, exception);
                     cursorDeleteException.compareAndSet(null, exception);
                     if (cursorsToDelete.decrementAndGet() == 0) {
                         // Trigger callback only once
@@ -2185,7 +2185,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
-                log.error("[{}] Error deleting ledger {}", name, ledgerId, BKException.getMessage(rc));
+                log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
                 scheduledExecutor.schedule(safeRun(() -> {
                     asyncDeleteLedger(ledgerId, retry - 1);
                 }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);

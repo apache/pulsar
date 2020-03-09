@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -216,7 +217,7 @@ public class ServerCnx extends PulsarHandler {
             try {
                 consumer.close();
             } catch (BrokerServiceException e) {
-                log.warn("Consumer {} was already closed: {}", consumer, e.getMessage(), e);
+                log.warn("Consumer {} was already closed: {}", consumer, e);
             }
         });
     }
@@ -232,14 +233,14 @@ public class ServerCnx extends PulsarHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
-            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
-                    ClientCnx.isKnownException(cause) ? null : cause);
+            log.warn("[{}] Got exception {}", remoteAddress,
+                    ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
             // failed
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+                log.debug("[{}] Got exception: {}", remoteAddress, cause);
             }
         }
         ctx.close();
@@ -582,8 +583,7 @@ public class ServerCnx extends PulsarHandler {
                 pendingAuthChallengeResponse = true;
 
             } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to refresh authentication: ",
-                        remoteAddress, e.getMessage());
+                log.warn("[{}] Failed to refresh authentication: {}", remoteAddress, e);
                 ctx.close();
             }
         }));
@@ -1391,7 +1391,7 @@ public class ServerCnx extends PulsarHandler {
             ctx.writeAndFlush(Commands.newSuccess(requestId));
             log.info("[{}] Closed consumer {}", remoteAddress, consumer);
         } catch (BrokerServiceException e) {
-            log.warn("[{]] Error closing consumer: ", remoteAddress, consumer, e);
+            log.warn("[{]] Error closing consumer {} : {}", remoteAddress, consumer, e);
             ctx.writeAndFlush(
                     Commands.newError(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage()));
         }
