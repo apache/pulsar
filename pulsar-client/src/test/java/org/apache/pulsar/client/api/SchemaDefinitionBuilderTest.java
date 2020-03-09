@@ -16,49 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.schema.compatibility;
+package org.apache.pulsar.client.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.apache.avro.reflect.AvroDefault;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-public class Schemas {
+public class SchemaDefinitionBuilderTest {
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PersonOne{
-        int id;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonTwo{
-        int id;
-
-        @AvroDefault("\"Tom\"")
-        String name;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonThree{
-        int id;
-
-        String name;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonFour{
-        int id;
-
-        String name;
-
-        int age;
+    @Test
+    public void testVerification() {
+        try {
+            SchemaDefinition.builder().build();
+            Assert.fail("should failed");
+        } catch (IllegalArgumentException ignore) {
+        }
+        try {
+            SchemaDefinition.builder().withJsonDef("{}").withPojo(Object.class).build();
+            Assert.fail("should failed");
+        } catch (IllegalArgumentException ignore) {
+        }
+        SchemaDefinition.builder().withJsonDef("{}").build();
+        SchemaDefinition.builder().withPojo(Object.class).build();
     }
 }

@@ -145,6 +145,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
+        doReturn(null).when(namespaces).clientAuthData();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
         doNothing().when(namespaces).validateAdminAccessForTenant(this.testTenant);
         doNothing().when(namespaces).validateAdminAccessForTenant("non-existing-tenant");
@@ -987,6 +988,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(false).when(topics).isRequestHttps();
         doReturn("test").when(topics).clientAppId();
         doReturn(null).when(topics).originalPrincipal();
+        doReturn(null).when(topics).clientAuthData();
         mockWebUrl(localWebServiceUrl, testNs);
         doReturn("persistent").when(topics).domain();
 

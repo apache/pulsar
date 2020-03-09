@@ -100,7 +100,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
             // OK
         }
         // should add retry count since retry every 100ms and operation timeout is set to 1000ms
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 11.0d);
+        Assert.assertEquals(ProxyService.rejectedConnections.get(), 5.0d);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);

@@ -16,41 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
+package org.apache.pulsar.schema;
 
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.avro.reflect.AvroDefault;
 
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.functions.api.SerDe;
+public class Schemas {
 
-@AllArgsConstructor
-@EqualsAndHashCode
-@ToString
-public class SerDeSchema<T> implements Schema<T> {
-
-    private final SerDe<T> serDe;
-
-    @Override
-    public byte[] encode(T value) {
-        return serDe.serialize(value);
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PersonOne{
+        int id;
     }
 
-    @Override
-    public T decode(byte[] bytes) {
-        return serDe.deserialize(bytes);
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PersonTwo{
+        int id;
+
+        @AvroDefault("\"Tom\"")
+        String name;
     }
 
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        // Do not persist schema information
-        return null;
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PersonThree{
+        int id;
+
+        String name;
     }
 
-    @Override
-    public Schema<T> clone() {
-        return this;
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PersonFour{
+        int id;
+
+        String name;
+
+        int age;
     }
 }

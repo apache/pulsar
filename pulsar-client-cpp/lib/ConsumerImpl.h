@@ -98,6 +98,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
 
     virtual void closeAsync(ResultCallback callback);
