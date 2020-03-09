@@ -56,6 +56,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -247,12 +248,11 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
     @Test
     public void testException() {
         RestException exception1 = new RestException(BAD_GATEWAY, "test-msg");
-        assertTrue(exception1.getMessage().contains(BAD_GATEWAY.toString()));
+        assertTrue(exception1.getMessage().contains("test-msg"));
         RestException exception2 = new RestException(BAD_GATEWAY.getStatusCode(), "test-msg");
-        assertTrue(exception2.getMessage().contains(BAD_GATEWAY.toString()));
+        assertTrue(exception2.getMessage().contains("test-msg"));
         RestException exception3 = new RestException(exception2);
-        assertTrue(exception3.getMessage().contains(INTERNAL_SERVER_ERROR.toString()));
-        assertTrue(RestException.getExceptionData(exception2).contains(BAD_GATEWAY.toString()));
+        assertTrue(exception3.getMessage().contains(BAD_GATEWAY.toString()));
     }
 
     public List<String> validateRequest(List<String> brokers, String method, String url, BundlesData bundle) {

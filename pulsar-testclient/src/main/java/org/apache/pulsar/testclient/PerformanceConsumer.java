@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -86,8 +87,11 @@ public class PerformanceConsumer {
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscriber name prefix")
+        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
@@ -257,6 +261,7 @@ public class PerformanceConsumer {
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType)
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
 
         if (arguments.encKeyName != null) {

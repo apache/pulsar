@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest;
+package org.apache.pulsar.common.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -26,7 +26,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import javax.ws.rs.core.Response.Status;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 
 /**
@@ -34,7 +33,7 @@ import org.apache.pulsar.common.policies.data.ErrorData;
  */
 @SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
-    static String getExceptionData(Throwable t) {
+    public static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
         if (t != null) {
@@ -58,21 +57,16 @@ public class RestException extends WebApplicationException {
         super(getResponse(t));
     }
 
-    public RestException(PulsarAdminException cae) {
-        this(cae.getStatusCode(), cae.getHttpError());
-    }
-
     private static Response getResponse(Throwable t) {
-        if (t instanceof RestException
-                || t instanceof WebApplicationException) {
+        if (t instanceof WebApplicationException) {
             WebApplicationException e = (WebApplicationException) t;
             return e.getResponse();
         } else {
             return Response
-                    .status(Status.INTERNAL_SERVER_ERROR)
-                    .entity(getExceptionData(t))
-                    .type(MediaType.TEXT_PLAIN)
-                    .build();
+                .status(Status.INTERNAL_SERVER_ERROR)
+                .entity(getExceptionData(t))
+                .type(MediaType.TEXT_PLAIN)
+                .build();
         }
     }
 }
