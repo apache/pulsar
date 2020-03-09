@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.v2;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -1085,7 +1086,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetLastMessageId(authoritative);
+
+        try {
+            return internalGetLastMessageId(authoritative);
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

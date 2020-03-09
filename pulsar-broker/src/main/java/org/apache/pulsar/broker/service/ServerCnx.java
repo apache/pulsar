@@ -1408,7 +1408,7 @@ public class ServerCnx extends PulsarHandler {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position position = topic.getLastMessageId();
+            Position position = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
             getLargestBatchIndexWhenPossible(

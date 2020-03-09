@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -110,6 +111,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -1939,8 +1941,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public Position getLastMessageId() {
+    public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public MessageId getLastMessageId() throws ExecutionException, InterruptedException {
+        PositionImpl position = (PositionImpl) ledger.getLastConfirmedEntry();
+        int partitionIndex = TopicName.getPartitionIndex(getName());
+        if (position.getEntryId() == -1) {
+            return new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex);
+        }
+        CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
+        ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entryFuture.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                entryFuture.completeExceptionally(exception);
+            }
+        }, null);
+
+        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entryFuture.get().getDataBuffer());
+        if (metadata.hasNumMessagesInBatch()) {
+            return new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                    partitionIndex, metadata.getNumMessagesInBatch() - 1);
+        } else {
+            return new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex);
+        }
     }
 
     public synchronized void triggerCompaction()

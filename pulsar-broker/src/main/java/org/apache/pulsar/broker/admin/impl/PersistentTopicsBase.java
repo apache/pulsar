@@ -39,6 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -2274,7 +2275,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected MessageId internalGetLastMessageId(boolean authoritative) {
+    protected MessageId internalGetLastMessageId(boolean authoritative)
+            throws ExecutionException, InterruptedException {
         validateReadOperationOnTopic(authoritative);
 
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
@@ -2283,10 +2285,8 @@ public class PersistentTopicsBase extends AdminResource {
                     "GetLastMessageId on a non-persistent topic is not allowed");
         }
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        Position position = topic.getLastMessageId();
-        int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-        MessageId messageId = new MessageIdImpl(((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId(), partitionIndex);
+        MessageId messageId = topic.getLastMessageId();
 
         return messageId;
     }
