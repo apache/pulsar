@@ -401,6 +401,10 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
+            // needs load management service and before start broker service,
+            this.startNamespaceService();
+            schemaRegistryService = SchemaRegistryService.create(this);
+
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
 
@@ -458,8 +462,6 @@ public class PulsarService implements AutoCloseable {
             }
             this.webService.addStaticResources("/static", "/static");
 
-            schemaRegistryService = SchemaRegistryService.create(this);
-
             webService.start();
 
             // Refresh addresses, since the port might have been dynamically assigned
@@ -474,8 +476,8 @@ public class PulsarService implements AutoCloseable {
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
-            // needs load management service
-            this.startNamespaceService();
+            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
+            this.nsService.initialize();
 
             // Start the leader election service
             startLeaderElectionService();
