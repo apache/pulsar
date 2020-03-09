@@ -106,8 +106,8 @@ public class ProxyService implements Closeable {
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
-        if (proxyConfig.getproxyLogLevel().isPresent()) {
-            ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getproxyLogLevel().get());
+        if (proxyConfig.getProxyLogLevel().isPresent()) {
+            ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
         } else {
             ProxyService.proxyLogLevel = 0;
         }
