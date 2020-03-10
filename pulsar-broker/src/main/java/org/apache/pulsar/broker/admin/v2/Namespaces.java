@@ -300,25 +300,28 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/allowAutoTopicCreationOverride")
+    @Path("/{tenant}/{namespace}/autoTopicCreationOverride")
     @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
-    public void setAllowAutoTopicCreationOverride(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setAutoTopicCreationOverride(
+            @Suspended final AsyncResponse asyncResponse,
+                                                  @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                                   AutoTopicCreationOverride autoTopicCreationOverride) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowAutoTopicCreationOverride(autoTopicCreationOverride);
+        internalSetAutoTopicCreationOverride(asyncResponse, autoTopicCreationOverride);
     }
 
     @DELETE
-    @Path("/{tenant}/{namespace}/allowAutoTopicCreationOverride")
+    @Path("/{tenant}/{namespace}/utoTopicCreationOverride")
     @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public void removeAllowAutoTopicCreationOverride(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    public void removeAutoTopicCreationOverride(@Suspended final AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveAllowAutoTopicCreationOverride();
+        internalRemoveAutoTopicCreationOverride(asyncResponse);
     }
 
     @GET

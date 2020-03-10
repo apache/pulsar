@@ -357,12 +357,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
 
-        namespaces.run(split("set-allow-auto-topic-creation-override myprop/clust/ns1 -e -t non-partitioned"));
-        verify(mockNamespaces).setAllowAutoTopicCreationOverride("myprop/clust/ns1",
+        namespaces.run(split("set-auto-topic-creation-override myprop/clust/ns1 -e -t non-partitioned"));
+        verify(mockNamespaces).setAutoTopicCreationOverride("myprop/clust/ns1",
                 new AutoTopicCreationOverride(true, TopicType.NON_PARTITIONED.toString(), null));
 
-        namespaces.run(split("remove-allow-auto-topic-creation-override myprop/clust/ns1"));
-        verify(mockNamespaces).removeAllowAutoTopicCreationOverride("myprop/clust/ns1");
+        namespaces.run(split("remove-auto-topic-creation-override myprop/clust/ns1"));
+        verify(mockNamespaces).removeAutoTopicCreationOverride("myprop/clust/ns1");
 
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");

@@ -555,7 +555,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetAllowAutoTopicCreationOverride(AutoTopicCreationOverride autoTopicCreationOverride) {
+    protected void internalSetAutoTopicCreationOverride(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
@@ -563,70 +563,95 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid configuration for autoTopicCreationOverride");
         }
 
-        Entry<Policies, Stat> policiesNode = null;
+        // Force to read the data s.t. the watch to the cache content is setup.
+        policiesCache().getWithStatAsync(path(POLICIES, namespaceName.toString())).thenApply(
+                policies -> {
+                    if (policies.isPresent()) {
+                        Entry<Policies, Stat> policiesNode = policies.get();
+                        policiesNode.getKey().autoTopicCreationOverride = autoTopicCreationOverride;
+                        try {
+                            // Write back the new policies into zookeeper
+                            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                            asyncResponse.resume(Response.noContent().build());
+                            log.info("[{}] Successfully {} on namespace {}", clientAppId(),
+                                    autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
+                            return null;
+                        } catch (KeeperException.NoNodeException e) {
+                            log.error("[{}] Failed to modify autoTopicCreation status for namespace {}: does not exist", clientAppId(),
+                                    namespaceName);
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                            return null;
+                        } catch (KeeperException.BadVersionException e) {
+                            log.error(
+                                    "[{}] Failed to modify autoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
+                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
-        try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
-                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().autoTopicCreationOverride = autoTopicCreationOverride;
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
-            log.info("[{}] Successfully {} on namespace {}", clientAppId(),
-                    autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to modify allowAutoTopicCreation status for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to modify allowAutoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
-                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to modify allowAutoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            return null;
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            asyncResponse.resume(new RestException(e));
+                            return null;
+                        }
+                    } else {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        return null;
+                    }
+                }
+        ).exceptionally(e -> {
+            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            asyncResponse.resume(new RestException(e));
+            return null;
+        });
     }
 
-    protected void internalRemoveAllowAutoTopicCreationOverride() {
+    protected void internalRemoveAutoTopicCreationOverride(AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
-        Entry<Policies, Stat> policiesNode = null;
+        // Force to read the data s.t. the watch to the cache content is setup.
+        policiesCache().getWithStatAsync(path(POLICIES, namespaceName.toString())).thenApply(
+                policies -> {
+                    if (policies.isPresent()) {
+                        Entry<Policies, Stat> policiesNode = policies.get();
+                        policiesNode.getKey().autoTopicCreationOverride = null;
+                        try {
+                            // Write back the new policies into zookeeper
+                            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                            asyncResponse.resume(Response.noContent().build());
+                            log.info("[{}] Successfully removed override on namespace {}", clientAppId(), namespaceName);
+                            return null;
+                        } catch (KeeperException.NoNodeException e) {
+                            log.error("[{}] Failed to modify autoTopicCreation status for namespace {}: does not exist", clientAppId(),
+                                    namespaceName);
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                            return null;
+                        } catch (KeeperException.BadVersionException e) {
+                            log.error(
+                                    "[{}] Failed to modify autoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
+                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
-        try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
-                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().autoTopicCreationOverride = null;
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
-            log.info("[{}] Successfully removed override on namespace {}", clientAppId(), namespaceName);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to modify allowAutoTopicCreation status for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to modify allowAutoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
-                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to modify allowAutoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-
+                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            return null;
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            asyncResponse.resume(new RestException(e));
+                            return null;
+                        }
+                    } else {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        return null;
+                    }
+                }
+        ).exceptionally(e -> {
+            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            asyncResponse.resume(new RestException(e));
+            return null;
+        });
     }
 
     protected void internalModifyDeduplication(boolean enableDeduplication) {

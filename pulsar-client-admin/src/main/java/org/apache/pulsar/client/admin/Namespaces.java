@@ -607,9 +607,9 @@ public interface Namespaces {
     void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
-     * Sets the allowAutoTopicCreation policy for a given namespace, overriding broker settings
+     * Sets the autoTopicCreation policy for a given namespace, overriding broker settings
      * <p>
-     * When allowAutoTopicCreationOverride is enabled, new topics will be created upon connection regardless of the broker level configuration.
+     * When autoTopicCreationOverride is enabled, new topics will be created upon connection regardless of the broker level configuration.
      * <p>
      * Request example:
      *
@@ -635,10 +635,10 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setAllowAutoTopicCreationOverride(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
+    void setAutoTopicCreationOverride(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
 
     /**
-     * Removes the allowAutoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
+     * Removes the autoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
      * <p>
      *
      * @param namespace
@@ -651,7 +651,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void removeAllowAutoTopicCreationOverride(String namespace) throws PulsarAdminException;
+    void removeAutoTopicCreationOverride(String namespace) throws PulsarAdminException;
 
     /**
      * Get the bundles split data.
