@@ -78,7 +78,7 @@ public class ProxyStats {
             @ApiResponse(code = 503, message = "Proxy service is not initialized") })
     public Map<String, TopicStats> topics() {
 
-        Optional<Integer> logLevel = proxyService().getConfiguration().getproxyLogLevel();
+        Optional<Integer> logLevel = proxyService().getConfiguration().getProxyLogLevel();
         if (!logLevel.isPresent() || logLevel.get() < 2) {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy doesn't have logging level 2");
         }
