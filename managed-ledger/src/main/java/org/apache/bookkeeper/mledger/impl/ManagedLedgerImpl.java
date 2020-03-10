@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -188,6 +189,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
+    protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
 
@@ -252,6 +254,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
             final String name) {
+        this(factory, bookKeeper, store, config, scheduledExecutor, orderedExecutor, name, null);
+    }
+    public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            final String name, final Supplier<Boolean> mlOwnershipChecker) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;
@@ -275,6 +282,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
+        this.mlOwnershipChecker = mlOwnershipChecker;
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
