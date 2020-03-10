@@ -125,7 +125,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         }
 
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/stats/proxy-stats/connections").request()
+        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/connections").request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();
@@ -174,7 +174,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         }
 
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/stats/proxy-stats/topics").request()
+        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/topics").request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();

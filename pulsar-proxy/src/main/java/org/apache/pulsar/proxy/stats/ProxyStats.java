@@ -40,8 +40,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-@Path("/proxy-stats")
-@Api(value = "/stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
+@Path("/")
+@Api(value = "/proxy-stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 public class ProxyStats {
 
