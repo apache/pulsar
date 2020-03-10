@@ -59,12 +59,12 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
-      <type>test-jar</type>
     </dependency>
+
   </dependencies>
 
 </project>
