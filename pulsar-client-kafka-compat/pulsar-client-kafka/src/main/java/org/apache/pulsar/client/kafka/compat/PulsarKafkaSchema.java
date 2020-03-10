@@ -74,4 +74,9 @@ public class PulsarKafkaSchema<T> implements Schema<T> {
     public SchemaInfo getSchemaInfo() {
         return Schema.BYTES.getSchemaInfo();
     }
+
+    @Override
+    public Schema<T> clone() {
+        return this;
+    }
 }

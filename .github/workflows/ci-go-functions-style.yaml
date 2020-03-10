@@ -32,7 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation
         id:   docs
@@ -58,7 +61,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
-          go build ./pf
+          go build ./...
 
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'

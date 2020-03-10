@@ -61,6 +61,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -842,6 +844,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     public void testPythonFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.PYTHON);
     }
+    @Test(groups = "function")
+    public void testGoFunctionLocalRun() throws Exception {
+        testFunctionLocalRun(Runtime.GO);
+    }
 
     @Test(groups = "function")
     public void testJavaFunctionLocalRun() throws Exception {
@@ -862,19 +868,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
 
         final int numMessages = 10;
-        String cmd;
+        String cmd = "";
         CommandGenerator commandGenerator = new CommandGenerator();
         commandGenerator.setAdminUrl("pulsar://pulsar-broker-0:6650");
         commandGenerator.setSourceTopic(inputTopicName);
         commandGenerator.setSinkTopic(outputTopicName);
         commandGenerator.setFunctionName("localRunTest");
         commandGenerator.setRuntime(runtime);
-        if (runtime == Runtime.JAVA) {
-            commandGenerator.setFunctionClassName(EXCLAMATION_JAVA_CLASS);
-            cmd = commandGenerator.generateLocalRunCommand(null);
-        } else {
-            commandGenerator.setFunctionClassName(EXCLAMATION_PYTHON_CLASS);
-            cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_PYTHON_FILE);
+        switch (runtime) {
+            case JAVA:
+                commandGenerator.setFunctionClassName(EXCLAMATION_JAVA_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(null);
+                break;
+            case PYTHON:
+                commandGenerator.setFunctionClassName(EXCLAMATION_PYTHON_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                commandGenerator.setFunctionClassName(null);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_GO_FILE);
+                break;
         }
 
         log.info("cmd: {}", cmd);
@@ -1316,6 +1329,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testPublishFunction(Runtime.JAVA);
     }
 
+    @Test
+    public void testGoPublishFunction() throws Exception {
+        testPublishFunction(Runtime.GO);
+    }
+
     private void testPublishFunction(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
@@ -1344,27 +1362,39 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-
-        if (runtime == Runtime.PYTHON) {
-            submitFunction(
-                    runtime,
-                    inputTopicName,
-                    outputTopicName,
-                    functionName,
-                    PUBLISH_FUNCTION_PYTHON_FILE,
-                    PUBLISH_PYTHON_CLASS,
-                    schema,
-                    Collections.singletonMap("publish-topic", outputTopicName));
-        } else {
-            submitFunction(
-                    runtime,
-                    inputTopicName,
-                    outputTopicName,
-                    functionName,
-                    null,
-                    PUBLISH_JAVA_CLASS,
-                    schema,
-                    Collections.singletonMap("publish-topic", outputTopicName));
+        switch (runtime){
+            case JAVA:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        null,
+                        PUBLISH_JAVA_CLASS,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
+                break;
+            case PYTHON:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        PUBLISH_FUNCTION_PYTHON_FILE,
+                        PUBLISH_PYTHON_CLASS,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
+                break;
+            case GO:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        PUBLISH_FUNCTION_GO_FILE,
+                        null,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
         }
 
         // get function info
@@ -1374,11 +1404,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
+
         if (Runtime.JAVA == runtime) {
             // java supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema
+            // python doesn't support schema. Does Go? Maybe we need a switch instead for the Go case.
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -1673,14 +1704,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);
         }
-        String command;
-        if (Runtime.JAVA == runtime) {
-            command = generator.generateCreateFunctionCommand();
-        } else if (Runtime.PYTHON == runtime) {
-            generator.setRuntime(runtime);
-            command = generator.generateCreateFunctionCommand(functionFile);
-        } else {
-            throw new IllegalArgumentException("Unsupported runtime : " + runtime);
+        String command = "";
+
+        switch (runtime){
+            case JAVA:
+                command = generator.generateCreateFunctionCommand();
+                break;
+            case PYTHON:
+            case GO:
+                generator.setRuntime(runtime);
+                command = generator.generateCreateFunctionCommand(functionFile);
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
 
         log.info("---------- Function command: {}", command);

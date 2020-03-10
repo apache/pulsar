@@ -59,7 +59,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -801,16 +800,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void subscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions,
             boolean createIfDoesNotExist) {
-        client.preProcessSchemaBeforeSubscribe(client, schema, topicName).whenComplete((ignored, cause) -> {
+        client.preProcessSchemaBeforeSubscribe(client, schema, topicName).whenComplete((schema, cause) -> {
             if (null == cause) {
-                doSubscribeTopicPartitions(subscribeResult, topicName, numPartitions, createIfDoesNotExist);
+                doSubscribeTopicPartitions(schema, subscribeResult, topicName, numPartitions, createIfDoesNotExist);
             } else {
                 subscribeResult.completeExceptionally(cause);
             }
         });
     }
 
-    private void doSubscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions,
+    private void doSubscribeTopicPartitions(Schema<T> schema,
+                                            CompletableFuture<Void> subscribeResult, String topicName, int numPartitions,
             boolean createIfDoesNotExist) {
         if (log.isDebugEnabled()) {
             log.debug("Subscribe to topic {} metadata.partitions: {}", topicName, numPartitions);
@@ -833,10 +833,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                                configurationData, client.externalExecutorProvider().getExecutor(),
-                                partitionIndex, true, subFuture,
-                                SubscriptionMode.Durable, null, schema, interceptors,
-                                createIfDoesNotExist);
+                            configurationData, client.externalExecutorProvider().getExecutor(),
+                            partitionIndex, true, subFuture,
+                            null, schema, interceptors,
+                            createIfDoesNotExist);
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -847,7 +847,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
             ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), -1, true, subFuture, SubscriptionMode.Durable, null,
+                    client.externalExecutorProvider().getExecutor(), -1, true, subFuture, null,
                     schema, interceptors,
                     createIfDoesNotExist);
             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
@@ -1094,12 +1094,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         client.getPartitionsForTopic(topicName).thenCompose(list -> {
-            int oldPartitionNumber = topics.get(topicName.toString());
+            int oldPartitionNumber = topics.get(topicName);
             int currentPartitionNumber = list.size();
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] partitions number. old: {}, new: {}",
-                    topicName.toString(), oldPartitionNumber, currentPartitionNumber);
+                    topicName, oldPartitionNumber, currentPartitionNumber);
             }
 
             if (oldPartitionNumber == currentPartitionNumber) {
@@ -1118,12 +1118,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                             client, partitionName, configurationData,
                             client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, true, subFuture, SubscriptionMode.Durable, null, schema, interceptors,
+                            partitionIndex, true, subFuture, null, schema, interceptors,
                             true /* createTopicIfDoesNotExist */);
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",
-                                topicName.toString(), newConsumer.getTopic(), partitionName);
+                                topicName, newConsumer.getTopic(), partitionName);
                         }
                         return subFuture;
                     })
@@ -1140,14 +1140,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         future.complete(null);
                     })
                     .exceptionally(ex -> {
-                        log.warn("[{}] Failed to subscribe {} partition: {} - {}",
-                            topic, topicName.toString(), oldPartitionNumber, currentPartitionNumber, ex.getMessage());
+                        log.warn("[{}] Failed to subscribe {} partition: {} - {} : {}",
+                            topic, topicName, oldPartitionNumber, currentPartitionNumber, ex);
                         future.completeExceptionally(ex);
                         return null;
                     });
             } else {
                 log.error("[{}] not support shrink topic partitions. old: {}, new: {}",
-                    topicName.toString(), oldPartitionNumber, currentPartitionNumber);
+                    topicName, oldPartitionNumber, currentPartitionNumber);
                 future.completeExceptionally(new NotSupportedException("not support shrink topic partitions"));
             }
             return future;
@@ -1164,7 +1164,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}]  run partitionsAutoUpdateTimerTask for multiTopicsConsumer: {}", topic);
+                log.debug("[{}] run partitionsAutoUpdateTimerTask", topic);
             }
 
             // if last auto update not completed yet, do nothing.

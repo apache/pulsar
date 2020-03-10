@@ -51,24 +51,24 @@ public class ManagedCursorListAckTest extends MockedBookKeeperTestCase {
         Position p7 = ledger.addEntry("dummy-entry-7".getBytes(Encoding));
 
         assertEquals(c1.getNumberOfEntries(), 7);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 7);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 7);
 
         c1.delete(Lists.newArrayList(p2, p3, p5, p7));
 
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
         assertEquals(c1.getMarkDeletedPosition(), p0);
 
         c1.delete(Lists.newArrayList(p1));
 
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
         assertEquals(c1.getMarkDeletedPosition(), p3);
 
         c1.delete(Lists.newArrayList(p4, p6, p7));
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(c1.getMarkDeletedPosition(), p7);
     }
 

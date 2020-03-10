@@ -213,7 +213,7 @@ public class BinaryProtoLookupService implements LookupService {
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(0, TimeUnit.MILLISECONDS)
+                .setMax(1, TimeUnit.MINUTES)
                 .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;

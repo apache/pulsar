@@ -61,4 +61,9 @@ abstract class AbstractSchema<T> implements Schema<T> {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(byteBuf);
     }
+
+    @Override
+    public Schema<T> clone() {
+        return this;
+    }
 }
