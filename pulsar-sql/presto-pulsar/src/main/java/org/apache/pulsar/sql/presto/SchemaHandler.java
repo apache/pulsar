@@ -31,7 +31,9 @@ public interface SchemaHandler {
         return deserialize(byteBuf);
     }
 
-    default Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) { return deserialize(dataPayload); }
+    default Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
+        return deserialize(dataPayload);
+    }
 
     default Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
         return deserialize(keyPayload, dataPayload);

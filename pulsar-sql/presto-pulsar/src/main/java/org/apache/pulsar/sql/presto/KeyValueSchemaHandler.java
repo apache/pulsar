@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
@@ -55,6 +56,14 @@ public class KeyValueSchemaHandler implements SchemaHandler {
         valueSchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(topicName, pulsarConnectorConfig,
                 kvSchemaInfo.getValue(), columnHandles);
         keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
+    }
+    @VisibleForTesting
+    KeyValueSchemaHandler(SchemaHandler keySchemaHandler,
+                          SchemaHandler valueSchemaHandler,
+                          List<PulsarColumnHandle> columnHandles) {
+        this.keySchemaHandler = keySchemaHandler;
+        this.valueSchemaHandler = valueSchemaHandler;
+        this.columnHandles = columnHandles;
     }
 
     @Override

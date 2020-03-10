@@ -115,7 +115,8 @@ public class TestAvroSchemaHandler {
                 true,
                 true,
                 fields,
-                new Integer[5]);
+                new Integer[5],
+                null);
         columnHandles.add(pulsarColumnHandle);
         when(message.getData()).thenReturn(ByteBufAllocator.DEFAULT
                 .buffer(bytes.length, bytes.length).writeBytes(byteArrayOutputStream.toByteArray()));

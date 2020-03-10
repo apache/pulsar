@@ -37,9 +37,12 @@ import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
 
 
 /**
@@ -105,9 +108,9 @@ public class TestPulsarKeyValueSchemaHandler {
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
 
         KeyValueSchemaHandler keyValueSchemaHandler =
-                new KeyValueSchemaHandler(schema1.getSchemaInfo(), columnHandleList);
+                new KeyValueSchemaHandler(null, null,schema1.getSchemaInfo(), columnHandleList);
 
-        RawMessageImpl message = Mockito.mock(RawMessageImpl.class);
+        RawMessageImpl message = mock(RawMessageImpl.class);
         Mockito.when(message.getData()).thenReturn(
                 Unpooled.wrappedBuffer(schema1.encode(new KeyValue<>(keyData, valueData)))
         );
@@ -140,14 +143,14 @@ public class TestPulsarKeyValueSchemaHandler {
 
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
 
-        RawMessage message = Mockito.mock(RawMessage.class);
+        RawMessage message = mock(RawMessage.class);
         Mockito.when(message.getData()).thenReturn(
                 Unpooled.wrappedBuffer(schema2.encode(new KeyValue<>(keyData, foo)))
         );
 
 
         KeyValueSchemaHandler keyValueSchemaHandler =
-                new KeyValueSchemaHandler(schema2.getSchemaInfo(), columnHandleList);
+                new KeyValueSchemaHandler(null, null, schema2.getSchemaInfo(), columnHandleList);
 
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema2);
         Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
@@ -184,10 +187,19 @@ public class TestPulsarKeyValueSchemaHandler {
 
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
 
-        KeyValueSchemaHandler keyValueSchemaHandler =
-                new KeyValueSchemaHandler(schema3.getSchemaInfo(), columnHandleList);
+        PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
 
-        RawMessage message = Mockito.mock(RawMessage.class);
+        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
+                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schema3.getSchemaInfo());
+
+        AvroSchemaHandler avroSchemaHandler =
+                new AvroSchemaHandler(pulsarSqlSchemaInfoProvider, kvSchemaInfo.getKey(), columnHandleList);
+        PulsarPrimitiveSchemaHandler pulsarPrimitiveSchemaHandler =
+                new PulsarPrimitiveSchemaHandler(kvSchemaInfo.getValue());
+        KeyValueSchemaHandler keyValueSchemaHandler =
+                new KeyValueSchemaHandler(avroSchemaHandler, pulsarPrimitiveSchemaHandler, columnHandleList);
+
+        RawMessage message = mock(RawMessage.class);
         Mockito.when(message.getKeyBytes()).thenReturn(
                 Optional.of(Unpooled.wrappedBuffer(
                     ((KeyValueSchema) schema3).getKeySchema().encode(boo)
@@ -228,10 +240,19 @@ public class TestPulsarKeyValueSchemaHandler {
 
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
 
-        KeyValueSchemaHandler keyValueSchemaHandler =
-                new KeyValueSchemaHandler(schema4.getSchemaInfo(), columnHandleList);
+        PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
 
-        RawMessage message = Mockito.mock(RawMessage.class);
+        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
+                KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schema4.getSchemaInfo());
+
+        AvroSchemaHandler avroSchemaHandler =
+                new AvroSchemaHandler(pulsarSqlSchemaInfoProvider, kvSchemaInfo.getValue(), columnHandleList);
+        JSONSchemaHandler jsonSchemaHandler = new JSONSchemaHandler(columnHandleList);
+        KeyValueSchemaHandler keyValueSchemaHandler =
+                new KeyValueSchemaHandler(jsonSchemaHandler, avroSchemaHandler, columnHandleList);
+
+
+        RawMessage message = mock(RawMessage.class);
         Mockito.when(message.getKeyBytes()).thenReturn(
                 Optional.of(Unpooled.wrappedBuffer(
                         ((KeyValueSchema) schema4).getKeySchema().encode(boo)

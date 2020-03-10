@@ -83,7 +83,7 @@ public class AvroSchemaHandler implements SchemaHandler {
             String[] names = pulsarColumnHandle.getFieldNames();
 
             if (names.length == 1) {
-                return record.getField(pulsarColumnHandle.getName());
+                return record.getField(pulsarColumnHandle.getFieldNames()[0]);
             } else {
                 for (int i = 0; i < names.length - 1; i++) {
                     record = (GenericAvroRecord) record.getField(names[i]);
