@@ -351,7 +351,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds %d bytes",
                         producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
-                callback.sendComplete(invalidMessageException);
+                completeCallbackAndReleaseSemaphore(callback, invalidMessageException);
                 return;
             }
         }
@@ -360,7 +360,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             PulsarClientException.InvalidMessageException invalidMessageException =
                 new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s can not reuse the same message", producerName, topic));
-            callback.sendComplete(invalidMessageException);
+            completeCallbackAndReleaseSemaphore(callback, invalidMessageException);
             compressedPayload.release();
             return;
         }
@@ -455,11 +455,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             }
         } catch (PulsarClientException e) {
-            semaphore.release();
-            callback.sendComplete(e);
+            completeCallbackAndReleaseSemaphore(callback, e);
         } catch (Throwable t) {
-            semaphore.release();
-            callback.sendComplete(new PulsarClientException(t));
+            completeCallbackAndReleaseSemaphore(callback, new PulsarClientException(t));
         }
     }
 
@@ -471,8 +469,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return true;
         }
         if (!isMultiSchemaEnabled(true)) {
-            callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)));
+            PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
+                    format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic));
+            completeCallbackAndReleaseSemaphore(callback, e);
             return false;
         }
         SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
@@ -573,8 +572,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private ChecksumType getChecksumType() {
-        if (connectionHandler.getClientCnx() == null
-                || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+        if (connectionHandler.cnx() == null
+                || connectionHandler.cnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             return ChecksumType.Crc32c;
         } else {
             return ChecksumType.None;
@@ -783,11 +782,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public boolean isConnected() {
-        return connectionHandler.getClientCnx() != null && (getState() == State.Ready);
+        return connectionHandler.cnx() != null && (getState() == State.Ready);
     }
 
     public boolean isWritable() {
-        ClientCnx cnx = connectionHandler.getClientCnx();
+        ClientCnx cnx = connectionHandler.cnx();
         return cnx != null && cnx.channel().isWritable();
     }
 
@@ -870,6 +869,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void releaseSemaphoreForSendOp(OpSendMsg op) {
         semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+    }
+
+    private void completeCallbackAndReleaseSemaphore(SendCallback callback, Exception exception) {
+        semaphore.release();
+        callback.sendComplete(exception);
     }
 
     /**
@@ -987,7 +991,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.cmd = cmd;
             op.callback = callback;
             op.sequenceId = sequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -997,7 +1001,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.cmd = cmd;
             op.callback = callback;
             op.sequenceId = sequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -1009,7 +1013,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.callback = callback;
             op.sequenceId = lowestSequenceId;
             op.highestSequenceId = highestSequenceId;
-            op.createdAt = System.currentTimeMillis();
+            op.createdAt = System.nanoTime();
             return op;
         }
 
@@ -1307,9 +1311,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
-                // If there is at least one message, calculate the diff between the message timeout and the current
-                // time.
-                long diff = (firstMsg.createdAt + conf.getSendTimeoutMs()) - System.currentTimeMillis();
+                // If there is at least one message, calculate the diff between the message timeout and the elapsed
+                // time since first message was created.
+                long diff = conf.getSendTimeoutMs()
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
@@ -1560,7 +1565,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public long getDelayInMillis() {
         OpSendMsg firstMsg = pendingMessages.peek();
         if (firstMsg != null) {
-            return System.currentTimeMillis() - firstMsg.createdAt;
+            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
         }
         return 0L;
     }
@@ -1600,7 +1605,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     ClientCnx getClientCnx() {
-        return this.connectionHandler.getClientCnx();
+        return this.connectionHandler.cnx();
     }
 
     void setClientCnx(ClientCnx clientCnx) {

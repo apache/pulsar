@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -102,6 +103,48 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName + "-partition-" + i));
         }
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
+    }
+
+    @Test
+    public void testAutoSubscriptionCreationDisable() throws Exception{
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "persistent://prop/ns-abc/test-subtopic";
+        final String subscriptionName = "test-subtopic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try {
+            pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+            fail("Subscribe operation should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+
+        // Reset to default
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+    }
+
+    @Test
+    public void testSubscriptionCreationWithAutoCreationDisable() throws Exception{
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final String topicName = "persistent://prop/ns-abc/test-subtopic";
+        final String subscriptionName = "test-subtopic-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+
+        // Create the subscription by PulsarAdmin
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+
+        // Subscribe operation should be successful
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+        // Reset to default
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
     }
 
     /**

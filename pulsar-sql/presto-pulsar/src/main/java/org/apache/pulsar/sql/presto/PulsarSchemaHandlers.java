@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 class PulsarSchemaHandlers {
 
@@ -37,7 +38,6 @@ class PulsarSchemaHandlers {
         if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveSchemaHandler(schemaInfo);
         } else if (schemaInfo.getType().isStruct()) {
-
             try {
                 switch (schemaInfo.getType()) {
                     case JSON:
@@ -52,6 +52,8 @@ class PulsarSchemaHandlers {
                         new Throwable("PulsarAdmin gets version schema fail, topicName : "
                                 + topicName.toString(), e));
             }
+        } else if (schemaInfo.getType().equals(SchemaType.KEY_VALUE)) {
+            return new KeyValueSchemaHandler(topicName, pulsarConnectorConfig, schemaInfo, columnHandles);
         } else {
             throw new PrestoException(
                     NOT_SUPPORTED,

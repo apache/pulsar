@@ -16,49 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.schema.compatibility;
+package org.apache.pulsar.client.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.apache.avro.reflect.AvroDefault;
+/**
+ * Types of subscription mode supported by Pulsar.
+ */
+public enum SubscriptionMode {
+    // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
+    // position
+    Durable,
 
-public class Schemas {
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PersonOne{
-        int id;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonTwo{
-        int id;
-
-        @AvroDefault("\"Tom\"")
-        String name;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonThree{
-        int id;
-
-        String name;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonFour{
-        int id;
-
-        String name;
-
-        int age;
-    }
+    // Lightweight subscription mode that doesn't have a durable cursor associated
+    NonDurable
 }

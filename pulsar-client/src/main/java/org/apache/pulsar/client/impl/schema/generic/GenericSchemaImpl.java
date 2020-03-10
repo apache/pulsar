@@ -76,5 +76,4 @@ public abstract class GenericSchemaImpl extends StructSchema<GenericRecord> impl
                     + schemaInfo.getType() + "'");
         }
     }
-
 }

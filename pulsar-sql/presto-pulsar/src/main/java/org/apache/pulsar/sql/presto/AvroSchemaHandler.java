@@ -75,8 +75,6 @@ public class AvroSchemaHandler implements SchemaHandler {
         return genericAvroSchema.decode(payload, schemaVersion);
     }
 
-
-
     @Override
     public Object extractField(int index, Object currentRecord) {
         try {

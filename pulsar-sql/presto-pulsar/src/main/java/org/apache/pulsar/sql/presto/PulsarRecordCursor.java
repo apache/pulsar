@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -417,7 +418,18 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        if (currentMessage.getSchemaVersion() != null) {
+        if (this.schemaHandler instanceof KeyValueSchemaHandler) {
+            ByteBuf keyByteBuf = null;
+            if (this.currentMessage.getKeyBytes().isPresent()) {
+                keyByteBuf = this.currentMessage.getKeyBytes().get();
+            }
+            if (currentMessage.getSchemaVersion() != null) {
+                currentRecord = this.schemaHandler.deserialize(keyByteBuf,
+                        this.currentMessage.getData(), this.currentMessage.getSchemaVersion());
+            } else {
+                currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
+            }
+        } else if (currentMessage.getSchemaVersion() != null) {
             currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData(),
                     this.currentMessage.getSchemaVersion());
         } else {

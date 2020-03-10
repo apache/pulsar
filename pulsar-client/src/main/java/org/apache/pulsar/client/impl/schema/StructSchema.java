@@ -150,8 +150,7 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
             try {
                 // Disable validation of default values for compatibility
                 validateDefaults.set(false);
-                return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo)
-                        : ReflectData.get().getSchema(pojo);
+                return extractAvroSchema(schemaDefinition, pojo);
             } finally {
                 validateDefaults.set(savedValidateDefaults);
             }
@@ -160,7 +159,16 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
         }
     }
 
-    public static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+    protected static Schema extractAvroSchema(SchemaDefinition schemaDefinition, Class pojo) {
+        try {
+            return parseAvroSchema(pojo.getDeclaredField("SCHEMA$").get(null).toString());
+        } catch (NoSuchFieldException | IllegalAccessException | IllegalArgumentException ignored) {
+            return schemaDefinition.getAlwaysAllowNull() ? ReflectData.AllowNull.get().getSchema(pojo)
+                : ReflectData.get().getSchema(pojo);
+        }
+    }
+
+    protected static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final Parser parser = new Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);

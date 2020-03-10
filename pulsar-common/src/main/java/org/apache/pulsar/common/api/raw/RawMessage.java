@@ -109,4 +109,17 @@ public interface RawMessage {
      */
     byte[] getSchemaVersion();
 
+    /**
+     * Get byteBuf of the key.
+     *
+     * @return the byte array with the key payload
+     */
+    Optional<ByteBuf> getKeyBytes();
+
+    /**
+     * Check whether the key has been base64 encoded.
+     *
+     * @return true if the key is base64 encoded, false otherwise
+     */
+    boolean hasBase64EncodedKey();
 }

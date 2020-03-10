@@ -92,7 +92,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public long getNumberOfEntriesInBacklog() {
+        public long getNumberOfEntriesInBacklog(boolean isPrecise) {
             return 0;
         }
 

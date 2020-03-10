@@ -385,7 +385,8 @@ public class FunctionConfigUtils {
             Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
 
             if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
-                    && !java.util.function.Function.class.isAssignableFrom(functionClass)) {
+                    && !java.util.function.Function.class.isAssignableFrom(functionClass)
+                    && !org.apache.pulsar.functions.api.WindowFunction.class.isAssignableFrom(functionClass)) {
                 throw new IllegalArgumentException(
                         String.format("Function class %s does not implement the correct interface",
                                 functionClass.getName()));
