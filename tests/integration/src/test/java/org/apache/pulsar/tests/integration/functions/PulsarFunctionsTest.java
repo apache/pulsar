@@ -43,7 +43,11 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.CustomBaseObject;
+import org.apache.pulsar.functions.api.examples.CustomBaseToDerivedFunction;
+import org.apache.pulsar.functions.api.examples.CustomDerivedObject;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -2135,6 +2139,75 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             Message<String> msg = consumer.receive();
             assertEquals("value-" + i, msg.getValue());
         }
+    }
+
+    @Test(groups = "function")
+    public void testCustomBaseToDerivedFunction() throws Exception {
+        final String inputTopic = "test-avroschema-input-" + randomName(8);
+        final String outputTopic = "test-avroschema-output-" + randomName(8);
+        final String functionName = "test-avroschema-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        if (pulsarCluster == null) {
+            this.setupCluster();
+            this.setupFunctionWorkers();
+        }
+
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                CustomBaseToDerivedFunction.class.getName(),
+                Schema.AVRO(CustomBaseObject.class));
+
+        getFunctionInfoSuccess(functionName);
+
+        publishAndConsumeAvroSchemaMessages(
+                inputTopic, CustomBaseObject.class,
+                outputTopic, CustomDerivedObject.class,
+                numMessages, new CustomBaseToDerivedFunction());
+
+        getFunctionStatus(functionName, numMessages, false);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    private void publishAndConsumeAvroSchemaMessages(String inputTopic, Class<? extends CustomBaseObject> inputClass,
+                                                     String outputTopic, Class<? extends CustomBaseObject> outputClass,
+                                                     int numMessages, Function function)
+            throws Exception {
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+
+        @Cleanup Consumer consumer = pulsarClient.newConsumer(Schema.AVRO(outputClass))
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-avro-schema")
+                .topic(outputTopic)
+                .subscribe();
+
+        @Cleanup Producer producer = pulsarClient.newProducer(Schema.AVRO(inputClass))
+                .topic(inputTopic).create();
+
+        Set<Object> expectedSet = new HashSet<>();
+        for (int i = 0 ; i < numMessages ; i++) {
+            CustomBaseObject customBaseObject = new CustomBaseObject();
+            customBaseObject.setBaseValue(10);
+            producer.send(customBaseObject);
+            expectedSet.add(function.process(customBaseObject, null));
+        }
+
+        for (int i = 0 ; i < numMessages ; i++) {
+            Message message = consumer.receive();
+            Object outputObj = message.getValue();
+            assertTrue(expectedSet.contains(outputObj));
+            expectedSet.remove(outputObj);
+        }
+
+        assertEquals(expectedSet.size(), 0);
     }
 
     private  void testDebeziumMySqlConnect()
