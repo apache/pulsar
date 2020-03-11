@@ -200,7 +200,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
         while (id[0] == null) {
-
+            Thread.sleep(1);
         }
         Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
         Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
@@ -214,6 +214,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         }
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
         while (id[0] == messageId) {
+            Thread.sleep(1);
         }
         Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
         Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
