@@ -99,6 +99,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetLastMessageId() throws Exception {
         final MessageId[] id = new MessageId[1];
+        id[0] = null;
         MessageId messageId = null;
         AsyncResponse asyncResponse = new AsyncResponse() {
             @Override
@@ -198,13 +199,12 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         }
 
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
-        System.out.println(id.toString());
-        while (id[0] != null) {
-            Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
-            Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
-            messageId = id[0];
-            break;
+        while (id[0] == null) {
+
         }
+        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
+        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
+        messageId = id[0];
 
 
         // send more numberOfMessages messages, the last message id should be numberOfMessages*2-1
@@ -213,12 +213,9 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
-        while (id[0] != messageId) {
-            System.out.println(id.toString());
-            Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
-            Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
-            System.out.println(id.toString());
-            break;
+        while (id[0] == messageId) {
         }
+        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
+        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
     }
 }
