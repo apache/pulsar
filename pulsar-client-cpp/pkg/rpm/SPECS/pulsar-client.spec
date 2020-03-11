@@ -53,7 +53,7 @@ static library.
 %build
 cd pulsar-client-cpp
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON -DBUILD_PYTHON_WRAPPER=OFF
-make pulsarShared pulsarStatic -j 3
+make pulsarShared pulsarStatic pulsarStaticWithDeps -j 3
 
 %install
 cd pulsar-client-cpp
@@ -65,6 +65,7 @@ mkdir -p $INCLUDE_DIR $LIB_DIR $DOC_DIR $DOC_DEVEL_DIR
 
 cp -ar include/pulsar $INCLUDE_DIR
 cp lib/libpulsar.a $LIB_DIR
+cp lib/libpulsarwithdeps.a $LIB_DIR
 cp lib/libpulsar.so.%{pom_version} $LIB_DIR
 
 # Copy LICENSE files
@@ -85,5 +86,6 @@ ln -s libpulsar.so.%{pom_version} libpulsar.so
 %files devel
 %defattr(-,root,root)
 /usr/lib/libpulsar.a
+/usr/lib/libpulsarwithdeps.a
 /usr/include/pulsar
 /usr/share/doc/pulsar-client-devel-%{version}

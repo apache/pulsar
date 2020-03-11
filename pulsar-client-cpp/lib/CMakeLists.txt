@@ -72,7 +72,7 @@ if (MSVC)
 endif()
 
 # When linking statically, install a libpulsar.a that contains all the
-# required dependencies
+# required dependencies except ssl
 if (LINK_STATIC)
     if (MSVC)
         
@@ -98,8 +98,10 @@ if (LINK_STATIC)
         set_target_properties(pulsarStaticWithDeps PROPERTIES STATIC_LIBRARY_FLAGS_DEBUG ${DEBUG_STATIC_LIBS} STATIC_LIBRARY_FLAGS_RELEASE ${STATIC_LIBS} OUTPUT_NAME ${LIB_NAME}WithDeps VERSION ${LIBRARY_VERSION})
         install(TARGETS pulsarStaticWithDeps DESTINATION lib)
     else()
-        # Build a list of the requird .a libs to merge
+        # Build a list of the requird .a libs (except ssl) to merge
         SET(STATIC_LIBS "")
+        LIST(REMOVE_ITEM COMMON_LIBS ${OPENSSL_SSL_LIBRARY})
+        LIST(REMOVE_ITEM COMMON_LIBS ${OPENSSL_CRYPTO_LIBRARY})
         foreach (LIB IN LISTS COMMON_LIBS)
             if (${LIB} MATCHES ".+\\.a$")
                 set(STATIC_LIBS "${STATIC_LIBS} ${LIB}")
@@ -109,10 +111,9 @@ if (LINK_STATIC)
         add_custom_target(pulsarStaticWithDeps
                 ALL
                 BYPRODUCTS merged-library
-                COMMAND ./build-support/merge_archives.sh libpulsar.a $<TARGET_FILE:pulsarStatic> ${STATIC_LIBS}
+                COMMAND ./build-support/merge_archives.sh libpulsar.a $<TARGET_FILE:pulsarStatic> ${STATIC_LIBS} && mv merged-library/libpulsar.a lib/libpulsarwithdeps.a
                 DEPENDS pulsarStatic
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-        install(FILES ../merged-library/libpulsar.a DESTINATION lib)
     endif(MSVC)
 else()
     # Install regular libpulsar.a
