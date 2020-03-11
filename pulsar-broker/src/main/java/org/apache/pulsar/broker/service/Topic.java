@@ -169,7 +169,7 @@ public interface Topic {
 
     Position getLastPosition();
 
-    MessageId getLastMessageId() throws ExecutionException, InterruptedException;
+    CompletableFuture<MessageId> getLastMessageId();
 
     /**
      * Whether a topic has had a schema defined for it.

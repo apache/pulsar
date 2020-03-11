@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin.v2;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -1076,7 +1075,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public MessageId getLastMessageId(
+    public void getLastMessageId(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1085,12 +1085,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-
         try {
-            return internalGetLastMessageId(authoritative);
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetLastMessageId(asyncResponse, authoritative);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
     }
 

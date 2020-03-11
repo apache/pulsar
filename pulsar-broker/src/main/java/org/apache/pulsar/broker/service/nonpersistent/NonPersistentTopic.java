@@ -920,7 +920,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public MessageId getLastMessageId() {
+    public CompletableFuture<MessageId> getLastMessageId() {
         throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
     }
 

@@ -1946,32 +1946,33 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public MessageId getLastMessageId() throws ExecutionException, InterruptedException {
+    public CompletableFuture<MessageId> getLastMessageId() {
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
         PositionImpl position = (PositionImpl) ledger.getLastConfirmedEntry();
         int partitionIndex = TopicName.getPartitionIndex(getName());
         if (position.getEntryId() == -1) {
-            return new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex);
+            completableFuture
+                    .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
         }
-        CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
         ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                entryFuture.complete(entry);
+                PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                if (metadata.hasNumMessagesInBatch()) {
+                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                } else {
+                    completableFuture
+                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                }
             }
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                entryFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(exception);
             }
         }, null);
-
-        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entryFuture.get().getDataBuffer());
-        if (metadata.hasNumMessagesInBatch()) {
-            return new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                    partitionIndex, metadata.getNumMessagesInBatch() - 1);
-        } else {
-            return new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex);
-        }
+        return completableFuture;
     }
 
     public synchronized void triggerCompaction()
