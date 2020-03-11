@@ -1015,8 +1015,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     if (p.offload_threshold != -1L) {
                         bytes = p.offload_threshold;
                     }
-                    managedLedgerConfig.setOffloadLedgerDeletionLag(lag, TimeUnit.MILLISECONDS);
-                    managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(bytes);
                 });
 
             future.complete(managedLedgerConfig);

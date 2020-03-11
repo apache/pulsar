@@ -1090,25 +1090,29 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         // the ledger config should have the expected value
         ManagedLedgerConfig ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+                1);
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
         assertEquals(100, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 100);
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+                100);
 
         // set another negative value to disable
         admin.namespaces().setOffloadThreshold(namespace, -2);
         assertEquals(-2, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), -2);
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+                -2);
 
         // set back to -1 and fall back to default
         admin.namespaces().setOffloadThreshold(namespace, -1);
         assertEquals(-1, admin.namespaces().getOffloadThreshold(namespace));
         ledgerConf = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
-        assertEquals(ledgerConf.getOffloadAutoTriggerSizeThresholdBytes(), 1);
+        assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
+                1);
 
         // cleanup
         admin.topics().delete(topicName.toString(), true);
