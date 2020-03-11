@@ -20,7 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.common.stats.Rate;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean {
