@@ -87,8 +87,8 @@ class AckGroupingTracker {
      * @param[in] ackType ACK type, e.g. cumulative.
      * @return true if the ACK is sent successfully, otherwise false.
      */
-    bool doImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId,
-                        const MessageId& msgId, proto::CommandAck_AckType ackType);
+    bool doImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId, const MessageId& msgId,
+                        proto::CommandAck_AckType ackType);
 
     /**
      * Immediately send a set of ACK requests one by one to the broker, it only supports individual
@@ -102,7 +102,7 @@ class AckGroupingTracker {
                         const std::set<MessageId>& msgIds);
 };  // class AckGroupingTracker
 
-using AckGroupingTrackerScopedPtr = std::unique_ptr<AckGroupingTracker> ;
+using AckGroupingTrackerScopedPtr = std::unique_ptr<AckGroupingTracker>;
 
 }  // namespace pulsar
 #endif /* LIB_ACKGROUPINGTRACKER_H_ */

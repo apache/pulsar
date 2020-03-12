@@ -108,14 +108,11 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
         // Persistent topic, ACK requests need to be sent to broker.
         if (conf.getAckGroupingTimeMs() > 0) {
             // Grouping ACK is ENABLED because grouping time value is a positive value.
-            this->ackGroupingTrackerPtr_.reset(
-                    new AckGroupingTrackerEnabled(client, *this, this->consumerId_,
-                                                  conf.getAckGroupingTimeMs(),
-                                                  conf.getAckGroupingMaxSize()));
+            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerEnabled(
+                client, *this, this->consumerId_, conf.getAckGroupingTimeMs(), conf.getAckGroupingMaxSize()));
         } else {
             // Grouping ACK is DISABLED because grouping time value is a non-positive value.
-            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this,
-                                                                              this->consumerId_));
+            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this, this->consumerId_));
         }
     } else {
         // Non-persistent topic, ACK requests do NOT need to be sent to broker.

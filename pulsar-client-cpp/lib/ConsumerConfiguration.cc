@@ -116,17 +116,13 @@ void ConsumerConfiguration::setAckGroupingTimeMs(long ackGroupingMillis) {
     impl_->ackGroupingTimeMs = ackGroupingMillis;
 }
 
-long ConsumerConfiguration::getAckGroupingTimeMs() const {
-    return impl_->ackGroupingTimeMs;
-}
+long ConsumerConfiguration::getAckGroupingTimeMs() const { return impl_->ackGroupingTimeMs; }
 
 void ConsumerConfiguration::setAckGroupingMaxSize(long maxGroupingSize) {
     impl_->ackGroupingMaxSize = maxGroupingSize;
 }
 
-long ConsumerConfiguration::getAckGroupingMaxSize() const {
-    return impl_->ackGroupingMaxSize;
-}
+long ConsumerConfiguration::getAckGroupingMaxSize() const { return impl_->ackGroupingMaxSize; }
 
 bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }
 

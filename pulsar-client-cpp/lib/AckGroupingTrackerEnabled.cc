@@ -36,13 +36,21 @@ DECLARE_LOG_OBJECT();
 AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr, HandlerBase& handler,
                                                      uint64_t consumerId, long ackGroupingTimeMs,
                                                      long ackGroupingMaxSize)
-        : AckGroupingTracker(), handler_(handler), consumerId_(consumerId),
-          nextCumulativeAckMsgId_(MessageId::earliest()), requireCumulativeAck_(false),
-          mutexCumulativeAckMsgId_(), pendingIndividualAcks_(), rmutexPendingIndAcks_(),
-          ackGroupingTimeMs_(ackGroupingTimeMs), ackGroupingMaxSize_(ackGroupingMaxSize),
-          executor_(clientPtr->getIOExecutorProvider()->get()), timer_(), mutexTimer_() {
-    LOG_INFO("ACK grouping is enabled, grouping time " << ackGroupingTimeMs
-            << "ms, grouping max size " << ackGroupingMaxSize);
+    : AckGroupingTracker(),
+      handler_(handler),
+      consumerId_(consumerId),
+      nextCumulativeAckMsgId_(MessageId::earliest()),
+      requireCumulativeAck_(false),
+      mutexCumulativeAckMsgId_(),
+      pendingIndividualAcks_(),
+      rmutexPendingIndAcks_(),
+      ackGroupingTimeMs_(ackGroupingTimeMs),
+      ackGroupingMaxSize_(ackGroupingMaxSize),
+      executor_(clientPtr->getIOExecutorProvider()->get()),
+      timer_(),
+      mutexTimer_() {
+    LOG_INFO("ACK grouping is enabled, grouping time " << ackGroupingTimeMs << "ms, grouping max size "
+                                                       << ackGroupingMaxSize);
     this->scheduleTimer();
 }
 
@@ -50,7 +58,9 @@ bool AckGroupingTrackerEnabled::isDuplicate(const MessageId& msgId) {
     {
         // Check if the message ID is already ACKed by a previous (or pending) cumulative request.
         std::lock_guard<std::mutex> lock(this->mutexCumulativeAckMsgId_);
-        if (msgId <= this->nextCumulativeAckMsgId_) { return true; }
+        if (msgId <= this->nextCumulativeAckMsgId_) {
+            return true;
+        }
     }
 
     // Check existence in pending individual ACKs set.
@@ -61,8 +71,7 @@ bool AckGroupingTrackerEnabled::isDuplicate(const MessageId& msgId) {
 void AckGroupingTrackerEnabled::addAcknowledge(const MessageId& msgId) {
     std::lock_guard<std::recursive_mutex> lock(this->rmutexPendingIndAcks_);
     this->pendingIndividualAcks_.insert(msgId);
-    if (this->ackGroupingMaxSize_ > 0
-            && this->pendingIndividualAcks_.size() >= this->ackGroupingMaxSize_) {
+    if (this->ackGroupingMaxSize_ > 0 && this->pendingIndividualAcks_.size() >= this->ackGroupingMaxSize_) {
         this->flush();
     }
 }
@@ -95,8 +104,7 @@ void AckGroupingTrackerEnabled::flush() {
     {
         std::lock_guard<std::mutex> lock(this->mutexCumulativeAckMsgId_);
         if (this->requireCumulativeAck_) {
-            if (!this->doImmediateAck(cnx, this->consumerId_,
-                                      this->nextCumulativeAckMsgId_,
+            if (!this->doImmediateAck(cnx, this->consumerId_, this->nextCumulativeAckMsgId_,
                                       proto::CommandAck::Cumulative)) {
                 // Failed to send ACK.
                 return;
@@ -109,8 +117,7 @@ void AckGroupingTrackerEnabled::flush() {
     std::lock_guard<std::recursive_mutex> lock(this->rmutexPendingIndAcks_);
     if (!this->pendingIndividualAcks_.empty()) {
         if (Commands::peerSupportsMultiMessageAcknowledgement(cnx->getServerProtocolVersion())) {
-            auto cmd = Commands::newMultiMessageAck(this->consumerId_,
-                                                    this->pendingIndividualAcks_);
+            auto cmd = Commands::newMultiMessageAck(this->consumerId_, this->pendingIndividualAcks_);
             cnx->sendCommand(cmd);
         } else {
             // Broker does not support multi-message ACK, use multiple individual ACK instead.
@@ -134,9 +141,8 @@ void AckGroupingTrackerEnabled::flushAndClean() {
 void AckGroupingTrackerEnabled::scheduleTimer() {
     std::lock_guard<std::mutex> lock(this->mutexTimer_);
     this->timer_ = this->executor_->createDeadlineTimer();
-    this->timer_->expires_from_now(
-            boost::posix_time::milliseconds(std::max(1L, this->ackGroupingTimeMs_)));
-    this->timer_->async_wait([this] (const boost::system::error_code& ec) -> void {
+    this->timer_->expires_from_now(boost::posix_time::milliseconds(std::max(1L, this->ackGroupingTimeMs_)));
+    this->timer_->async_wait([this](const boost::system::error_code& ec) -> void {
         if (!ec) {
             this->flush();
             this->scheduleTimer();

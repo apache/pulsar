@@ -130,6 +130,7 @@ class Commands {
     static bool peerSupportsMultiMessageAcknowledgement(int32_t peerVersion);
     static bool peerSupportsJsonSchemaAvroFormat(int32_t peerVersion);
     static bool peerSupportsGetOrCreateSchema(int32_t peerVersion);
+
    private:
     Commands();
 

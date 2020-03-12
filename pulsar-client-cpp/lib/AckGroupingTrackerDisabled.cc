@@ -28,18 +28,16 @@ namespace pulsar {
 DECLARE_LOG_OBJECT();
 
 AckGroupingTrackerDisabled::AckGroupingTrackerDisabled(HandlerBase& handler, uint64_t consumerId)
-        : AckGroupingTracker(), handler_(handler), consumerId_(consumerId) {
+    : AckGroupingTracker(), handler_(handler), consumerId_(consumerId) {
     LOG_INFO("ACK grouping is disabled.");
 }
 
 void AckGroupingTrackerDisabled::addAcknowledge(const MessageId& msgId) {
-    this->doImmediateAck(this->handler_.getCnx(), this->consumerId_, msgId,
-                         proto::CommandAck::Individual);
+    this->doImmediateAck(this->handler_.getCnx(), this->consumerId_, msgId, proto::CommandAck::Individual);
 }
 
 void AckGroupingTrackerDisabled::addAcknowledgeCumulative(const MessageId& msgId) {
-    this->doImmediateAck(this->handler_.getCnx(), this->consumerId_, msgId,
-                         proto::CommandAck::Cumulative);
+    this->doImmediateAck(this->handler_.getCnx(), this->consumerId_, msgId, proto::CommandAck::Cumulative);
 }
 
 }  // namespace pulsar

@@ -40,7 +40,8 @@ inline void sendAck(ClientConnectionPtr cnx, uint64_t consumerId, const MessageI
     msgIdData.set_entryid(msgId.entryId());
     auto cmd = Commands::newAck(consumerId, msgIdData, ackType, -1);
     cnx->sendCommand(cmd);
-    LOG_DEBUG("ACK request is sent for message - [" << msgIdData.ledgerid() << ", " << msgIdData.entryid() << "]");
+    LOG_DEBUG("ACK request is sent for message - [" << msgIdData.ledgerid() << ", " << msgIdData.entryid()
+                                                    << "]");
 }
 
 bool AckGroupingTracker::doImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId,
@@ -48,7 +49,7 @@ bool AckGroupingTracker::doImmediateAck(ClientConnectionWeakPtr connWeakPtr, uin
     auto cnx = connWeakPtr.lock();
     if (cnx == nullptr) {
         LOG_DEBUG("Connection is not ready, ACK failed for message - [" << msgId.ledgerId() << ", "
-                << msgId.entryId() << "]");
+                                                                        << msgId.entryId() << "]");
         return false;
     }
     sendAck(cnx, consumerId, msgId, ackType);

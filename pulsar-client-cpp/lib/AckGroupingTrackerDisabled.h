@@ -50,7 +50,6 @@ class AckGroupingTrackerDisabled : public AckGroupingTracker {
     //! The connection handler.
     HandlerBase& handler_;
 
-
     //! ID of the consumer that this tracker belongs to.
     uint64_t consumerId_;
 };  // class AckGroupingTrackerDisabled

@@ -681,24 +681,16 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
     return singleMessage;
 }
 
-bool Commands::peerSupportsGetLastMessageId(int32_t peerVersion) {
-    return peerVersion >= proto::v12;
-}
+bool Commands::peerSupportsGetLastMessageId(int32_t peerVersion) { return peerVersion >= proto::v12; }
 
-bool Commands::peerSupportsActiveConsumerListener(int32_t peerVersion) {
-    return peerVersion >= proto::v12;
-}
+bool Commands::peerSupportsActiveConsumerListener(int32_t peerVersion) { return peerVersion >= proto::v12; }
 
 bool Commands::peerSupportsMultiMessageAcknowledgement(int32_t peerVersion) {
     return peerVersion >= proto::v12;
 }
 
-bool Commands::peerSupportsJsonSchemaAvroFormat(int32_t peerVersion) {
-    return peerVersion >= proto::v13;
-}
+bool Commands::peerSupportsJsonSchemaAvroFormat(int32_t peerVersion) { return peerVersion >= proto::v13; }
 
-bool Commands::peerSupportsGetOrCreateSchema(int32_t peerVersion) {
-    return peerVersion >= proto::v15;
-}
+bool Commands::peerSupportsGetOrCreateSchema(int32_t peerVersion) { return peerVersion >= proto::v15; }
 }  // namespace pulsar
 /* namespace pulsar */
