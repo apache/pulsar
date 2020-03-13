@@ -866,6 +866,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     state_ = Closing;
 
+    // Flush pending grouped ACK requests.
+    this->ackGroupingTrackerPtr_->close();
+
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
         state_ = Closed;
