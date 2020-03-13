@@ -58,7 +58,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
-        WebTarget path = adminBookies.path("rack-info");
+        WebTarget path = adminBookies.path("racks-info");
         final CompletableFuture<BookiesRackConfiguration> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<BookiesRackConfiguration>() {
@@ -91,7 +91,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress) {
-        WebTarget path = adminBookies.path("rack-info").path(bookieAddress);
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
         final CompletableFuture<BookieInfo> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<BookieInfo>() {
@@ -124,7 +124,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress) {
-        WebTarget path = adminBookies.path("rack-info").path(bookieAddress);
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
         return asyncDeleteRequest(path);
     }
 
