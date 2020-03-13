@@ -146,6 +146,6 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public CompletableFuture<Void> updateBookieRackInfoAsync(String bookieAddress, String group, BookieInfo bookieInfo) {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
-        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
     }
 }
