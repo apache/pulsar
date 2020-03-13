@@ -148,4 +148,5 @@ public class BookiesImpl extends BaseResource implements Bookies {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
         return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
     }
+
 }
