@@ -582,11 +582,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 409, message = "Compaction already running")})
-    public void compact(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void compact(@Suspended final AsyncResponse asyncResponse,
+                        @PathParam("property") String property, @PathParam("cluster") String cluster,
                         @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalTriggerCompaction(authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalTriggerCompaction(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
