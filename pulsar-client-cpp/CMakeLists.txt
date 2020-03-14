@@ -75,7 +75,6 @@ add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOO
 
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
 ### After find the libs, will unset related cache, and will not affact another same call to find_package.
-### B
 if (APPLE)
     set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
     set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
