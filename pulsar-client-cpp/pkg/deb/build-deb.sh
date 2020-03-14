@@ -38,7 +38,7 @@ tar xfz $SRC_ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.
 pushd $CPP_DIR
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
-make pulsarShared pulsarStatic pulsarStaticWithDeps -j 3
+make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps  -j 3
 popd
 
 DEST_DIR=apache-pulsar-client
@@ -74,6 +74,8 @@ cp -ar $CPP_DIR/include/pulsar $DEVEL_DEST_DIR/usr/include/
 cp $CPP_DIR/lib/libpulsar.a $DEVEL_DEST_DIR/usr/lib
 cp $CPP_DIR/lib/libpulsarwithdeps.a $DEVEL_DEST_DIR/usr/lib
 cp $CPP_DIR/lib/libpulsar.so.$POM_VERSION $DEST_DIR/usr/lib
+cp $CPP_DIR/lib/libpulsarnossl.so.$POM_VERSION $DEST_DIR/usr/lib
+
 pushd $DEST_DIR/usr/lib
 ln -s libpulsar.so.$POM_VERSION libpulsar.so
 popd
