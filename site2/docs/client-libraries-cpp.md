@@ -64,6 +64,9 @@ by using user local system provided version is more reasonable, and more easy fo
 ```bash
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
+
+After install, Pulsar libraries will be placed under `/usr/lib`.
+
 ### Install Debian
 
 1. Download a Debian package from the links in the table. 
@@ -78,6 +81,9 @@ $ rpm -ivh apache-pulsar-client*.rpm
 ```bash
 $ apt install ./apache-pulsar-client*.deb
 ```
+
+After install, Pulsar libraries will be placed under `/usr/lib`.
+
 ### Build
 
 > If you want to build RPM and Debian packages from the latest master, follow the instructions below. All the instructions are run at the root directory of your cloned Pulsar repository.

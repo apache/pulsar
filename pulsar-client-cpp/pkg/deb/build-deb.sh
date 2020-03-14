@@ -78,6 +78,7 @@ cp $CPP_DIR/lib/libpulsarnossl.so.$POM_VERSION $DEST_DIR/usr/lib
 
 pushd $DEST_DIR/usr/lib
 ln -s libpulsar.so.$POM_VERSION libpulsar.so
+ln -s libpulsarnossl.so.$POM_VERSION libpulsarnossl.so
 popd
 
 cp $ROOT_DIR/NOTICE $DEST_DIR/usr/share/doc/pulsar-client-$VERSION

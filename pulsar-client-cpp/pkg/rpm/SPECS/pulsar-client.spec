@@ -30,6 +30,7 @@ Version:        %{version}
 Release:        %{release}
 Source:         apache-pulsar-%{pom_version}-src.tar.gz
 Prefix:         /usr
+AutoReq:        no
 
 %package devel
 Summary:        Apache Pulsar client library
