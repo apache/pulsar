@@ -10,11 +10,3 @@ require (
 	google.golang.org/grpc v1.26.0
 	gopkg.in/yaml.v2 v2.2.8
 )
-
-replace github.com/apache/pulsar/pulsar-function-go/pf => ./pf
-
-replace github.com/apache/pulsar/pulsar-function-go/logutil => ./logutil
-
-replace github.com/apache/pulsar/pulsar-function-go/pb => ./pb
-
-replace github.com/apache/pulsar/pulsar-function-go/conf => ./conf
