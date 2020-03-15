@@ -21,9 +21,10 @@ package pf
 
 import (
 	"context"
+	"time"
+
 	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
-	"time"
 )
 
 type FunctionContext struct {
