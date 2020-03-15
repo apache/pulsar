@@ -21,13 +21,17 @@ package pf
 
 import (
 	"context"
+	"github.com/apache/pulsar-client-go/pulsar"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"time"
 )
 
 type FunctionContext struct {
-	instanceConf *instanceConf
-	userConfigs  map[string]interface{}
-	logAppender  *LogAppender
+	instanceConf     *instanceConf
+	userConfigs      map[string]interface{}
+	logAppender      *LogAppender
+	publishProducers map[string]pulsar.Producer
+	instance         *goInstance
 }
 
 func NewFuncContext() *FunctionContext {
@@ -55,6 +59,34 @@ func (c *FunctionContext) GetInputTopics() []string {
 
 func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
+}
+
+func (c *FunctionContext) NewOutputMessage(topicName string) (pulsar.Producer, error) {
+	p, err := c.getProducer(topicName)
+	if err != nil {
+		log.Errorf("context getProducer err:{%+v}", err)
+	}
+	c.instance.publishProducer = p
+	return p, err
+}
+
+func (c *FunctionContext) getProducer(topic string) (pulsar.Producer, error) {
+	if p, ok := c.publishProducers[topic]; ok {
+		return p, nil
+	}
+	properties := getProperties(getDefaultSubscriptionName(
+		c.instanceConf.funcDetails.Tenant,
+		c.instanceConf.funcDetails.Namespace,
+		c.instanceConf.funcDetails.Name), c.instanceConf.instanceID)
+	provider, err := c.instance.client.CreateProducer(pulsar.ProducerOptions{
+		Topic:                   topic,
+		Properties:              properties,
+		CompressionType:         pulsar.LZ4,
+		BatchingMaxPublishDelay: time.Millisecond * 10,
+		// set send timeout to be infinity to prevent potential deadlock with consumer
+		// that might happen when consumer is blocked due to unacked messages
+	})
+	return provider, err
 }
 
 func (c *FunctionContext) GetFuncTenant() string {

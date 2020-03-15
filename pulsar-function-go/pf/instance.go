@@ -35,6 +35,7 @@ type goInstance struct {
 	function          function
 	context           *FunctionContext
 	producer          pulsar.Producer
+	publishProducer   pulsar.Producer
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
 	lastHealthCheckTs int64
@@ -50,6 +51,7 @@ func newGoInstance() *goInstance {
 	now := time.Now()
 	goInstance.lastHealthCheckTs = now.UnixNano()
 	goInstance.properties = make(map[string]string)
+	goInstance.context.instance = goInstance
 	return goInstance
 }
 
@@ -280,7 +282,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 			Payload: output,
 		}
 		// Attempt to send the message and handle the response
-		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
+		gi.getProducer().SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
 			message *pulsar.ProducerMessage, err error) {
 			if err != nil {
 				if autoAck && atLeastOnce {
@@ -294,6 +296,16 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	} else if autoAck && atLeastOnce {
 		gi.ackInputMessage(msgInput)
 	}
+}
+
+// Choose user publishProducer first, see the demo:publishFuncS
+func (gi *goInstance) getProducer() pulsar.Producer {
+	p := gi.publishProducer
+	if p == nil {
+		p = gi.producer
+	}
+	gi.publishProducer = nil
+	return p
 }
 
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
@@ -355,6 +367,11 @@ func (gi *goInstance) close() {
 	log.Info("closing go instance...")
 	if gi.producer != nil {
 		gi.producer.Close()
+	}
+	if gi.context != nil {
+		for _, p := range gi.context.publishProducers {
+			p.Close()
+		}
 	}
 	if gi.consumers != nil {
 		for _, consumer := range gi.consumers {
