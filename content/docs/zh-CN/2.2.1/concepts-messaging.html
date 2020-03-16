@@ -87,7 +87,7 @@
 <tr><td style="text-align:left">Key</td><td style="text-align:left">消息可以被Key打标签。这对诸如<a href="/docs/zh-CN/2.2.1/concepts-topic-compaction">topic压缩</a>之类的事情有作用</td></tr>
 <tr><td style="text-align:left">Properties</td><td style="text-align:left">可选的，用户定义属性 的key/value map</td></tr>
 <tr><td style="text-align:left">Producer名称</td><td style="text-align:left">生产消息的producer名称(producer被自动赋予默认名称，但你也可以自己指定)</td></tr>
-<tr><td style="text-align:left">序列ID</td><td style="text-align:left">Topic中，每个Pulsar消息属于一个有序的序列。消息的序列ID是他在序列中的次序。</td></tr>
+<tr><td style="text-align:left">序列ID</td><td style="text-align:left">每条 Pulsar 消息在 topic 中都是有序。消息的序列 ID 是其在序列中的次序。</td></tr>
 <tr><td style="text-align:left">发布时间</td><td style="text-align:left">消息发布的时间戳(producer自动附上)</td></tr>
 <tr><td style="text-align:left">事件时间</td><td style="text-align:left">可选的时间戳，应用可以附在消息上，代表某个事件发生的时间，例如，消息被处理时间。如果没有明确的设置，那么事件时间为0。</td></tr>
 </tbody>
@@ -96,7 +96,7 @@
 <p>Pulsar消息内容的更深入分解，请参考Pulsar的 <a href="/docs/zh-CN/2.2.1/develop-binary-protocol">binary protocol</a>文档</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
-<p>生产者是关联到topic的程序，它发布消息到Pulsar的<a href="/docs/zh-CN/2.2.1/reference-terminology#broker">broker</a>上。</p>
+<p>生产者是连接 topic 的程序，它将消息发布到一个 Pulsar <a href="/docs/zh-CN/2.2.1/reference-terminology#broker">broker</a> 上。</p>
 <h3><a class="anchor" aria-hidden="true" id="发送模式"></a><a href="#发送模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发送模式</h3>
 <p>Producer可以以同步（sync）或者异步（async）的方式发布消息到broker。</p>
 <table>
@@ -104,8 +104,8 @@
 <tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">同步发送</td><td style="text-align:left">发送消息后，producer等待broker的确认。如果没有收到确认，producer会认为发送失败。</td></tr>
-<tr><td style="text-align:left">异步发送</td><td style="text-align:left">Producer将会把消息放入blocking队列，然后马上返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（ <a href="/docs/zh-CN/2.2.1/reference-configuration#broker">配置</a>的最大数量），根据传入producer的参数，producer可能阻塞或者直接返回失败。</td></tr>
+<tr><td style="text-align:left">同步发送</td><td style="text-align:left">Producer 在消息发送后会等待 broker 的送达确认。如果没有收到，producer 会认为发送失败。</td></tr>
+<tr><td style="text-align:left">异步发送</td><td style="text-align:left">Producer 将消息发送到一个阻塞队列（blocking queue）后就立刻返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（ <a href="/docs/zh-CN/2.2.1/reference-configuration#broker">配置</a>的最大数量），根据传入producer的参数，producer可能阻塞或者直接返回失败。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="压缩"></a><a href="#压缩" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>压缩</h3>
@@ -125,8 +125,8 @@
 <tr><th style="text-align:left">Mode</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">同步接收</td><td style="text-align:left">同步接收将会阻塞，直到消息可用。</td></tr>
-<tr><td style="text-align:left">异步接收</td><td style="text-align:left">异步接收立即返回future值---例如java中的 <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>，一旦新消息可用，他即刻完成。</td></tr>
+<tr><td style="text-align:left">同步接收</td><td style="text-align:left">同步方式会在获取到消息前呈阻塞状态。</td></tr>
+<tr><td style="text-align:left">异步接收</td><td style="text-align:left">异步方式会立即返回 future 值（如java中的 <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>），一旦有新消息，会立刻完成。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="确认"></a><a href="#确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认</h3>
@@ -147,9 +147,9 @@
 <tr><th style="text-align:left">Topic名称组成</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">定义了topic类型。 Pulsar支持两种不同topic：<a href="/docs/zh-CN/2.2.1/concepts-architecture-overview#persistent-storage">持久</a>和 <a href="#non-persistent-topics">非持久</a>（默认是持久类型，如果你没有指明类型，topic将会是持久类型）。 持久topic的所有消息都会<a href="/docs/zh-CN/2.2.1/concepts-architecture-overview#persistent-storage"></a>持久化</a>到硬盘上（这意味着多块硬盘，除非是单机模式的broker），反之，<a href="#non-persistent-topics">非持久</a>topic的数据不会存储到硬盘上。</td></tr>
+<tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">用来标识 topic 的类型。 Pulsar 支持两种不同 topic：<a href="/docs/zh-CN/2.2.1/concepts-architecture-overview#persistent-storage">持久化</a>和 <a href="#non-persistent-topics">非持久</a> 型（如果你没有明确指定，topic 将会是默认的持久化类型）。 持久化 topic 的所有消息都会<a href="/docs/zh-CN/2.2.1/concepts-architecture-overview#persistent-storage"></a>存储</a>到硬盘上（除非是单机模式的broker，否则都是会在多块磁盘上）。<a href="#non-persistent-topics">非持久</a> topic 的数据将不会存储到硬盘上。</td></tr>
 <tr><td style="text-align:left"><code>租户</code></td><td style="text-align:left">实例中topic的租户。tenant是Pulsar多租户的基本要素，可以被跨集群的传播。</td></tr>
-<tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">Topic的管理单元，充当关联topic组的管理机制。 大多数的topic配置在<a href="#namespaces">namespace</a>层面生效。 每个tenant可以有多个namespace。</td></tr>
+<tr><td style="text-align:left"><code>命名空间</code></td><td style="text-align:left">将相关联的 topic 作为一个组来管理，是管理 Topic 的基本单元。 大多数对 topic 的管理都是对<a href="#namespaces">命名空间</a>的一项配置。 每个租户可以有多个命名空间。</td></tr>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">名称的最后组成部分，topic的命名很自由，没有什么特殊的含义。</td></tr>
 </tbody>
 </table>
