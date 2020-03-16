@@ -309,8 +309,14 @@ public class Namespaces extends NamespacesBase {
             @Suspended final AsyncResponse asyncResponse,
                                                   @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                                   AutoTopicCreationOverride autoTopicCreationOverride) {
-        validateNamespaceName(tenant, namespace);
-        internalSetAutoTopicCreationOverride(asyncResponse, autoTopicCreationOverride);
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSetAutoTopicCreationOverride(asyncResponse, autoTopicCreationOverride);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e ) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE
@@ -320,8 +326,14 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void removeAutoTopicCreationOverride(@Suspended final AsyncResponse asyncResponse,
                                                 @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
-        internalRemoveAutoTopicCreationOverride(asyncResponse);
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalRemoveAutoTopicCreationOverride(asyncResponse);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
