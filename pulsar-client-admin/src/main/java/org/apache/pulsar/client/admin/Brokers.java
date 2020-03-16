@@ -153,7 +153,7 @@ public interface Brokers {
 	CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName);
 
     /**
-     * Get list of updatable configuration name
+     * Get list of updatable configuration name.
      * 
      * @return
      * @throws PulsarAdminException
