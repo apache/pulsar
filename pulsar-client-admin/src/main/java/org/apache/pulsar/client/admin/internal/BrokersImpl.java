@@ -42,7 +42,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
-        adminBrokers = web.path("/admin/v2/brokers");
+        adminBrokers = web.path("admin/v2/brokers");
     }
 
     @Override
@@ -130,7 +130,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue) {
         String value = Codec.encode(configValue);
-        WebTarget path = adminBrokers.path("/configuration/").path(configName).path(value);
+        WebTarget path = adminBrokers.path("configuration").path(configName).path(value);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -150,7 +150,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName) {
-        WebTarget path = adminBrokers.path("/configuration/").path(configName);
+        WebTarget path = adminBrokers.path("configuration").path(configName);
         return asyncDeleteRequest(path);
     }
 
@@ -170,7 +170,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync() {
-        WebTarget path = adminBrokers.path("/configuration/").path("values");
+        WebTarget path = adminBrokers.path("configuration").path("values");
         final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Map<String, String>>() {
@@ -203,7 +203,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<List<String>> getDynamicConfigurationNamesAsync() {
-        WebTarget path = adminBrokers.path("/configuration");
+        WebTarget path = adminBrokers.path("configuration");
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {
@@ -236,7 +236,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Map<String, String>> getRuntimeConfigurationsAsync() {
-        WebTarget path = adminBrokers.path("/configuration").path("runtime");
+        WebTarget path = adminBrokers.path("configuration").path("runtime");
         final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Map<String, String>>() {
@@ -269,7 +269,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<InternalConfigurationData> getInternalConfigurationDataAsync() {
-        WebTarget path = adminBrokers.path("/internal-configuration");
+        WebTarget path = adminBrokers.path("internal-configuration");
         final CompletableFuture<InternalConfigurationData> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<InternalConfigurationData>() {
@@ -302,13 +302,13 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> healthcheckAsync() {
-        WebTarget path = adminBrokers.path("/health");
+        WebTarget path = adminBrokers.path("health");
         final CompletableFuture<Void> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<String>() {
                     @Override
                     public void completed(String result) {
-                        if (!result.trim().toLowerCase().equals("ok")) {
+                        if (!"ok".equalsIgnoreCase(result.trim())) {
                             future.completeExceptionally(
                                     new PulsarAdminException("Healthcheck returned unexpected result: " + result));
                         } else {
