@@ -1,7 +1,7 @@
 ---
 author: Sijie Guo
 authorURL: https://twitter.com/sijieg
-title: Announcing: The Apache Pulsar 2020 User Survey Report
+title: "Announcing: The Apache Pulsar 2020 User Survey Report"
 ---
 
 For the first time ever, the Apache Pulsar PMC team is publishing a user survey report.
