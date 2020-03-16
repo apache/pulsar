@@ -58,6 +58,15 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     @Override
+    public List<InetSocketAddress> resolveAllHosts() {
+        checkState(
+                addressList != null, "No service url is provided yet");
+        checkState(
+                !addressList.isEmpty(), "No hosts found for service url : " + serviceUrl);
+       return addressList;
+    }
+
+    @Override
     public URI resolveHostUri() {
         InetSocketAddress host = resolveHost();
         String hostUrl = serviceUri.getServiceScheme() + "://" + host.getHostName() + ":" + host.getPort();

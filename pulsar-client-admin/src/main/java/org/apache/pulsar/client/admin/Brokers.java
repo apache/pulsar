@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -52,6 +53,23 @@ public interface Brokers {
      *             Unexpected error
      */
     List<String> getActiveBrokers(String cluster) throws PulsarAdminException;
+
+	/**
+	 * Get the list of active brokers in the cluster asynchronously.
+	 * <p>
+	 * Get the list of active brokers (web service addresses) in the cluster.
+	 * <p>
+	 * Response Example:
+	 *
+	 * <pre>
+	 * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080", "prod1-broker3.messaging.use.example.com:8080"]</code>
+	 * </pre>
+	 *
+	 * @param cluster
+	 *            Cluster name
+	 * @return a list of (host:port)
+	 */
+	CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
 
 
     /**
