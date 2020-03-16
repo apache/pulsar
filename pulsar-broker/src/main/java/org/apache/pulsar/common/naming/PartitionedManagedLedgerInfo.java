@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger;
+package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Maps;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
 import java.util.Map;
 
