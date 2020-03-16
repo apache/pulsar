@@ -87,6 +87,7 @@ func (c *FunctionContext) getProducer(topic string) (pulsar.Producer, error) {
 		// set send timeout to be infinity to prevent potential deadlock with consumer
 		// that might happen when consumer is blocked due to unacked messages
 	})
+	c.publishProducers[topic] = provider
 	return provider, err
 }
 
