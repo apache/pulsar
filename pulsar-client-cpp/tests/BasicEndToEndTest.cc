@@ -16,29 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <set>
+#include <mutex>
+#include <chrono>
+#include <thread>
+#include <vector>
+#include <cstring>
+#include <sstream>
+#include <functional>
+
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <lib/LogUtils.h>
+#include <pulsar/Consumer.h>
 #include <pulsar/MessageBuilder.h>
-#include <lib/Commands.h>
+
 #include <lib/Latch.h>
-#include <sstream>
-#include "CustomRoutingPolicy.h"
-#include <mutex>
+#include <lib/Utils.h>
+#include <lib/Future.h>
+#include <lib/Commands.h>
+#include <lib/LogUtils.h>
+#include <lib/TimeUtils.h>
 #include <lib/TopicName.h>
-#include "PulsarFriend.h"
-#include "lib/TimeUtils.h"
-#include "HttpHelper.h"
-#include <set>
-#include <vector>
+#include <lib/ClientImpl.h>
+#include <lib/ConsumerImpl.h>
+#include <lib/PulsarApi.pb.h>
 #include <lib/MultiTopicsConsumerImpl.h>
+#include <lib/AckGroupingTrackerEnabled.h>
+#include <lib/AckGroupingTrackerDisabled.h>
 #include <lib/PatternMultiTopicsConsumerImpl.h>
-#include "lib/Future.h"
-#include "lib/Utils.h"
-#include <functional>
-#include <thread>
-#include <chrono>
-#include <cstring>
+
+#include "HttpHelper.h"
+#include "PulsarFriend.h"
+#include "CustomRoutingPolicy.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -3312,4 +3321,141 @@ TEST(BasicEndToEndTest, testSendCallback) {
     consumer.close();
     producer.close();
     client.close();
+}
+
+class AckGroupingTrackerMock : public AckGroupingTracker {
+   public:
+    explicit AckGroupingTrackerMock(bool mockAck) : mockAck_(mockAck) {}
+
+    bool callDoImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId, const MessageId &msgId,
+                            proto::CommandAck_AckType ackType) {
+        if (!this->mockAck_) {
+            // Not mocking ACK, expose this method.
+            return this->doImmediateAck(connWeakPtr, consumerId, msgId, ackType);
+        } else {
+            // Mocking ACK.
+            return true;
+        }
+    }
+
+    bool callDoImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId,
+                            const std::set<MessageId> &msgIds) {
+        if (!this->mockAck_) {
+            // Not mocking ACK, expose this method.
+            return this->doImmediateAck(connWeakPtr, consumerId, msgIds);
+        } else {
+            // Mocking ACK.
+            return true;
+        }
+    }
+
+   private:
+    bool mockAck_;
+};  // class AckGroupingTrackerMock
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerDefaultBehavior) {
+    ConsumerConfiguration configConsumer;
+    ASSERT_EQ(configConsumer.getAckGroupingTimeMs(), 100);
+    ASSERT_EQ(configConsumer.getAckGroupingMaxSize(), 1000);
+
+    AckGroupingTracker tracker;
+    Message msg;
+    ASSERT_FALSE(tracker.isDuplicate(msg.getMessageId()));
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerSingleAckBehavior) {
+    constexpr auto numMsg = 10;  // Must be a positive even integer.
+    const std::string topicName = "testAckGroupingTrackerSingleAckBehavior" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-single-ack-behavior";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    auto& consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    auto connWeakPtr = PulsarFriend::getClientConnection(consumerImpl);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerMock tracker(false);
+    for (auto msgIdx = 0; msgIdx < numMsg; ++msgIdx) {
+        auto connPtr = connWeakPtr.lock();
+        ASSERT_NE(connPtr, nullptr);
+        ASSERT_TRUE(tracker.callDoImmediateAck(connWeakPtr, consumerImpl.getConsumerId(), recvMsgId[msgIdx],
+                                               proto::CommandAck::Individual));
+    }
+    Message msg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(msg, 1000));
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    ASSERT_EQ(ResultTimeout, consumer.receive(msg, 1000));
+    consumer.close();
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerMultiAckBehavior) {
+    constexpr auto numMsg = 10;  // Must be a positive even integer.
+    const std::string topicName = "testAckGroupingTrackerMultiAckBehavior" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-multi-ack-behavior";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    auto& consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    auto connWeakPtr = PulsarFriend::getClientConnection(consumerImpl);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerMock tracker(false);
+    std::set<MessageId> restMsgId(recvMsgId.begin(), recvMsgId.end());
+    ASSERT_EQ(restMsgId.size(), numMsg);
+    ASSERT_TRUE(tracker.callDoImmediateAck(connWeakPtr, consumerImpl.getConsumerId(), restMsgId));
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+    consumer.close();
 }

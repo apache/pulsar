@@ -199,7 +199,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set max number of grouped messages within one grouping time window. If it's set to a
-     * non-positive value, number of grouped messages is not limited.
+     * non-positive value, number of grouped messages is not limited. Default is 1000.
      *
      * @param maxGroupingSize max number of grouped messages with in one grouping time window.
      */
