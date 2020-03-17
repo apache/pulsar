@@ -231,13 +231,13 @@ public class AsyncHttpConnector implements Connector {
         URI newUri = uriWithNewAddress(currentRequest.getUri(), host);
         currentRequest.setUri(newUri);
 
-        BoundRequestBuilder builder = httpClient.prepare(request.getMethod(), request.getUri().toString());
+        BoundRequestBuilder builder = httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
 
-        if (request.hasEntity()) {
+        if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            request.setStreamProvider(contentLength -> outStream);
+            currentRequest.setStreamProvider(contentLength -> outStream);
             try {
-                request.writeEntity();
+                currentRequest.writeEntity();
             } catch (IOException e) {
                 CompletableFuture<Response> r = new CompletableFuture<>();
                 r.completeExceptionally(e);
@@ -247,7 +247,7 @@ public class AsyncHttpConnector implements Connector {
             builder.setBody(outStream.toByteArray());
         }
 
-        request.getHeaders().forEach((key, headers) -> {
+        currentRequest.getHeaders().forEach((key, headers) -> {
             if (!HttpHeaders.USER_AGENT.equals(key)) {
                 builder.addHeader(key, headers);
             }
