@@ -38,13 +38,6 @@ public interface ServiceNameResolver {
     InetSocketAddress resolveHost();
 
     /**
-     * Resolve pulsar service url for a list of hosts.
-     *
-     * @return resolve the service url to return a socket address
-     */
-    List<InetSocketAddress> resolveAllHosts();
-
-    /**
      * Resolve pulsar service url
      * @return
      */

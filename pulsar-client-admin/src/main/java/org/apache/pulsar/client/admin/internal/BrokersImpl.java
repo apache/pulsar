@@ -49,34 +49,11 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public List<String> getActiveBrokers(String cluster) throws PulsarAdminException {
         try {
-            return getActiveBrokersAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
+            return request(adminBrokers.path(cluster)).get(new GenericType<List<String>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
         }
-    }
-
-    @Override
-    public CompletableFuture<List<String>> getActiveBrokersAsync(String cluster) {
-        WebTarget path = adminBrokers.path(cluster);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> brokers) {
-                        future.complete(brokers);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
     }
 
     @Override

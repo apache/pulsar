@@ -27,8 +27,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -36,6 +35,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
@@ -53,12 +54,10 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
@@ -74,8 +73,9 @@ public class AsyncHttpConnector implements Connector {
     @Getter
     private final AsyncHttpClient httpClient;
     private final int readTimeout;
+    private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
-    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(8,
+    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
@@ -88,7 +88,6 @@ public class AsyncHttpConnector implements Connector {
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs, ClientConfigurationData conf) {
-        this.readTimeout = readTimeoutMs;
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
@@ -125,6 +124,8 @@ public class AsyncHttpConnector implements Connector {
             }
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
+        this.readTimeout = readTimeoutMs;
+        this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
     @Override
@@ -162,72 +163,97 @@ public class AsyncHttpConnector implements Connector {
 
     @Override
     public Future<?> apply(ClientRequest jerseyRequest, AsyncConnectorCallback callback) {
-
-        List<InetSocketAddress> allHosts = serviceNameResolver.resolveAllHosts();
-        List<CompletableFuture<Response>> perHostFutures = new ArrayList<>();
-
-        for (InetSocketAddress address : allHosts) {
-            ClientRequest currentRequest = new ClientRequest(jerseyRequest);
-            URI newUri = uriWithNewAddress(currentRequest.getUri(), address);
-            currentRequest.setUri(newUri);
-            CompletableFuture<Response> responseFuture = requestHostRepeatedly(currentRequest, callback);
-            if (responseFuture != null) {
-                perHostFutures.add(responseFuture);
-            }
-        }
-        perHostFutures.add(timeoutAfter(readTimeout, TimeUnit.MILLISECONDS));
-
-        CompletableFuture<Object> future = CompletableFuture.anyOf(perHostFutures.toArray(new CompletableFuture[0])).thenApply(response -> {
-            perHostFutures.forEach(hostFuture -> hostFuture.cancel(true));
-            return response;
-        });
-
-        return future;
-    }
-
-    private CompletableFuture<Response> requestHostRepeatedly(ClientRequest jerseyRequest, AsyncConnectorCallback callback) {
-
-        BoundRequestBuilder builder = httpClient.prepare(jerseyRequest.getMethod(), jerseyRequest.getUri().toString());
-
-        if (jerseyRequest.hasEntity()) {
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            jerseyRequest.setStreamProvider(contentLength -> outStream);
-            try {
-                jerseyRequest.writeEntity();
-            } catch (IOException e) {
-                return null;
-            }
-
-            builder.setBody(outStream.toByteArray());
-        }
-
-        jerseyRequest.getHeaders().forEach((key, headers) -> {
-            if (!HttpHeaders.USER_AGENT.equals(key)) {
-                builder.addHeader(key, headers);
-            }
-        });
-
-        ListenableFuture<Response> f = builder.execute(new AsyncCompletionHandler<Response>() {
-            @Override
-            public Response onCompleted(Response response) throws Exception {
+        CompletableFuture<Response> responseFuture = retryOrTimeOut(jerseyRequest);
+        responseFuture.whenComplete(((response, throwable) -> {
+            if (throwable != null) {
+                callback.failure(throwable);
+            } else {
                 ClientResponse jerseyResponse = new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
                 response.getHeaders().forEach(e -> jerseyResponse.header(e.getKey(), e.getValue()));
                 if (response.hasResponseBody()) {
                     jerseyResponse.setEntityStream(response.getResponseBodyAsStream());
                 }
                 callback.response(jerseyResponse);
-                return response;
+            }
+        }));
+        return responseFuture;
+    }
+
+    private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
+        final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
+        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
+        CompletableFuture<Response> timeoutAfter = timeoutAfter(readTimeout, TimeUnit.MILLISECONDS);
+        return resultFuture.applyToEither(timeoutAfter, Function.identity());
+    }
+
+    private <T> void retryOperation(
+            final CompletableFuture<T> resultFuture,
+            final Supplier<CompletableFuture<T>> operation,
+            final int retries) {
+
+        if (!resultFuture.isDone()) {
+            final CompletableFuture<T> operationFuture = operation.get();
+
+            operationFuture.whenComplete(
+                    (t, throwable) -> {
+                        if (throwable != null) {
+                            if (throwable instanceof CancellationException) {
+                                resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
+                            } else {
+                                if (retries > 0) {
+                                    retryOperation(
+                                            resultFuture,
+                                            operation,
+                                            retries - 1);
+                                } else {
+                                    resultFuture.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
+                                            "has been exhausted.", throwable));
+                                }
+                            }
+                        } else {
+                            resultFuture.complete(t);
+                        }
+                    });
+
+            resultFuture.whenComplete(
+                    (t, throwable) -> operationFuture.cancel(false));
+        }
+    }
+
+    public static class RetryException extends Exception {
+        public RetryException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    private CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+        ClientRequest currentRequest = new ClientRequest(request);
+        URI newUri = uriWithNewAddress(currentRequest.getUri(), host);
+        currentRequest.setUri(newUri);
+
+        BoundRequestBuilder builder = httpClient.prepare(request.getMethod(), request.getUri().toString());
+
+        if (request.hasEntity()) {
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            request.setStreamProvider(contentLength -> outStream);
+            try {
+                request.writeEntity();
+            } catch (IOException e) {
+                CompletableFuture<Response> r = new CompletableFuture<>();
+                r.completeExceptionally(e);
+                return r;
             }
 
-            @Override
-            public void onThrowable(Throwable t) {
-                delayer.schedule(() -> {
-                    requestHostRepeatedly(jerseyRequest, callback);
-                    }, readTimeout / 3, TimeUnit.MILLISECONDS);
+            builder.setBody(outStream.toByteArray());
+        }
+
+        request.getHeaders().forEach((key, headers) -> {
+            if (!HttpHeaders.USER_AGENT.equals(key)) {
+                builder.addHeader(key, headers);
             }
         });
 
-        return f.toCompletableFuture();
+        return builder.execute().toCompletableFuture();
     }
 
     public <T> CompletableFuture<T> timeoutAfter(long timeout, TimeUnit unit) {
