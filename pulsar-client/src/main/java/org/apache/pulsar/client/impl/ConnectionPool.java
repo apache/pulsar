@@ -319,11 +319,12 @@ public class ConnectionPool implements Closeable {
     public void releaseConnection(ClientCnx cnx) {
         if (maxConnectionsPerHosts == 0) {
             //Disable pooling
-            if(log.isDebugEnabled()) {
-                log.debug("close connection due to pooling disabled.");
+            if (cnx.channel().isActive()) {
+                if(log.isDebugEnabled()) {
+                    log.debug("close connection due to pooling disabled.");
+                }
+                cnx.close();
             }
-//            cnx.close();
-            cnx.channel().close();
         }
     }
 
