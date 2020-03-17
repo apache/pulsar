@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.List;
 
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
