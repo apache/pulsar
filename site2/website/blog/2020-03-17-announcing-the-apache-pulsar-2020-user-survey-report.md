@@ -46,10 +46,10 @@ this quotation from Qiang Fei, Tech Lead for Tencent, we see how
 > - Qiang Fei, Tech Lead at Tencent
 
 From its built-in multi-tenancy, which reduces architectural complexity and enables organizations
-to scale, to its multi-datacenter replication, which allows Pulsar to handle datacenter failures,
+to scale, to its multi-datacenter replication, which allows Pulsar to handle data center failures,
 we see how Pulsar has evolved into a robust and differentiated messaging and streaming platform.
 The report also reveals some of the community-driven features on Pulsar’s product roadmap for 2020
-and beyond. To find out more, [download the report today](https://streamnative.io/whitepaper/apache-pulsar-user-survey-report-2020/).
+and beyond. To find out more, [download the report today](https://streamnative.io/whitepaper/oss-apache-pulsar-user-survey-report-2020/).
 
 Join us for the first-ever Apache Pulsar Summit on August 26, 2020, in San Francisco, CA.
 More details on the Summit to come!
