@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -72,9 +73,10 @@ public class AsyncHttpConnector implements Connector {
 
     @Getter
     private final AsyncHttpClient httpClient;
+    private final int readTimeout;
     private final PulsarServiceNameResolver serviceNameResolver;
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(8,
-            new DefaultThreadFactory("http-canceller"));
+            new DefaultThreadFactory("delayer"));
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
@@ -86,6 +88,7 @@ public class AsyncHttpConnector implements Connector {
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs, ClientConfigurationData conf) {
+        this.readTimeout = readTimeoutMs;
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
@@ -146,16 +149,15 @@ public class AsyncHttpConnector implements Connector {
         return null;
     }
 
-    private URI replaceWithNew(InetSocketAddress address, URI uri) {
-        String originalUri = uri.toString();
-        String newUri = (originalUri.split(":")[0] + "://")
-                        + address.getHostName() + ":"
-                        + address.getPort()
-                        + uri.getRawPath();
-        if (uri.getRawQuery() != null) {
-            newUri += "?" + uri.getRawQuery();
+    private URI uriWithNewAddress(URI uri, InetSocketAddress address) {
+        try {
+            return new URI(uri.getScheme(),
+                    uri.getUserInfo(), address.getHostName(), address.getPort(),
+                    uri.getPath(), uri.getQuery(),
+                    uri.getFragment());
+        } catch (URISyntaxException x) {
+            throw new IllegalArgumentException(x.getMessage(), x);
         }
-        return URI.create(newUri);
     }
 
     @Override
@@ -166,14 +168,14 @@ public class AsyncHttpConnector implements Connector {
 
         for (InetSocketAddress address : allHosts) {
             ClientRequest currentRequest = new ClientRequest(jerseyRequest);
-            URI requestUri = replaceWithNew(address, currentRequest.getUri());
-            currentRequest.setUri(requestUri);
+            URI newUri = uriWithNewAddress(currentRequest.getUri(), address);
+            currentRequest.setUri(newUri);
             CompletableFuture<Response> responseFuture = requestHostRepeatedly(currentRequest, callback);
             if (responseFuture != null) {
                 perHostFutures.add(responseFuture);
             }
         }
-        perHostFutures.add(timeoutAfter(httpClient.getConfig().getReadTimeout(), TimeUnit.MILLISECONDS));
+        perHostFutures.add(timeoutAfter(readTimeout, TimeUnit.MILLISECONDS));
 
         CompletableFuture<Object> future = CompletableFuture.anyOf(perHostFutures.toArray(new CompletableFuture[0])).thenApply(response -> {
             perHostFutures.forEach(hostFuture -> hostFuture.cancel(true));
@@ -219,7 +221,9 @@ public class AsyncHttpConnector implements Connector {
 
             @Override
             public void onThrowable(Throwable t) {
-                requestHostRepeatedly(jerseyRequest, callback);
+                delayer.schedule(() -> {
+                    requestHostRepeatedly(jerseyRequest, callback);
+                    }, readTimeout / 3, TimeUnit.MILLISECONDS);
             }
         });
 
