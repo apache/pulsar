@@ -19,6 +19,7 @@
 
 #include <lib/ProducerImpl.h>
 #include <lib/ConsumerImpl.h>
+#include <lib/ClientImpl.h>
 #include <string>
 
 using std::string;
@@ -64,6 +65,8 @@ class PulsarFriend {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
         return *consumerImpl;
     }
+
+    static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
 

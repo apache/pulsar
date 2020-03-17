@@ -104,9 +104,11 @@ void AckGroupingTrackerEnabled::flush() {
     {
         std::lock_guard<std::mutex> lock(this->mutexCumulativeAckMsgId_);
         if (this->requireCumulativeAck_) {
+            LOG_WARN("Sending cumulative ACK.");
             if (!this->doImmediateAck(cnx, this->consumerId_, this->nextCumulativeAckMsgId_,
                                       proto::CommandAck::Cumulative)) {
                 // Failed to send ACK.
+                LOG_WARN("Failed to send cumulative ACK.");
                 return;
             }
             this->requireCumulativeAck_ = false;

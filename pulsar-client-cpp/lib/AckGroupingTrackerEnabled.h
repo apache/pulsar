@@ -37,7 +37,7 @@ namespace pulsar {
  */
 class AckGroupingTrackerEnabled : public AckGroupingTracker {
    public:
-    virtual ~AckGroupingTrackerEnabled() = default;
+    virtual ~AckGroupingTrackerEnabled() { this->close(); }
 
     /**
      * Constructing ACK grouping tracker for peresistent topics.
@@ -57,7 +57,7 @@ class AckGroupingTrackerEnabled : public AckGroupingTracker {
     void flush() override;
     void flushAndClean() override;
 
-   private:
+   protected:
     //! Method for scheduling grouping timer.
     void scheduleTimer();
 
