@@ -17,6 +17,6 @@
  * under the License.
  */
 /**
- * Implementation of Simple Authentication and Security Layer.
+ * Implementation of the common of the pulsar schema.
  */
 package org.apache.pulsar.common.schema;

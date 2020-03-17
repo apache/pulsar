@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -34,8 +35,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
-import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +75,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
-            throw new RuntimeException("Can't get generic schema for topic " + topicName.toString());
+            return FutureUtil.failedFuture(e.getCause());
         }
     }
 
@@ -86,7 +87,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         } catch (PulsarAdminException e) {
             LOG.error("Can't get current schema for topic {}",
                     topicName.toString(), e);
-            throw new RuntimeException("Can't get current schema for topic " + topicName.toString());
+            return FutureUtil.failedFuture(e.getCause());
         }
     }
 
@@ -97,7 +98,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
         return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), LongSchemaVersion.bytes2Long(bytesSchemaVersion.get()));
+                .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
     }
 
 }

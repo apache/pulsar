@@ -69,13 +69,4 @@ public class LongSchemaVersion implements SchemaVersion {
             .add("version", version)
             .toString();
     }
-
-    public static long bytes2Long(byte[] byteNum) {
-        long num = 0;
-        for (int ix = 0; ix < 8; ++ix) {
-            num <<= 8;
-            num |= (byteNum[ix] & 0xff);
-        }
-        return num;
-    }
 }
