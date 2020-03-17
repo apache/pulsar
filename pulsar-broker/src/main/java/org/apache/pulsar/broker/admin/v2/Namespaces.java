@@ -300,18 +300,18 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/autoTopicCreationOverride")
+    @Path("/{tenant}/{namespace}/autoTopicCreation")
     @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
-    public void setAutoTopicCreationOverride(
+    public void setAutoTopicCreation(
             @Suspended final AsyncResponse asyncResponse,
                                                   @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                                   AutoTopicCreationOverride autoTopicCreationOverride) {
         try {
             validateNamespaceName(tenant, namespace);
-            internalSetAutoTopicCreationOverride(asyncResponse, autoTopicCreationOverride);
+            internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e ) {
@@ -320,15 +320,15 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{tenant}/{namespace}/utoTopicCreationOverride")
+    @Path("/{tenant}/{namespace}/utoTopicCreation")
     @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public void removeAutoTopicCreationOverride(@Suspended final AsyncResponse asyncResponse,
-                                                @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
+                                        @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
         try {
             validateNamespaceName(tenant, namespace);
-            internalRemoveAutoTopicCreationOverride(asyncResponse);
+            internalRemoveAutoTopicCreation(asyncResponse);
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {

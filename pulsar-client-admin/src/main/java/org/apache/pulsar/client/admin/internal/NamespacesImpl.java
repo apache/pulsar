@@ -374,11 +374,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setAutoTopicCreationOverride(String namespace,
-                                             AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
+    public void setAutoTopicCreation(String namespace,
+                                     AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "autoTopicCreationOverride");
+            WebTarget path = namespacePath(ns, "autoTopicCreation");
             request(path).post(Entity.entity(autoTopicCreationOverride,
                     MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
@@ -387,10 +387,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void removeAutoTopicCreationOverride(String namespace) throws PulsarAdminException {
+    public void removeAutoTopicCreation(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "autoTopicCreationOverride");
+            WebTarget path = namespacePath(ns, "autoTopicCreation");
             request(path).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

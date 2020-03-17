@@ -555,7 +555,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetAutoTopicCreationOverride(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
+    protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
@@ -607,7 +607,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalRemoveAutoTopicCreationOverride(AsyncResponse asyncResponse) {
+    protected void internalRemoveAutoTopicCreation(AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 

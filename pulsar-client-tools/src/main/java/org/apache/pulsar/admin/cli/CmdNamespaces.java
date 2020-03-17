@@ -381,7 +381,7 @@ public class CmdNamespaces extends CmdBase {
     }
 
     @Parameters(commandDescription = "Enable or disable autoTopicCreation for a namespace, overriding broker settings")
-    private class SetAutoTopicCreationOverride extends CliCommand {
+    private class SetAutoTopicCreation extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
@@ -417,12 +417,12 @@ public class CmdNamespaces extends CmdBase {
                     throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
                 }
             }
-            admin.namespaces().setAutoTopicCreationOverride(namespace, new AutoTopicCreationOverride(enable, type, defaultNumPartitions));
+            admin.namespaces().setAutoTopicCreation(namespace, new AutoTopicCreationOverride(enable, type, defaultNumPartitions));
         }
     }
 
     @Parameters(commandDescription = "Remove override of autoTopicCreation for a namespace")
-    private class RemoveAutoTopicCreationOverride extends CliCommand {
+    private class RemoveAutoTopicCreation extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
@@ -430,7 +430,7 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
 
-            admin.namespaces().removeAutoTopicCreationOverride(namespace);
+            admin.namespaces().removeAutoTopicCreation(namespace);
         }
     }
 
@@ -1565,8 +1565,8 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
 
-        jcommander.addCommand("set-auto-topic-creation-override", new SetAutoTopicCreationOverride());
-        jcommander.addCommand("remove-auto-topic-creation-override", new RemoveAutoTopicCreationOverride());
+        jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
+        jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());

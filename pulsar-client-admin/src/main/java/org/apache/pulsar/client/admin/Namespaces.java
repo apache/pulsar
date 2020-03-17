@@ -635,7 +635,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setAutoTopicCreationOverride(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
+    void setAutoTopicCreation(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
 
     /**
      * Removes the autoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
@@ -651,7 +651,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void removeAutoTopicCreationOverride(String namespace) throws PulsarAdminException;
+    void removeAutoTopicCreation(String namespace) throws PulsarAdminException;
 
     /**
      * Get the bundles split data.
