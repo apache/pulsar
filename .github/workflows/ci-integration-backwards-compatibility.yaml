@@ -54,7 +54,7 @@ jobs:
           sudo swapoff -a
           sudo rm -f /swapfile
           sudo apt clean
-          docker rmi -f $(docker image ls -aq)
+          docker rmi $(docker images -q) -f
           df -h
 
       - name: run install by skip tests
