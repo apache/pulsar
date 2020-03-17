@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Fri, 20 Dec 2019 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Tue, 17 Mar 2020 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Announcing: The Apache Pulsar 2020 User Survey Report]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2020/03/17/announcing-the-apache-pulsar-2020-user-survey-report.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2020/03/17/announcing-the-apache-pulsar-2020-user-survey-report.html</guid>
+            <pubDate>Tue, 17 Mar 2020 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>For the first time ever, the Apache Pulsar PMC team is publishing a user survey report. <strong>The 2020 Apache Pulsar User Survey Report</strong> reveals Pulsar’s accelerating rate of global adoption, details how organizations are leveraging Pulsar to build real-tim...</p>]]></description>
+        </item>
         <item>
             <title><![CDATA[Pulsar milestone celebration—200 contributors!]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2019/12/20/pulsar-milestone-200-contributors.html</link>
