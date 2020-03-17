@@ -27,7 +27,6 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
@@ -190,7 +189,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                     if (exception != null) {
                         fenced = true;
                         cb.addComplete(PulsarMockBookKeeper.getExceptionCode(exception),
-                                       PulsarMockLedgerHandle.this, INVALID_ENTRY_ID, ctx);
+                                       PulsarMockLedgerHandle.this, LedgerHandle.INVALID_ENTRY_ID, ctx);
                     } else {
                         cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
                     }

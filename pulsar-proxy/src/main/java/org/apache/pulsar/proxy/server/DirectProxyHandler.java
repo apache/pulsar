@@ -37,6 +37,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import lombok.Getter;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -53,6 +54,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.slf4j.Logger;
@@ -60,8 +62,12 @@ import org.slf4j.LoggerFactory;
 
 public class DirectProxyHandler {
 
+    @Getter
     private Channel inboundChannel;
+    @Getter
     Channel outboundChannel;
+    @Getter
+    private final Rate inboundChannelRequestsRate;
     protected static Map<ChannelId, ChannelId> inboundOutboundChannelMap = new ConcurrentHashMap<>();
     private String originalPrincipal;
     private AuthData clientAuthData;
@@ -72,11 +78,14 @@ public class DirectProxyHandler {
     private final Authentication authentication;
     private final SslContext sslCtx;
     private AuthenticationDataProvider authenticationDataProvider;
+    private ProxyService service;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
             int protocolVersion, SslContext sslCtx) {
+        this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
+        this.inboundChannelRequestsRate = new Rate();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
@@ -288,20 +297,20 @@ public class DirectProxyHandler {
                                                                + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                                                            new ParserProxyHandler(inboundChannel,
+                                                            new ParserProxyHandler(service, inboundChannel,
                                                                                    ParserProxyHandler.FRONTEND_CONN,
                                                                                    connected.getMaxMessageSize()));
                         outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                                                             new ParserProxyHandler(outboundChannel,
+                                                             new ParserProxyHandler(service, outboundChannel,
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     connected.getMaxMessageSize()));
                     } else {
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                                                            new ParserProxyHandler(inboundChannel,
+                                                            new ParserProxyHandler(service, inboundChannel,
                                                                                    ParserProxyHandler.FRONTEND_CONN,
                                                                                    Commands.DEFAULT_MAX_MESSAGE_SIZE));
                         outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                                                             new ParserProxyHandler(outboundChannel,
+                                                             new ParserProxyHandler(service, outboundChannel,
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     Commands.DEFAULT_MAX_MESSAGE_SIZE));
                     }

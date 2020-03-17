@@ -21,6 +21,8 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Admin interface for bookies rack placement management.
  */
@@ -32,9 +34,19 @@ public interface Bookies {
     BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException;
 
     /**
+     * Gets the rack placement information for all the bookies in the cluster asynchronously
+     */
+    CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync();
+
+    /**
      * Gets the rack placement information for a specific bookie in the cluster
      */
     BookieInfo getBookieRackInfo(String bookieAddress) throws PulsarAdminException;
+
+    /**
+     * Gets the rack placement information for a specific bookie in the cluster asynchronously
+     */
+    CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress);
 
     /**
      * Remove rack placement information for a specific bookie in the cluster
@@ -42,7 +54,17 @@ public interface Bookies {
     void deleteBookieRackInfo(String bookieAddress) throws PulsarAdminException;
 
     /**
+     * Remove rack placement information for a specific bookie in the cluster asynchronously
+     */
+    CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress);
+
+    /**
      * Updates the rack placement information for a specific bookie in the cluster
      */
     void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo) throws PulsarAdminException;
+
+    /**
+     * Updates the rack placement information for a specific bookie in the cluster asynchronously
+     */
+    CompletableFuture<Void> updateBookieRackInfoAsync(String bookieAddress, String group, BookieInfo bookieInfo);
 }
