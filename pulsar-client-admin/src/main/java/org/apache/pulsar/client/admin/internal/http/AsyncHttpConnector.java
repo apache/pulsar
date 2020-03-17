@@ -150,15 +150,16 @@ public class AsyncHttpConnector implements Connector {
         return null;
     }
 
-    private URI uriWithNewAddress(URI uri, InetSocketAddress address) {
-        try {
-            return new URI(uri.getScheme(),
-                    uri.getUserInfo(), address.getHostName(), address.getPort(),
-                    uri.getPath(), uri.getQuery(),
-                    uri.getFragment());
-        } catch (URISyntaxException x) {
-            throw new IllegalArgumentException(x.getMessage(), x);
+    private URI replaceWithNew(InetSocketAddress address, URI uri) {
+        String originalUri = uri.toString();
+        String newUri = (originalUri.split(":")[0] + "://")
+                + address.getHostName() + ":"
+                + address.getPort()
+                + uri.getRawPath();
+        if (uri.getRawQuery() != null) {
+            newUri += "?" + uri.getRawQuery();
         }
+        return URI.create(newUri);
     }
 
     @Override
@@ -228,7 +229,7 @@ public class AsyncHttpConnector implements Connector {
 
     private CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
         ClientRequest currentRequest = new ClientRequest(request);
-        URI newUri = uriWithNewAddress(currentRequest.getUri(), host);
+        URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);
 
         BoundRequestBuilder builder = httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
