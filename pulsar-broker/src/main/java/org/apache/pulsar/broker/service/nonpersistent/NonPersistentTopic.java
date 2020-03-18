@@ -915,7 +915,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public Position getLastMessageId() {
+    public Position getLastPosition() {
+        throw new UnsupportedOperationException("getLastPosition is not supported on non-persistent topic");
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageId() {
         throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
     }
 

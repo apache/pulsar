@@ -30,6 +30,8 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -57,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -438,5 +441,35 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                     testNamespace, partition.getEncodedLocalName());
             Assert.assertEquals(partitionPermissions.get(role), null);
         }
+    }
+
+    @Test()
+    public void testGetLastMessageId() throws Exception {
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
+        final String topicName = "persistent://prop-xyz/ns1/testGetLastMessageId";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(true)
+                .batchingMaxMessages(100)
+                .batchingMaxPublishDelay(2, TimeUnit.SECONDS)
+                .create();
+        admin.topics().createSubscription(topicName, "test", MessageId.earliest);
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        for (int i = 0; i < 10; i++) {
+            completableFuture = batchProducer.sendAsync("test".getBytes());
+        }
+        completableFuture.get();
+        Assert.assertEquals(((BatchMessageIdImpl) admin.topics().getLastMessageId(topicName)).getBatchIndex(), 9);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .create();
+        producer.send("test".getBytes());
+
+        Assert.assertTrue(admin.topics().getLastMessageId(topicName) instanceof MessageIdImpl);
+
     }
 }
