@@ -37,8 +37,9 @@ type FunctionContext struct {
 
 func NewFuncContext() *FunctionContext {
 	fc := &FunctionContext{
-		instanceConf: newInstanceConf(),
-		userConfigs:  make(map[string]interface{}),
+		instanceConf:     newInstanceConf(),
+		userConfigs:      make(map[string]interface{}),
+		publishProducers: make(map[string]pulsar.Producer),
 	}
 	return fc
 }
@@ -79,7 +80,7 @@ func (c *FunctionContext) getProducer(topic string) (pulsar.Producer, error) {
 		c.instanceConf.funcDetails.Tenant,
 		c.instanceConf.funcDetails.Namespace,
 		c.instanceConf.funcDetails.Name), c.instanceConf.instanceID)
-	provider, err := c.instance.client.CreateProducer(pulsar.ProducerOptions{
+	producer, err := c.instance.client.CreateProducer(pulsar.ProducerOptions{
 		Topic:                   topic,
 		Properties:              properties,
 		CompressionType:         pulsar.LZ4,
@@ -87,8 +88,8 @@ func (c *FunctionContext) getProducer(topic string) (pulsar.Producer, error) {
 		// set send timeout to be infinity to prevent potential deadlock with consumer
 		// that might happen when consumer is blocked due to unacked messages
 	})
-	c.publishProducers[topic] = provider
-	return provider, err
+	c.publishProducers[topic] = producer
+	return producer, err
 }
 
 func (c *FunctionContext) GetFuncTenant() string {
