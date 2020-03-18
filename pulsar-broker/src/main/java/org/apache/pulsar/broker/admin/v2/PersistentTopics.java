@@ -528,10 +528,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,@Suspended AsyncResponse asyncResponse) {
+            @PathParam("topic")
+            @Encoded String encodedTopic,@Suspended AsyncResponse asyncResponse) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetManagedLedgerInfo(asyncResponse);
+        internalGetManagedLedgerInfo(asyncResponse, authoritative);
     }
 
     @GET
