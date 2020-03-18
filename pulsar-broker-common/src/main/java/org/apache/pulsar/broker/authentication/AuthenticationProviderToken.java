@@ -98,7 +98,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
-            return authData.getCommandData();
+            return validateToken(authData.getCommandData());
         } else if (authData.hasDataFromHttp()) {
             // Authentication HTTP request. The format here should be compliant to RFC-6750
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
