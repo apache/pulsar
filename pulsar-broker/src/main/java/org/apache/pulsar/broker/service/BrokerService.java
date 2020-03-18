@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -693,7 +694,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
-        CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
+        CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
 
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
@@ -730,6 +731,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         CompletableFuture<T> future = new CompletableFuture<>();
         future.completeExceptionally(t);
         return future;
+    }
+
+    private <T> CompletableFuture<T> futureWithDeadline(Long delay, TimeUnit unit, Exception exp) {
+        CompletableFuture<T> future = new CompletableFuture<T>();
+        executor().schedule(() -> {
+            if (!future.isDone()) {
+                future.completeExceptionally(exp);
+            }
+        }, delay, unit);
+        return future;
+    }
+
+    private <T> CompletableFuture<T> futureWithDeadline() {
+        return futureWithDeadline(60000L, TimeUnit.MILLISECONDS, new TimeoutException("Future didn't finish within deadline"));
     }
 
     public PulsarClient getReplicationClient(String cluster) {
@@ -821,8 +836,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
         checkTopicNsOwnership(topic);
-
-        final CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
+        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load persistent topic {}", topic);
@@ -929,7 +943,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
-        CompletableFuture<ManagedLedgerConfig> future = new CompletableFuture<>();
+        CompletableFuture<ManagedLedgerConfig> future = futureWithDeadline();
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
         pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
@@ -1243,7 +1257,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return
      */
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit, boolean closeWithoutWaitingClientDisconnect) {
-        CompletableFuture<Integer> result = new CompletableFuture<Integer>();
+        CompletableFuture<Integer> result = futureWithDeadline();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
@@ -1836,7 +1850,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
-        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = new CompletableFuture<>();
+        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
 
         try {
             byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMetadata);
