@@ -21,12 +21,13 @@ package main
 
 import (
 	"context"
+
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func contextFunc(ctx context.Context) {
 	if fc, ok := pf.FromContext(ctx); ok {
-		fc.NewOutputMessage("your publish topic")
+		fc.NewOutputMessage("your-publish-topic")
 	}
 	return
 }
