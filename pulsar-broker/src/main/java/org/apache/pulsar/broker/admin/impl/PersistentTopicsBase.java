@@ -56,7 +56,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -2274,20 +2273,31 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected MessageId internalGetLastMessageId(boolean authoritative) {
-        validateReadOperationOnTopic(authoritative);
-
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "GetLastMessageId on a non-persistent topic is not allowed");
+    protected void internalGetLastMessageId(AsyncResponse asyncResponse, boolean authoritative) {
+        Topic topic;
+        try {
+            validateReadOperationOnTopic(authoritative);
+            topic = getTopicReference(topicName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to get last messageId {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
         }
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        Position position = topic.getLastMessageId();
-        int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-        MessageId messageId = new MessageIdImpl(((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId(), partitionIndex);
+        if (!(topic instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "GetLastMessageId on a non-persistent topic is not allowed"));
+            return;
+        }
 
-        return messageId;
+        ((PersistentTopic) topic).getLastMessageId().whenComplete((v, e) -> {
+            if (e != null) {
+                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
+            } else {
+                asyncResponse.resume(v);
+            }
+        });
+
     }
 }

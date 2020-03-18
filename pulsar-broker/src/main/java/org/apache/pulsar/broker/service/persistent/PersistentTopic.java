@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -110,6 +111,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -1915,8 +1917,38 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public Position getLastMessageId() {
+    public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageId() {
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        PositionImpl position = (PositionImpl) ledger.getLastConfirmedEntry();
+        int partitionIndex = TopicName.getPartitionIndex(getName());
+        if (position.getEntryId() == -1) {
+            completableFuture
+                    .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+        }
+        ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                if (metadata.hasNumMessagesInBatch()) {
+                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                } else {
+                    completableFuture
+                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return completableFuture;
     }
 
     public synchronized void triggerCompaction()

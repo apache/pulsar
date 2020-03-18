@@ -29,6 +29,12 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     private final transient BatchMessageAcker acker;
 
+    // Private constructor used only for json deserialization
+    @SuppressWarnings("unused")
+    private BatchMessageIdImpl() {
+        this(-1, -1, -1, -1);
+    }
+
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
         this(ledgerId, entryId, partitionIndex, batchIndex, BatchMessageAckerDisabled.INSTANCE);
     }
