@@ -313,9 +313,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public void getManagedLedgerInfo(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @Suspended AsyncResponse asyncResponse) {
+            @Suspended AsyncResponse asyncResponse, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetManagedLedgerInfo(asyncResponse);
+        internalGetManagedLedgerInfo(asyncResponse, authoritative);
     }
 
     @GET
