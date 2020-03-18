@@ -83,7 +83,6 @@ public interface BrokerStats {
      * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
      *
      * @return
-     * @throws PulsarAdminException
      */
     CompletableFuture<JsonObject> getTopicsAsync();
 
