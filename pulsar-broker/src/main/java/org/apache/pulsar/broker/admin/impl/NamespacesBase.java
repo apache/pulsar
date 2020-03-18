@@ -375,8 +375,7 @@ public abstract class NamespacesBase extends AdminResource {
 
 
     protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
-        /** controlled by system-admin(super-user) to prevent metadata footprint size */
-        validateSuperUserAccess();
+        validateAdminAccessForTenant(namespaceName.getTenant());
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();

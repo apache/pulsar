@@ -248,7 +248,8 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/permissions/subscription/{subscription}")
-    @ApiOperation(hidden = true, value = "Grant a new permission to roles for a subscription.")
+    @ApiOperation(hidden = true, value = "Grant a new permission to roles for a subscription. "
+            + "[Tenant admin is allowed to perform this operation]")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
