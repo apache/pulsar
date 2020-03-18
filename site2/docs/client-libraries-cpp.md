@@ -12,6 +12,37 @@ Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 
 > Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.
 
+Four kind of libraries `libpulsar.so` / `libpulsarnossl.so` / `libpulsar.a` / `libpulsarwithdeps.a` are included in your `/usr/lib` after rpm/deb download and install.
+By default, they are build under code path `${PULSAR_HOME}/pulsar-client-cpp`, using command
+ `cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON && make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3`
+These libraries rely on some other libraries, if you want to get detailed version of dependencies libraries, please reference [these](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/rpm/Dockerfile) [files](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/deb/Dockerfile).
+
+1. `libpulsar.so` is the Shared library, it contains statically linked `boost` and `openssl`, and will also dynamically link all other needed libraries.
+The command the when use this pulsar library is like this:
+```bash
+ g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.so -I/usr/local/ssl/include
+```
+
+2. `libpulsarnossl.so` is the Shared library that similar to `libpulsar.so` except that the library `openssl` and `crypto` are dynamically linked.
+The command the when use this pulsar library is like this:
+```bash
+ g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarnossl.so -lssl -lcrypto -I/usr/local/ssl/include -L/usr/local/ssl/lib
+```
+
+3. `libpulsar.a` is the Static library, it need to load some dependencies library when using it. 
+The command the when use this pulsar library is like this:
+```bash
+ g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib -lboost_system -lboost_regex -lcurl -lprotobuf -lzstd -lz
+```
+
+4. `libpulsarwithdeps.a` is the Static library, base on `libpulsar.a`, and archived in the dependencies libraries of `libboost_regex`,  `libboost_system`, `libcurl`, `libprotobuf`, `libzstd` and `libz`, 
+The command the when use this pulsar library is like this:
+```bash
+ g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
+```
+`libpulsarwithdeps.a` does not include library openssl related libraries: `libssl` and `libcrypto`, because these 2 library is related to security, 
+by using user local system provided version is more reasonable, and more easy for user to handling security issue and library upgrade.
+
 ### Install RPM
 
 1. Download a RPM package from the links in the table. 
@@ -27,6 +58,9 @@ Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
 ```bash
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
+
+After install, Pulsar libraries will be placed under `/usr/lib`.
+
 ### Install Debian
 
 1. Download a Debian package from the links in the table. 
@@ -41,12 +75,15 @@ $ rpm -ivh apache-pulsar-client*.rpm
 ```bash
 $ apt install ./apache-pulsar-client*.deb
 ```
+
+After install, Pulsar libraries will be placed under `/usr/lib`.
+
 ### Build
 
 > If you want to build RPM and Debian packages from the latest master, follow the instructions below. All the instructions are run at the root directory of your cloned Pulsar repository.
 
 There are recipes that build RPM and Debian packages containing a
-statically linked `libpulsar.so` / `libpulsar.a` with all the required
+statically linked `libpulsar.so` / `libpulsarnossl.so` / `libpulsar.a` / `libpulsarwithdeps.a` with all the required
 dependencies.
 
 To build the C++ library packages, build the Java packages first.
@@ -65,8 +102,8 @@ This builds the RPM inside a Docker container and it leaves the RPMs in `pulsar-
 
 | Package name | Content |
 |-----|-----|
-| pulsar-client | Shared library `libpulsar.so` |
-| pulsar-client-devel | Static library `libpulsar.a` and C++ and C headers |
+| pulsar-client | Shared library `libpulsar.so` and `libpulsarnossl.so` |
+| pulsar-client-devel | Static library `libpulsar.a`, `libpulsarwithdeps.a`and C++ and C headers |
 | pulsar-client-debuginfo | Debug symbols for `libpulsar.so` |
 
 #### Debian
@@ -81,8 +118,8 @@ Debian packages are created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`.
 
 | Package name | Content |
 |-----|-----|
-| pulsar-client | Shared library `libpulsar.so` |
-| pulsar-client-dev | Static library `libpulsar.a` and C++ and C headers |
+| pulsar-client | Shared library `libpulsar.so` and `libpulsarnossl.so` |
+| pulsar-client-dev | Static library `libpulsar.a`, `libpulsarwithdeps.a` and C++ and C headers |
 
 ## MacOS
 
