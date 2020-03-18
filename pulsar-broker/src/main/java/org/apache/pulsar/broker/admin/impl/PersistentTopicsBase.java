@@ -23,11 +23,15 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
@@ -87,6 +91,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -894,13 +899,81 @@ public class PersistentTopicsBase extends AdminResource {
         return topic.getInternalStats();
     }
 
-    protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse) {
+    protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+
+        // If the topic name is a partition name, no need to get partition topic metadata again
+        if (topicName.isPartitioned()) {
+            internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
+        } else {
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMetadata -> {
+                if (partitionMetadata.partitions > 0) {
+                    final List<CompletableFuture<JsonObject>> futures = Lists.newArrayList();
+
+                    PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
+
+                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                        TopicName topicNamePartition = topicName.getPartition(i);
+                        try {
+                            futures.add(pulsar().getAdminClient().topics()
+                                .getInternalInfoAsync(topicNamePartition.toString()).whenComplete((jsonObject, throwable) -> {
+                                    if(throwable != null) {
+                                        log.error("[{}] Failed to get managed info for {}", clientAppId(), topicNamePartition, throwable);
+                                        asyncResponse.resume(new RestException(throwable));
+                                    }
+                                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                                    try {
+                                        partitionedManagedLedgerInfo.partitions.put(topicNamePartition.toString(),
+                                            jsonMapper().readValue(gson.toJson(jsonObject), ManagedLedgerInfo.class));
+                                    } catch (JsonProcessingException ex) {
+                                        log.error("[{}] Failed to parse ManagedLedgerInfo for {} from [{}]", clientAppId(),
+                                            topicNamePartition, gson.toJson(jsonObject), ex);
+                                    }
+                                }));
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to get managed info for {}", clientAppId(), topicNamePartition, e);
+                            throw new RestException(e);
+                        }
+                    }
+
+                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                        if (exception != null) {
+                            Throwable t = exception.getCause();
+                            if (t instanceof NotFoundException) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                            } else {
+                                log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, t);
+                                asyncResponse.resume( new RestException(t));
+                            }
+                        }
+                        asyncResponse.resume((StreamingOutput) output -> {
+                            jsonMapper().writer().writeValue(output, partitionedManagedLedgerInfo);
+                        });
+                        return null;
+                    });
+                } else {
+                    internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
+                }
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+        }
+    }
+
+    protected void internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse asyncResponse) {
         String managedLedger;
         try {
             validateAdminAccessForTenant(topicName.getTenant());
-            if (topicName.isGlobal()) {
-                validateGlobalNamespaceOwnership(namespaceName);
-            }
             managedLedger = topicName.getPersistenceNamingEncoding();
         } catch (Exception e) {
             log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, e);
