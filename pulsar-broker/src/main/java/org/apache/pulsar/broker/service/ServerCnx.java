@@ -1788,6 +1788,12 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    void disableCnxAutoRead() {
+        if (ctx.channel().config().isAutoRead() ) {
+            ctx.channel().config().setAutoRead(false);
+        }
+    }
+
     @VisibleForTesting
     void cancelPublishRateLimiting() {
         if (autoReadDisabledRateLimiting) {
