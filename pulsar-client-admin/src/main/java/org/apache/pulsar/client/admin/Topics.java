@@ -1070,6 +1070,14 @@ public interface Topics {
     void triggerCompaction(String topic) throws PulsarAdminException;
 
     /**
+     * Trigger compaction to run for a topic asynchronously.
+     *
+     * @param topic
+     *            The topic on which to trigger compaction
+     */
+    CompletableFuture<Void> triggerCompactionAsync(String topic);
+
+    /**
      * Check the status of an ongoing compaction for a topic.
      *
      * @param topic The topic whose compaction status we wish to check

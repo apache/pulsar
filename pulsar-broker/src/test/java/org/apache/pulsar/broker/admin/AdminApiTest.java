@@ -2235,6 +2235,49 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testTriggerCompactionPartitionedTopic() throws Exception {
+        String topicName = "persistent://prop-xyz/ns1/test-part";
+        int numPartitions = 2;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        // create a partitioned topic by creating a producer
+        pulsarClient.newProducer(Schema.BYTES).topic(topicName).create().close();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // mock actual compaction, we don't need to really run it
+        CompletableFuture<Long> promise = new CompletableFuture<>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(promise).when(compactor).compact(topicName + "-partition-0");
+
+        CompletableFuture<Long> promise1 = new CompletableFuture<>();
+        doReturn(promise1).when(compactor).compact(topicName + "-partition-1");
+        admin.topics().triggerCompaction(topicName);
+
+        // verify compact called once by each partition topic
+        verify(compactor).compact(topicName + "-partition-0");
+        verify(compactor).compact(topicName + "-partition-1");
+        try {
+            admin.topics().triggerCompaction(topicName);
+
+            fail("Shouldn't be able to run while already running");
+        } catch (PulsarAdminException e) {
+            // expected
+        }
+        // compact shouldn't have been called again
+        verify(compactor).compact(topicName + "-partition-0");
+        verify(compactor).compact(topicName + "-partition-1");
+
+        // complete first compaction, and trigger again
+        promise.complete(1L);
+        promise1.complete(1L);
+        admin.topics().triggerCompaction(topicName);
+
+        // verify compact was called again
+        verify(compactor, times(2)).compact(topicName + "-partition-0");
+        verify(compactor, times(2)).compact(topicName + "-partition-1");
+    }
+
+    @Test
     public void testCompactionStatus() throws Exception {
         String topicName = "persistent://prop-xyz/ns1/topic1";
 
