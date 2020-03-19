@@ -26,6 +26,8 @@ import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.POST;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
@@ -83,6 +85,24 @@ public class ProxyStats {
             throw new RestException(Status.PRECONDITION_FAILED, "Proxy doesn't have logging level 2");
         }
         return proxyService().getTopicStats();
+    }
+
+    @POST
+    @Path("/logging/{logLevel}")
+    @ApiOperation(hidden = true, value = "Change proxy logging level dynamically", notes = "It only changes log-level in memory, change it config file to persist the change")
+    @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy log level can be [0-2]"), })
+    public void updateProxyLogLevel(@PathParam("logLevel") int logLevel) {
+        if (logLevel < 0 || logLevel > 2) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Proxy log level can be only [0-2]");
+        }
+        proxyService().setProxyLogLevel(logLevel);
+    }
+
+    @GET
+    @Path("/logging")
+    @ApiOperation(hidden = true, value = "Get proxy logging")
+    public int getProxyLogLevel(@PathParam("logLevel") int logLevel) {
+        return proxyService().getProxyLogLevel();
     }
 
     protected ProxyService proxyService() {

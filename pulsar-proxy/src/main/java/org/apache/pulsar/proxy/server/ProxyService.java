@@ -30,6 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -88,7 +89,9 @@ public class ProxyService implements Closeable {
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
-    protected static int proxyLogLevel;
+    @Getter
+    @Setter
+    protected int proxyLogLevel;
 
     private final ScheduledExecutorService statsExecutor;
 
@@ -128,9 +131,9 @@ public class ProxyService implements Closeable {
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
         if (proxyConfig.getProxyLogLevel().isPresent()) {
-            ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
+            proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
         } else {
-            ProxyService.proxyLogLevel = 0;
+            proxyLogLevel = 0;
         }
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
