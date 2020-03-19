@@ -103,4 +103,41 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).unackedMessages, 0);
     }
 
+    @Test
+    public void testAckStatsOnPartitionedTopicForExclusiveSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
+        final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
+        admin.topics().createPartitionedTopic(topic, 3);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub")
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send(("message-" + i).getBytes());
+        }
+
+        int received = 0;
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+            received++;
+        }
+        Assert.assertEquals(messages, received);
+
+        // wait acknowledge send
+        Thread.sleep(2000);
+
+        for (int i = 0; i < 3; i++) {
+            TopicStats stats = admin.topics().getStats(topic + "-partition-" + i);
+            Assert.assertEquals(stats.subscriptions.size(), 1);
+            Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.size(), 1);
+            Assert.assertEquals(stats.subscriptions.entrySet().iterator().next().getValue().consumers.get(0).unackedMessages, 0);
+        }
+    }
+
 }
