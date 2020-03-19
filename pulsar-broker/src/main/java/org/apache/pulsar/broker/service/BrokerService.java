@@ -1168,6 +1168,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkBrokerPublishThrottlingRate() {
         brokerPublishRateLimiter.checkPublishRate();
+        if (brokerPublishRateLimiter.isPublishRateExceeded()) {
+            forEachTopic(topic -> ((AbstractTopic) topic).disableProducerRead());
+        }
     }
 
     private void refreshBrokerPublishRate() {
@@ -2053,6 +2056,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
             && !reachMessagePublishBufferThreshold) {
             reachMessagePublishBufferThreshold = true;
+            forEachTopic(topic -> ((AbstractTopic) topic).disableProducerRead());
         }
         if (currentMessagePublishBufferBytes.get() < resumeProducerReadMessagePublishBufferBytes
             && reachMessagePublishBufferThreshold) {
