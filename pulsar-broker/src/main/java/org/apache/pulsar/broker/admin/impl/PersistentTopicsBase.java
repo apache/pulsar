@@ -2162,6 +2162,11 @@ public class PersistentTopicsBase extends AdminResource {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
+            if (partitionMetadata.partitions < 1) {
+                result.completeExceptionally(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
+                return;
+            }
+
             if (partitionMetadata.partitions >= numPartitions) {
                 result.completeExceptionally(new RestException(Status.CONFLICT,
                         "number of partitions must be more than existing " + partitionMetadata.partitions));
