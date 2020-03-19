@@ -58,11 +58,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
  */
 public class SecurityUtility {
 
-    static {
-        // Fixes loading PKCS8Key file: https://stackoverflow.com/a/18912362
-        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);

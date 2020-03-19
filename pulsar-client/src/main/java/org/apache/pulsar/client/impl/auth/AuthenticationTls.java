@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 /**
  *
@@ -46,7 +47,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     // Load Bouncy Castle
     static {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        Security.addProvider(new BouncyCastleFipsProvider());
     }
     
     public AuthenticationTls() {
