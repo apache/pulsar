@@ -142,8 +142,8 @@ public class ServerCnx extends PulsarHandler {
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
-    private static final int MaxPendingSendRequests = 1000;
-    private static final int ResumeReadsThreshold = MaxPendingSendRequests / 2;
+    private final int maxPendingSendRequests;
+    private final int resumeReadsThreshold;
     private int pendingSendRequest = 0;
     private final String replicatorPrefix;
     private String clientVersion = null;
@@ -183,6 +183,8 @@ public class ServerCnx extends PulsarHandler {
         this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
         this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
+        this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishdRequestsPerConnection();
+        this.resumeReadsThreshold = maxPendingSendRequests / 2;
     }
 
     @Override
@@ -520,7 +522,7 @@ public class ServerCnx extends PulsarHandler {
                         log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
                         ctx.close();
                     } else {
-                        log.info("[{}] Refreshed authentication credentials", remoteAddress);
+                        log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);
                     }
                 }
             }
@@ -557,7 +559,7 @@ public class ServerCnx extends PulsarHandler {
         }
 
         ctx.executor().execute(SafeRun.safeRun(() -> {
-            log.info("[{}] Refreshing authentication credentials", remoteAddress);
+            log.info("[{}] Refreshing authentication credentials for originalPrincipal {} and authRole {}", remoteAddress, originalPrincipal, this.authRole);
 
             if (!supportsAuthenticationRefresh()) {
                 log.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
@@ -1408,7 +1410,7 @@ public class ServerCnx extends PulsarHandler {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position position = topic.getLastMessageId();
+            Position position = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
             getLargestBatchIndexWhenPossible(
@@ -1759,7 +1761,7 @@ public class ServerCnx extends PulsarHandler {
     private void startSendOperation(Producer producer, int msgSize) {
         messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
-        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
+        if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
@@ -1774,7 +1776,7 @@ public class ServerCnx extends PulsarHandler {
 
     void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         messagePublishBufferSize -= msgSize;
-        if (--pendingSendRequest == ResumeReadsThreshold) {
+        if (--pendingSendRequest == resumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
@@ -1794,6 +1796,12 @@ public class ServerCnx extends PulsarHandler {
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
             ctx.read();
+        }
+    }
+
+    void disableCnxAutoRead() {
+        if (ctx.channel().config().isAutoRead() ) {
+            ctx.channel().config().setAutoRead(false);
         }
     }
 

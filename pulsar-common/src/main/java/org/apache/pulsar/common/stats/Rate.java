@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.util;
+package org.apache.pulsar.common.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
 

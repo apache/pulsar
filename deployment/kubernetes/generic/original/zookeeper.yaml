@@ -41,7 +41,7 @@ spec:
 ---
 
 ## Define a StatefulSet for ZK servers
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
     name: zk
@@ -49,6 +49,10 @@ metadata:
         app: pulsar
         component: zookeeper
 spec:
+    selector:
+      matchLabels:
+          app: pulsar
+          component: zookeeper
     serviceName: zookeeper
     replicas: 3
     template:

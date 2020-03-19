@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -903,15 +904,24 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void triggerCompaction(String topic)
-            throws PulsarAdminException {
+    public void triggerCompaction(String topic) throws PulsarAdminException {
         try {
-            TopicName tn = validateTopic(topic);
-            request(topicPath(tn, "compaction"))
-                .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            triggerCompactionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> triggerCompactionAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "compaction");
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1053,10 +1063,14 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(tn, "lastMessageId");
         final CompletableFuture<MessageId> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<MessageIdImpl>() {
+                new InvocationCallback<BatchMessageIdImpl>() {
 
                     @Override
-                    public void completed(MessageIdImpl response) {
+                    public void completed(BatchMessageIdImpl response) {
+                        if (response.getBatchIndex() == -1) {
+                            future.complete(new MessageIdImpl(response.getLedgerId(),
+                                    response.getEntryId(), response.getPartitionIndex()));
+                        }
                         future.complete(response);
                     }
 
