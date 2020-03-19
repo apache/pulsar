@@ -73,13 +73,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.topic = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
-        if (msgMetadataBuilder.getPropertiesCount() > 0) {
-            msg.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                            (oldValue,newValue) -> newValue)));
-        } else {
-            msg.properties = Collections.emptyMap();
-        }
+        msg.properties = null;
         msg.schema = schema;
         return msg;
     }
@@ -306,6 +300,7 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    @Override
     public long getSequenceId() {
         checkNotNull(msgMetadataBuilder);
         if (msgMetadataBuilder.hasSequenceId()) {
@@ -337,8 +332,10 @@ public class MessageImpl<T> implements Message<T> {
     public synchronized Map<String, String> getProperties() {
         if (this.properties == null) {
             if (msgMetadataBuilder.getPropertiesCount() > 0) {
-                this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+                  this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                           .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                                   (oldValue,newValue) -> newValue)));
+                
             } else {
                 this.properties = Collections.emptyMap();
             }
