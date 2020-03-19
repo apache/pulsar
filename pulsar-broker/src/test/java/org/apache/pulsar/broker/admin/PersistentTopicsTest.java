@@ -443,6 +443,35 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testTriggerCompactionTopic() {
+        final String partitionTopicName = "test-part";
+        final String nonPartitionTopicName = "test-non-part";
+
+        // trigger compaction on non-existing topic
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.compact(response, testTenant, testNamespace, "non-existing-topic", true);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+
+        // create non partitioned topic and compaction on it
+        response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopicName, true);
+        persistentTopics.compact(response, testTenant, testNamespace, nonPartitionTopicName, true);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // create partitioned topic and compaction on it
+        response = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 2);
+        persistentTopics.compact(response, testTenant, testNamespace, partitionTopicName, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+    }
+
     @Test()
     public void testGetLastMessageId() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
