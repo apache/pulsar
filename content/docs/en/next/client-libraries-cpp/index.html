@@ -83,6 +83,36 @@
 <blockquote>
 <p>Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.</p>
 </blockquote>
+<p>Four kind of libraries <code>libpulsar.so</code> / <code>libpulsarnossl.so</code> / <code>libpulsar.a</code> / <code>libpulsarwithdeps.a</code> are included in your <code>/usr/lib</code> after rpm/deb download and install.
+By default, they are build under code path <code>${PULSAR_HOME}/pulsar-client-cpp</code>, using command
+<code>cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON &amp;&amp; make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3</code>
+These libraries rely on some other libraries, if you want to get detailed version of dependencies libraries, please reference <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/rpm/Dockerfile">these</a> <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/deb/Dockerfile">files</a>.</p>
+<ol>
+<li><code>libpulsar.so</code> is the Shared library, it contains statically linked <code>boost</code> and <code>openssl</code>, and will also dynamically link all other needed libraries.
+The command the when use this pulsar library is like this:</li>
+</ol>
+<pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsar.so -I/usr/<span class="hljs-built_in">local</span>/ssl/include
+</code></pre>
+<ol start="2">
+<li><code>libpulsarnossl.so</code> is the Shared library that similar to <code>libpulsar.so</code> except that the library <code>openssl</code> and <code>crypto</code> are dynamically linked.
+The command the when use this pulsar library is like this:</li>
+</ol>
+<pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsarnossl.so -lssl -lcrypto -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib
+</code></pre>
+<ol start="3">
+<li><code>libpulsar.a</code> is the Static library, it need to load some dependencies library when using it.
+The command the when use this pulsar library is like this:</li>
+</ol>
+<pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsar.a -lssl -lcrypto -ldl -lpthread  -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib -lboost_system -lboost_regex -lcurl -lprotobuf -lzstd -lz
+</code></pre>
+<ol start="4">
+<li><code>libpulsarwithdeps.a</code> is the Static library, base on <code>libpulsar.a</code>, and archived in the dependencies libraries of <code>libboost_regex</code>,  <code>libboost_system</code>, <code>libcurl</code>, <code>libprotobuf</code>, <code>libzstd</code> and <code>libz</code>,
+The command the when use this pulsar library is like this:</li>
+</ol>
+<pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib
+</code></pre>
+<p><code>libpulsarwithdeps.a</code> does not include library openssl related libraries: <code>libssl</code> and <code>libcrypto</code>, because these 2 library is related to security,
+by using user local system provided version is more reasonable, and more easy for user to handling security issue and library upgrade.</p>
 <h3><a class="anchor" aria-hidden="true" id="install-rpm"></a><a href="#install-rpm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install RPM</h3>
 <ol>
 <li>Download a RPM package from the links in the table.</li>
@@ -102,6 +132,7 @@
 </ol>
 <pre><code class="hljs css language-bash">$ rpm -ivh apache-pulsar-client*.rpm
 </code></pre>
+<p>After install, Pulsar libraries will be placed under <code>/usr/lib</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="install-debian"></a><a href="#install-debian" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Debian</h3>
 <ol>
 <li>Download a Debian package from the links in the table.</li>
@@ -120,12 +151,13 @@
 </ol>
 <pre><code class="hljs css language-bash">$ apt install ./apache-pulsar-client*.deb
 </code></pre>
+<p>After install, Pulsar libraries will be placed under <code>/usr/lib</code>.</p>
 <h3><a class="anchor" aria-hidden="true" id="build"></a><a href="#build" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Build</h3>
 <blockquote>
 <p>If you want to build RPM and Debian packages from the latest master, follow the instructions below. All the instructions are run at the root directory of your cloned Pulsar repository.</p>
 </blockquote>
 <p>There are recipes that build RPM and Debian packages containing a
-statically linked <code>libpulsar.so</code> / <code>libpulsar.a</code> with all the required
+statically linked <code>libpulsar.so</code> / <code>libpulsarnossl.so</code> / <code>libpulsar.a</code> / <code>libpulsarwithdeps.a</code> with all the required
 dependencies.</p>
 <p>To build the C++ library packages, build the Java packages first.</p>
 <pre><code class="hljs css language-shell">mvn install -DskipTests
@@ -139,8 +171,8 @@ dependencies.</p>
 <tr><th>Package name</th><th>Content</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code></td></tr>
-<tr><td>pulsar-client-devel</td><td>Static library <code>libpulsar.a</code> and C++ and C headers</td></tr>
+<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
+<tr><td>pulsar-client-devel</td><td>Static library <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code>and C++ and C headers</td></tr>
 <tr><td>pulsar-client-debuginfo</td><td>Debug symbols for <code>libpulsar.so</code></td></tr>
 </tbody>
 </table>
@@ -154,8 +186,8 @@ dependencies.</p>
 <tr><th>Package name</th><th>Content</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code></td></tr>
-<tr><td>pulsar-client-dev</td><td>Static library <code>libpulsar.a</code> and C++ and C headers</td></tr>
+<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
+<tr><td>pulsar-client-dev</td><td>Static library <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code> and C++ and C headers</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="macos"></a><a href="#macos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MacOS</h2>
