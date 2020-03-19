@@ -17,7 +17,7 @@ public class TransactionBufferClientException extends IOException {
     }
 
     /**
-     * Thrown when operation timeout
+     * Thrown when operation timeout.
      */
     public static class RequestTimeoutException extends TransactionBufferClientException {
 

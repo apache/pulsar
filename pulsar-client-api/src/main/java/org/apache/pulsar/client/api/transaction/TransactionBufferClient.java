@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
- * The transaction buffer client to commit and abort transactions on topics.
+ * The transaction buffer client to commit and abort transactions on topics or subscription.
+ * The transaction buffer client is used by transaction coordinator to end transactions.
  */
 public interface TransactionBufferClient {
 
