@@ -21,7 +21,11 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class BatchMessageIdImplTest {
@@ -66,6 +70,32 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId4, msgId);
 
         assertEquals(msgId, batchMsgId4);
+    }
+
+    @Test
+    public void deserializationTest() {
+        // initialize BitSet with null
+        BatchMessageAcker ackerDisabled = new BatchMessageAcker(null, 0);
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0, ackerDisabled);
+
+        ObjectWriter writer = ObjectMapperFactory.create().writerWithDefaultPrettyPrinter();
+
+        try {
+            writer.writeValueAsString(batchMsgId);
+            fail("Shouldn't be deserialized");
+        } catch (JsonProcessingException e) {
+            // expected
+            assertTrue(e.getCause() instanceof NullPointerException);
+        }
+
+        // use the default BatchMessageAckerDisabled
+        BatchMessageIdImpl batchMsgIdToDeserialize = new BatchMessageIdImpl(0, 0, 0, 0);
+
+        try {
+            writer.writeValueAsString(batchMsgIdToDeserialize);
+        } catch (JsonProcessingException e) {
+            fail("Should be successful");
+        }
     }
 
 }
