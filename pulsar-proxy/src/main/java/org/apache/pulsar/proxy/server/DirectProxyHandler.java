@@ -136,7 +136,7 @@ public class DirectProxyHandler {
             cnx.setRemoteHostName(targetBroker.getHost());
 
             // if enable full parsing feature
-            if (ProxyService.proxyLogLevel == 2) {
+            if (service.getProxyLogLevel() == 2) {
                 //Set a map between inbound and outbound,
                 //so can find inbound by outbound or find outbound by inbound
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
@@ -279,7 +279,7 @@ public class DirectProxyHandler {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
                 }
-                if (ProxyService.proxyLogLevel == 0) {
+                if (service.getProxyLogLevel() == 0) {
                     // direct tcp proxy
                     inboundChannel.pipeline().remove("frameDecoder");
                     outboundChannel.pipeline().remove("frameDecoder");
