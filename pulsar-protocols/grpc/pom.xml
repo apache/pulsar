@@ -68,7 +68,7 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-        
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>managed-ledger</artifactId>
