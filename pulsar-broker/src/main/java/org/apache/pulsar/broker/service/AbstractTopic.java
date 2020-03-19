@@ -310,6 +310,12 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
+    protected void disableProducerRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
+        }
+    }
+
     protected void checkTopicFenced() throws BrokerServiceException {
         if (isFenced) {
             log.warn("[{}] Attempting to add producer to a fenced topic", topic);
