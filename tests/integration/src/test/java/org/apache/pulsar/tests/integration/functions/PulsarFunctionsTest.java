@@ -2153,6 +2153,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             this.setupFunctionWorkers();
         }
 
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+
+        @Cleanup Consumer consumer = pulsarClient.newConsumer(Schema.AVRO(CustomDerivedObject.class))
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-avro-schema")
+                .topic(outputTopic)
+                .subscribe();
+
+        @Cleanup Producer producer = pulsarClient.newProducer(Schema.AVRO(CustomBaseObject.class))
+                .topic(inputTopic).create();
+
         submitFunction(
                 Runtime.JAVA,
                 inputTopic,
@@ -2164,38 +2176,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         getFunctionInfoSuccess(functionName);
 
-        publishAndConsumeAvroSchemaMessages(
-                inputTopic, CustomBaseObject.class,
-                outputTopic, CustomDerivedObject.class,
-                numMessages, new CustomBaseToDerivedFunction());
-
-        getFunctionStatus(functionName, numMessages, false);
-
-        deleteFunction(functionName);
-
-        getFunctionInfoNotFound(functionName);
-    }
-
-    private void publishAndConsumeAvroSchemaMessages(String inputTopic, Class<? extends CustomBaseObject> inputClass,
-                                                     String outputTopic, Class<? extends CustomBaseObject> outputClass,
-                                                     int numMessages, Function function)
-            throws Exception {
-        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
-
-        @Cleanup Consumer consumer = pulsarClient.newConsumer(Schema.AVRO(outputClass))
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName("test-avro-schema")
-                .topic(outputTopic)
-                .subscribe();
-
-        @Cleanup Producer producer = pulsarClient.newProducer(Schema.AVRO(inputClass))
-                .topic(inputTopic).create();
-
+        Function function = new CustomBaseToDerivedFunction();
         Set<Object> expectedSet = new HashSet<>();
         for (int i = 0 ; i < numMessages ; i++) {
             CustomBaseObject customBaseObject = new CustomBaseObject();
-            customBaseObject.setBaseValue(10);
+            customBaseObject.setBaseValue(i);
             producer.send(customBaseObject);
             expectedSet.add(function.process(customBaseObject, null));
         }
@@ -2208,6 +2193,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         assertEquals(expectedSet.size(), 0);
+
+        getFunctionStatus(functionName, numMessages, false);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
     }
 
     private  void testDebeziumMySqlConnect()
