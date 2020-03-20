@@ -46,6 +46,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }
 
+    @Override
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
         try {
             return getDefaultResourceQuotaAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -77,6 +78,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         return future;
     }
 
+    @Override
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
         try {
             setDefaultResourceQuotaAsync(quota).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -95,6 +97,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         return asyncPostRequest(adminV2Quotas, Entity.entity(quota, MediaType.APPLICATION_JSON));
     }
 
+    @Override
     public ResourceQuota getNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
             return getNamespaceBundleResourceQuotaAsync(namespace, bundle)
@@ -129,6 +132,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         return future;
     }
 
+    @Override
     public void setNamespaceBundleResourceQuota(String namespace, String bundle, ResourceQuota quota)
             throws PulsarAdminException {
         try {
@@ -151,13 +155,18 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         return asyncPostRequest(path, Entity.entity(quota, MediaType.APPLICATION_JSON));
     }
 
+    @Override
     public void resetNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, bundle);
-            request(path).delete();
-        } catch (Exception e) {
-            throw getApiException(e);
+            resetNamespaceBundleResourceQuotaAsync(namespace, bundle)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
