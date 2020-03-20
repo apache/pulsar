@@ -129,16 +129,20 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config) {
         WebTarget path = adminTenants.path(tenant);
-        return asyncPostRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
     }
 
     @Override
     public void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).post(Entity.entity(config, MediaType.APPLICATION_JSON),
-                    ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            updateTenantAsync(tenant, config).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
