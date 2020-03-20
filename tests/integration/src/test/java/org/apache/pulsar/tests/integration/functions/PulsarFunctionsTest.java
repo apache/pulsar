@@ -2155,6 +2155,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        log.info("pulsar client init");
 
         @Cleanup Consumer<CustomDerivedObject> consumer = pulsarClient
                 .newConsumer(Schema.AVRO(CustomDerivedObject.class))
@@ -2162,10 +2163,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .subscriptionName("test-avro-schema")
                 .topic(outputTopic)
                 .subscribe();
+        log.info("pulsar consumer init");
 
         @Cleanup Producer<CustomBaseObject> producer = pulsarClient
                 .newProducer(Schema.AVRO(CustomBaseObject.class))
                 .topic(inputTopic).create();
+        log.info("pulsar producer init");
 
         submitFunction(
                 Runtime.JAVA,
@@ -2175,6 +2178,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 CustomBaseToDerivedFunction.class.getName(),
                 Schema.AVRO(CustomBaseObject.class));
+        log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
 
