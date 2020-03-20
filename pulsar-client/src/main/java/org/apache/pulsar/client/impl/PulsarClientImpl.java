@@ -679,7 +679,8 @@ public class PulsarClientImpl implements PulsarClient {
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
-            boolean isLookupThrottling = e.getCause() instanceof PulsarClientException.TooManyRequestsException;
+            boolean isLookupThrottling = e.getCause() instanceof PulsarClientException.TooManyRequestsException ||
+                    e.getCause() instanceof PulsarClientException.AuthorizationException;
             if (nextDelay <= 0 || isLookupThrottling) {
                 future.completeExceptionally(e);
                 return null;
