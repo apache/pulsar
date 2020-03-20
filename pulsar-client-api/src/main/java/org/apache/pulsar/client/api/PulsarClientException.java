@@ -719,4 +719,23 @@ public class PulsarClientException extends IOException {
             return new PulsarClientException(t);
         }
     }
+
+    public static boolean isRetriableError(Throwable t) {
+        if (t instanceof TooManyRequestsException
+                || t instanceof AuthorizationException
+                || t instanceof InvalidServiceURL
+                || t instanceof InvalidConfigurationException
+                || t instanceof NotFoundException
+                || t instanceof IncompatibleSchemaException
+                || t instanceof TopicDoesNotExistException
+                || t instanceof UnsupportedAuthenticationException
+                || t instanceof InvalidMessageException
+                || t instanceof InvalidTopicNameException
+                || t instanceof NotSupportedException
+                || t instanceof ChecksumException
+                || t instanceof CryptoException) {
+            return false;
+        }
+        return true;
+    }
 }
