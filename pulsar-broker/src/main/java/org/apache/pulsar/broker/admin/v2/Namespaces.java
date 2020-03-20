@@ -321,7 +321,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{tenant}/{namespace}/utoTopicCreation")
+    @Path("/{tenant}/{namespace}/autoTopicCreation")
     @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
