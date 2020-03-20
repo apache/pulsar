@@ -65,7 +65,7 @@ public class MessageImpl<T> implements Message<T> {
     private final int redeliveryCount;
 
     // Constructor for out-going message
-    static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
+    public static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;

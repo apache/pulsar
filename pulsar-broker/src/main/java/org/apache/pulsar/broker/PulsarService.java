@@ -33,6 +33,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
@@ -104,6 +105,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -180,6 +182,7 @@ public class PulsarService implements AutoCloseable {
     private String brokerServiceUrl;
     private String brokerServiceUrlTls;
     private final String brokerVersion;
+    private SchemaStorage schemaStorage = null;
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
@@ -403,7 +406,10 @@ public class PulsarService implements AutoCloseable {
 
             // needs load management service and before start broker service,
             this.startNamespaceService();
-            schemaRegistryService = SchemaRegistryService.create(this);
+
+            schemaStorage = createAndStartSchemaStorage();
+            schemaRegistryService = SchemaRegistryService.create(
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
@@ -817,6 +823,7 @@ public class PulsarService implements AutoCloseable {
                             LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
+                        schemaStorage,
                         getOffloaderScheduler(offloadPolicies));
                 } catch (IOException ioe) {
                     throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
@@ -828,6 +835,20 @@ public class PulsarService implements AutoCloseable {
         } catch (Throwable t) {
             throw new PulsarServerException(t);
         }
+    }
+
+    private SchemaStorage createAndStartSchemaStorage() {
+        SchemaStorage schemaStorage = null;
+        try {
+            final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
+            Object factoryInstance = storageClass.newInstance();
+            Method createMethod = storageClass.getMethod("create", PulsarService.class);
+            schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
+            schemaStorage.start();
+        } catch (Exception e) {
+            LOG.warn("Unable to create schema registry storage");
+        }
+        return schemaStorage;
     }
 
     public ZooKeeperCache getLocalZkCache() {
