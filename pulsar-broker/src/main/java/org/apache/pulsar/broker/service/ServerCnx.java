@@ -522,7 +522,7 @@ public class ServerCnx extends PulsarHandler {
                         log.warn("[{}] Principal cannot be changed during an authentication refresh", remoteAddress);
                         ctx.close();
                     } else {
-                        log.info("[{}] Refreshed authentication credentials", remoteAddress);
+                        log.info("[{}] Refreshed authentication credentials for role {}", remoteAddress, authRole);
                     }
                 }
             }
@@ -559,7 +559,7 @@ public class ServerCnx extends PulsarHandler {
         }
 
         ctx.executor().execute(SafeRun.safeRun(() -> {
-            log.info("[{}] Refreshing authentication credentials", remoteAddress);
+            log.info("[{}] Refreshing authentication credentials for originalPrincipal {} and authRole {}", remoteAddress, originalPrincipal, this.authRole);
 
             if (!supportsAuthenticationRefresh()) {
                 log.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
@@ -1410,7 +1410,7 @@ public class ServerCnx extends PulsarHandler {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position position = topic.getLastMessageId();
+            Position position = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
             getLargestBatchIndexWhenPossible(
@@ -1796,6 +1796,12 @@ public class ServerCnx extends PulsarHandler {
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
             ctx.read();
+        }
+    }
+
+    void disableCnxAutoRead() {
+        if (ctx.channel().config().isAutoRead() ) {
+            ctx.channel().config().setAutoRead(false);
         }
     }
 

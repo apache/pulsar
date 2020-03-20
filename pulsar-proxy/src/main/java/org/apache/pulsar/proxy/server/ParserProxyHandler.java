@@ -119,7 +119,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     break;
 
                 case SEND:
-                    if (ProxyService.proxyLogLevel != 2) {
+                    if (service.getProxyLogLevel() != 2) {
                         logging(ctx.channel() , cmd.getType() , "", null);
                         break;
                     }
@@ -144,7 +144,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     break;
 
                 case MESSAGE:
-                    if (ProxyService.proxyLogLevel != 2) {
+                    if (service.getProxyLogLevel() != 2) {
                         logging(ctx.channel() , cmd.getType() , "" , null);
                         break;
                     }

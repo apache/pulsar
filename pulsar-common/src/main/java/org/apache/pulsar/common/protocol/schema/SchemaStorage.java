@@ -16,13 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-import javax.validation.constraints.NotNull;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-public interface SchemaStorageFactory {
-    @NotNull
-    SchemaStorage create(PulsarService pulsar) throws Exception;
+/**
+ * Schema storage.
+ */
+public interface SchemaStorage {
+
+    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
+
+    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+
+    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
+
+    CompletableFuture<SchemaVersion> delete(String key);
+
+    SchemaVersion versionFromBytes(byte[] version);
+
+    void start() throws Exception;
+
+    void close() throws Exception;
+
 }

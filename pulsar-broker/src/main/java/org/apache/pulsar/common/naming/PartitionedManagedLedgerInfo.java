@@ -16,26 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.naming;
 
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import com.google.common.collect.Maps;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
-public interface SchemaStorage {
+import java.util.Map;
 
-    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
+public class PartitionedManagedLedgerInfo extends ManagedLedgerInfo {
 
-    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+    public Map<String, ManagedLedgerInfo> partitions;
 
-    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
-
-    CompletableFuture<SchemaVersion> delete(String key);
-
-    SchemaVersion versionFromBytes(byte[] version);
-
-    void start() throws Exception;
-
-    void close() throws Exception;
-
+    public PartitionedManagedLedgerInfo() {
+        partitions = Maps.newTreeMap();
+    }
 }

@@ -77,11 +77,17 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-2";
 
-        admin.topics().createPartitionedTopic(partitionedTopicName, 10);
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
+        admin.topics().createPartitionedTopic(partitionedTopicName, 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
-                .subscribe();
+          .subscribe();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 10);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);

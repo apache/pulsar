@@ -23,7 +23,7 @@ kind: ConfigMap
 metadata:
     name: bookie-config
 data:
-    PULSAR_MEM: "\" -Xms64m -Xmx256m -XX:MaxDirectMemorySize=256m\""
+    BOOKIE_MEM: "\" -Xms64m -Xmx256m -XX:MaxDirectMemorySize=256m\""
     PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "32" # Write cache size (direct memory)
     PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "32" # Read cache size (direct memory)
     PULSAR_PREFIX_zkServers: zookeeper

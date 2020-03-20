@@ -41,7 +41,6 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -55,11 +54,14 @@ import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response.Status;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -94,6 +96,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -960,6 +963,37 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // delete a partitioned topic in a global namespace
         admin.topics().createPartitionedTopic(partitionedTopicName, 4);
         admin.topics().deletePartitionedTopic(partitionedTopicName);
+    }
+
+    @Test
+    public void testGetPartitionedInternalInfo() throws Exception {
+        String partitionedTopic = "my-topic";
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2);
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList(partitionedTopicName));
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+
+        String partitionTopic0 = partitionedTopicName + "-partition-0";
+        String partitionTopic1 = partitionedTopicName + "-partition-1";
+
+        JsonObject partitionTopic0Info = admin.topics().getInternalInfo(partitionTopic0);
+        JsonObject partitionTopic1Info = admin.topics().getInternalInfo(partitionTopic1);
+
+        Gson gson = new GsonBuilder().create();
+
+        // expected managed info
+        PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
+        partitionedManagedLedgerInfo.version = 0L;
+        partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
+            ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic0Info), ManagedLedgerInfo.class));
+        partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
+            ObjectMapperFactory.getThreadLocal().readValue(gson.toJson(partitionTopic1Info), ManagedLedgerInfo.class));
+
+        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedManagedLedgerInfo);
+
+        JsonObject partitionTopicInfo = admin.topics().getInternalInfo(partitionedTopicName);
+        assertEquals(gson.toJson(partitionTopicInfo), expectedResult);
     }
 
     @Test(dataProvider = "numBundles")
@@ -2198,6 +2232,49 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // verify compact was called again
         verify(compactor, times(2)).compact(topicName);
+    }
+
+    @Test
+    public void testTriggerCompactionPartitionedTopic() throws Exception {
+        String topicName = "persistent://prop-xyz/ns1/test-part";
+        int numPartitions = 2;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        // create a partitioned topic by creating a producer
+        pulsarClient.newProducer(Schema.BYTES).topic(topicName).create().close();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // mock actual compaction, we don't need to really run it
+        CompletableFuture<Long> promise = new CompletableFuture<>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(promise).when(compactor).compact(topicName + "-partition-0");
+
+        CompletableFuture<Long> promise1 = new CompletableFuture<>();
+        doReturn(promise1).when(compactor).compact(topicName + "-partition-1");
+        admin.topics().triggerCompaction(topicName);
+
+        // verify compact called once by each partition topic
+        verify(compactor).compact(topicName + "-partition-0");
+        verify(compactor).compact(topicName + "-partition-1");
+        try {
+            admin.topics().triggerCompaction(topicName);
+
+            fail("Shouldn't be able to run while already running");
+        } catch (PulsarAdminException e) {
+            // expected
+        }
+        // compact shouldn't have been called again
+        verify(compactor).compact(topicName + "-partition-0");
+        verify(compactor).compact(topicName + "-partition-1");
+
+        // complete first compaction, and trigger again
+        promise.complete(1L);
+        promise1.complete(1L);
+        admin.topics().triggerCompaction(topicName);
+
+        // verify compact was called again
+        verify(compactor, times(2)).compact(topicName + "-partition-0");
+        verify(compactor, times(2)).compact(topicName + "-partition-1");
     }
 
     @Test
