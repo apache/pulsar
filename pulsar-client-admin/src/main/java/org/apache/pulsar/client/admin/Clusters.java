@@ -356,17 +356,6 @@ public interface Clusters {
      *          Namespace isolation policy configuration
      *
      * @return
-     * @throws NotAuthorizedException
-     *             You don't have admin permission to create the cluster
-     *
-     * @throws NotFoundException
-     *             Cluster doesn't exist
-     *
-     * @throws PreconditionFailedException
-     *             Cluster doesn't exist
-     *
-     * @throws PulsarAdminException
-     *             Unexpected error
      */
     CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
             String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
@@ -493,17 +482,6 @@ public interface Clusters {
      *          Policy name
      *
      * @return
-     * @throws NotAuthorizedException
-     *             You don't have admin permission to create the cluster
-     *
-     * @throws NotFoundException
-     *             Cluster doesn't exist
-     *
-     * @throws PreconditionFailedException
-     *             Cluster doesn't exist
-     *
-     * @throws PulsarAdminException
-     *             Unexpected error
      */
 
     CompletableFuture<Void> deleteNamespaceIsolationPolicyAsync(String cluster, String policyName);

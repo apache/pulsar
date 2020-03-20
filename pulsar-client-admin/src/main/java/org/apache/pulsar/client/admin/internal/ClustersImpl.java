@@ -171,7 +171,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames) {
         WebTarget path = adminClusters.path(cluster).path("peers");
-        return asyncPutRequest(path, Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON));
     }
 
     @Override
