@@ -2180,13 +2180,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         Function<CustomBaseObject, CustomDerivedObject> function = new CustomBaseToDerivedFunction();
         Set<Object> expectedSet = new HashSet<>();
+
+        log.info("test-avro-schema producer connected: " + producer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
             CustomBaseObject customBaseObject = new CustomBaseObject();
             customBaseObject.setBaseValue(i);
-            producer.send(customBaseObject);
+            MessageId messageId = producer.send(customBaseObject);
+            log.info("test-avro-schema messageId: {}", messageId.toString());
             expectedSet.add(function.process(customBaseObject, null));
+            log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
         }
+        log.info("test-avro-schema producer send message finish");
 
+        log.info("test-avro-schema consumer connected: " + consumer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
             Message<CustomDerivedObject> message = consumer.receive();
             CustomDerivedObject outputObj = message.getValue();
