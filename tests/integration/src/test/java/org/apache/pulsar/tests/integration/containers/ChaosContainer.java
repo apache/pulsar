@@ -139,4 +139,17 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
             clusterName);
     }
 
+    @Override
+    public void start() {
+        super.start();
+        this.tailContainerLog();
+        if (this.getContainerName().contains("pulsar-broker")) {
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/broker.log");
+        } else if (this.getContainerName().contains("bookie")) {
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/bookie.log");
+        } else if (this.getContainerName().contains("functions-worker")) {
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/functions_worker.log");
+        }
+    }
+
 }

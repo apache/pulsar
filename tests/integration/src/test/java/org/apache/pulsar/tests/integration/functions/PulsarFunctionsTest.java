@@ -2156,13 +2156,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
-        @Cleanup Consumer consumer = pulsarClient.newConsumer(Schema.AVRO(CustomDerivedObject.class))
+        @Cleanup Consumer<CustomDerivedObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(CustomDerivedObject.class))
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("test-avro-schema")
                 .topic(outputTopic)
                 .subscribe();
 
-        @Cleanup Producer producer = pulsarClient.newProducer(Schema.AVRO(CustomBaseObject.class))
+        @Cleanup Producer<CustomBaseObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(CustomBaseObject.class))
                 .topic(inputTopic).create();
 
         submitFunction(
@@ -2176,7 +2178,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         getFunctionInfoSuccess(functionName);
 
-        Function function = new CustomBaseToDerivedFunction();
+        Function<CustomBaseObject, CustomDerivedObject> function = new CustomBaseToDerivedFunction();
         Set<Object> expectedSet = new HashSet<>();
         for (int i = 0 ; i < numMessages ; i++) {
             CustomBaseObject customBaseObject = new CustomBaseObject();
@@ -2186,8 +2188,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0 ; i < numMessages ; i++) {
-            Message message = consumer.receive();
-            Object outputObj = message.getValue();
+            Message<CustomDerivedObject> message = consumer.receive();
+            CustomDerivedObject outputObj = message.getValue();
             assertTrue(expectedSet.contains(outputObj));
             expectedSet.remove(outputObj);
         }
