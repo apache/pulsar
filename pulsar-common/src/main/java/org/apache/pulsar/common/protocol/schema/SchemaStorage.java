@@ -21,6 +21,9 @@ package org.apache.pulsar.common.protocol.schema;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Schema storage.
+ */
 public interface SchemaStorage {
 
     CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);

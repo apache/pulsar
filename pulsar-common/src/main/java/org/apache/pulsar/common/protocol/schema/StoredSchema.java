@@ -22,6 +22,9 @@ import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * Stored schema with version.
+ */
 public class StoredSchema {
     public final byte[] data;
     public final SchemaVersion version;
@@ -40,8 +43,8 @@ public class StoredSchema {
             return false;
         }
         StoredSchema that = (StoredSchema) o;
-        return Arrays.equals(data, that.data) &&
-            Objects.equals(version, that.version);
+        return Arrays.equals(data, that.data)
+                && Objects.equals(version, that.version);
     }
 
     @Override
