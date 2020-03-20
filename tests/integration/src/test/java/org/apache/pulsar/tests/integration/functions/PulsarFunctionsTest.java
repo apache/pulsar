@@ -46,8 +46,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.CustomBaseObject;
-import org.apache.pulsar.functions.api.examples.CustomBaseToDerivedFunction;
-import org.apache.pulsar.functions.api.examples.CustomDerivedObject;
+import org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -2158,8 +2157,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
         log.info("pulsar client init");
 
-        @Cleanup Consumer<CustomDerivedObject> consumer = pulsarClient
-                .newConsumer(Schema.AVRO(CustomDerivedObject.class))
+        @Cleanup Consumer<CustomBaseObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(CustomBaseObject.class))
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("test-avro-schema")
                 .topic(outputTopic)
@@ -2177,13 +2176,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 outputTopic,
                 functionName,
                 null,
-                CustomBaseToDerivedFunction.class.getName(),
+                CustomBaseToBaseFunction.class.getName(),
                 Schema.AVRO(CustomBaseObject.class));
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
 
-        Function<CustomBaseObject, CustomDerivedObject> function = new CustomBaseToDerivedFunction();
+        Function<CustomBaseObject, CustomBaseObject> function = new CustomBaseToBaseFunction();
         Set<Object> expectedSet = new HashSet<>();
 
         log.info("test-avro-schema producer connected: " + producer.isConnected());
@@ -2201,9 +2200,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
             log.info("test-avro-schema consumer receive [{}] start", i);
-            Message<CustomDerivedObject> message = consumer.receive();
+            Message<CustomBaseObject> message = consumer.receive();
             log.info("test-avro-schema consumer receive [{}] over", i);
-            CustomDerivedObject outputObj = message.getValue();
+            CustomBaseObject outputObj = message.getValue();
             assertTrue(expectedSet.contains(outputObj));
             expectedSet.remove(outputObj);
         }
