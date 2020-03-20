@@ -89,6 +89,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2069,6 +2070,70 @@ public class PersistentTopicsBase extends AdminResource {
         validateReadOperationOnTopic(authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.compactionStatus();
+    }
+
+    protected void internalTriggerPartitionedOffload(AsyncResponse asyncResponse, boolean authoritative,
+            PartitionedMessageIdImpl partitionsMessagedId) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to trigger offload on topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+        getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMetadata -> {
+            final int numPartitions = partitionMetadata.partitions;
+            if (numPartitions == 0) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
+                return;
+            }
+
+            final List<CompletableFuture<Void>> topicTriggerFutureList = Lists.newArrayList();
+
+            for (int i = 0; i < numPartitions; i++) {
+                TopicName topicNamePartition = topicName.getPartition(i);
+                String partitionTopic = topicNamePartition.toString();
+
+                Map<String, MessageIdImpl> partitionsMsgIdMap = partitionsMessagedId.partitions;
+
+                // skip topic-partition that doesn't have any data
+                if (partitionsMsgIdMap.keySet().contains(partitionTopic)) {
+                    try {
+                        topicTriggerFutureList.add(pulsar().getAdminClient().topics().triggerOffloadAsync(partitionTopic,
+                                partitionsMsgIdMap.get(partitionTopic)));
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to trigger offload on topic {}", clientAppId(), partitionTopic, e);
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+                }
+            }
+
+            FutureUtil.waitForAll(topicTriggerFutureList).handle((result, exception) -> {
+                if (exception != null) {
+                    Throwable th = exception.getCause();
+                    if (th instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                        return null;
+                    } else if (th instanceof WebApplicationException) {
+                        asyncResponse.resume(th);
+                        return null;
+                    } else {
+                        log.error("[{}] Failed to trigger offload on topic {}", clientAppId(), topicName, exception);
+                        asyncResponse.resume(new RestException(exception));
+                        return null;
+                    }
+                }
+                asyncResponse.resume(Response.noContent().build());
+                return null;
+            });
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to trigger offload on topic {}", clientAppId(), topicName, ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     protected void internalTriggerOffload(boolean authoritative, MessageIdImpl messageId) {

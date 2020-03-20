@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -939,12 +940,43 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException {
         try {
-            TopicName tn = validateTopic(topic);
-            WebTarget path = topicPath(tn, "offload");
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            triggerOffloadAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "offload");
+        return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void triggerPartitionedOffload(String topic, PartitionedMessageIdImpl partitionsMessagedId) throws PulsarAdminException {
+        try {
+            triggerPartitionedOffloadAsync(topic, partitionsMessagedId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> triggerPartitionedOffloadAsync(String topic, PartitionedMessageIdImpl partitionsMessagedId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "partitioned-offload");
+        return asyncPutRequest(path, Entity.entity(partitionsMessagedId, MediaType.APPLICATION_JSON));
     }
 
     @Override

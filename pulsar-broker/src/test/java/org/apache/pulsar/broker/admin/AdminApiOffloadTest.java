@@ -33,10 +33,12 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -115,6 +117,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().triggerOffload(topicName, currentId);
 
+        // Wait for success
+        Thread.sleep(1000);
+
         Assert.assertEquals(admin.topics().offloadStatus(topicName).status,
                             LongRunningProcessStatus.Status.SUCCESS);
         MessageIdImpl firstUnoffloaded = admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
@@ -125,6 +130,89 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         verify(offloader, times(2)).offload(any(), any(), any());
     }
 
+    @Test
+    public void testOffloadPartitioned() throws Exception {
+        String topicName = "persistent://prop-xyz/ns1/foobar";
+        int numPartitions = 2;
+        String tpName0 = "persistent://prop-xyz/ns1/foobar-partition-0";
+        String tpName1 = "persistent://prop-xyz/ns1/foobar-partition-1";
+        String mlName0 = "prop-xyz/ns1/persistent/foobar-partition-0";
+        String mlName1 = "prop-xyz/ns1/persistent/foobar-partition-1";
+
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        when(offloader.getOffloadDriverName()).thenReturn("mock");
+
+        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any(), any());
+
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        doReturn(promise).when(offloader).offload(any(), any(), any());
+
+        MessageId currentId0 = MessageId.latest;
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(tpName0).enableBatching(false).create()) {
+            for (int i = 0; i < 15; i++) {
+                currentId0 = p.send("Foobar0".getBytes());
+            }
+        }
+
+        MessageId currentId1 = MessageId.latest;
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(tpName1).enableBatching(false).create()) {
+            for (int i = 0; i < 15; i++) {
+                currentId1 = p.send("Foobar1".getBytes());
+            }
+        }
+
+        ManagedLedgerInfo info0 = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName0);
+        Assert.assertEquals(info0.ledgers.size(), 2);
+
+        ManagedLedgerInfo info1 = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName1);
+        Assert.assertEquals(info1.ledgers.size(), 2);
+
+        PartitionedMessageIdImpl partitionsMessagedId = new PartitionedMessageIdImpl();
+        partitionsMessagedId.partitions.put(tpName0, (MessageIdImpl)currentId0);
+        partitionsMessagedId.partitions.put(tpName1, (MessageIdImpl)currentId1);
+
+        admin.topics().triggerPartitionedOffload(topicName, partitionsMessagedId);
+
+        Assert.assertEquals(admin.topics().offloadStatus(tpName0).status, LongRunningProcessStatus.Status.RUNNING);
+        Assert.assertEquals(admin.topics().offloadStatus(tpName1).status, LongRunningProcessStatus.Status.RUNNING);
+
+        try {
+            admin.topics().triggerPartitionedOffload(topicName, partitionsMessagedId);
+            Assert.fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            // expected
+        }
+
+        // First time should fail
+        promise.completeExceptionally(new Exception("Some random failure"));
+
+        Assert.assertEquals(admin.topics().offloadStatus(tpName0).status,  LongRunningProcessStatus.Status.ERROR);
+        Assert.assertEquals(admin.topics().offloadStatus(tpName1).status,  LongRunningProcessStatus.Status.ERROR);
+
+        // Try again
+        doReturn(CompletableFuture.completedFuture(null)).when(offloader).offload(any(), any(), any());
+
+        admin.topics().triggerPartitionedOffload(topicName, partitionsMessagedId);
+
+        // Wait for success
+        Thread.sleep(1000);
+
+        Assert.assertEquals(admin.topics().offloadStatus(tpName0).status, LongRunningProcessStatus.Status.SUCCESS);
+        Assert.assertEquals(admin.topics().offloadStatus(tpName1).status, LongRunningProcessStatus.Status.SUCCESS);
+
+        // First unoffloaded is the first entry of current ledger
+        MessageIdImpl firstUnoffloaded0 = admin.topics().offloadStatus(tpName0).firstUnoffloadedMessage;
+        Assert.assertEquals(firstUnoffloaded0.getLedgerId(), info0.ledgers.get(1).ledgerId);
+        Assert.assertEquals(firstUnoffloaded0.getEntryId(), 0);
+
+        MessageIdImpl firstUnoffloaded1 = admin.topics().offloadStatus(tpName1).firstUnoffloadedMessage;
+        Assert.assertEquals(firstUnoffloaded1.getLedgerId(), info1.ledgers.get(1).ledgerId);
+        Assert.assertEquals(firstUnoffloaded1.getEntryId(), 0);
+
+        verify(offloader, times(4)).offload(any(), any(), any());
+    }
 
     @Test
     public void testOffloadV2() throws Exception {

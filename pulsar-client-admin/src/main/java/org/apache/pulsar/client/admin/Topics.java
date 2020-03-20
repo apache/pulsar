@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -1091,6 +1092,32 @@ public interface Topics {
      * @param messageId ID of maximum message which should be offloaded
      */
     void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Trigger offloading messages in topic to longterm storage asynchronously.
+     *
+     * @param topic the topic to offload
+     * @param messageId ID of maximum message which should be offloaded
+     */
+    CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId);
+
+    /**
+     * Trigger offloading messages in a partitioned topic to longterm storage.
+     *
+     * @param topic
+     * @param partitionsMessagedId
+     * @throws PulsarAdminException
+     */
+    void triggerPartitionedOffload(String topic, PartitionedMessageIdImpl partitionsMessagedId) throws PulsarAdminException;
+
+    /**
+     * Trigger offloading messages in a partitioned topic to longterm storage asynchronously.
+     *
+     * @param topic
+     * @param partitionsMessagedId
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> triggerPartitionedOffloadAsync(String topic, PartitionedMessageIdImpl partitionsMessagedId);
 
     /**
      * Check the status of an ongoing offloading operation for a topic.

@@ -44,6 +44,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -629,6 +630,32 @@ public class PersistentTopics extends PersistentTopicsBase {
                                MessageIdImpl messageId) {
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         internalTriggerOffload(authoritative, messageId);
+    }
+
+    @PUT
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/partitioned-offload")
+    @ApiOperation(value = "Offload a prefix of a topic to long term storage for the partitioned topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 409, message = "Offload already running")})
+    public void triggerPartitionedOffload(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("cluster") String cluster,
+                                          @PathParam("namespace") String namespace,
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                          PartitionedMessageIdImpl partitionsMessagedId) {
+        try {
+            validateTopicName(tenant, cluster, namespace, encodedTopic);
+            internalTriggerPartitionedOffload(asyncResponse, authoritative, partitionsMessagedId);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET

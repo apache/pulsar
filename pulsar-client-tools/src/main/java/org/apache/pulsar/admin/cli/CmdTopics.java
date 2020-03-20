@@ -23,7 +23,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -34,6 +36,7 @@ import io.netty.buffer.Unpooled;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -45,7 +48,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PartitionedMessageIdImpl;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -94,6 +100,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("compact", new Compact());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
+        jcommander.addCommand("offload-partitioned-topic", new OffloadPartitionedTopic());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
         jcommander.addCommand("last-message-id", new GetLastMessageId());
     }
@@ -718,6 +725,55 @@ public class CmdTopics extends CmdBase {
 
             topics.triggerOffload(persistentTopic, messageId);
             System.out.println("Offload triggered for " + persistentTopic + " for messages before " + messageId);
+        }
+    }
+
+    @Parameters(commandDescription = "Trigger offload of data from a partitioned topic to long-term storage (e.g. Amazon S3)")
+    private class OffloadPartitionedTopic extends CliCommand {
+        @Parameter(names = { "-s", "--size-threshold" },
+                description = "Maximum amount of data to keep in BookKeeper for each partition of the specified topic (e.g. 10M, 5G).",
+                required = true)
+        private String sizeThresholdStr;
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
+            String persistentTopic = validatePersistentTopic(params);
+
+            PartitionedTopicInternalStats partitionedStats = topics.getPartitionedInternalStats(persistentTopic);
+
+            Map<String, MessageIdImpl> messageIds = Maps.newTreeMap();
+
+            for (Map.Entry<String, PersistentTopicInternalStats> statsMaps : partitionedStats.partitions.entrySet()) {
+                String partitionTopicName = statsMaps.getKey();
+                PersistentTopicInternalStats partitionStats = statsMaps.getValue();
+                // skip topic-partition that doesn't have any data
+                if (partitionStats.ledgers.size() > 0) {
+                    LinkedList<PersistentTopicInternalStats.LedgerInfo> partitionLedgers = new LinkedList(partitionStats.ledgers);
+                    // doesn't get filled in now it seems
+                    partitionLedgers.get(partitionLedgers.size()-1).size = partitionStats.currentLedgerSize;
+                    MessageId partitionMessageId = findFirstLedgerWithinThreshold(partitionLedgers, sizeThreshold);
+                    // skip topic-partition that have nothing to offload
+                    if (partitionMessageId != null) {
+                        messageIds.put(partitionTopicName, (MessageIdImpl)partitionMessageId);
+                    }
+                }
+            }
+
+            PartitionedMessageIdImpl partitionedMessageId = new PartitionedMessageIdImpl();
+            partitionedMessageId.partitions.putAll(messageIds);
+
+            String partitionedMessageIdJson;
+            try {
+                partitionedMessageIdJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedMessageId);
+            } catch (JsonProcessingException e) {
+                throw new PulsarAdminException("Error processing json from " + partitionedMessageId);
+            }
+            topics.triggerPartitionedOffload(persistentTopic, partitionedMessageId);
+            System.out.println("Offload triggered for partitioned topic " + persistentTopic + " for messages before " + partitionedMessageIdJson);
         }
     }
 

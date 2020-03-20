@@ -1685,6 +1685,7 @@ Subcommands
 * `compact`
 * `compaction-status`
 * `offload`
+* `offload-partitioned-topic`
 * `offload-status`
 * `create-partitioned-topic`
 * `create-missed-partitions`
@@ -1751,6 +1752,19 @@ Options
 |---|---|---|
 |`-s`, `--size-threshold`|The maximum amount of data to keep in BookKeeper for the specific topic||
 
+
+### `offload-partitioned-topic`
+Trigger offload of data from a partitioned topic to long-term storage (e.g. Amazon S3)
+
+Usage
+```bash
+$ pulsar-admin topics offload-partitioned-topic persistent://tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-s`, `--size-threshold`|The maximum amount of data to keep in BookKeeper for each partition of the specified topic||
 
 ### `offload-status`
 Check the status of data offloading from a topic to long-term storage
