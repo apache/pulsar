@@ -2143,6 +2143,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "function")
     public void testCustomBaseToDerivedFunction() throws Exception {
+        log.info("testCustomBaseToDerivedFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
         final String functionName = "test-avroschema-fn-" + randomName(8);
@@ -2177,7 +2178,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 functionName,
                 null,
                 CustomBaseToDerivedFunction.class.getName(),
-                Schema.AVRO(CustomBaseObject.class));
+                Schema.AVRO(CustomDerivedObject.class));
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
@@ -2193,16 +2194,20 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             log.info("test-avro-schema messageId: {}", messageId.toString());
             expectedSet.add(function.process(customBaseObject, null));
             log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
+            getFunctionStatus(functionName, i + 1, false);
         }
         log.info("test-avro-schema producer send message finish");
 
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
+            log.info("test-avro-schema consumer receive [{}] start", i);
             Message<CustomDerivedObject> message = consumer.receive();
+            log.info("test-avro-schema consumer receive [{}] over", i);
             CustomDerivedObject outputObj = message.getValue();
             assertTrue(expectedSet.contains(outputObj));
             expectedSet.remove(outputObj);
         }
+        log.info("test-avro-schema consumer receive message finish");
 
         assertEquals(expectedSet.size(), 0);
 
