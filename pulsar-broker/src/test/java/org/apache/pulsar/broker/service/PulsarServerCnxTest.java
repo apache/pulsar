@@ -1288,6 +1288,7 @@ public class PulsarServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1316,6 +1317,7 @@ public class PulsarServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1346,6 +1348,7 @@ public class PulsarServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1381,6 +1384,7 @@ public class PulsarServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
