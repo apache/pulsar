@@ -2178,7 +2178,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 functionName,
                 null,
                 CustomBaseToDerivedFunction.class.getName(),
-                Schema.AVRO(CustomDerivedObject.class));
+                Schema.AVRO(CustomBaseObject.class));
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
