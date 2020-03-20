@@ -176,7 +176,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updateClusterAsync(String cluster, ClusterData clusterData);
-    
+
     /**
      * Update peer cluster names.
      * <p>
@@ -208,7 +208,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames);
-    
+
     /**
      * Get peer-cluster names.
      * <p>
@@ -373,7 +373,7 @@ public interface Clusters {
 
     /**
      * Returns list of active brokers with namespace-isolation policies attached to it.
-     * 
+     *
      * @param cluster
      * @return
      * @throws PulsarAdminException
@@ -391,7 +391,7 @@ public interface Clusters {
 
     /**
      * Returns active broker with namespace-isolation policies attached to it.
-     * 
+     *
      * @param cluster
      * @param broker
      * @return
@@ -564,7 +564,7 @@ public interface Clusters {
      *
      * @throws ConflictException
      *             Broker already exist into other domain
-     *             
+     *
      * @throws NotFoundException
      *             Cluster doesn't exist
      *
@@ -594,7 +594,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> createFailureDomainAsync(String cluster, String domainName, FailureDomain domain);
-    
+
     /**
      * Update a domain into cluster.
      * <p>
@@ -614,7 +614,7 @@ public interface Clusters {
      *
      * @throws ConflictException
      *             Broker already exist into other domain
-     *             
+     *
      * @throws NotFoundException
      *             Cluster doesn't exist
      *
@@ -644,7 +644,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updateFailureDomainAsync(String cluster, String domainName, FailureDomain domain);
-    
+
     /**
      * Delete a domain in cluster.
      * <p>
@@ -713,7 +713,7 @@ public interface Clusters {
      *
      */
     CompletableFuture<Map<String, FailureDomain>> getFailureDomainsAsync(String cluster);
-    
+
     /**
      * Get the domain registered into a cluster.
      * <p>
