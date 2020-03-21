@@ -132,9 +132,6 @@ public interface Functions {
      *
      * @param functionConfig
      *            the function configuration object
-     *
-     * @throws PulsarAdminException
-     *             Unexpected error
      */
     CompletableFuture<Void> createFunctionAsync(FunctionConfig functionConfig, String fileName);
 

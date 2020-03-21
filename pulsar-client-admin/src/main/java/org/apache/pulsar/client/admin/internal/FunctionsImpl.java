@@ -640,10 +640,15 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public void startFunction(String tenant, String namespace, String functionName, int instanceId)
             throws PulsarAdminException {
         try {
-            request(functions.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
-                    .path("start")).post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            startFunctionAsync(tenant, namespace, functionName, instanceId)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
