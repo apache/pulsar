@@ -16,12 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.influxdb;
+package org.apache.pulsar.io.influxdb.v1;
 
 import com.google.common.collect.Maps;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -34,6 +32,9 @@ import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.influxdb.v1.InfluxDBAbstractSink;
+import org.apache.pulsar.io.influxdb.v1.InfluxDBBuilder;
+import org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
 import org.mockito.Mock;
