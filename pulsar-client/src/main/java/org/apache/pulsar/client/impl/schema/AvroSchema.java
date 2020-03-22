@@ -65,17 +65,10 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
     }
 
-    private ClassLoader pojoClassLoader;
+    private static ClassLoader pojoClassLoader;
 
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
-        setReader(new AvroReader<>(schema));
-        setWriter(new AvroWriter<>(schema));
-    }
-
-    private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
-        super(schemaInfo);
-        this.pojoClassLoader = pojoClassLoader;
         setReader(new AvroReader<>(schema, pojoClassLoader));
         setWriter(new AvroWriter<>(schema));
     }
@@ -95,6 +88,9 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        if (schemaDefinition.getPojo() != null) {
+            pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
+        }
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
@@ -103,19 +99,11 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
+        if (pojo != null) {
+            pojoClassLoader = pojo.getClassLoader();
+        }
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
-    }
-
-    /**
-     * If the pojo Class need the specific ClassLoader
-     */
-    public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition, ClassLoader pojoClassLoader) {
-        if (pojoClassLoader != null) {
-            return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
-        } else {
-            return of(schemaDefinition);
-        }
     }
 
     @Override
