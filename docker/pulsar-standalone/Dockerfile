@@ -60,7 +60,7 @@ COPY --from=dashboard /pulsar/requirements.txt /pulsar/django
 COPY --from=dashboard /pulsar/conf/* /pulsar/conf/
 
 # Python dependencies
-RUN pip2 install -r /pulsar/django/requirements.txt 
+RUN pip2 install -r /pulsar/django/requirements.txt
 
 # Copy web-app sources
 # Setup database and create tables
