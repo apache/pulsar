@@ -719,10 +719,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
+        if (!PulsarClientException.isRetriableError(exception)) {
             setState(State.Failed);
-            log.info("[{}] Consumer creation failed for consumer {}", topic, consumerId);
+            subscribeFuture.completeExceptionally(exception);
             client.cleanupConsumer(this);
+        } else {
+            if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
+                setState(State.Failed);
+                log.info("[{}] Consumer creation failed for consumer {}", topic, consumerId);
+                client.cleanupConsumer(this);
+            }
         }
     }
 
