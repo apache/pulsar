@@ -1747,7 +1747,7 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    private void startSendOperation(Producer producer, int msgSize) {
+    public void startSendOperation(Producer producer, int msgSize) {
         messagePublishBufferSize += msgSize;
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
         if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
@@ -1763,7 +1763,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
+    public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         messagePublishBufferSize -= msgSize;
         if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
@@ -1776,7 +1776,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    void enableCnxAutoRead() {
+    public void enableCnxAutoRead() {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
@@ -1788,7 +1788,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    void disableCnxAutoRead() {
+    public void disableCnxAutoRead() {
         if (ctx.channel().config().isAutoRead() ) {
             ctx.channel().config().setAutoRead(false);
         }
@@ -1807,7 +1807,7 @@ public class ServerCnx extends PulsarHandler {
             autoReadDisabledPublishBufferLimiting = false;
         }
     }
-    
+
     private <T> ServerError getErrorCode(CompletableFuture<T> future) {
         ServerError error = ServerError.UnknownError;
         try {
