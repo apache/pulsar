@@ -47,6 +47,8 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.CustomBaseObject;
 import org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction;
+import org.apache.pulsar.functions.api.examples.CustomDerivedObject;
+import org.apache.pulsar.functions.api.examples.CustomDerivedToBaseFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -2108,6 +2110,83 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         deleteFunction(functionName);
 
         // get function info
+        getFunctionInfoNotFound(functionName);
+    }
+
+    @Test(groups = "function")
+    public void testCustomBaseToDerivedFunction() throws Exception {
+        log.info("testCustomBaseToDerivedFunction start ...");
+        final String inputTopic = "test-avroschema-input-" + randomName(8);
+        final String outputTopic = "test-avroschema-output-" + randomName(8);
+        final String functionName = "test-avroschema-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        if (pulsarCluster == null) {
+            this.setupCluster();
+            this.setupFunctionWorkers();
+        }
+
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        log.info("pulsar client init");
+
+        @Cleanup Consumer<CustomBaseObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(CustomBaseObject.class))
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-avro-schema")
+                .topic(outputTopic)
+                .subscribe();
+        log.info("pulsar consumer init");
+
+        @Cleanup Producer<CustomDerivedObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(CustomDerivedObject.class))
+                .topic(inputTopic).create();
+        log.info("pulsar producer init");
+
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                CustomDerivedToBaseFunction.class.getName(),
+                Schema.AVRO(CustomDerivedObject.class));
+        log.info("pulsar submitFunction");
+
+        getFunctionInfoSuccess(functionName);
+
+        CustomDerivedToBaseFunction function = new CustomDerivedToBaseFunction();
+        Set<Object> expectedSet = new HashSet<>();
+
+        log.info("test-avro-schema producer connected: " + producer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            CustomDerivedObject derivedObject = new CustomDerivedObject();
+            derivedObject.setBaseValue(i);
+            MessageId messageId = producer.send(derivedObject);
+            log.info("test-avro-schema messageId: {}", messageId.toString());
+            expectedSet.add(function.process(derivedObject, null));
+            log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
+            getFunctionStatus(functionName, i + 1, false);
+        }
+        log.info("test-avro-schema producer send message finish");
+
+        log.info("test-avro-schema consumer connected: " + consumer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            log.info("test-avro-schema consumer receive [{}] start", i);
+            Message<CustomBaseObject> message = consumer.receive();
+            log.info("test-avro-schema consumer receive [{}] over", i);
+            CustomBaseObject outputObj = message.getValue();
+            assertTrue(expectedSet.contains(outputObj));
+            expectedSet.remove(outputObj);
+        }
+        log.info("test-avro-schema consumer receive message finish");
+
+        assertEquals(expectedSet.size(), 0);
+
+        getFunctionStatus(functionName, numMessages, false);
+
+        deleteFunction(functionName);
+
         getFunctionInfoNotFound(functionName);
     }
 
