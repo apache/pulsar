@@ -1195,17 +1195,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        if (!PulsarClientException.isRetriableError(exception)) {
-            setState(State.Failed);
-            producerCreatedFuture.completeExceptionally(exception);
-            client.cleanupProducer(this);
-        } else {
-            if (System.currentTimeMillis() > createProducerTimeout
-                    && producerCreatedFuture.completeExceptionally(exception)) {
-                log.info("[{}] Producer creation failed for producer {}", topic, producerId);
-                setState(State.Failed);
-                client.cleanupProducer(this);
+        boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
+        boolean producerTimeout = System.currentTimeMillis() > createProducerTimeout;
+        if ((nonRetriableError || producerTimeout) && producerCreatedFuture.completeExceptionally(exception)) {
+            if (nonRetriableError) {
+                log.info("[{}] Producer creation failed for producer {} with unretriableError = {}", topic, producerId, exception);
+            } else {
+                log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
             }
+            setState(State.Failed);
+            client.cleanupProducer(this);
         }
     }
 
