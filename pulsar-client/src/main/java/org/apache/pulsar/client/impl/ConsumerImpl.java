@@ -628,7 +628,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
 
             if (e.getCause() instanceof PulsarClientException
-                    && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
+                    && PulsarClientException.isRetriableError(e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
             } else if (!subscribeFuture.isDone()) {
