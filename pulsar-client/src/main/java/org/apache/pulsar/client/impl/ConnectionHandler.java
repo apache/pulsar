@@ -130,10 +130,6 @@ public class ConnectionHandler {
         return CLIENT_CNX_UPDATER.get(this);
     }
 
-    protected boolean isRetriableError(PulsarClientException e) {
-        return e instanceof PulsarClientException.LookupException;
-    }
-
     protected void setClientCnx(ClientCnx clientCnx) {
         CLIENT_CNX_UPDATER.set(this, clientCnx);
     }
