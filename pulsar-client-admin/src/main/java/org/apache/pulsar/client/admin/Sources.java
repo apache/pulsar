@@ -23,10 +23,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.io.SourceConfig;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Admin interface for Source management.
@@ -49,6 +50,19 @@ public interface Sources {
      *             Unexpected error
      */
     List<String> listSources(String tenant, String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the list of sources asynchronously.
+     * <p>
+     * Get the list of all the Pulsar Sources.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["f1", "f2", "f3"]</code>
+     * </pre>
+     */
+    CompletableFuture<List<String>> listSourcesAsync(String tenant, String namespace);
 
     /**
      * Get the configuration for the specified source.
@@ -78,6 +92,26 @@ public interface Sources {
     SourceConfig getSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
+     * Get the configuration for the specified source asynchronously.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{ serviceUrl : "http://my-broker.example.com:8080/" }</code>
+     * </pre>
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     *
+     * @return the source configuration
+     */
+    CompletableFuture<SourceConfig> getSourceAsync(String tenant, String namespace, String source);
+
+    /**
      * Create a new source.
      *
      * @param sourceConfig
@@ -89,12 +123,20 @@ public interface Sources {
     void createSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException;
 
     /**
-     * <pre>
+     * Create a new source asynchronously.
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     */
+    CompletableFuture<Void> createSourceAsync(SourceConfig sourceConfig, String fileName);
+
+    /**
+     * Create a new source with package url.
+     * <p>
      * Create a new source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
-     * </pre>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -103,6 +145,21 @@ public interface Sources {
      * @throws PulsarAdminException
      */
     void createSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException;
+
+    /**
+     * Create a new source with package url asynchronously.
+     * <p>
+     * Create a new source by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     */
+    CompletableFuture<Void> createSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl);
 
     /**
      * Update the configuration for a source.
@@ -119,6 +176,15 @@ public interface Sources {
      *             Unexpected error
      */
     void updateSource(SourceConfig sourceConfig, String fileName) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a source asynchronously.
+     * <p>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     */
+    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName);
 
     /**
      * Update the configuration for a source.
@@ -138,13 +204,23 @@ public interface Sources {
     void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
+     * Update the configuration for a source asynchronously.
+     * <p>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param updateOptions
+     *            options for the update operations
+     */
+    CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions);
+
+    /**
      * Update the configuration for a source.
-     * <pre>
+     * <p>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
-     * </pre>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -160,13 +236,27 @@ public interface Sources {
     void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl) throws PulsarAdminException;
 
     /**
-     * Update the configuration for a source.
-     * <pre>
+     * Update the configuration for a source asynchronously.
+     * <p>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
-     * </pre>
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     */
+    CompletableFuture<Void> updateSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl);
+
+    /**
+     * Update the configuration for a source.
+     * <p>
+     * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
      *
      * @param sourceConfig
      *            the source configuration object
@@ -184,7 +274,24 @@ public interface Sources {
     void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
 
     /**
-     * Delete an existing source
+     * Update the configuration for a source asynchronously.
+     * <p>
+     * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     *
+     * @param sourceConfig
+     *            the source configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @param updateOptions
+     *            options for the update operations
+     */
+    CompletableFuture<Void> updateSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions);
+
+    /**
+     * Delete an existing source.
      * <p>
      * Delete a source
      *
@@ -207,6 +314,20 @@ public interface Sources {
     void deleteSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
+     * Delete an existing source asynchronously.
+     * <p>
+     * Delete a source
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     */
+    CompletableFuture<Void> deleteSourceAsync(String tenant, String namespace, String source);
+
+    /**
      * Gets the current status of a source.
      *
      * @param tenant
@@ -220,6 +341,18 @@ public interface Sources {
      *             Unexpected error
      */
     SourceStatus getSourceStatus(String tenant, String namespace, String source) throws PulsarAdminException;
+
+    /**
+     * Gets the current status of a source asynchronously.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     */
+    CompletableFuture<SourceStatus> getSourceStatusAsync(String tenant, String namespace, String source);
 
     /**
      * Gets the current status of a source instance.
@@ -239,7 +372,7 @@ public interface Sources {
             throws PulsarAdminException;
 
     /**
-     * Restart source instance
+     * Gets the current status of a source instance asynchronously.
      *
      * @param tenant
      *            Tenant name
@@ -247,7 +380,21 @@ public interface Sources {
      *            Namespace name
      * @param source
      *            Source name
+     * @param id
+     *            Source instance-id
+     * @return
+     */
+    CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(String tenant, String namespace, String source, int id);
+
+    /**
+     * Restart source instance.
      *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
      * @param instanceId
      *            Source instanceId
      *
@@ -257,7 +404,21 @@ public interface Sources {
     void restartSource(String tenant, String namespace, String source, int instanceId) throws PulsarAdminException;
 
     /**
-     * Restart all source instances
+     * Restart source instance asynchronously.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     * @param instanceId
+     *            Source instanceId
+     */
+    CompletableFuture<Void> restartSourceAsync(String tenant, String namespace, String source, int instanceId);
+
+    /**
+     * Restart all source instances.
      *
      * @param tenant
      *            Tenant name
@@ -271,9 +432,8 @@ public interface Sources {
      */
     void restartSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
-
     /**
-     * Stop source instance
+     * Restart all source instances asynchronously.
      *
      * @param tenant
      *            Tenant name
@@ -281,7 +441,18 @@ public interface Sources {
      *            Namespace name
      * @param source
      *            Source name
+     */
+    CompletableFuture<Void> restartSourceAsync(String tenant, String namespace, String source);
+
+    /**
+     * Stop source instance.
      *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
      * @param instanceId
      *            Source instanceId
      *
@@ -291,7 +462,21 @@ public interface Sources {
     void stopSource(String tenant, String namespace, String source, int instanceId) throws PulsarAdminException;
 
     /**
-     * Stop all source instances
+     * Stop source instance asynchronously.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     * @param instanceId
+     *            Source instanceId
+     */
+    CompletableFuture<Void> stopSourceAsync(String tenant, String namespace, String source, int instanceId);
+
+    /**
+     * Stop all source instances.
      *
      * @param tenant
      *            Tenant name
@@ -306,7 +491,7 @@ public interface Sources {
     void stopSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
     /**
-     * Start source instance
+     * Stop all source instances asynchronously.
      *
      * @param tenant
      *            Tenant name
@@ -314,7 +499,18 @@ public interface Sources {
      *            Namespace name
      * @param source
      *            Source name
+     */
+    CompletableFuture<Void> stopSourceAsync(String tenant, String namespace, String source);
+
+    /**
+     * Start source instance.
      *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
      * @param instanceId
      *            Source instanceId
      *
@@ -324,7 +520,21 @@ public interface Sources {
     void startSource(String tenant, String namespace, String source, int instanceId) throws PulsarAdminException;
 
     /**
-     * Start all source instances
+     * Start source instance asynchronously.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     * @param instanceId
+     *            Source instanceId
+     */
+    CompletableFuture<Void> startSourceAsync(String tenant, String namespace, String source, int instanceId);
+
+    /**
+     * Start all source instances.
      *
      * @param tenant
      *            Tenant name
@@ -338,22 +548,41 @@ public interface Sources {
      */
     void startSource(String tenant, String namespace, String source) throws PulsarAdminException;
 
+    /**
+     * Start all source instances asynchronously.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param source
+     *            Source name
+     */
+    CompletableFuture<Void> startSourceAsync(String tenant, String namespace, String source);
 
     /**
-     * Fetches a list of supported Pulsar IO sources currently running in cluster mode
+     * Fetches a list of supported Pulsar IO sources currently running in cluster mode.
      *
      * @throws PulsarAdminException
      *             Unexpected error
-     *
      */
     List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException;
 
+    /**
+     * Fetches a list of supported Pulsar IO sources currently running in cluster mode asynchronously.
+     */
+    CompletableFuture<List<ConnectorDefinition>> getBuiltInSourcesAsync();
 
     /**
-     * Reload the available built-in connectors, include Source and Sink
+     * Reload the available built-in connectors, include Source and Source
      *
      * @throws PulsarAdminException
      *             Unexpected error
      */
     void reloadBuiltInSources() throws PulsarAdminException;
+
+    /**
+     * Reload the available built-in connectors, include Source and Source asynchronously.
+     */
+    CompletableFuture<Void> reloadBuiltInSourcesAsync();
 }
