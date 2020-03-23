@@ -370,7 +370,6 @@ public abstract class Producer {
          */
         @Override
         public void run() {
-            log.info("################# response " + Thread.currentThread().getName());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Persisted message. cnx {}, sequenceId {}", producer.topic,
                         producer.producerName, producer.producerId, producer.cnx, sequenceId);
