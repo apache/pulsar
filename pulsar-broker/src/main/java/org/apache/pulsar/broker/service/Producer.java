@@ -22,14 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -88,8 +80,8 @@ public abstract class Producer {
     protected final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-                    boolean userProvidedProducerName) {
+            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+            boolean userProvidedProducerName) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -143,11 +135,12 @@ public abstract class Producer {
     }
 
     public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
-                               ByteBuf headersAndPayload, long batchSize) {
+            ByteBuf headersAndPayload, long batchSize) {
         if (lowestSequenceId > highestSequenceId) {
-            sendError(producerId, highestSequenceId, PulsarApi.ServerError.MetadataError, "Invalid lowest or highest sequence id");
-            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
-            return;
+            execute(() -> {
+                sendError(producerId, highestSequenceId, PulsarApi.ServerError.MetadataError, "Invalid lowest or highest sequence id");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            });
         }
         if (checkAndStartPublish(producerId, highestSequenceId, headersAndPayload, batchSize)) {
             publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize);
@@ -156,14 +149,18 @@ public abstract class Producer {
 
     public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
         if (isClosed) {
-            sendError(producerId, sequenceId, PulsarApi.ServerError.PersistenceError, "Producer is closed");
-            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            execute(() -> {
+                sendError(producerId, sequenceId, PulsarApi.ServerError.PersistenceError, "Producer is closed");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            });
             return false;
         }
 
         if (!verifyChecksum(headersAndPayload)) {
-            sendError(producerId, sequenceId, PulsarApi.ServerError.ChecksumError, "Checksum failed on the broker");
-            cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            execute(() -> {
+                sendError(producerId, sequenceId, PulsarApi.ServerError.ChecksumError, "Checksum failed on the broker");
+                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+            });
             return false;
         }
 
@@ -176,8 +173,10 @@ public abstract class Producer {
             // Check whether the message is encrypted or not
             if (msgMetadata.getEncryptionKeysCount() < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
-                sendError(producerId, sequenceId, PulsarApi.ServerError.MetadataError, "Messages must be encrypted");
-                cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+                execute(() -> {
+                    sendError(producerId, sequenceId, PulsarApi.ServerError.MetadataError, "Messages must be encrypted");
+                    cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+                });
                 return false;
             }
         }
@@ -385,7 +384,7 @@ public abstract class Producer {
         }
 
         static Producer.MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                                                  long batchSize, long startTimeNs) {
+                long batchSize, long startTimeNs) {
             Producer.MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -399,7 +398,7 @@ public abstract class Producer {
         }
 
         static Producer.MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                                                  int msgSize, long batchSize, long startTimeNs) {
+                int msgSize, long batchSize, long startTimeNs) {
             Producer.MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
