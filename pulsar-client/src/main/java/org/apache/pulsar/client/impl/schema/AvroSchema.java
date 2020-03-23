@@ -81,6 +81,7 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     @Override
     public Schema<T> clone() {
+        log.info("clone() pojoClassLoader: {}", pojoClassLoader);
         Schema<T> schema = new AvroSchema<>(schemaInfo);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
@@ -89,19 +90,26 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        log.info("AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) pojoClassLoader: {}",
+                pojoClassLoader);
         if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
+            log.info("1pojoClassLoader: {}", pojoClassLoader);
         }
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
+        log.info("AvroSchema<T> of(Class<T> pojo)");
         return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).build());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
+        log.info("AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) pojoClassLoader: {}",
+                pojoClassLoader);
         if (pojo != null) {
             pojoClassLoader = pojo.getClassLoader();
+            log.info("3pojoClassLoader: {}", pojoClassLoader);
         }
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
