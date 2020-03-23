@@ -65,6 +65,22 @@ public interface Topics {
     List<String> getList(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the list of topics under a namespace asynchronously.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return a list of topics
+     */
+    CompletableFuture<List<String>> getListAsync(String namespace);
+
+    /**
      * Get the list of partitioned topics under a namespace.
      * <p>
      * Response example:
@@ -86,6 +102,22 @@ public interface Topics {
      *             Unexpected error
      */
     List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the list of partitioned topics under a namespace asynchronously.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/my-namespace/topic-1",
+     *  "persistent://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return a list of partitioned topics
+     */
+    CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace);
 
     /**
      * Get list of topics exist into given bundle
@@ -136,6 +168,27 @@ public interface Topics {
     Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException;
 
     /**
+     * Get permissions on a topic asynchronously.
+     * <p>
+     * Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the
+     * namespace level combined (union) with any eventual specific permission set on the topic.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{
+     *   "role-1" : [ "produce" ],
+     *   "role-2" : [ "consume" ]
+     * }</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic url
+     * @return a map of topics an their permissions set
+     */
+    CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic);
+
+    /**
      * Grant permission on a topic.
      * <p>
      * Grant a new permission to a client role on a single topic.
@@ -165,6 +218,26 @@ public interface Topics {
     void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException;
 
     /**
+     * Grant permission on a topic asynchronously.
+     * <p>
+     * Grant a new permission to a client role on a single topic.
+     * <p>
+     * Request parameter example:
+     *
+     * <pre>
+     * <code>["produce", "consume"]</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic url
+     * @param role
+     *            Client role to which grant permission
+     * @param actions
+     *            Auth actions (produce and consume)
+     */
+    CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions);
+
+    /**
      * Revoke permissions on a topic.
      * <p>
      * Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but
@@ -186,6 +259,19 @@ public interface Topics {
     void revokePermissions(String topic, String role) throws PulsarAdminException;
 
     /**
+     * Revoke permissions on a topic asynchronously.
+     * <p>
+     * Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but
+     * rather at the namespace level, this operation will return an error (HTTP status code 412).
+     *
+     * @param topic
+     *            Topic url
+     * @param role
+     *            Client role to which remove permission
+     */
+    CompletableFuture<Void> revokePermissionsAsync(String topic, String role);
+
+    /**
      * Create a partitioned topic.
      * <p>
      * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
@@ -198,28 +284,6 @@ public interface Topics {
      * @throws PulsarAdminException
      */
     void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
-
-    /**
-     * Create a non-partitioned topic.
-     * 
-     * <p>
-     * Create a non-partitioned topic. 
-     * <p>
-     * 
-     * @param topic Topic name
-     * @throws PulsarAdminException
-     */
-    void createNonPartitionedTopic(String topic) throws PulsarAdminException;
-
-    /**
-     * Create missed partitions for partitioned topic.
-     * <p>
-     * When disable topic auto creation, use this method to try create missed partitions while
-     * partitions create failed or users already have partitioned topic without partitions.
-     *
-     * @param topic partitioned topic name
-     */
-    void createMissedPartitions(String topic) throws PulsarAdminException;
 
     /**
      * Create a partitioned topic asynchronously.
@@ -237,11 +301,33 @@ public interface Topics {
     CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
 
     /**
-     * Create a non-partitioned topic asynchronously.
+     * Create a non-partitioned topic.
      * 
+     * <p>
+     * Create a non-partitioned topic. 
+     * <p>
+     * 
+     * @param topic Topic name
+     * @throws PulsarAdminException
+     */
+    void createNonPartitionedTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Create a non-partitioned topic asynchronously.
+     *
      * @param topic Topic name
      */
     CompletableFuture<Void> createNonPartitionedTopicAsync(String topic);
+
+    /**
+     * Create missed partitions for partitioned topic.
+     * <p>
+     * When disable topic auto creation, use this method to try create missed partitions while
+     * partitions create failed or users already have partitioned topic without partitions.
+     *
+     * @param topic partitioned topic name
+     */
+    void createMissedPartitions(String topic) throws PulsarAdminException;
 
     /**
      * Create missed partitions for partitioned topic asynchronously.
@@ -284,7 +370,25 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic is updated
      */
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
-    
+
+    /**
+     * Update number of partitions of a non-global partitioned topic.
+     * <p>
+     * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
+     * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of new partitions of already exist partitioned-topic
+     * @param updateLocalTopicOnly
+     *            Used by broker for global topic with multiple replicated clusters
+     *
+     * @return a future that can be used to track when the partitioned topic is updated
+     */
+    void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly) throws PulsarAdminException;
+
     /**
      * Update number of partitions of a non-global partitioned topic asynchronously.
      * <p>
@@ -342,6 +446,21 @@ public interface Topics {
      * @throws PulsarAdminException
      */
     void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+
+    /**
+     * Delete a partitioned topic asynchronously.
+     * <p>
+     * It will also delete all the partitions of the topic if it exists.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     * @param force
+     *            Delete topic forcefully
+     *
+     * @return a future that can be used to track when the partitioned topic is deleted
+     */
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
     
     /**
      * Delete a partitioned topic.
@@ -364,12 +483,8 @@ public interface Topics {
      *
      * @param topic
      *            Topic name
-     * @param force
-     *            Delete topic forcefully
-     *            
-     * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic);
     
     /**
      * Delete a topic.
@@ -393,6 +508,22 @@ public interface Topics {
      */
     void delete(String topic, boolean force) throws PulsarAdminException;
 
+    /**
+     * Delete a topic asynchronously.
+     * <p>
+     * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
+     * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
+     * and consumers.
+     * <p>
+     *
+     * @param topic
+     *            topic name
+     * @param force
+     *            Delete topic forcefully
+     *
+     * @return a future that can be used to track when the topic is deleted
+     */
+    CompletableFuture<Void> deleteAsync(String topic, boolean force);
     
     /**
      * Delete a topic.
@@ -413,23 +544,17 @@ public interface Topics {
      *             Unexpected error
      */
     void delete(String topic) throws PulsarAdminException;
-    
+
     /**
      * Delete a topic asynchronously.
      * <p>
-     * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
-     * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
-     * and consumers.
+     * Delete a topic. The topic cannot be deleted if there's any active subscription or producer connected to the it.
      * <p>
      *
      * @param topic
-     *            topic name
-     * @param force
-     *            Delete topic forcefully
-     * 
-     * @return a future that can be used to track when the topic is deleted
+     *            Topic name
      */
-    CompletableFuture<Void> deleteAsync(String topic, boolean force);
+    CompletableFuture<Void> deleteAsync(String topic);
 
     /**
      * Unload a topic.
@@ -461,7 +586,23 @@ public interface Topics {
     /**
      * Terminate the topic and prevent any more messages being published on it.
      * <p>
-     * This
+     *
+     * @param topic
+     *            topic name
+     * @return the message id of the last message that was published in the topic
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    MessageId terminateTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Terminate the topic and prevent any more messages being published on it.
+     * <p>
      *
      * @param topic
      *            topic name
@@ -1085,12 +1226,27 @@ public interface Topics {
     LongRunningProcessStatus compactionStatus(String topic) throws PulsarAdminException;
 
     /**
+     * Check the status of an ongoing compaction for a topic asynchronously.
+     *
+     * @param topic The topic whose compaction status we wish to check
+     */
+    CompletableFuture<LongRunningProcessStatus> compactionStatusAsync(String topic);
+
+    /**
      * Trigger offloading messages in topic to longterm storage.
      *
      * @param topic the topic to offload
      * @param messageId ID of maximum message which should be offloaded
      */
     void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Trigger offloading messages in topic to longterm storage asynchronously.
+     *
+     * @param topic the topic to offload
+     * @param messageId ID of maximum message which should be offloaded
+     */
+    CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId);
 
     /**
      * Check the status of an ongoing offloading operation for a topic.
@@ -1101,6 +1257,14 @@ public interface Topics {
     OffloadProcessStatus offloadStatus(String topic) throws PulsarAdminException;
 
     /**
+     * Check the status of an ongoing offloading operation for a topic asynchronously.
+     *
+     * @param topic the topic being offloaded
+     * @return the status of the offload operation
+     */
+    CompletableFuture<OffloadProcessStatus> offloadStatusAsync(String topic);
+
+    /**
      * Get the last commit message Id of a topic
      *
      * @param topic the topic name
@@ -1108,4 +1272,12 @@ public interface Topics {
      * @throws PulsarAdminException
      */
     MessageId getLastMessageId(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the last commit message Id of a topic asynchronously.
+     *
+     * @param topic the topic name
+     * @return
+     */
+    CompletableFuture<MessageId> getLastMessageIdAsync(String topic);
 }
