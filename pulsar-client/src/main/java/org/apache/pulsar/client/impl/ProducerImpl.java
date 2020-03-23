@@ -1178,7 +1178,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
-                    (cause instanceof PulsarClientException && connectionHandler.isRetriableError((PulsarClientException) cause)
+                    (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
                             && System.currentTimeMillis() < createProducerTimeout)) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
@@ -1195,9 +1195,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        if (System.currentTimeMillis() > createProducerTimeout
-                && producerCreatedFuture.completeExceptionally(exception)) {
-            log.info("[{}] Producer creation failed for producer {}", topic, producerId);
+        boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
+        boolean producerTimeout = System.currentTimeMillis() > createProducerTimeout;
+        if ((nonRetriableError || producerTimeout) && producerCreatedFuture.completeExceptionally(exception)) {
+            if (nonRetriableError) {
+                log.info("[{}] Producer creation failed for producer {} with unretriableError = {}", topic, producerId, exception);
+            } else {
+                log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
+            }
             setState(State.Failed);
             client.cleanupProducer(this);
         }
