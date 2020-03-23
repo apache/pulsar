@@ -721,8 +721,7 @@ public class PulsarClientException extends IOException {
     }
 
     public static boolean isRetriableError(Throwable t) {
-        if (t instanceof TooManyRequestsException
-                || t instanceof AuthorizationException
+        if (t instanceof AuthorizationException
                 || t instanceof InvalidServiceURL
                 || t instanceof InvalidConfigurationException
                 || t instanceof NotFoundException
