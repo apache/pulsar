@@ -515,7 +515,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/internal-info")
-    @ApiOperation(value = "Get the internal stats for the topic.")
+    @ApiOperation(value = "Get the stored topic metadata.")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),

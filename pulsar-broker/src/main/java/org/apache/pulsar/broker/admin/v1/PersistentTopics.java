@@ -308,7 +308,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("{property}/{cluster}/{namespace}/{topic}/internal-info")
-    @ApiOperation(hidden = true, value = "Get the internal stats for the topic.")
+    @ApiOperation(hidden = true, value = "Get the stored topic metadata.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public void getManagedLedgerInfo(@PathParam("property") String property, @PathParam("cluster") String cluster,
