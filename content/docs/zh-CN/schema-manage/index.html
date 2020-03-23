@@ -87,9 +87,9 @@
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="schema-自动更新"></a><a href="#schema-自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema 自动更新</h2>
-<p>如果某个方案通过了方案兼容性检查，则 Pulsar 生产商会自动将此方案更新为默认情况下产生的主题。</p>
-<h3><a class="anchor" aria-hidden="true" id="生产者端的自动更新"></a><a href="#生产者端的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者端的自动更新</h3>
-<p>对生产者来说 <code>AutoUpdate</code> 发生在以下集中情况：</p>
+<p>如果某个 schema 通过了 schema 兼容性检查，Pulsar producer 就会自动将此 schema 更新为 topic 默认创建的 schema。</p>
+<h3><a class="anchor" aria-hidden="true" id="producer-的自动更新"></a><a href="#producer-的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 的自动更新</h3>
+<p>Producer 会在以下情况中<code>自动更新</code>：</p>
 <ul>
 <li><p>If a <strong>topic doesn’t have a schema</strong>, Pulsar registers a schema automatically.</p></li>
 <li><p>If a <strong>topic has a schema</strong>:</p>
@@ -100,24 +100,24 @@
 <li><p>If <code>isSchemaValidationEnforced</code> or <code>schemaValidationEnforced</code> is <strong>enabled</strong> in the namespace to which the topic belongs, the producer is rejected and disconnected.</p></li>
 </ul></li>
 <li><p>If a <strong>producer carries a schema</strong>:</p>
-<p>代理根据主题所属的名称空间的已配置兼容性检查策略执行兼容性检查。</p>
+<p>Broker 根据 topic 所属命名空间中已配置的兼容性检查策略执行兼容性检查。</p>
 <ul>
-<li><p>如果 Schema 已被注册，则生产者将连接到代理。</p></li>
-<li><p>如果 Schema 未注册：</p>
+<li><p>已注册 schema，producer 将连接到 broker。</p></li>
+<li><p>未注册 schema：</p>
 <ul>
 <li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, the producer is rejected to connect to a broker.</p></li>
 <li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>:</p>
 <ul>
-<li><p>如果 Schema 通过了兼容性检查，那么代理将为该主题自动注册一个新的 Schema，并且已连接生产者。</p></li>
-<li><p>如果 Schema 未通过兼容性检查，则代理不会注册架构，并且生产者将被拒绝连接到代理。</p></li>
+<li><p>Schema 通过了兼容性检查，则 broker 主动为该 topic 注册一个新的 schema，并连接到 producer。</p></li>
+<li><p>Schema 未通过兼容性检查，则 broker 不会注册 schema，并且 producer 连接到 broker 的请求被拒。</p></li>
 </ul></li>
 </ul></li>
 </ul></li>
 </ul></li>
 </ul>
 <p><img src="/docs/assets/schema-producer.png" alt="生产者自动更新"></p>
-<h3><a class="anchor" aria-hidden="true" id="消费端的自动更新"></a><a href="#消费端的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费端的自动更新</h3>
-<p>对于消费者，在以下情况下会发生<code>AutoUpdate</code>：</p>
+<h3><a class="anchor" aria-hidden="true" id="consumer-的自动更新"></a><a href="#consumer-的自动更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer 的自动更新</h3>
+<p>Consumer 会在以下情况中<code>自动更新</code>：</p>
 <ul>
 <li><p>If a <strong>consumer connects to a topic without a schema</strong> (which means the consumer receiving raw bytes), the consumer can connect to the topic successfully without doing any compatibility check.</p></li>
 <li><p>If a <strong>consumer connects to a topic with a schema</strong>.</p>
@@ -584,7 +584,7 @@ public interface SchemaStorage {
 <li><p>将<code>broker.conf</code>中的<code>schemaRegistryStorageClassName</code>配置更改为自定义工厂类。</p></li>
 <li><p>启动 Pulsar。</p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema 进化和兼容</span></a><a class="docs-next button" href="/docs/zh-CN/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#生产者端的自动更新">生产者端的自动更新</a></li><li><a href="#消费端的自动更新">消费端的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#更新-schema">更新 Schema</a></li><li><a href="#删除-schema">删除 Schema</a></li><li><a href="#部署">部署</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/schema-evolution-compatibility"><span class="arrow-prev">← </span><span>Schema 演化和兼容</span></a><a class="docs-next button" href="/docs/zh-CN/functions-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-自动更新">Schema 自动更新</a><ul class="toc-headings"><li><a href="#producer-的自动更新">Producer 的自动更新</a></li><li><a href="#consumer-的自动更新">Consumer 的自动更新</a></li><li><a href="#管理自动更新策略">管理自动更新策略</a></li><li><a href="#schema-验证">Schema 验证</a></li></ul></li><li><a href="#schema-手动管理">Schema 手动管理</a><ul class="toc-headings"><li><a href="#更新-schema">更新 Schema</a></li><li><a href="#删除-schema">删除 Schema</a></li><li><a href="#部署">部署</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
