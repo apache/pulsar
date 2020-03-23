@@ -88,6 +88,8 @@ public interface Dispatcher {
 
     RedeliveryTracker getRedeliveryTracker();
 
+    boolean isAtleastOneConsumerAvailable();
+
     default Optional<DispatchRateLimiter> getRateLimiter() {
         return Optional.empty();
     }

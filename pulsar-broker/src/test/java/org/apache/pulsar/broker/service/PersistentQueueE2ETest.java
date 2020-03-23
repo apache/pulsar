@@ -102,6 +102,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // 2. validate basic dispatcher state
         assertTrue(subRef.getDispatcher().isConsumerConnected());
+        assertTrue(subRef.getDispatcher().isAtleastOneConsumerAvailable());
         assertEquals(subRef.getDispatcher().getType(), SubType.Shared);
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);

@@ -277,6 +277,14 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return consumers;
     }
 
+    @Override
+    public boolean isAtleastOneConsumerAvailable() {
+        Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        return (IS_CLOSED_UPDATER.get(this) == FALSE && isConsumerAvailable(currentConsumer));
+    }
+
+    public abstract boolean isConsumerAvailable(Consumer consumer);
+
     public boolean isConsumerConnected() {
         return ACTIVE_CONSUMER_UPDATER.get(this) != null;
     }

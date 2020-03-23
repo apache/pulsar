@@ -161,6 +161,18 @@ public class Markers {
     @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshot(String snapshotId, String sourceCluster, long ledgerId,
             long entryId, Map<String, MessageIdData> clusterIds) {
+        ReplicatedSubscriptionsSnapshot snapshot = instantiateReplicatedSubscriptionsSnapshot(snapshotId, ledgerId,
+                entryId, clusterIds);
+
+        try {
+            return serializeReplicatedSubscriptionsSnapshot(snapshot, sourceCluster);
+        } finally {
+            snapshot.recycle();
+        }
+    }
+
+    public static ReplicatedSubscriptionsSnapshot instantiateReplicatedSubscriptionsSnapshot(String snapshotId,
+            long ledgerId, long entryId, Map<String, MessageIdData> clusterIds) {
         ReplicatedSubscriptionsSnapshot.Builder builder = ReplicatedSubscriptionsSnapshot.newBuilder();
         builder.setSnapshotId(snapshotId);
 
@@ -178,7 +190,14 @@ public class Markers {
         });
 
         ReplicatedSubscriptionsSnapshot snapshot = builder.build();
+        msgIdBuilder.recycle();
+        builder.recycle();
+        return snapshot;
+    }
 
+    @SneakyThrows
+    public static ByteBuf serializeReplicatedSubscriptionsSnapshot(ReplicatedSubscriptionsSnapshot snapshot,
+            String sourceCluster) {
         int size = snapshot.getSerializedSize();
 
         ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
@@ -188,8 +207,6 @@ public class Markers {
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
         } finally {
             payload.release();
-            builder.recycle();
-            snapshot.recycle();
             outStream.recycle();
         }
     }

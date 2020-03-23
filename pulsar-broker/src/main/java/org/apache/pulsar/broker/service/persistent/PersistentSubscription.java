@@ -308,6 +308,7 @@ public class PersistentSubscription implements Subscription {
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
+        Dispatcher dispatcher = this.dispatcher;
 
         if (ackType == AckType.Cumulative) {
             if (this.pendingCumulativeAckTxnId != null) {
@@ -361,7 +362,9 @@ public class PersistentSubscription implements Subscription {
                 cursor.asyncDelete(positions, deleteCallback, positions);
             }
 
-            dispatcher.getRedeliveryTracker().removeBatch(positions);
+            if (dispatcher != null) {
+                dispatcher.getRedeliveryTracker().removeBatch(positions);
+            }
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
@@ -377,13 +380,16 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0
+                && dispatcher != null) {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
 
         // Signal the dispatchers to give chance to take extra actions
-        dispatcher.acknowledgementWasProcessed();
+        if (dispatcher != null) {
+            dispatcher.acknowledgementWasProcessed();
+        }
     }
 
     /**

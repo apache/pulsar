@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -58,9 +59,10 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
@@ -728,15 +730,27 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             return;
         }
 
-        int markerType = msg.getMessageBuilder().getMarkerType();
+        String replicatedFrom = msg.getMessageBuilder().getReplicatedFrom();
 
-        if (!remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom())) {
+        if (!remoteCluster.equals(replicatedFrom)) {
             // Only consider markers that are coming from the same cluster that this
             // replicator instance is assigned to.
             // All the replicators will see all the markers, but we need to only process
             // it once.
             return;
         }
+
+        if (!localCluster.equals(replicatedFrom)) {
+            // Acknowledge the marker message to prevent it from accumulating in the backlog
+            topic.getSubscriptions().forEach((subName, sub) -> {
+                if (sub != null) {
+                    sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
+                            Collections.emptyMap());
+                }
+            });
+        }
+
+        int markerType = msg.getMessageBuilder().getMarkerType();
 
         switch (markerType) {
         case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:

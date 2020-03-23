@@ -235,6 +235,25 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         return -1;
     }
 
+    /**
+     * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
+     *
+     * @return
+     */
+    @Override
+    public boolean isAtleastOneConsumerAvailable() {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            // abort read if no consumers are connected or if disconnect is initiated
+            return false;
+        }
+        for(Consumer consumer : consumerList) {
+            if (isConsumerAvailable(consumer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 
 

@@ -149,6 +149,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(topicRef);
         assertNotNull(subRef);
         assertTrue(subRef.getDispatcher().isConsumerConnected());
+        assertTrue(subRef.getDispatcher().isAtleastOneConsumerAvailable());
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(getAvailablePermits(subRef), 1000 /* default */);
@@ -164,6 +165,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         assertTrue(subRef.getDispatcher().isConsumerConnected());
+        assertTrue(subRef.getDispatcher().isAtleastOneConsumerAvailable());
         rolloverPerIntervalStats();
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs * 2);
 
@@ -259,6 +261,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         consumer.close();
         assertFalse(subRef.getDispatcher().isConsumerConnected());
+        assertFalse(subRef.getDispatcher().isAtleastOneConsumerAvailable());
     }
 
     /**

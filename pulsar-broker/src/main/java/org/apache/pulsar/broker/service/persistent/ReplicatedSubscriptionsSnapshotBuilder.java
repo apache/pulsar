@@ -34,8 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 
 @Slf4j
@@ -122,9 +124,27 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
         }
         // Snapshot is now complete, store it in the local topic
         PositionImpl p = (PositionImpl) position;
-        controller.writeMarker(
-                Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        p.getLedgerId(), p.getEntryId(), responses));
+        try {
+            ReplicatedSubscriptionsSnapshot snapshot = Markers.instantiateReplicatedSubscriptionsSnapshot(snapshotId,
+                    p.getLedgerId(), p.getEntryId(), responses);
+            controller.writeSnapshot(Markers.serializeReplicatedSubscriptionsSnapshot(snapshot,
+                    controller.localCluster()));
+
+            // If no consumers are connected, or if they are connected but cannot receive any messages
+            // (i.e. the dispatcher is not reading new entries), add the snapshot to ReplicatedSubscriptionSnapshotCache
+            // here instead of the dispatcher
+            controller.topic().getSubscriptions().forEach((subName, sub) -> {
+                if (sub != null) {
+                    Dispatcher dispatcher = sub.getDispatcher();
+                    if (dispatcher == null || !dispatcher.isAtleastOneConsumerAvailable()) {
+                        sub.processReplicatedSubscriptionSnapshot(snapshot);
+                    }
+                }
+            });
+        } catch (Throwable t) {
+            log.warn("[{}] Failed to process replicated subscription snapshot {} -- {}", controller.topic().getName(),
+                    snapshotId, t.getMessage());
+        }
         controller.snapshotCompleted(snapshotId);
 
         double latencyMillis = clock.millis() - startTimeMillis;

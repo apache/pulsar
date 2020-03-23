@@ -38,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -54,13 +55,16 @@ import org.apache.pulsar.common.protocol.Markers;
  * Encapsulate all the logic of replicated subscriptions tracking for a given topic.
  */
 @Slf4j
-public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.PublishContext {
+public class ReplicatedSubscriptionsController implements AutoCloseable {
     private final PersistentTopic topic;
     private final String localCluster;
 
     private final ScheduledFuture<?> timer;
 
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots = new ConcurrentHashMap<>();
+
+    private final Topic.PublishContext publishContext;
+    private final Topic.PublishContext publishContextForSnapshot;
 
     private final static Gauge pendingSnapshotsMetric = Gauge
             .build("pulsar_replicated_subscriptions_pending_snapshots",
@@ -70,6 +74,56 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
+
+        this.publishContext = new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                // Nothing to do in case of publish errors since the retry logic is applied upstream
+                // after a snapshot is not closed
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
+                }
+
+                if (e == null) {
+                    // Acknowledge the marker message to prevent it from accumulating in the backlog
+                    Position position = new PositionImpl(ledgerId, entryId);
+                    topic.getSubscriptions().forEach((subName, sub) -> {
+                        if (sub != null) {
+                            sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
+                                    Collections.emptyMap());
+                        }
+                    });
+                }
+            }
+        };
+
+        this.publishContextForSnapshot = new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                // Nothing to do in case of publish errors since the retry logic is applied upstream
+                // after a snapshot is not closed
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Published snapshot at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
+                }
+
+                if (e == null) {
+                    // If no consumers are connected, or if they are connected but cannot receive any messages
+                    // (i.e. the dispatcher is not reading new entries), acknowledge the snapshot message
+                    // to prevent it from accumulating in the backlog
+                    Position position = new PositionImpl(ledgerId, entryId);
+                    topic.getSubscriptions().forEach((subName, sub) -> {
+                        if (sub != null) {
+                            Dispatcher dispatcher = sub.getDispatcher();
+                            if (dispatcher == null || !dispatcher.isAtleastOneConsumerAvailable()) {
+                                sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
+                                        Collections.emptyMap());
+                            }
+                        }
+                    });
+                }
+            }
+        };
+
         timer = topic.getBrokerService().pulsar().getExecutor()
                 .scheduleAtFixedRate(this::startNewSnapshot, 0,
                         topic.getBrokerService().pulsar().getConfiguration()
@@ -117,7 +171,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
-        topic.publishMessage(subscriptionUpdate, this);
+        writeMarker(subscriptionUpdate);
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
@@ -135,7 +189,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 localCluster,
                 lastMsgId.getLedgerId(), lastMsgId.getEntryId());
 
-        topic.publishMessage(marker, this);
+        writeMarker(marker);
     }
 
     private void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
@@ -228,19 +282,11 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     void writeMarker(ByteBuf marker) {
-        topic.publishMessage(marker, this);
+        topic.publishMessage(marker, publishContext);
     }
 
-    /**
-     * From Topic.PublishContext
-     */
-    @Override
-    public void completed(Exception e, long ledgerId, long entryId) {
-        // Nothing to do in case of publish errors since the retry logic is applied upstream after a snapshot is not
-        // closed
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
-        }
+    void writeSnapshot(ByteBuf marker) {
+        topic.publishMessage(marker, publishContextForSnapshot);
     }
 
     PersistentTopic topic() {

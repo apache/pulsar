@@ -548,6 +548,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
+    public boolean isConsumerAvailable(Consumer consumer) {
+        return consumer != null && consumer.getAvailablePermits() > 0;
+    }
+
+    @Override
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);

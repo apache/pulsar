@@ -59,7 +59,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     @Override
     public void sendMessages(List<Entry> entries) {
         Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-        if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
+        if (isConsumerAvailable(currentConsumer)) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null);
@@ -153,5 +153,10 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     @Override
     protected void cancelPendingRead() {
         // No-op
+    }
+
+    @Override
+    public boolean isConsumerAvailable(Consumer consumer) {
+        return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
     }
 }
