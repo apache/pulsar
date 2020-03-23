@@ -153,6 +153,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
                 this.functionClassLoader);
+        log.info("typeArg class: {}, classLoader: {}", typeArg.getName(), typeArg.getClassLoader());
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
