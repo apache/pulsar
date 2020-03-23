@@ -259,6 +259,8 @@ public class GrpcServiceTest {
         grpcService.start(pulsar.getBrokerService());
         protocolDataToAdvertise.put(grpcService.protocolName(), grpcService.getProtocolDataToAdvertise());
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+        pulsar.getLoadManager().get().stop();
+        pulsar.getLoadManager().get().start();
     }
 
     @AfterMethod(alwaysRun = true)
