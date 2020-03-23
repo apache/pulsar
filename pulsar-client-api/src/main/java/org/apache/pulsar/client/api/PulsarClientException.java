@@ -732,7 +732,9 @@ public class PulsarClientException extends IOException {
                 || t instanceof InvalidTopicNameException
                 || t instanceof NotSupportedException
                 || t instanceof ChecksumException
-                || t instanceof CryptoException) {
+                || t instanceof CryptoException
+                || t instanceof ProducerBusyException
+                || t instanceof ConsumerBusyException) {
             return false;
         }
         return true;
