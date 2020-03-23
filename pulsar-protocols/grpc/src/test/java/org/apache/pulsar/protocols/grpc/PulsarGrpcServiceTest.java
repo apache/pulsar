@@ -179,7 +179,7 @@ public class PulsarGrpcServiceTest {
 
     @AfterMethod
     public void teardown() throws InterruptedException {
-        server.shutdownNow();
+        server.shutdown();
         server.awaitTermination(30, TimeUnit.SECONDS);
     }
 
