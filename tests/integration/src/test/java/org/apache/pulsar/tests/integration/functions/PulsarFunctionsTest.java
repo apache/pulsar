@@ -2193,8 +2193,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             log.info("test-avro-schema messageId: {}", messageId.toString());
             expectedSet.add(function.process(baseObject, null));
             log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
-            getFunctionStatus(functionName, i + 1, false);
         }
+        getFunctionStatus(functionName, numMessages, false);
         log.info("test-avro-schema producer send message finish");
 
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
@@ -2209,8 +2209,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("test-avro-schema consumer receive message finish");
 
         assertEquals(expectedSet.size(), 0);
-
-        getFunctionStatus(functionName, numMessages, false);
 
         deleteFunction(functionName);
 
