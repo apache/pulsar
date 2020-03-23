@@ -69,6 +69,7 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     private AvroSchema(SchemaInfo schemaInfo) {
         super(schemaInfo);
+        log.info("AvroSchema - pojoClassLoader: {}", pojoClassLoader);
         setReader(new AvroReader<>(schema, pojoClassLoader));
         setWriter(new AvroWriter<>(schema));
     }
