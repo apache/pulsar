@@ -342,22 +342,12 @@ class ProcessRuntime implements Runtime {
     private void startProcess() {
         deathException = null;
         try {
-            // substitute environment variable to actual value
-            Pattern p = Pattern.compile("\\$\\{([A-Za-z0-9_-]+)\\}");
-            List<String> actualProcessArgs = processArgs.stream().map(cmd -> {
-                Matcher m = p.matcher(cmd);
-                while (m.find()) {
-                    cmd = cmd.replace(m.group(0), System.getenv(m.group(1)));
-                }
-                return cmd;
-            }).collect(Collectors.toList());
-
-            ProcessBuilder processBuilder = new ProcessBuilder(actualProcessArgs).inheritIO();
+            ProcessBuilder processBuilder = new ProcessBuilder(processArgs).inheritIO();
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 processBuilder.environment().put("PYTHONPATH", "${PYTHONPATH}:" + extraDependenciesDir);
             }
             secretsProviderConfigurator.configureProcessRuntimeSecretsProvider(processBuilder, instanceConfig.getFunctionDetails());
-            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processArgs));
+            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {
             log.error("Starting process failed", ex);
@@ -372,8 +362,6 @@ class ProcessRuntime implements Runtime {
             log.info("Started process successfully");
         }
     }
-
-
 
     @Override
     public boolean isAlive() {

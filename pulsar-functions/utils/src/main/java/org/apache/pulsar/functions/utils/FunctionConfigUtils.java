@@ -240,17 +240,7 @@ public class FunctionConfigUtils {
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
 
         if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
-            String customOptions = functionConfig.getCustomRuntimeOptions();
-            // validate environment variable is set properly
-            Pattern p = Pattern.compile("\\$\\{([A-Za-z0-9_-]+)\\}");
-            Matcher m = p.matcher(customOptions);
-            while (m.find()) {
-                String envValue = System.getenv(m.group(1));
-                if (StringUtils.isEmpty(envValue)) {
-                    throw new IllegalArgumentException("environment variable " + m.group(1) + " is not set");
-                }
-            }
-            functionDetailsBuilder.setCustomRuntimeOptions(customOptions);
+            functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
         }
 
         return functionDetailsBuilder.build();
