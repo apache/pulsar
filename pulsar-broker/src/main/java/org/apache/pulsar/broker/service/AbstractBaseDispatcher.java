@@ -36,7 +36,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 @Slf4j
@@ -89,10 +88,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
                     // Message metadata was corrupted or the messages was a server-only marker
 
-                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
-                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
-                    }
-
                     entries.set(i, null);
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
@@ -127,19 +122,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
-    }
-
-    private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
-        // Remove the protobuf headers
-        Commands.skipMessageMetadata(headersAndPayload);
-
-        try {
-            ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(headersAndPayload);
-            subscription.processReplicatedSubscriptionSnapshot(snapshot);
-        } catch (Throwable t) {
-            log.warn("Failed to process replicated subscription snapshot at {} -- {}", pos, t.getMessage(), t);
-            return;
-        }
     }
 
     public void resetCloseFuture() {

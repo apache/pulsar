@@ -42,6 +42,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -53,6 +54,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     private ServiceConfiguration conf;
     private ReplicatedSubscriptionsController controller;
     private List<ByteBuf> markers;
+    private List<ReplicatedSubscriptionsSnapshot> snapshots;
 
     @BeforeMethod
     public void setup() {
@@ -63,9 +65,25 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         conf.setReplicatedSubscriptionsSnapshotTimeoutSeconds(3);
 
         markers = new ArrayList<>();
+        snapshots = new ArrayList<>();
+
+        PersistentSubscription sub = mock(PersistentSubscription.class);
+        doAnswer(invocation -> {
+            ReplicatedSubscriptionsSnapshot snapshot = invocation.getArgument(0, ReplicatedSubscriptionsSnapshot.class);
+            snapshots.add(snapshot);
+            return null;
+        }).when(sub).processReplicatedSubscriptionSnapshot(any(ReplicatedSubscriptionsSnapshot.class));
+
+        ConcurrentOpenHashMap<String, PersistentSubscription> subs = new ConcurrentOpenHashMap<>();
+        subs.put("sub1", sub);
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.getName()).thenReturn("persistent://my-tenant/ms-ns/my-topic");
+        when(topic.getSubscriptions()).thenReturn(subs);
 
         controller = mock(ReplicatedSubscriptionsController.class);
         when(controller.localCluster()).thenReturn(localCluster);
+        when(controller.topic()).thenReturn(topic);
         doAnswer(invocation -> {
             ByteBuf marker = invocation.getArgument(0, ByteBuf.class);
             Commands.skipMessageMetadata(marker);
@@ -105,8 +123,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                         .build());
 
         // At this point the snapshot should be created
-        assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
+        assertEquals(snapshots.size(), 1);
+        ReplicatedSubscriptionsSnapshot snapshot = snapshots.remove(0);
         assertEquals(snapshot.getClustersCount(), 1);
         assertEquals(snapshot.getClusters(0).getCluster(), "b");
         assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 11);
@@ -147,6 +165,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
+        assertTrue(snapshots.isEmpty());
 
         builder.receivedSnapshotResponse(new PositionImpl(2, 2),
                 ReplicatedSubscriptionsSnapshotResponse.newBuilder()
@@ -163,6 +182,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(markers.size(), 1);
         request = Markers.parseReplicatedSubscriptionsSnapshotRequest(markers.remove(0));
         assertEquals(request.getSourceCluster(), localCluster);
+        assertTrue(snapshots.isEmpty());
 
         // Responses coming back
         builder.receivedSnapshotResponse(new PositionImpl(3, 3),
@@ -178,6 +198,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
+        assertTrue(snapshots.isEmpty());
 
         builder.receivedSnapshotResponse(new PositionImpl(4, 4),
                 ReplicatedSubscriptionsSnapshotResponse.newBuilder()
@@ -191,8 +212,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                         .build());
 
         // At this point the snapshot should be created
-        assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
+        assertEquals(snapshots.size(), 1);
+        ReplicatedSubscriptionsSnapshot snapshot = snapshots.remove(0);
         assertEquals(snapshot.getClustersCount(), 2);
         assertEquals(snapshot.getClusters(0).getCluster(), "b");
         assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 11);

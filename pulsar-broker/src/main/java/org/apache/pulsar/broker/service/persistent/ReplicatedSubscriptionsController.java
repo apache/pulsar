@@ -241,6 +241,16 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (log.isDebugEnabled()) {
             log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
         }
+
+        if (e == null) {
+            Position position = new PositionImpl(ledgerId, entryId);
+            topic.getSubscriptions().forEach((subName, sub) -> {
+                if (sub != null) {
+                    sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
+                            Collections.emptyMap());
+                }
+            });
+        }
     }
 
     PersistentTopic topic() {

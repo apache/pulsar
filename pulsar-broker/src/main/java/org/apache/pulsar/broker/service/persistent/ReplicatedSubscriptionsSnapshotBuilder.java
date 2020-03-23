@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 
 @Slf4j
@@ -122,9 +123,18 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
         }
         // Snapshot is now complete, store it in the local topic
         PositionImpl p = (PositionImpl) position;
-        controller.writeMarker(
-                Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        p.getLedgerId(), p.getEntryId(), responses));
+        try {
+            ReplicatedSubscriptionsSnapshot snapshot = Markers.instantiateReplicatedSubscriptionsSnapshot(snapshotId,
+                    controller.localCluster(), p.getLedgerId(), p.getEntryId(), responses);
+            controller.topic().getSubscriptions().forEach((subName, sub) -> {
+                if (sub != null) {
+                    sub.processReplicatedSubscriptionSnapshot(snapshot);
+                }
+            });
+        } catch (Throwable t) {
+            log.warn("[{}] Failed to process replicated subscription snapshot {} -- {}", controller.topic().getName(),
+                    snapshotId, t.getMessage());
+        }
         controller.snapshotCompleted(snapshotId);
 
         double latencyMillis = clock.millis() - startTimeMillis;

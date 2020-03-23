@@ -161,6 +161,25 @@ public class Markers {
     @SneakyThrows
     public static ByteBuf newReplicatedSubscriptionsSnapshot(String snapshotId, String sourceCluster, long ledgerId,
             long entryId, Map<String, MessageIdData> clusterIds) {
+        ReplicatedSubscriptionsSnapshot snapshot = instantiateReplicatedSubscriptionsSnapshot(snapshotId, sourceCluster,
+                ledgerId, entryId, clusterIds);
+
+        int size = snapshot.getSerializedSize();
+
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
+        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
+        try {
+            snapshot.writeTo(outStream);
+            return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
+        } finally {
+            payload.release();
+            snapshot.recycle();
+            outStream.recycle();
+        }
+    }
+
+    public static ReplicatedSubscriptionsSnapshot instantiateReplicatedSubscriptionsSnapshot(String snapshotId,
+            String sourceCluster, long ledgerId, long entryId, Map<String, MessageIdData> clusterIds) {
         ReplicatedSubscriptionsSnapshot.Builder builder = ReplicatedSubscriptionsSnapshot.newBuilder();
         builder.setSnapshotId(snapshotId);
 
@@ -178,20 +197,9 @@ public class Markers {
         });
 
         ReplicatedSubscriptionsSnapshot snapshot = builder.build();
-
-        int size = snapshot.getSerializedSize();
-
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
-        try {
-            snapshot.writeTo(outStream);
-            return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
-        } finally {
-            payload.release();
-            builder.recycle();
-            snapshot.recycle();
-            outStream.recycle();
-        }
+        msgIdBuilder.recycle();
+        builder.recycle();
+        return snapshot;
     }
 
     public static ReplicatedSubscriptionsSnapshot parseReplicatedSubscriptionsSnapshot(ByteBuf payload)
