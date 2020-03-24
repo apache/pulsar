@@ -44,9 +44,11 @@ import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.CustomBaseObject;
 import org.apache.pulsar.functions.api.examples.CustomBaseToDerivedFunction;
 import org.apache.pulsar.functions.api.examples.CustomDerivedObject;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -2141,8 +2143,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     @Test(groups = "function")
-    public void testCustomBaseToDerivedFunction() throws Exception {
-        log.info("testCustomBaseToDerivedFunction start ...");
+    public void testAvroSchemaFunction() throws Exception {
+        log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
         final String functionName = "test-avroschema-fn-" + randomName(8);
@@ -2157,16 +2159,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
         log.info("pulsar client init");
 
-        @Cleanup Consumer<CustomDerivedObject> consumer = pulsarClient
-                .newConsumer(Schema.AVRO(CustomDerivedObject.class))
+        @Cleanup Consumer<AvroTestObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(AvroTestObject.class))
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("test-avro-schema")
                 .topic(outputTopic)
                 .subscribe();
         log.info("pulsar consumer init");
 
-        @Cleanup Producer<CustomBaseObject> producer = pulsarClient
-                .newProducer(Schema.AVRO(CustomBaseObject.class))
+        @Cleanup Producer<AvroTestObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(AvroTestObject.class))
                 .topic(inputTopic).create();
         log.info("pulsar producer init");
 
@@ -2182,16 +2184,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         getFunctionInfoSuccess(functionName);
 
-        CustomBaseToDerivedFunction function = new CustomBaseToDerivedFunction();
+        AvroSchemaTestFunction function = new AvroSchemaTestFunction();
         Set<Object> expectedSet = new HashSet<>();
 
         log.info("test-avro-schema producer connected: " + producer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
-            CustomBaseObject baseObject = new CustomBaseObject();
-            baseObject.setBaseValue(i);
-            MessageId messageId = producer.send(baseObject);
+            AvroTestObject inputObject = new AvroTestObject();
+            inputObject.setBaseValue(i);
+            MessageId messageId = producer.send(inputObject);
             log.info("test-avro-schema messageId: {}", messageId.toString());
-            expectedSet.add(function.process(baseObject, null));
+            expectedSet.add(function.process(inputObject, null));
             log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
         }
         getFunctionStatus(functionName, numMessages, false);
@@ -2200,11 +2202,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
             log.info("test-avro-schema consumer receive [{}] start", i);
-            Message<CustomDerivedObject> message = consumer.receive();
+            Message<AvroTestObject> message = consumer.receive();
             log.info("test-avro-schema consumer receive [{}] over", i);
-            CustomDerivedObject derivedObject = message.getValue();
-            assertTrue(expectedSet.contains(derivedObject));
-            expectedSet.remove(derivedObject);
+            AvroTestObject outputObject = message.getValue();
+            assertTrue(expectedSet.contains(outputObject));
+            expectedSet.remove(outputObject);
         }
         log.info("test-avro-schema consumer receive message finish");
 
