@@ -208,7 +208,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -230,7 +230,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -249,7 +249,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl

@@ -33,9 +33,9 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 public interface Brokers {
     /**
      * Get the list of active brokers in the cluster.
-     * <p>
+     * <p/>
      * Get the list of active brokers (web service addresses) in the cluster.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -56,9 +56,9 @@ public interface Brokers {
 
 	/**
 	 * Get the list of active brokers in the cluster asynchronously.
-	 * <p>
+	 * <p/>
 	 * Get the list of active brokers (web service addresses) in the cluster.
-	 * <p>
+	 * <p/>
 	 * Response Example:
 	 *
 	 * <pre>
@@ -73,9 +73,9 @@ public interface Brokers {
 
     /**
      * Get the map of owned namespaces and their status from a single broker in the cluster.
-     * <p>
+     * <p/>
      * The map is returned in a JSON object format below
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -91,9 +91,9 @@ public interface Brokers {
 
 	/**
 	 * Get the map of owned namespaces and their status from a single broker in the cluster asynchronously.
-	 * <p>
+	 * <p/>
 	 * The map is returned in a JSON object format below
-	 * <p>
+	 * <p/>
 	 * Response Example:
 	 *
 	 * <pre>
@@ -108,7 +108,7 @@ public interface Brokers {
 
 	/**
 	 * Update a dynamic configuration value into ZooKeeper.
-	 * <p>
+	 * <p/>
 	 * It updates dynamic configuration value in to Zk that triggers watch on
 	 * brokers and all brokers can update {@link ServiceConfiguration} value
 	 * locally
@@ -121,7 +121,7 @@ public interface Brokers {
 
 	/**
 	 * Update a dynamic configuration value into ZooKeeper asynchronously.
-	 * <p>
+	 * <p/>
 	 * It updates dynamic configuration value in to Zk that triggers watch on
 	 * brokers and all brokers can update {@link ServiceConfiguration} value
 	 * locally
@@ -133,7 +133,7 @@ public interface Brokers {
     
     /**
      * It deletes dynamic configuration value into ZooKeeper.
-	 * <p>
+	 * <p/>
 	 * It will not impact current value in broker but next time when
      * broker restarts, it applies value from configuration file only.
      * 
@@ -144,7 +144,7 @@ public interface Brokers {
 
 	/**
 	 * It deletes dynamic configuration value into ZooKeeper asynchronously.
-	 * <p>
+	 * <p/>
 	 * It will not impact current value in broker but next time when
 	 * broker restarts, it applies value from configuration file only.
 	 *

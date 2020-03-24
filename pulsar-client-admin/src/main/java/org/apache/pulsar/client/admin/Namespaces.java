@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -50,9 +50,9 @@ import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 public interface Namespaces {
     /**
      * Get the list of namespaces.
-     * <p>
+     * <p/>
      * Get the list of all the namespaces for a certain tenant.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -75,9 +75,9 @@ public interface Namespaces {
 
     /**
      * Get the list of namespaces asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the namespaces for a certain tenant.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -93,9 +93,9 @@ public interface Namespaces {
 
     /**
      * Get the list of namespaces.
-     * <p>
+     * <p/>
      * Get the list of all the namespaces for a certain tenant on single cluster.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -119,9 +119,9 @@ public interface Namespaces {
 
     /**
      * Get the list of topics.
-     * <p>
+     * <p/>
      * Get the list of all the topics under a certain namespace.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -143,9 +143,9 @@ public interface Namespaces {
 
     /**
      * Get the list of topics asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the topics under a certain namespace.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -160,9 +160,9 @@ public interface Namespaces {
 
     /**
      * Get policies for a namespace.
-     * <p>
+     * <p/>
      * Get the dump all the policies specified for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -199,9 +199,9 @@ public interface Namespaces {
 
     /**
      * Get policies for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Get the dump all the policies specified for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -231,7 +231,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -252,7 +252,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -264,7 +264,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -285,7 +285,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace asynchronously.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -297,7 +297,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -316,7 +316,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace asynchronously.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -326,7 +326,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -348,7 +348,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace asynchronously.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -361,7 +361,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new namespace with the specified policies.
      *
      * @param namespace
@@ -384,7 +384,7 @@ public interface Namespaces {
 
     /**
      * Create a new namespace asynchronously.
-     * <p>
+     * <p/>
      * Creates a new namespace with the specified policies.
      *
      * @param namespace
@@ -396,7 +396,7 @@ public interface Namespaces {
 
     /**
      * Delete an existing namespace.
-     * <p>
+     * <p/>
      * The namespace needs to be empty.
      *
      * @param namespace
@@ -415,7 +415,7 @@ public interface Namespaces {
 
     /**
      * Delete an existing namespace asynchronously.
-     * <p>
+     * <p/>
      * The namespace needs to be empty.
      *
      * @param namespace
@@ -425,7 +425,7 @@ public interface Namespaces {
 
     /**
      * Delete an existing bundle in a namespace.
-     * <p>
+     * <p/>
      * The bundle needs to be empty.
      *
      * @param namespace
@@ -446,7 +446,7 @@ public interface Namespaces {
 
     /**
      * Delete an existing bundle in a namespace asynchronously.
-     * <p>
+     * <p/>
      * The bundle needs to be empty.
      *
      * @param namespace
@@ -460,9 +460,9 @@ public interface Namespaces {
 
     /**
      * Get permissions on a namespace.
-     * <p>
+     * <p/>
      * Retrieve the permissions for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -486,9 +486,9 @@ public interface Namespaces {
 
     /**
      * Get permissions on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Retrieve the permissions for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -505,9 +505,9 @@ public interface Namespaces {
 
     /**
      * Grant permission on a namespace.
-     * <p>
+     * <p/>
      * Grant a new permission to a client role on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -534,9 +534,9 @@ public interface Namespaces {
 
     /**
      * Grant permission on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Grant a new permission to a client role on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -554,7 +554,7 @@ public interface Namespaces {
 
     /**
      * Revoke permissions on a namespace.
-     * <p>
+     * <p/>
      * Revoke all permissions to a client role on a namespace.
      *
      * @param namespace
@@ -573,7 +573,7 @@ public interface Namespaces {
 
     /**
      * Revoke permissions on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Revoke all permissions to a client role on a namespace.
      *
      * @param namespace
@@ -619,7 +619,7 @@ public interface Namespaces {
 
     /**
      * Get the replication clusters for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -642,7 +642,7 @@ public interface Namespaces {
 
     /**
      * Get the replication clusters for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -656,7 +656,7 @@ public interface Namespaces {
 
     /**
      * Set the replication clusters for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -683,7 +683,7 @@ public interface Namespaces {
 
     /**
      * Set the replication clusters for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -699,7 +699,7 @@ public interface Namespaces {
 
     /**
      * Get the message TTL for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -720,7 +720,7 @@ public interface Namespaces {
 
     /**
      * Get the message TTL for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -734,7 +734,7 @@ public interface Namespaces {
 
     /**
      * Set the messages Time to Live for all the topics within a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -757,7 +757,7 @@ public interface Namespaces {
 
     /**
      * Set the messages Time to Live for all the topics within a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -773,7 +773,7 @@ public interface Namespaces {
 
     /**
      * Set anti-affinity group name for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * @param namespace
@@ -792,7 +792,7 @@ public interface Namespaces {
 
     /**
      * Set anti-affinity group name for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * @param namespace
@@ -834,7 +834,7 @@ public interface Namespaces {
 
     /**
      * Get anti-affinity group name for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -855,7 +855,7 @@ public interface Namespaces {
 
     /**
      * Get anti-affinity group name for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -892,9 +892,9 @@ public interface Namespaces {
 
     /**
      * Set the deduplication status for all topics within a namespace.
-     * <p>
+     * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -917,9 +917,9 @@ public interface Namespaces {
 
     /**
      * Set the deduplication status for all topics within a namespace asynchronously.
-     * <p>
+     * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -948,9 +948,9 @@ public interface Namespaces {
 
     /**
      * Get backlog quota map on a namespace.
-     * <p>
+     * <p/>
      * Get backlog quota map on a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -982,9 +982,9 @@ public interface Namespaces {
 
     /**
      * Get backlog quota map on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Get backlog quota map on a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1009,11 +1009,11 @@ public interface Namespaces {
 
     /**
      * Set a backlog quota for all the topics on a namespace.
-     * <p>
+     * <p/>
      * Set a backlog quota on a namespace.
-     * <p>
+     * <p/>
      * The backlog quota can be set on this resource:
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -1041,11 +1041,11 @@ public interface Namespaces {
 
     /**
      * Set a backlog quota for all the topics on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Set a backlog quota on a namespace.
-     * <p>
+     * <p/>
      * The backlog quota can be set on this resource:
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -1066,9 +1066,9 @@ public interface Namespaces {
 
     /**
      * Remove a backlog quota policy from a namespace.
-     * <p>
+     * <p/>
      * Remove a backlog quota policy from a namespace.
-     * <p>
+     * <p/>
      * The backlog retention policy will fall back to the default.
      *
      * @param namespace
@@ -1085,9 +1085,9 @@ public interface Namespaces {
 
     /**
      * Remove a backlog quota policy from a namespace asynchronously.
-     * <p>
+     * <p/>
      * Remove a backlog quota policy from a namespace.
-     * <p>
+     * <p/>
      * The backlog retention policy will fall back to the default.
      *
      * @param namespace
@@ -1097,9 +1097,9 @@ public interface Namespaces {
 
     /**
      * Set the persistence configuration for all the topics on a namespace.
-     * <p>
+     * <p/>
      * Set the persistence configuration on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -1133,9 +1133,9 @@ public interface Namespaces {
 
     /**
      * Set the persistence configuration for all the topics on a namespace asynchronously.
-     * <p>
+     * <p/>
      * Set the persistence configuration on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -1160,9 +1160,9 @@ public interface Namespaces {
 
     /**
      * Get the persistence configuration for a namespace.
-     * <p>
+     * <p/>
      * Get the persistence configuration for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1194,9 +1194,9 @@ public interface Namespaces {
 
     /**
      * Get the persistence configuration for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Get the persistence configuration for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1777,9 +1777,9 @@ public interface Namespaces {
 
     /**
      * Set the encryption required status for all topics within a namespace.
-     * <p>
+     * <p/>
      * When encryption required is true, the broker will prevent to store unencrypted messages.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1802,9 +1802,9 @@ public interface Namespaces {
 
     /**
      * Set the encryption required status for all topics within a namespace asynchronously.
-     * <p>
+     * <p/>
      * When encryption required is true, the broker will prevent to store unencrypted messages.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1820,10 +1820,10 @@ public interface Namespaces {
 
     /**
      * Get the delayed delivery messages for all topics within a namespace.
-     * <p>
+     * <p/>
      * If disabled, messages will be immediately delivered and there will
      * be no tracking overhead.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1851,10 +1851,10 @@ public interface Namespaces {
 
     /**
      * Get the delayed delivery messages for all topics within a namespace asynchronously.
-     * <p>
+     * <p/>
      * If disabled, messages will be immediately delivered and there will
      * be no tracking overhead.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1875,10 +1875,10 @@ public interface Namespaces {
 
     /**
      * Set the delayed delivery messages for all topics within a namespace.
-     * <p>
+     * <p/>
      * If disabled, messages will be immediately delivered and there will
      * be no tracking overhead.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1906,10 +1906,10 @@ public interface Namespaces {
 
     /**
      * Set the delayed delivery messages for all topics within a namespace asynchronously.
-     * <p>
+     * <p/>
      * If disabled, messages will be immediately delivered and there will
      * be no tracking overhead.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1947,7 +1947,7 @@ public interface Namespaces {
 
     /**
      * Get the maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1968,7 +1968,7 @@ public interface Namespaces {
 
     /**
      * Get the maxProducersPerTopic for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1982,7 +1982,7 @@ public interface Namespaces {
 
     /**
      * Set maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2005,7 +2005,7 @@ public interface Namespaces {
 
     /**
      * Set maxProducersPerTopic for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2021,7 +2021,7 @@ public interface Namespaces {
 
     /**
      * Get the maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2042,7 +2042,7 @@ public interface Namespaces {
 
     /**
      * Get the maxProducersPerTopic for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2056,7 +2056,7 @@ public interface Namespaces {
 
     /**
      * Set maxConsumersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2079,7 +2079,7 @@ public interface Namespaces {
 
     /**
      * Set maxConsumersPerTopic for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2095,7 +2095,7 @@ public interface Namespaces {
 
     /**
      * Get the maxConsumersPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2116,7 +2116,7 @@ public interface Namespaces {
 
     /**
      * Get the maxConsumersPerSubscription for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2130,7 +2130,7 @@ public interface Namespaces {
 
     /**
      * Set maxConsumersPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2153,7 +2153,7 @@ public interface Namespaces {
 
     /**
      * Set maxConsumersPerSubscription for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2169,7 +2169,7 @@ public interface Namespaces {
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2190,7 +2190,7 @@ public interface Namespaces {
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2204,7 +2204,7 @@ public interface Namespaces {
 
     /**
      * Set maxUnackedMessagesPerConsumer for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2227,7 +2227,7 @@ public interface Namespaces {
 
     /**
      * Set maxUnackedMessagesPerConsumer for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2243,7 +2243,7 @@ public interface Namespaces {
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2264,7 +2264,7 @@ public interface Namespaces {
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2278,7 +2278,7 @@ public interface Namespaces {
 
     /**
      * Set maxUnackedMessagesPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2301,7 +2301,7 @@ public interface Namespaces {
 
     /**
      * Set maxUnackedMessagesPerSubscription for a namespace asynchronously.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2318,7 +2318,7 @@ public interface Namespaces {
     /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2340,7 +2340,7 @@ public interface Namespaces {
     /**
      * Get the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2355,7 +2355,7 @@ public interface Namespaces {
     /**
      * Set the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2379,7 +2379,7 @@ public interface Namespaces {
     /**
      * Set the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2397,7 +2397,7 @@ public interface Namespaces {
      * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
      * in the namespace before data starts being offloaded to longterm storage.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2420,7 +2420,7 @@ public interface Namespaces {
      * Get the offloadThreshold for a namespace asynchronously. The maximum number of bytes stored on the pulsar cluster for topics
      * in the namespace before data starts being offloaded to longterm storage.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2437,7 +2437,7 @@ public interface Namespaces {
      * in the namespace before data starts being offloaded to longterm storage.
      *
      * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2463,7 +2463,7 @@ public interface Namespaces {
      * in the namespace before data starts being offloaded to longterm storage.
      *
      * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -2488,7 +2488,7 @@ public interface Namespaces {
      * A negative value disables deletion of the local ledger completely, though it will still be deleted
      * if it exceeds the topics retention policy, along with the offloaded copy.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2519,7 +2519,7 @@ public interface Namespaces {
      * A negative value disables deletion of the local ledger completely, though it will still be deleted
      * if it exceeds the topics retention policy, along with the offloaded copy.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -2596,7 +2596,7 @@ public interface Namespaces {
      * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
      *
-     * <p>If this is
+     * <p/>If this is
      * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled},
      * then all new schemas provided via the producer are rejected, and schemas must be updated through the REST api.
      *
@@ -2617,7 +2617,7 @@ public interface Namespaces {
      * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
      *
-     * <p>To disable all new schema updates through the producer, set this to
+     * <p/>To disable all new schema updates through the producer, set this to
      * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled}.
      *
      * @param namespace The namespace in whose policy should be set

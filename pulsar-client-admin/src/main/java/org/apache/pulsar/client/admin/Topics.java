@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin;
 
+import com.google.gson.JsonObject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,13 +39,11 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
-import com.google.gson.JsonObject;
-
 public interface Topics {
 
     /**
      * Get the list of topics under a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -66,7 +66,7 @@ public interface Topics {
 
     /**
      * Get the list of topics under a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -82,7 +82,7 @@ public interface Topics {
 
     /**
      * Get the list of partitioned topics under a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -105,7 +105,7 @@ public interface Topics {
 
     /**
      * Get the list of partitioned topics under a namespace asynchronously.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -141,10 +141,10 @@ public interface Topics {
 
     /**
      * Get permissions on a topic.
-     * <p>
+     * <p/>
      * Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the
      * namespace level combined (union) with any eventual specific permission set on the topic.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -169,10 +169,10 @@ public interface Topics {
 
     /**
      * Get permissions on a topic asynchronously.
-     * <p>
+     * <p/>
      * Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the
      * namespace level combined (union) with any eventual specific permission set on the topic.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -190,9 +190,9 @@ public interface Topics {
 
     /**
      * Grant permission on a topic.
-     * <p>
+     * <p/>
      * Grant a new permission to a client role on a single topic.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -219,9 +219,9 @@ public interface Topics {
 
     /**
      * Grant permission on a topic asynchronously.
-     * <p>
+     * <p/>
      * Grant a new permission to a client role on a single topic.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -239,7 +239,7 @@ public interface Topics {
 
     /**
      * Revoke permissions on a topic.
-     * <p>
+     * <p/>
      * Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but
      * rather at the namespace level, this operation will return an error (HTTP status code 412).
      *
@@ -260,7 +260,7 @@ public interface Topics {
 
     /**
      * Revoke permissions on a topic asynchronously.
-     * <p>
+     * <p/>
      * Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but
      * rather at the namespace level, this operation will return an error (HTTP status code 412).
      *
@@ -273,9 +273,9 @@ public interface Topics {
 
     /**
      * Create a partitioned topic.
-     * <p>
+     * <p/>
      * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -287,10 +287,10 @@ public interface Topics {
 
     /**
      * Create a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
      * topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -303,9 +303,9 @@ public interface Topics {
     /**
      * Create a non-partitioned topic.
      * 
-     * <p>
+     * <p/>
      * Create a non-partitioned topic. 
-     * <p>
+     * <p/>
      * 
      * @param topic Topic name
      * @throws PulsarAdminException
@@ -321,7 +321,7 @@ public interface Topics {
 
     /**
      * Create missed partitions for partitioned topic.
-     * <p>
+     * <p/>
      * When disable topic auto creation, use this method to try create missed partitions while
      * partitions create failed or users already have partitioned topic without partitions.
      *
@@ -331,7 +331,7 @@ public interface Topics {
 
     /**
      * Create missed partitions for partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * When disable topic auto creation, use this method to try create missed partitions while
      * partitions create failed or users already have partitioned topic without partitions.
      *
@@ -341,10 +341,10 @@ public interface Topics {
 
     /**
      * Update number of partitions of a non-global partitioned topic.
-     * <p>
+     * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -357,10 +357,10 @@ public interface Topics {
 
     /**
      * Update number of partitions of a non-global partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -373,10 +373,10 @@ public interface Topics {
 
     /**
      * Update number of partitions of a non-global partitioned topic.
-     * <p>
+     * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -391,10 +391,10 @@ public interface Topics {
 
     /**
      * Update number of partitions of a non-global partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -409,9 +409,9 @@ public interface Topics {
 
     /**
      * Get metadata of a partitioned topic.
-     * <p>
+     * <p/>
      * Get metadata of a partitioned topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -422,9 +422,9 @@ public interface Topics {
 
     /**
      * Get metadata of a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * Get metadata of a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -434,9 +434,9 @@ public interface Topics {
 
     /**
      * Delete a partitioned topic.
-     * <p>
+     * <p/>
      * It will also delete all the partitions of the topic if it exists.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -449,9 +449,9 @@ public interface Topics {
 
     /**
      * Delete a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * It will also delete all the partitions of the topic if it exists.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -464,9 +464,9 @@ public interface Topics {
     
     /**
      * Delete a partitioned topic.
-     * <p>
+     * <p/>
      * It will also delete all the partitions of the topic if it exists.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -477,9 +477,9 @@ public interface Topics {
 
     /**
      * Delete a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * It will also delete all the partitions of the topic if it exists.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -488,9 +488,9 @@ public interface Topics {
     
     /**
      * Delete a topic.
-     * <p>
+     * <p/>
      * Delete a topic. The topic cannot be deleted if force flag is disable and there's any active subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers and consumers.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -510,11 +510,11 @@ public interface Topics {
 
     /**
      * Delete a topic asynchronously.
-     * <p>
+     * <p/>
      * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
      * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
      * and consumers.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -527,9 +527,9 @@ public interface Topics {
     
     /**
      * Delete a topic.
-     * <p>
+     * <p/>
      * Delete a topic. The topic cannot be deleted if there's any active subscription or producer connected to the it.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -547,9 +547,9 @@ public interface Topics {
 
     /**
      * Delete a topic asynchronously.
-     * <p>
+     * <p/>
      * Delete a topic. The topic cannot be deleted if there's any active subscription or producer connected to the it.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -558,7 +558,7 @@ public interface Topics {
 
     /**
      * Unload a topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -574,7 +574,7 @@ public interface Topics {
 
     /**
      * Unload a topic asynchronously.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -585,7 +585,7 @@ public interface Topics {
 
     /**
      * Terminate the topic and prevent any more messages being published on it.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -602,7 +602,7 @@ public interface Topics {
 
     /**
      * Terminate the topic and prevent any more messages being published on it.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -612,9 +612,9 @@ public interface Topics {
 
     /**
      * Get the list of subscriptions.
-     * <p>
+     * <p/>
      * Get the list of persistent subscriptions for a given topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -631,9 +631,9 @@ public interface Topics {
 
     /**
      * Get the list of subscriptions asynchronously.
-     * <p>
+     * <p/>
      * Get the list of persistent subscriptions for a given topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -643,7 +643,7 @@ public interface Topics {
 
     /**
      * Get the stats for the topic.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -743,7 +743,7 @@ public interface Topics {
 
     /**
      * Get the internal stats for the topic.
-     * <p>
+     * <p/>
      * Access the internal state of the topic
      *
      * @param topic
@@ -801,7 +801,7 @@ public interface Topics {
 
     /**
      * Get the stats for the partitioned topic
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -912,9 +912,9 @@ public interface Topics {
 
     /**
      * Delete a subscription.
-     * <p>
+     * <p/>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -934,9 +934,9 @@ public interface Topics {
 
     /**
      * Delete a subscription asynchronously.
-     * <p>
+     * <p/>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -949,7 +949,7 @@ public interface Topics {
 
     /**
      * Skip all messages on a topic subscription.
-     * <p>
+     * <p/>
      * Completely clears the backlog on the subscription.
      *
      * @param topic
@@ -968,7 +968,7 @@ public interface Topics {
 
     /**
      * Skip all messages on a topic subscription asynchronously.
-     * <p>
+     * <p/>
      * Completely clears the backlog on the subscription.
      *
      * @param topic

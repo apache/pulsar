@@ -37,9 +37,9 @@ public interface NonPersistentTopics {
 
     /**
      * Get metadata of a partitioned topic.
-     * <p>
+     * <p/>
      * Get metadata of a partitioned topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -50,9 +50,9 @@ public interface NonPersistentTopics {
 
     /**
      * Get metadata of a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * Get metadata of a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -62,7 +62,7 @@ public interface NonPersistentTopics {
 
     /**
      * Get the stats for the topic.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -148,7 +148,7 @@ public interface NonPersistentTopics {
 
     /**
      * Get the internal stats for the topic.
-     * <p>
+     * <p/>
      * Access the internal state of the topic
      *
      * @param topic
@@ -176,9 +176,9 @@ public interface NonPersistentTopics {
 
     /**
      * Create a partitioned topic.
-     * <p>
+     * <p/>
      * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -190,10 +190,10 @@ public interface NonPersistentTopics {
 
     /**
      * Create a partitioned topic asynchronously.
-     * <p>
+     * <p/>
      * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
      * topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -205,7 +205,7 @@ public interface NonPersistentTopics {
 
     /**
      * Unload a topic.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name
@@ -221,7 +221,7 @@ public interface NonPersistentTopics {
 
     /**
      * Unload a topic asynchronously.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            Topic name

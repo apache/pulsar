@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.io.SourceConfig;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.SourceStatus;
 
 /**
  * Admin interface for Source management.
@@ -35,9 +35,9 @@ import java.util.concurrent.CompletableFuture;
 public interface Sources {
     /**
      * Get the list of sources.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar Sources.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -53,9 +53,9 @@ public interface Sources {
 
     /**
      * Get the list of sources asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar Sources.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -66,7 +66,7 @@ public interface Sources {
 
     /**
      * Get the configuration for the specified source.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -93,7 +93,7 @@ public interface Sources {
 
     /**
      * Get the configuration for the specified source asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -132,7 +132,7 @@ public interface Sources {
 
     /**
      * Create a new source with package url.
-     * <p>
+     * <p/>
      * Create a new source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -148,7 +148,7 @@ public interface Sources {
 
     /**
      * Create a new source with package url asynchronously.
-     * <p>
+     * <p/>
      * Create a new source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -163,7 +163,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source.
-     * <p>
+     * <p/>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -179,7 +179,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source asynchronously.
-     * <p>
+     * <p/>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -188,7 +188,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source.
-     * <p>
+     * <p/>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -205,7 +205,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source asynchronously.
-     * <p>
+     * <p/>
      *
      * @param sourceConfig
      *            the source configuration object
@@ -216,7 +216,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source.
-     * <p>
+     * <p/>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -237,7 +237,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source asynchronously.
-     * <p>
+     * <p/>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -252,7 +252,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source.
-     * <p>
+     * <p/>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -275,7 +275,7 @@ public interface Sources {
 
     /**
      * Update the configuration for a source asynchronously.
-     * <p>
+     * <p/>
      * Update a source by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -292,7 +292,7 @@ public interface Sources {
 
     /**
      * Delete an existing source.
-     * <p>
+     * <p/>
      * Delete a source
      *
      * @param tenant
@@ -315,7 +315,7 @@ public interface Sources {
 
     /**
      * Delete an existing source asynchronously.
-     * <p>
+     * <p/>
      * Delete a source
      *
      * @param tenant
@@ -574,7 +574,7 @@ public interface Sources {
     CompletableFuture<List<ConnectorDefinition>> getBuiltInSourcesAsync();
 
     /**
-     * Reload the available built-in connectors, include Source and Source
+     * Reload the available built-in connectors, include Source and Source.
      *
      * @throws PulsarAdminException
      *             Unexpected error

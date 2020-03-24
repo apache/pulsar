@@ -38,7 +38,7 @@ public interface PulsarAdminBuilder {
 
     /**
      * Create a copy of the current client builder.
-     * <p>
+     * <p/>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
@@ -59,9 +59,9 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
      * <pre>
      * <code>
@@ -88,9 +88,9 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
      * <pre>
      * <code>
@@ -119,9 +119,9 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar admin instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
      * <pre>
      * <code>

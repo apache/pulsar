@@ -25,11 +25,11 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 
 /**
@@ -38,9 +38,9 @@ import org.apache.pulsar.common.policies.data.FunctionStatus;
 public interface Functions {
     /**
      * Get the list of functions.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar functions.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -56,9 +56,9 @@ public interface Functions {
 
     /**
      * Get the list of functions asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar functions.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -70,7 +70,7 @@ public interface Functions {
 
     /**
      * Get the configuration for the specified function.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -97,7 +97,7 @@ public interface Functions {
 
     /**
      * Get the configuration for the specified function asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -137,7 +137,7 @@ public interface Functions {
 
     /**
      * Create a new function with package url.
-     * <p>
+     * <p/>
      * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -153,7 +153,7 @@ public interface Functions {
 
     /**
      * Create a new function with package url asynchronously.
-     * <p>
+     * <p/>
      * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -168,7 +168,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function.
-     * <p>
+     * <p/>
      *
      * @param functionConfig
      *            the function configuration object
@@ -184,7 +184,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function asynchronously.
-     * <p>
+     * <p/>
      *
      * @param functionConfig
      *            the function configuration object
@@ -193,7 +193,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function.
-     * <p>
+     * <p/>
      *
      * @param functionConfig
      *            the function configuration object
@@ -210,7 +210,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function asynchronously.
-     * <p>
+     * <p/>
      *
      * @param functionConfig
      *            the function configuration object
@@ -221,7 +221,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function.
-     * <p>
+     * <p/>
      * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -242,7 +242,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function asynchronously.
-     * <p>
+     * <p/>
      * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -257,7 +257,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function.
-     * <p>
+     * <p/>
      * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -280,7 +280,7 @@ public interface Functions {
 
     /**
      * Update the configuration for a function asynchronously.
-     * <p>
+     * <p/>
      * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -297,7 +297,7 @@ public interface Functions {
 
     /**
      * Delete an existing function.
-     * <p>
+     * <p/>
      * Delete a function
      *
      * @param tenant
@@ -320,7 +320,7 @@ public interface Functions {
 
     /**
      * Delete an existing function asynchronously.
-     * <p>
+     * <p/>
      * Delete a function
      *
      * @param tenant
@@ -781,7 +781,7 @@ public interface Functions {
 
     /**
      * Fetch the current state associated with a Pulsar Function.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -810,7 +810,7 @@ public interface Functions {
 
     /**
      * Fetch the current state associated with a Pulsar Function asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -832,7 +832,7 @@ public interface Functions {
 
     /**
      * Puts the given state associated with a Pulsar Function.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -859,7 +859,7 @@ public interface Functions {
 
     /**
      * Puts the given state associated with a Pulsar Function asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>

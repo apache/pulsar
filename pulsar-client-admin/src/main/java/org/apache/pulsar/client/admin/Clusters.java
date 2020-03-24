@@ -39,9 +39,9 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 public interface Clusters {
     /**
      * Get the list of clusters.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar clusters.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -57,9 +57,9 @@ public interface Clusters {
 
     /**
      * Get the list of clusters asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar clusters.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -71,7 +71,7 @@ public interface Clusters {
 
     /**
      * Get the configuration data for the specified cluster.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -94,7 +94,7 @@ public interface Clusters {
 
     /**
      * Get the configuration data for the specified cluster asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -111,9 +111,9 @@ public interface Clusters {
 
     /**
      * Create a new cluster.
-     * <p>
+     * <p/>
      * Provisions a new cluster. This operation requires Pulsar super-user privileges.
-     * <p>
+     * <p/>
      * The name cannot contain '/' characters.
      *
      * @param cluster
@@ -132,9 +132,9 @@ public interface Clusters {
 
     /**
      * Create a new cluster asynchronously.
-     * <p>
+     * <p/>
      * Provisions a new cluster. This operation requires Pulsar super-user privileges.
-     * <p>
+     * <p/>
      * The name cannot contain '/' characters.
      *
      * @param cluster
@@ -147,7 +147,7 @@ public interface Clusters {
 
     /**
      * Update the configuration for a cluster.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param cluster
@@ -166,7 +166,7 @@ public interface Clusters {
 
     /**
      * Update the configuration for a cluster asynchronously.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param cluster
@@ -179,7 +179,7 @@ public interface Clusters {
 
     /**
      * Update peer cluster names.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param cluster
@@ -198,7 +198,7 @@ public interface Clusters {
 
     /**
      * Update peer cluster names asynchronously.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param cluster
@@ -211,7 +211,7 @@ public interface Clusters {
 
     /**
      * Get peer-cluster names.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -232,7 +232,7 @@ public interface Clusters {
 
     /**
      * Get peer-cluster names asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -243,7 +243,7 @@ public interface Clusters {
 
     /**
      * Delete an existing cluster.
-     * <p>
+     * <p/>
      * Delete a cluster
      *
      * @param cluster
@@ -262,7 +262,7 @@ public interface Clusters {
 
     /**
      * Delete an existing cluster asynchronously.
-     * <p>
+     * <p/>
      * Delete a cluster
      *
      * @param cluster
@@ -273,7 +273,7 @@ public interface Clusters {
 
     /**
      * Get the namespace isolation policies of a cluster
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -294,7 +294,7 @@ public interface Clusters {
 
     /**
      * Get the namespace isolation policies of a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -315,7 +315,7 @@ public interface Clusters {
 
     /**
      * Create a namespace isolation policy for a cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -344,7 +344,7 @@ public interface Clusters {
 
     /**
      * Create a namespace isolation policy for a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -400,7 +400,7 @@ public interface Clusters {
 
     /**
      * Update a namespace isolation policy for a cluster
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -429,7 +429,7 @@ public interface Clusters {
 
     /**
      * Update a namespace isolation policy for a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -447,7 +447,7 @@ public interface Clusters {
 
     /**
      * Delete a namespace isolation policy for a cluster
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -473,7 +473,7 @@ public interface Clusters {
 
     /**
      * Delete a namespace isolation policy for a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -488,7 +488,7 @@ public interface Clusters {
 
     /**
      * Get a single namespace isolation policy for a cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -512,7 +512,7 @@ public interface Clusters {
 
     /**
      * Get a single namespace isolation policy for a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -525,7 +525,7 @@ public interface Clusters {
 
     /**
      * Create a domain into cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -557,7 +557,7 @@ public interface Clusters {
 
     /**
      * Create a domain into cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -575,7 +575,7 @@ public interface Clusters {
 
     /**
      * Update a domain into cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -607,7 +607,7 @@ public interface Clusters {
 
     /**
      * Update a domain into cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -625,7 +625,7 @@ public interface Clusters {
 
     /**
      * Delete a domain in cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -650,7 +650,7 @@ public interface Clusters {
 
     /**
      * Delete a domain in cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *          Cluster name
@@ -665,7 +665,7 @@ public interface Clusters {
 
     /**
      * Get all registered domains in cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -683,7 +683,7 @@ public interface Clusters {
 
     /**
      * Get all registered domains in cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -694,7 +694,7 @@ public interface Clusters {
 
     /**
      * Get the domain registered into a cluster.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name
@@ -715,7 +715,7 @@ public interface Clusters {
 
     /**
      * Get the domain registered into a cluster asynchronously.
-     * <p>
+     * <p/>
      *
      * @param cluster
      *            Cluster name

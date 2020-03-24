@@ -18,30 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.Source;
-import org.apache.pulsar.client.admin.Sources;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.functions.UpdateOptions;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.RequestBuilder;
-import org.asynchttpclient.request.body.multipart.FilePart;
-import org.asynchttpclient.request.body.multipart.StringPart;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import static org.asynchttpclient.Dsl.post;
+import static org.asynchttpclient.Dsl.put;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import com.google.gson.Gson;
+
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -49,8 +30,30 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.asynchttpclient.Dsl.post;
-import static org.asynchttpclient.Dsl.put;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Source;
+import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
 @Slf4j
 public class SourcesImpl extends ComponentResource implements Sources, Source {

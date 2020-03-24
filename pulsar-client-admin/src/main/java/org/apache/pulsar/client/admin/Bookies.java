@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Admin interface for bookies rack placement management.
