@@ -154,7 +154,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
                     "tail", "-f", "/var/log/pulsar/functions_worker.log");
             DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
                     "tail", "-f",
-                    "/tmp/functions/public/default/test-avroschema-fn-202003241756/test-avroschema-fn-202003241756-0.log");
+                    "/var/log/pulsar/functions/public/default/test-avroschema-fn-202003241756/test-avroschema-fn-202003241756-0.log");
         }
     }
 
