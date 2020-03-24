@@ -206,7 +206,8 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateFunction(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a function asynchronously.
@@ -217,7 +218,8 @@ public interface Functions {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateFunctionAsync(FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions);
+    CompletableFuture<Void> updateFunctionAsync(
+            FunctionConfig functionConfig, String fileName, UpdateOptions updateOptions);
 
     /**
      * Update the configuration for a function.
@@ -276,7 +278,8 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateFunctionWithUrl(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a function asynchronously.
@@ -293,7 +296,8 @@ public interface Functions {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateFunctionWithUrlAsync(FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions);
+    CompletableFuture<Void> updateFunctionWithUrlAsync(
+            FunctionConfig functionConfig, String pkgUrl, UpdateOptions updateOptions);
 
     /**
      * Delete an existing function.
@@ -373,7 +377,8 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(String tenant, String namespace, String function, int id)
+    FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionStatus(
+            String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
     /**
@@ -389,7 +394,8 @@ public interface Functions {
      *            Function instance-id
      * @return
      */
-    CompletableFuture<FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> getFunctionStatusAsync(String tenant, String namespace, String function, int id);
+    CompletableFuture<FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> getFunctionStatusAsync(
+            String tenant, String namespace, String function, int id);
 
     /**
      * Gets the current stats of a function instance.
@@ -405,7 +411,8 @@ public interface Functions {
      * @return
      * @throws PulsarAdminException
      */
-    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(String tenant, String namespace, String function, int id)
+    FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionStats(
+            String tenant, String namespace, String function, int id)
             throws PulsarAdminException;
 
     /**
@@ -421,7 +428,8 @@ public interface Functions {
      *            Function instance-id
      * @return
      */
-    CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(String tenant, String namespace, String function, int id);
+    CompletableFuture<FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData> getFunctionStatsAsync(
+            String tenant, String namespace, String function, int id);
 
     /**
      * Gets the current stats of a function.
@@ -650,7 +658,9 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String triggerFunction(String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile) throws PulsarAdminException;
+    String triggerFunction(
+            String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile)
+            throws PulsarAdminException;
 
     /**
      * Triggers the function by writing to the input topic asynchronously.
@@ -666,7 +676,8 @@ public interface Functions {
      * @param triggerFile
      *            The file which contains the input that will be written to input topic
      */
-    CompletableFuture<String> triggerFunctionAsync(String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile);
+    CompletableFuture<String> triggerFunctionAsync(
+            String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile);
 
     /**
      * Upload Data.
@@ -727,7 +738,8 @@ public interface Functions {
      *            Function name
      * @throws PulsarAdminException
      */
-    void downloadFunction(String destinationFile, String tenant, String namespace, String function) throws PulsarAdminException;
+    void downloadFunction(String destinationFile, String tenant, String namespace, String function)
+            throws PulsarAdminException;
 
     /**
      * Download Function Code asynchronously.
@@ -741,11 +753,12 @@ public interface Functions {
      * @param function
      *            Function name
      */
-    CompletableFuture<Void> downloadFunctionAsync(String destinationFile, String tenant, String namespace, String function);
+    CompletableFuture<Void> downloadFunctionAsync(
+            String destinationFile, String tenant, String namespace, String function);
 
     /**
-     * Deprecated in favor of getting sources and sinks for their own APIs
-     *
+     * Deprecated in favor of getting sources and sinks for their own APIs.
+     * <p/>
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
      *
      * @throws PulsarAdminException
@@ -756,8 +769,8 @@ public interface Functions {
     List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException;
 
     /**
-     * Deprecated in favor of getting sources and sinks for their own APIs
-     *
+     * Deprecated in favor of getting sources and sinks for their own APIs.
+     * <p/>
      * Fetches a list of supported Pulsar IO sources currently running in cluster mode
      *
      * @throws PulsarAdminException
@@ -768,8 +781,8 @@ public interface Functions {
     Set<String> getSources() throws PulsarAdminException;
 
     /**
-     * Deprecated in favor of getting sources and sinks for their own APIs
-     *
+     * Deprecated in favor of getting sources and sinks for their own APIs.
+     * <p/>
      * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
      *
      * @throws PulsarAdminException
@@ -806,7 +819,8 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionState getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
+    FunctionState getFunctionState(String tenant, String namespace, String function, String key)
+            throws PulsarAdminException;
 
     /**
      * Fetch the current state associated with a Pulsar Function asynchronously.
@@ -828,7 +842,8 @@ public interface Functions {
      *
      * @return the function configuration
      */
-    CompletableFuture<FunctionState> getFunctionStateAsync(String tenant, String namespace, String function, String key);
+    CompletableFuture<FunctionState> getFunctionStateAsync(
+            String tenant, String namespace, String function, String key);
 
     /**
      * Puts the given state associated with a Pulsar Function.
@@ -855,7 +870,8 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void putFunctionState(String tenant, String namespace, String function, FunctionState state) throws PulsarAdminException;
+    void putFunctionState(String tenant, String namespace, String function, FunctionState state)
+            throws PulsarAdminException;
 
     /**
      * Puts the given state associated with a Pulsar Function asynchronously.
@@ -875,5 +891,6 @@ public interface Functions {
      * @param state
      *            FunctionState
      */
-    CompletableFuture<Void> putFunctionStateAsync(String tenant, String namespace, String function, FunctionState state);
+    CompletableFuture<Void> putFunctionStateAsync(
+            String tenant, String namespace, String function, FunctionState state);
 }

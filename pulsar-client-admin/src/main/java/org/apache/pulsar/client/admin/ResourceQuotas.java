@@ -24,6 +24,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
+/**
+ * Admin interface on interacting with resource quotas.
+ */
 public interface ResourceQuotas {
 
     /**

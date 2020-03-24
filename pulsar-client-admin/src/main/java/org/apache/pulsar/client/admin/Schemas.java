@@ -140,7 +140,8 @@ public interface Schemas {
      * @param schemaPayload schema payload
      * @throws PulsarAdminException
      */
-    IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload schemaPayload) throws PulsarAdminException;
+    IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload schemaPayload)
+            throws PulsarAdminException;
 
     /**
      * Judge schema compatibility <tt>topic</tt> asynchronously.

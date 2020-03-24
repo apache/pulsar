@@ -201,7 +201,8 @@ public interface Sources {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a source asynchronously.
@@ -271,7 +272,8 @@ public interface Sources {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a source asynchronously.
@@ -288,7 +290,8 @@ public interface Sources {
      * @param updateOptions
      *            options for the update operations
      */
-    CompletableFuture<Void> updateSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions);
+    CompletableFuture<Void> updateSourceWithUrlAsync(
+            SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions);
 
     /**
      * Delete an existing source.
@@ -368,7 +371,8 @@ public interface Sources {
      * @return
      * @throws PulsarAdminException
      */
-    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant, String namespace, String source, int id)
+    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
+            String tenant, String namespace, String source, int id)
             throws PulsarAdminException;
 
     /**
@@ -384,7 +388,8 @@ public interface Sources {
      *            Source instance-id
      * @return
      */
-    CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(String tenant, String namespace, String source, int id);
+    CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(
+            String tenant, String namespace, String source, int id);
 
     /**
      * Restart source instance.

@@ -51,7 +51,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
         adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
-    
+
     @Override
     public JsonArray getMetrics() throws PulsarAdminException {
         try {

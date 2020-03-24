@@ -195,9 +195,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(String tenant, String namespace, String sinkName, int id) {
+    public CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(
+            String tenant, String namespace, String sinkName, int id) {
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status");
-        final CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> future = new CompletableFuture<>();
+        final CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> future =
+                new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
                     @Override
@@ -236,21 +238,28 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     public CompletableFuture<Void> createSinkAsync(SinkConfig sinkConfig, String fileName) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder = post(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder =
+                    post(sink.path(sinkConfig.getTenant())
+                            .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).toCompletableFuture().thenAccept(response -> {
-                if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody()).build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -303,7 +312,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
+    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions)
+            throws PulsarAdminException {
         try {
             updateSinkAsync(sinkConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -317,28 +327,38 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public CompletableFuture<Void> updateSinkAsync(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) {
+    public CompletableFuture<Void> updateSinkAsync(
+            SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder = put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder =
+                    put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
+                            .path(sinkConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (updateOptions != null) {
-                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                builder.addBodyPart(new StringPart("updateOptions",
+                        ObjectMapperFactory.getThreadLocal()
+                                .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).toCompletableFuture().thenAccept(response -> {
-                if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody()).build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -356,7 +376,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
+    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException {
         try {
             updateSinkWithUrlAsync(sinkConfig, pkgUrl, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -370,7 +391,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public CompletableFuture<Void> updateSinkWithUrlAsync(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) {
+    public CompletableFuture<Void> updateSinkWithUrlAsync(
+            SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -421,7 +443,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public CompletableFuture<Void> restartSinkAsync(String tenant, String namespace, String functionName, int instanceId) {
+    public CompletableFuture<Void> restartSinkAsync(
+            String tenant, String namespace, String functionName, int instanceId) {
         WebTarget path = sink.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
                 .path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));

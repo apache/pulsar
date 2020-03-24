@@ -183,7 +183,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
             String tenant, String namespace, String sourceName, int id) throws PulsarAdminException {
         try {
-            return getSourceStatusAsync(tenant, namespace, sourceName, id).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSourceStatusAsync(tenant, namespace, sourceName, id)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -195,9 +196,11 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(String tenant, String namespace, String sourceName, int id) {
+    public CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(
+            String tenant, String namespace, String sourceName, int id) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status");
-        final CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> future = new CompletableFuture<>();
+        final CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> future =
+                new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
                     @Override
@@ -236,21 +239,28 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public CompletableFuture<Void> createSourceAsync(SourceConfig sourceConfig, String fileName) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder = post(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder =
+                    post(source.path(sourceConfig.getTenant())
+                            .path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal()
+                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build()).toCompletableFuture().thenAccept(response -> {
-                if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody()).build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -278,7 +288,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
         mp.bodyPart(new FormDataBodyPart("sourceConfig",
                 new Gson().toJson(sourceConfig),
                 MediaType.APPLICATION_JSON_TYPE));
-        WebTarget path = source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName());
+        WebTarget path = source.path(sourceConfig.getTenant())
+                .path(sourceConfig.getNamespace()).path(sourceConfig.getName());
         return asyncPostRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
     }
 
@@ -303,7 +314,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
+    public void updateSource(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions)
+            throws PulsarAdminException {
         try {
             updateSourceAsync(sourceConfig, fileName, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -317,28 +329,38 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public CompletableFuture<Void> updateSourceAsync(SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) {
+    public CompletableFuture<Void> updateSourceAsync(
+            SourceConfig sourceConfig, String fileName, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            RequestBuilder builder = put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+            RequestBuilder builder =
+                    put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
+                            .path(sourceConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal()
+                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (updateOptions != null) {
-                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                builder.addBodyPart(new StringPart("updateOptions",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build()).toCompletableFuture().thenAccept(response -> {
-                if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody()).build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -356,9 +378,11 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
+    public void updateSourceWithUrl(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException {
         try {
-            updateSourceWithUrlAsync(sourceConfig, pkgUrl, updateOptions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            updateSourceWithUrlAsync(sourceConfig, pkgUrl, updateOptions)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -370,7 +394,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public CompletableFuture<Void> updateSourceWithUrlAsync(SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) {
+    public CompletableFuture<Void> updateSourceWithUrlAsync(
+            SourceConfig sourceConfig, String pkgUrl, UpdateOptions updateOptions) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -421,7 +446,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public CompletableFuture<Void> restartSourceAsync(String tenant, String namespace, String functionName, int instanceId) {
+    public CompletableFuture<Void> restartSourceAsync(
+            String tenant, String namespace, String functionName, int instanceId) {
         WebTarget path = source.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
                 .path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
@@ -505,7 +531,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     }
 
     @Override
-    public CompletableFuture<Void> startSourceAsync(String tenant, String namespace, String sourceName, int instanceId) {
+    public CompletableFuture<Void> startSourceAsync(
+            String tenant, String namespace, String sourceName, int instanceId) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(instanceId))
                 .path("start");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));

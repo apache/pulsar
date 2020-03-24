@@ -27,7 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
- * Admin interface for properties management
+ * Admin interface for properties management.
  *
  * @deprecated see {@link Tenants} from {@link PulsarAdmin#tenants()}
  */

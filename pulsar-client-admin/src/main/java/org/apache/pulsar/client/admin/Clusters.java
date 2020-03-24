@@ -272,7 +272,7 @@ public interface Clusters {
     CompletableFuture<Void> deleteClusterAsync(String cluster);
 
     /**
-     * Get the namespace isolation policies of a cluster
+     * Get the namespace isolation policies of a cluster.
      * <p/>
      *
      * @param cluster
@@ -339,7 +339,8 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createNamespaceIsolationPolicy(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+    void createNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -396,10 +397,11 @@ public interface Clusters {
      * @param broker
      * @return
      */
-    CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(String cluster, String broker);
+    CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
+            String cluster, String broker);
 
     /**
-     * Update a namespace isolation policy for a cluster
+     * Update a namespace isolation policy for a cluster.
      * <p/>
      *
      * @param cluster
@@ -424,7 +426,8 @@ public interface Clusters {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateNamespaceIsolationPolicy(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+    void updateNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
             throws PulsarAdminException;
 
     /**
@@ -443,10 +446,11 @@ public interface Clusters {
      * @return
      *
      */
-    CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
+    CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
 
     /**
-     * Delete a namespace isolation policy for a cluster
+     * Delete a namespace isolation policy for a cluster.
      * <p/>
      *
      * @param cluster

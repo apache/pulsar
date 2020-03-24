@@ -271,7 +271,8 @@ public interface Sinks {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a sink asynchronously.
@@ -368,7 +369,8 @@ public interface Sinks {
      * @return
      * @throws PulsarAdminException
      */
-    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant, String namespace, String sink, int id)
+    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(
+            String tenant, String namespace, String sink, int id)
             throws PulsarAdminException;
 
     /**
@@ -384,7 +386,8 @@ public interface Sinks {
      *            Sink instance-id
      * @return
      */
-    CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(String tenant, String namespace, String sink, int id);
+    CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(
+            String tenant, String namespace, String sink, int id);
 
     /**
      * Restart sink instance.
@@ -574,7 +577,7 @@ public interface Sinks {
     CompletableFuture<List<ConnectorDefinition>> getBuiltInSinksAsync();
 
     /**
-     * Reload the available built-in connectors, include Source and Sink
+     * Reload the available built-in connectors, include Source and Sink.
      *
      * @throws PulsarAdminException
      *             Unexpected error

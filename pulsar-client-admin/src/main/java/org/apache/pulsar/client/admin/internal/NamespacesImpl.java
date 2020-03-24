@@ -407,7 +407,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> grantPermissionOnNamespaceAsync(String namespace, String role, Set<AuthAction> actions) {
+    public CompletableFuture<Void> grantPermissionOnNamespaceAsync(
+            String namespace, String role, Set<AuthAction> actions) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", role);
         return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
@@ -452,14 +453,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> grantPermissionOnSubscriptionAsync(String namespace, String subscription, Set<String> roles) {
+    public CompletableFuture<Void> grantPermissionOnSubscriptionAsync(
+            String namespace, String subscription, Set<String> roles) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", "subscription", subscription);
         return asyncPostRequest(path, Entity.entity(roles, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException {
+    public void revokePermissionOnSubscription(
+            String namespace, String subscription, String role) throws PulsarAdminException {
         try {
             revokePermissionOnSubscriptionAsync(namespace, subscription, role)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -474,7 +477,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> revokePermissionOnSubscriptionAsync(String namespace, String subscription, String role) {
+    public CompletableFuture<Void> revokePermissionOnSubscriptionAsync(
+            String namespace, String subscription, String role) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", subscription, role);
         return asyncDeleteRequest(path);
@@ -610,7 +614,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setNamespaceAntiAffinityGroupAsync(String namespace, String namespaceAntiAffinityGroup) {
+    public CompletableFuture<Void> setNamespaceAntiAffinityGroupAsync(
+            String namespace, String namespaceAntiAffinityGroup) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "antiAffinity");
         return asyncPostRequest(path, Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON));
@@ -668,7 +673,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<List<String>> getAntiAffinityNamespacesAsync(String tenant, String cluster, String namespaceAntiAffinityGroup) {
+    public CompletableFuture<List<String>> getAntiAffinityNamespacesAsync(
+            String tenant, String cluster, String namespaceAntiAffinityGroup) {
         WebTarget path = adminNamespaces.path(cluster)
                 .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("property", tenant);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
@@ -831,7 +837,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup) throws PulsarAdminException {
+    public void setBookieAffinityGroup(
+            String namespace, BookieAffinityGroupData bookieAffinityGroup) throws PulsarAdminException {
         try {
             setBookieAffinityGroupAsync(namespace, bookieAffinityGroup).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -845,7 +852,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setBookieAffinityGroupAsync(String namespace, BookieAffinityGroupData bookieAffinityGroup) {
+    public CompletableFuture<Void> setBookieAffinityGroupAsync(
+            String namespace, BookieAffinityGroupData bookieAffinityGroup) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
         return asyncPostRequest(path, Entity.entity(bookieAffinityGroup, MediaType.APPLICATION_JSON));
@@ -1075,7 +1083,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
+    public void splitNamespaceBundle(
+            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
             throws PulsarAdminException {
         try {
             splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName)
@@ -1091,7 +1100,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName) {
+    public CompletableFuture<Void> splitNamespaceBundleAsync(
+            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "split")
                 .queryParam("unload", Boolean.toString(unloadSplitBundles))
@@ -1512,9 +1522,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException {
+    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode)
+            throws PulsarAdminException {
         try {
-            setSubscriptionAuthModeAsync(namespace, subscriptionAuthMode).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            setSubscriptionAuthModeAsync(namespace, subscriptionAuthMode)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -1526,7 +1538,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setSubscriptionAuthModeAsync(String namespace, SubscriptionAuthMode subscriptionAuthMode) {
+    public CompletableFuture<Void> setSubscriptionAuthModeAsync(
+            String namespace, SubscriptionAuthMode subscriptionAuthMode) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionAuthMode");
         return asyncPostRequest(path, Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON));
@@ -1590,7 +1603,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setDelayedDeliveryMessages(String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException {
+    public void setDelayedDeliveryMessages(
+            String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException {
         try {
             setDelayedDeliveryMessagesAsync(namespace, delayedDeliveryPolicies)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1605,7 +1619,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setDelayedDeliveryMessagesAsync(String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) {
+    public CompletableFuture<Void> setDelayedDeliveryMessagesAsync(
+            String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "delayedDelivery");
         return asyncPostRequest(path, Entity.entity(delayedDeliveryPolicies, MediaType.APPLICATION_JSON));
@@ -1761,7 +1776,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException {
+    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription)
+            throws PulsarAdminException {
         try {
             setMaxConsumersPerSubscriptionAsync(namespace, maxConsumersPerSubscription)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1776,7 +1792,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String namespace, int maxConsumersPerSubscription) {
+    public CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(
+            String namespace, int maxConsumersPerSubscription) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
         return asyncPostRequest(path, Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON));
@@ -1818,7 +1835,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer) throws PulsarAdminException {
+    public void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer)
+            throws PulsarAdminException {
         try {
             setMaxUnackedMessagesPerConsumerAsync(namespace, maxUnackedMessagesPerConsumer).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1833,7 +1851,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(String namespace, int maxUnackedMessagesPerConsumer) {
+    public CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(
+            String namespace, int maxUnackedMessagesPerConsumer) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxUnackedMessagesPerConsumer");
         return asyncPostRequest(path, Entity.entity(maxUnackedMessagesPerConsumer, MediaType.APPLICATION_JSON));
@@ -1875,7 +1894,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription) throws PulsarAdminException {
+    public void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription)
+            throws PulsarAdminException {
         try {
             setMaxUnackedMessagesPerSubscriptionAsync(namespace, maxUnackedMessagesPerSubscription)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1890,7 +1910,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(String namespace, int maxUnackedMessagesPerSubscription) {
+    public CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace, int maxUnackedMessagesPerSubscription) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxUnackedMessagesPerSubscription");
         return asyncPostRequest(path, Entity.entity(maxUnackedMessagesPerSubscription, MediaType.APPLICATION_JSON));
@@ -2063,7 +2084,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> setOffloadDeleteLagAsync(String namespace, long lag, TimeUnit unit) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
-        return asyncPutRequest(path, Entity.entity(TimeUnit.MILLISECONDS.convert(lag, unit), MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity(
+                TimeUnit.MILLISECONDS.convert(lag, unit), MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -2167,7 +2189,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setSchemaValidationEnforcedAsync(String namespace, boolean schemaValidationEnforced) {
+    public CompletableFuture<Void> setSchemaValidationEnforcedAsync(
+            String namespace, boolean schemaValidationEnforced) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaValidationEnforced");
         return asyncPostRequest(path, Entity.entity(schemaValidationEnforced, MediaType.APPLICATION_JSON));
@@ -2209,7 +2232,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setSchemaCompatibilityStrategy(String namespace, SchemaCompatibilityStrategy strategy) throws PulsarAdminException {
+    public void setSchemaCompatibilityStrategy(String namespace, SchemaCompatibilityStrategy strategy)
+            throws PulsarAdminException {
         try {
             setSchemaCompatibilityStrategyAsync(namespace, strategy).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -2224,7 +2248,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String namespace, SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(
+            String namespace, SchemaCompatibilityStrategy strategy) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaCompatibilityStrategy");
         return asyncPutRequest(path, Entity.entity(strategy, MediaType.APPLICATION_JSON));
@@ -2266,7 +2291,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema) throws PulsarAdminException {
+    public void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
+            throws PulsarAdminException {
         try {
             setIsAllowAutoUpdateSchemaAsync(namespace, isAllowAutoUpdateSchema).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

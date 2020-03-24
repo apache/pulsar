@@ -104,7 +104,7 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <executions>
           <execution>
-            <id>check-style</id>
+            <id>checkstyle</id>
             <phase>verify</phase>
             <configuration>
               <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>

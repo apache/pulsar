@@ -156,7 +156,7 @@ public class PulsarAdmin implements Closeable {
         if (auth != null) {
             auth.start();
         }
-        
+
         if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
         }
@@ -410,7 +410,7 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * Close the Pulsar admin client to release all the resources
+     * Close the Pulsar admin client to release all the resources.
      */
     @Override
     public void close() {

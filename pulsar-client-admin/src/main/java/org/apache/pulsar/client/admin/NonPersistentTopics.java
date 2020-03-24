@@ -118,7 +118,7 @@ public interface NonPersistentTopics {
      * }
      * </code>
      * </pre>
-     *
+     * <p/>
      * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
      *
      * @param topic
@@ -231,7 +231,7 @@ public interface NonPersistentTopics {
     CompletableFuture<Void> unloadAsync(String topic);
 
     /**
-     * Get list of topics exist into given bundle
+     * Get list of topics exist into given bundle.
      *
      * @param namespace
      * @param bundleRange
@@ -251,7 +251,7 @@ public interface NonPersistentTopics {
     CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange);
 
     /**
-     * Get list of topics exist into given namespace
+     * Get list of topics exist into given namespace.
      *
      * @param namespace
      * @return

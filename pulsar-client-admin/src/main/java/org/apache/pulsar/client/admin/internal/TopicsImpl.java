@@ -82,7 +82,9 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
+    // CHECKSTYLE.OFF: MemberName
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    // CHECKSTYLE.ON: MemberName
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
@@ -317,9 +319,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
-    	try {
+        try {
             createNonPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-    	} catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -345,9 +347,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
-    	TopicName tn = validateTopic(topic);
-    	WebTarget path = topicPath(tn);
-    	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn);
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -387,7 +389,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly) throws PulsarAdminException {
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
+            throws PulsarAdminException {
         try {
             updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -719,7 +722,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     public PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog)
             throws PulsarAdminException {
         try {
-            return getPartitionedStatsAsync(topic, perPartition, getPreciseBacklog).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getPartitionedStatsAsync(topic, perPartition, getPreciseBacklog)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -884,7 +888,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void expireMessagesForAllSubscriptions(String topic, long expireTimeInSeconds) throws PulsarAdminException {
         try {
-            expireMessagesForAllSubscriptionsAsync(topic, expireTimeInSeconds).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            expireMessagesForAllSubscriptionsAsync(topic, expireTimeInSeconds)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -1122,18 +1127,18 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(tn, "offload");
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON), new InvocationCallback<MessageIdImpl>() {
-                @Override
-                public void completed(MessageIdImpl response) {
-                    future.complete(null);
-                }
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON)
+                    , new InvocationCallback<MessageIdImpl>() {
+                        @Override
+                        public void completed(MessageIdImpl response) {
+                            future.complete(null);
+                        }
 
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-
-            });
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
@@ -1242,8 +1247,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                     .newBuilder();
             ByteBuf buf = Unpooled.wrappedBuffer(data);
             try {
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i,
-                        batchSize);
+                ByteBuf singleMessagePayload =
+                        Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i, batchSize);
                 SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.build();
                 if (singleMessageMetadata.getPropertiesCount() > 0) {
                     for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
