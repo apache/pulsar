@@ -57,7 +57,8 @@ public class AvroReader<T> implements SchemaReader<T> {
             this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
-        }    }
+        }
+    }
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
         log.info("AvroRaeader3 - classLoader: {}", classLoader);
