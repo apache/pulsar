@@ -144,11 +144,17 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         super.start();
         this.tailContainerLog();
         if (this.getContainerName().contains("pulsar-broker")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/broker.log");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "tail", "-f", "/var/log/pulsar/broker.log");
         } else if (this.getContainerName().contains("bookie")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/bookie.log");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "tail", "-f", "/var/log/pulsar/bookie.log");
         } else if (this.getContainerName().contains("functions-worker")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(), "tail", "-f", "/var/log/pulsar/functions_worker.log");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "tail", "-f", "/var/log/pulsar/functions_worker.log");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "tail", "-f",
+                    "/tmp/functions/public/default/test-avroschema-fn-202003241756/test-avroschema-fn-202003241756-0");
         }
     }
 

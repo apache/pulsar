@@ -45,9 +45,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
-import org.apache.pulsar.functions.api.examples.CustomBaseObject;
-import org.apache.pulsar.functions.api.examples.CustomBaseToDerivedFunction;
-import org.apache.pulsar.functions.api.examples.CustomDerivedObject;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
@@ -61,6 +58,7 @@ import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
@@ -2147,7 +2145,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
-        final String functionName = "test-avroschema-fn-" + randomName(8);
+        final String functionName = "test-avroschema-fn-202003241756";
         final int numMessages = 10;
 
         if (pulsarCluster == null) {
@@ -2178,8 +2176,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 outputTopic,
                 functionName,
                 null,
-                CustomBaseToDerivedFunction.class.getName(),
-                Schema.AVRO(CustomBaseObject.class));
+                AvroSchemaTestFunction.class.getName(),
+                Schema.AVRO(AvroTestObject.class));
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
