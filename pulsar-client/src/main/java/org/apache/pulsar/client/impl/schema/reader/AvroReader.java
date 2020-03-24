@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
+import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
@@ -45,16 +47,29 @@ public class AvroReader<T> implements SchemaReader<T> {
     public AvroReader(Schema schema, ClassLoader classLoader) {
         log.info("AvroRaeader2 - classLoader: {}", classLoader);
         if (classLoader != null) {
-            this.reader = new ReflectDatumReader<>(schema, schema, new ReflectData(classLoader));
+            ReflectData reflectData = new ReflectData(classLoader);
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
-        }
-    }
+        }    }
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
         log.info("AvroRaeader3 - classLoader: {}", classLoader);
         if (classLoader != null) {
-            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, new ReflectData(classLoader));
+            ReflectData reflectData = new ReflectData(classLoader);
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            this.reader = new ReflectDatumReader<>(reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
         }
