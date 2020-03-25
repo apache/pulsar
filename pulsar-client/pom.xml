@@ -83,7 +83,13 @@
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
-    
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
@@ -131,8 +137,8 @@
       <groupId>net.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
     </dependency>
-    
-    <!-- httpclient-hostname-verification depends on below dependencies  --> 
+
+    <!-- httpclient-hostname-verification depends on below dependencies  -->
     <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
@@ -157,7 +163,7 @@
       <artifactId>jsonassert</artifactId>
       <version>${skyscreamer.version}</version>
       <scope>test</scope>
-    </dependency> 
+    </dependency>
   </dependencies>
 
   <build>

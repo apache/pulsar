@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.util.SecurityUtility.BC;
+import static org.apache.pulsar.common.util.SecurityUtility.BC_FIPS;
+import static org.apache.pulsar.common.util.SecurityUtility.BC_PROVIDER;
+import static org.apache.pulsar.common.util.SecurityUtility.isBCFIPS;
+
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -27,6 +32,7 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -71,12 +77,12 @@ import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.ECParameterSpec;
-import org.bouncycastle.jce.spec.ECPrivateKeySpec;
-import org.bouncycastle.jce.spec.ECPublicKeySpec;
+//import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
+//import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jce.spec.ECParameterSpec;
+//import org.bouncycastle.jce.spec.ECPrivateKeySpec;
+//import org.bouncycastle.jce.spec.ECPublicKeySpec;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -113,7 +119,6 @@ public class MessageCrypto {
     static final SecureRandom secureRandom;
     static {
 
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         SecureRandom rand = null;
         try {
             rand = SecureRandom.getInstance("NativePRNGNonBlocking");
@@ -143,7 +148,7 @@ public class MessageCrypto {
 
         try {
 
-            cipher = Cipher.getInstance(AESGCM, BouncyCastleProvider.PROVIDER_NAME);
+            cipher = Cipher.getInstance(AESGCM, BC_PROVIDER.getName());
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
 
@@ -152,7 +157,7 @@ public class MessageCrypto {
                 dataKey = null;
                 return;
             }
-            keyGenerator = KeyGenerator.getInstance("AES");
+            keyGenerator = KeyGenerator.getInstance("AES", BC_PROVIDER.getName());
             int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
             if (aesKeyLength <= 128) {
                 log.warn(
@@ -176,108 +181,165 @@ public class MessageCrypto {
         iv = new byte[ivLen];
     }
 
-    private PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
 
-        Reader keyReader = new StringReader(new String(keyBytes));
-        PublicKey publicKey = null;
-        try (org.bouncycastle.openssl.PEMParser pemReader = new org.bouncycastle.openssl.PEMParser(keyReader)) {
-            Object pemObj = pemReader.readObject();
-            JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
-            SubjectPublicKeyInfo keyInfo = null;
-            X9ECParameters ecParam = null;
+    private static PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
+        try {
+            if (!isBCFIPS()) {
+                // if non fips,
+                Class clazz = Class.forName("org.apache.pulsar.bcloader.BcKeyLoader");
+                Method method = clazz.getMethod("loadPublicKey", byte[].class);
 
-            if (pemObj instanceof ASN1ObjectIdentifier) {
-
-                // make sure this is EC Parameter we're handling. In which case
-                // we'll store it and read the next object which should be our
-                // EC Public Key
-
-                ASN1ObjectIdentifier ecOID = (ASN1ObjectIdentifier) pemObj;
-                ecParam = ECNamedCurveTable.getByOID(ecOID);
-                if (ecParam == null) {
-                    throw new PEMException("Unable to find EC Parameter for the given curve oid: "
-                            + ((ASN1ObjectIdentifier) pemObj).getId());
-                }
-
-                pemObj = pemReader.readObject();
-            } else if (pemObj instanceof X9ECParameters) {
-                ecParam = (X9ECParameters) pemObj;
-                pemObj = pemReader.readObject();
-            }
-
-            if (pemObj instanceof org.bouncycastle.cert.X509CertificateHolder) {
-                keyInfo = ((org.bouncycastle.cert.X509CertificateHolder) pemObj).getSubjectPublicKeyInfo();
+                return (PublicKey) method.invoke(keyBytes);
             } else {
-                keyInfo = (SubjectPublicKeyInfo) pemObj;
-            }
-            publicKey = pemConverter.getPublicKey(keyInfo);
+                Class clazz = Class.forName("org.apache.pulsar.bcloader.BcFipsKeyLoader");
+                Method method = clazz.getMethod("loadPublicKey", byte[].class);
 
-            if (ecParam != null && ECDSA.equals(publicKey.getAlgorithm())) {
-                ECParameterSpec ecSpec = new ECParameterSpec(ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
-                        ecParam.getH(), ecParam.getSeed());
-                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
-                ECPublicKeySpec keySpec = new ECPublicKeySpec(((BCECPublicKey) publicKey).getQ(), ecSpec);
-                publicKey = (PublicKey) keyFactory.generatePublic(keySpec);
+                return (PublicKey) method.invoke(keyBytes);
             }
-        } catch (IOException | NoSuchAlgorithmException | NoSuchProviderException | InvalidKeySpecException e) {
-            throw new Exception(e);
+        } catch (Exception e) {
+            log.warn("Meet messages ");
+            throw e;
         }
-        return publicKey;
     }
 
-    private PrivateKey loadPrivateKey(byte[] keyBytes) throws Exception {
+    private static PrivateKey loadPrivateKey(byte[] keyBytes) throws Exception {
+        try {
+            if (!isBCFIPS()) {
+                // if non fips,
+                Class clazz = Class.forName("org.apache.pulsar.bcloader.BcKeyLoader");
+                Method method = clazz.getMethod("loadPrivateKeyKey", byte[].class);
 
-        Reader keyReader = new StringReader(new String(keyBytes));
-        PrivateKey privateKey = null;
-        try (PEMParser pemReader = new PEMParser(keyReader)) {
-            X9ECParameters ecParam = null;
+                return (PrivateKey) method.invoke(keyBytes);
+            } else {
+                Class clazz = Class.forName("org.apache.pulsar.bcloader.BcFipsKeyLoader");
+                Method method = clazz.getMethod("loadPrivateKey", byte[].class);
 
-            Object pemObj = pemReader.readObject();
-
-            if (pemObj instanceof ASN1ObjectIdentifier) {
-
-                // make sure this is EC Parameter we're handling. In which case
-                // we'll store it and read the next object which should be our
-                // EC Private Key
-
-                ASN1ObjectIdentifier ecOID = (ASN1ObjectIdentifier) pemObj;
-                ecParam = ECNamedCurveTable.getByOID(ecOID);
-                if (ecParam == null) {
-                    throw new PEMException("Unable to find EC Parameter for the given curve oid: " + ecOID.getId());
-                }
-
-                pemObj = pemReader.readObject();
-
-            } else if (pemObj instanceof X9ECParameters) {
-
-                ecParam = (X9ECParameters) pemObj;
-                pemObj = pemReader.readObject();
+                return (PrivateKey) method.invoke(keyBytes);
             }
-
-            if (pemObj instanceof PEMKeyPair) {
-
-                PrivateKeyInfo pKeyInfo = ((PEMKeyPair) pemObj).getPrivateKeyInfo();
-                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
-                privateKey = pemConverter.getPrivateKey(pKeyInfo);
-
-            }
-
-            // if our private key is EC type and we have parameters specified
-            // then we need to set it accordingly
-
-            if (ecParam != null && ECDSA.equals(privateKey.getAlgorithm())) {
-                ECParameterSpec ecSpec = new ECParameterSpec(ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
-                        ecParam.getH(), ecParam.getSeed());
-                KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
-                ECPrivateKeySpec keySpec = new ECPrivateKeySpec(((BCECPrivateKey) privateKey).getS(), ecSpec);
-                privateKey = (PrivateKey) keyFactory.generatePrivate(keySpec);
-            }
-
-        } catch (IOException e) {
-            throw new Exception(e);
+        } catch (Exception e) {
+            log.warn("Meet messages ");
+            throw e;
         }
-        return privateKey;
     }
+
+//
+//    private static PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
+//        Reader keyReader = new StringReader(new String(keyBytes));
+//        PublicKey publicKey = null;
+//        try (PEMParser pemReader = new PEMParser(keyReader)) {
+//            Object pemObj = pemReader.readObject();
+//            JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+//            SubjectPublicKeyInfo keyInfo = null;
+//            X9ECParameters ecParam = null;
+//
+//            if (pemObj instanceof ASN1ObjectIdentifier) {
+//
+//                // make sure this is EC Parameter we're handling. In which case
+//                // we'll store it and read the next object which should be our
+//                // EC Public Key
+//
+//                ASN1ObjectIdentifier ecOID = (ASN1ObjectIdentifier) pemObj;
+//                ecParam = ECNamedCurveTable.getByOID(ecOID);
+//                if (ecParam == null) {
+//                    throw new PEMException("Unable to find EC Parameter for the given curve oid: "
+//                            + ((ASN1ObjectIdentifier) pemObj).getId());
+//                }
+//
+//                pemObj = pemReader.readObject();
+//            } else if (pemObj instanceof X9ECParameters) {
+//                ecParam = (X9ECParameters) pemObj;
+//                pemObj = pemReader.readObject();
+//            }
+//
+//            if (pemObj instanceof org.bouncycastle.cert.X509CertificateHolder) {
+//                keyInfo = ((org.bouncycastle.cert.X509CertificateHolder) pemObj).getSubjectPublicKeyInfo();
+//            } else {
+//                keyInfo = (SubjectPublicKeyInfo) pemObj;
+//            }
+//            publicKey = pemConverter.getPublicKey(keyInfo);
+//
+//
+//            if (ecParam != null && ECDSA.equals(publicKey.getAlgorithm())) {
+//                if (!isBCFIPS()) {
+//                    org.bouncycastle.jce.spec.ECParameterSpec ecSpec = new org.bouncycastle.jce.spec.ECParameterSpec(ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
+//                            ecParam.getH(), ecParam.getSeed());
+//                    KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BC_PROVIDER.getName());
+//                    org.bouncycastle.jce.spec.ECPublicKeySpec keySpec =
+//                            new org.bouncycastle.jce.spec.ECPublicKeySpec(
+//                                    ((org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey) publicKey).getQ(),
+//                                    ecSpec);
+//                    publicKey = (PublicKey) keyFactory.generatePublic(keySpec);
+//                } else {
+//                    // handle bouncycastle FIPS version
+//                    // if FIPS now, env should already have related class loaded.
+//
+//
+//                }
+//            }
+//        } catch (IOException | NoSuchAlgorithmException | NoSuchProviderException | InvalidKeySpecException e) {
+//            throw new Exception(e);
+//        }
+//        return publicKey;
+//    }
+//
+//    private static PrivateKey loadPrivateKey(byte[] keyBytes) throws Exception {
+//
+//        Reader keyReader = new StringReader(new String(keyBytes));
+//        PrivateKey privateKey = null;
+//        try (PEMParser pemReader = new PEMParser(keyReader)) {
+//            X9ECParameters ecParam = null;
+//
+//            Object pemObj = pemReader.readObject();
+//
+//            if (pemObj instanceof ASN1ObjectIdentifier) {
+//
+//                // make sure this is EC Parameter we're handling. In which case
+//                // we'll store it and read the next object which should be our
+//                // EC Private Key
+//
+//                ASN1ObjectIdentifier ecOID = (ASN1ObjectIdentifier) pemObj;
+//                ecParam = ECNamedCurveTable.getByOID(ecOID);
+//                if (ecParam == null) {
+//                    throw new PEMException("Unable to find EC Parameter for the given curve oid: " + ecOID.getId());
+//                }
+//
+//                pemObj = pemReader.readObject();
+//
+//            } else if (pemObj instanceof X9ECParameters) {
+//
+//                ecParam = (X9ECParameters) pemObj;
+//                pemObj = pemReader.readObject();
+//            }
+//
+//            if (pemObj instanceof PEMKeyPair) {
+//
+//                PrivateKeyInfo pKeyInfo = ((PEMKeyPair) pemObj).getPrivateKeyInfo();
+//                JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
+//                privateKey = pemConverter.getPrivateKey(pKeyInfo);
+//
+//            }
+//
+//            // if our private key is EC type and we have parameters specified
+//            // then we need to set it accordingly
+//            if (ecParam != null && ECDSA.equals(privateKey.getAlgorithm())) {
+//                if (!isBCFIPS()) {
+//                    org.bouncycastle.jce.spec.ECParameterSpec ecSpec = new org.bouncycastle.jce.spec.ECParameterSpec(
+//                            ecParam.getCurve(), ecParam.getG(), ecParam.getN(),
+//                            ecParam.getH(), ecParam.getSeed());
+//                    KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BC_PROVIDER.getName());
+//                    org.bouncycastle.jce.spec.ECPrivateKeySpec keySpec =
+//                            new org.bouncycastle.jce.spec.ECPrivateKeySpec(
+//                                    ((org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey) privateKey).getS(),
+//                                    ecSpec);
+//                    privateKey = (PrivateKey) keyFactory.generatePrivate(keySpec);
+//                }
+//            }
+//
+//        } catch (IOException e) {
+//            throw new Exception(e);
+//        }
+//        return privateKey;
+//    }
 
     /*
      * Encrypt data key using the public key(s) in the argument. <p> If more than one key name is specified, data key is
@@ -326,9 +388,9 @@ public class MessageCrypto {
 
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BC_PROVIDER.getName());
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(ECIES, BC_PROVIDER.getName());
             } else {
                 String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
                 log.error(msg);
@@ -477,9 +539,9 @@ public class MessageCrypto {
 
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(RSA_TRANS, BC_PROVIDER.getName());
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
-                dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                dataKeyCipher = Cipher.getInstance(ECIES, BC_PROVIDER.getName());
             } else {
                 log.error("Unsupported key type {} for key {}.", privateKey.getAlgorithm(), keyName);
                 return false;
