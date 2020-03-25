@@ -20,6 +20,13 @@ package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -29,7 +36,6 @@ import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -39,13 +45,6 @@ import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 public class SchemasImpl extends BaseResource implements Schemas {
 
@@ -224,7 +223,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     @Override
-    public IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload payload) throws PulsarAdminException {
+    public IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload payload)
+            throws PulsarAdminException {
         try {
             return testCompatibilityAsync(topic, payload).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -242,17 +242,18 @@ public class SchemasImpl extends BaseResource implements Schemas {
         TopicName tn = TopicName.get(topic);
         final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
         try {
-            request(compatibilityPath(tn)).async().post(Entity.json(payload), new InvocationCallback<IsCompatibilityResponse>() {
-                @Override
-                public void completed(IsCompatibilityResponse isCompatibilityResponse) {
-                    future.complete(isCompatibilityResponse);
-                }
+            request(compatibilityPath(tn)).async().post(Entity.json(payload),
+                    new InvocationCallback<IsCompatibilityResponse>() {
+                        @Override
+                        public void completed(IsCompatibilityResponse isCompatibilityResponse) {
+                            future.complete(isCompatibilityResponse);
+                        }
 
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-            });
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
@@ -277,18 +278,18 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<Long> getVersionBySchemaAsync(String topic, PostSchemaPayload payload) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
         try {
-            request(versionPath(TopicName.get(topic))).async().post(Entity.json(payload), new InvocationCallback<LongSchemaVersionResponse>() {
+            request(versionPath(TopicName.get(topic))).async().post(Entity.json(payload)
+                    , new InvocationCallback<LongSchemaVersionResponse>() {
+                        @Override
+                        public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
+                            future.complete(longSchemaVersionResponse.getVersion());
+                        }
 
-                @Override
-                public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
-                    future.complete(longSchemaVersionResponse.getVersion());
-                }
-
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-            });
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
         } catch (PulsarAdminException cae) {
             future.completeExceptionally(cae);
         }
@@ -395,7 +396,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
                     public void completed(GetAllVersionsSchemaResponse response) {
                         future.complete(
                                 response.getGetSchemaResponses().stream()
-                                        .map(getSchemaResponse -> convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
+                                        .map(getSchemaResponse ->
+                                                convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
                                         .collect(Collectors.toList()));
                     }
 
@@ -445,7 +447,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
         SchemaInfo info = new SchemaInfo();
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
-            schema = DefaultImplementation.convertKeyValueDataStringToSchemaInfoSchema(response.getData().getBytes(UTF_8));
+            schema = DefaultImplementation.convertKeyValueDataStringToSchemaInfoSchema(
+                    response.getData().getBytes(UTF_8));
         } else {
             schema = response.getData().getBytes(UTF_8);
         }
@@ -477,7 +480,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
         }
 
         if (schemaInfo.getType() == SchemaType.KEY_VALUE) {
-           return DefaultImplementation.convertKeyValueSchemaInfoDataToString(DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo));
+           return DefaultImplementation.convertKeyValueSchemaInfoDataToString(
+                   DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo));
         }
 
         return new String(schemaData, UTF_8);

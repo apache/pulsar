@@ -16,30 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import javax.ws.rs.ext.ContextResolver;
-import javax.ws.rs.ext.Provider;
-
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-
-/**
- * Provides custom configuration for jackson.
- */
-@Provider
-public class JacksonConfigurator implements ContextResolver<ObjectMapper> {
-
-    private final ObjectMapper mapper;
-
-    public JacksonConfigurator() {
-        mapper = ObjectMapperFactory.create();
-    }
-
-    @Override
-    public ObjectMapper getContext(Class<?> type) {
-        return mapper;
-    }
-
-}
+package org.apache.pulsar.client.admin.internal.http;

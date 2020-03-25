@@ -155,7 +155,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void updatePeerClusterNames(String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException {
+    public void updatePeerClusterNames(
+            String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException {
         try {
             updatePeerClusterNamesAsync(cluster, peerClusterNames).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -176,7 +177,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     @SuppressWarnings("unchecked")
-	public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
+    public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
         try {
             return getPeerClusterNamesAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -187,7 +188,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
         } catch (TimeoutException e) {
             throw new PulsarAdminException.TimeoutException(e);
         }
-	}
+    }
 
     @Override
     public CompletableFuture<Set<String>> getPeerClusterNamesAsync(String cluster) {
@@ -229,7 +230,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster) throws PulsarAdminException {
+    public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(String cluster)
+            throws PulsarAdminException {
         try {
             return getNamespaceIsolationPoliciesAsync(cluster).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -277,7 +279,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(String cluster) {
+    public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
+            String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
         final CompletableFuture<List<BrokerNamespaceIsolationData>> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -299,7 +302,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
             throws PulsarAdminException {
         try {
-            return getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getBrokerWithNamespaceIsolationPolicyAsync(cluster, broker)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -311,7 +315,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(String cluster, String broker) {
+    public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
+            String cluster, String broker) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
         final CompletableFuture<BrokerNamespaceIsolationData> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -336,7 +341,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> createNamespaceIsolationPolicyAsync(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+    public CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
         return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
@@ -347,7 +353,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+    public CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
         return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
@@ -409,7 +416,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(String cluster, String policyName) {
+    public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(
+            String cluster, String policyName) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
         final CompletableFuture<NamespaceIsolationData> future = new CompletableFuture<>();
         asyncGetRequest(path,
@@ -428,7 +436,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void createFailureDomain(String cluster, String domainName, FailureDomain domain) throws PulsarAdminException {
+    public void createFailureDomain(String cluster, String domainName, FailureDomain domain)
+            throws PulsarAdminException {
         setDomain(cluster, domainName, domain);
     }
 
@@ -438,7 +447,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     @Override
-    public void updateFailureDomain(String cluster, String domainName, FailureDomain domain) throws PulsarAdminException {
+    public void updateFailureDomain(String cluster, String domainName, FailureDomain domain)
+            throws PulsarAdminException {
         setDomain(cluster, domainName, domain);
     }
 

@@ -25,6 +25,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
 
+/**
+ * Admin specific Jersey client connector provider.
+ */
 public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     private final ClientConfigurationData conf;
