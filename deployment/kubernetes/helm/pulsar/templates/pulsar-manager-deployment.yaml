@@ -60,27 +60,21 @@ spec:
         - name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}"
           image: "{{ .Values.pulsar_manager.image.repository }}:{{ .Values.pulsar_manager.image.tag }}"
           imagePullPolicy: {{ .Values.pulsar_manager.image.pullPolicy }}
-        {{- if .Values.grafana.resources }}
+        {{- if .Values.pulsar_manager.resources }}
           resources:
-{{ toYaml .Values.pulsar_manager.resources | indent 10 }}
+{{ toYaml .Values.pulsar_manager.resources | indent 12 }}
         {{- end }}
           ports:
           - containerPort: 9527
           volumeMounts:
           - name: pulsar-manager-data
             mountPath: /data
+          envFrom:
+          - configMapRef:
+              name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}"
           env:
-          # for supporting apachepulsar/pulsar-manager
           - name: PULSAR_CLUSTER
             value: {{ template "pulsar.fullname" . }}
-          - name: REDIRECT_HOST
-            value: http://127.0.0.1
-          - name: REDIRECT_PORT
-            value: "9527"
-          - name: DRIVER_CLASS_NAME
-            value: org.postgresql.Driver
-          - name: URL
-            value: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
           - name: USERNAME
             valueFrom:
               secretKeyRef:
@@ -91,8 +85,6 @@ spec:
               secretKeyRef:
                 key: PULSAR_MANAGER_ADMIN_PASSWORD
                 name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_manager.component }}-secret"
-          - name: LOG_LEVEL
-            value: DEBUG
       volumes:
         - name: pulsar-manager-data
           emptyDir: {}

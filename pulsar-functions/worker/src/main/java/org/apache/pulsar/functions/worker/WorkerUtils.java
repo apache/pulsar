@@ -75,13 +75,11 @@ public final class WorkerUtils {
         // if the dest directory does not exist, create it.
         if (dlogNamespace.logExists(destPkgPath)) {
             // if the destination file exists, write a log message
-            log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    destPkgPath));
+            log.info("Target function file already exists at '{}'. Overwriting it now", destPkgPath);
             dlogNamespace.deleteLog(destPkgPath);
         }
         // copy the topology package to target working directory
-        log.info(String.format("Uploading function package to '%s'",
-                destPkgPath));
+        log.info("Uploading function package to '{}'", destPkgPath);
 
         try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
             try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){

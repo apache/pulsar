@@ -52,6 +52,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Abstract base class for all admin resources.
+ */
 public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
@@ -87,7 +90,7 @@ public abstract class BaseResource {
             // auth complete, return a new Builder
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at authn stage: {}",
+                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(),
                         ex.getMessage());
                     builderFuture.completeExceptionally(new PulsarClientException(ex));
                     return;

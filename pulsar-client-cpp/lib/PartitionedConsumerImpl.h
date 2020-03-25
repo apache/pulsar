@@ -64,6 +64,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);

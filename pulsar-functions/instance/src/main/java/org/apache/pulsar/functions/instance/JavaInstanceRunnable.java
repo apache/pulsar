@@ -53,10 +53,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.protocol.schema.LatestVersion;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -756,6 +754,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                         this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
+                pulsarSinkConfig.setForwardSourceMessageProperty(
+                        this.instanceConfig.getFunctionDetails().getSink().getForwardSourceMessageProperty());
 
                 if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
                     pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());

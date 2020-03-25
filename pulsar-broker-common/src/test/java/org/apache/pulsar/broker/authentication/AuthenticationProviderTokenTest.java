@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import io.jsonwebtoken.Claims;
@@ -28,6 +31,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.Cleanup;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,6 +50,7 @@ import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
@@ -532,5 +537,37 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
 
         new AuthenticationProviderToken().initialize(conf);
+    }
+
+
+    @Test
+    public void testExpiringToken() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Create a token that will expire in 3 seconds
+        String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+
+        AuthenticationState authState = provider.newAuthState(AuthData.of(expiringToken.getBytes()), null, null);
+        assertTrue(authState.isComplete());
+        assertFalse(authState.isExpired());
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(6));
+        assertTrue(authState.isExpired());
+        assertTrue(authState.isComplete());
+
+        AuthData brokerData = authState.refreshAuthentication();
+        assertNull(brokerData);
     }
 }

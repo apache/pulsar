@@ -32,7 +32,9 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -43,14 +45,14 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
- * Admin interface for namespaces management
+ * Admin interface for namespaces management.
  */
 public interface Namespaces {
     /**
      * Get the list of namespaces.
-     * <p>
+     * <p/>
      * Get the list of all the namespaces for a certain tenant.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -72,10 +74,28 @@ public interface Namespaces {
     List<String> getNamespaces(String tenant) throws PulsarAdminException;
 
     /**
+     * Get the list of namespaces asynchronously.
+     * <p/>
+     * Get the list of all the namespaces for a certain tenant.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["my-tenant/c1/namespace1",
+     *  "my-tenant/global/namespace2",
+     *  "my-tenant/c2/namespace3"]</code>
+     * </pre>
+     *
+     * @param tenant
+     *            Tenant name
+     */
+    CompletableFuture<List<String>> getNamespacesAsync(String tenant);
+
+    /**
      * Get the list of namespaces.
-     * <p>
+     * <p/>
      * Get the list of all the namespaces for a certain tenant on single cluster.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -99,9 +119,9 @@ public interface Namespaces {
 
     /**
      * Get the list of topics.
-     * <p>
+     * <p/>
      * Get the list of all the topics under a certain namespace.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -122,10 +142,27 @@ public interface Namespaces {
     List<String> getTopics(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the list of topics asynchronously.
+     * <p/>
+     * Get the list of all the topics under a certain namespace.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getTopicsAsync(String namespace);
+
+    /**
      * Get policies for a namespace.
-     * <p>
+     * <p/>
      * Get the dump all the policies specified for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -161,8 +198,40 @@ public interface Namespaces {
     Policies getPolicies(String namespace) throws PulsarAdminException;
 
     /**
+     * Get policies for a namespace asynchronously.
+     * <p/>
+     * Get the dump all the policies specified for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>{
+     *   "auth_policies" : {
+     *     "namespace_auth" : {
+     *       "my-role" : [ "produce" ]
+     *     },
+     *     "destination_auth" : {
+     *       "persistent://prop/local/ns1/my-topic" : {
+     *         "role-1" : [ "produce" ],
+     *         "role-2" : [ "consume" ]
+     *       }
+     *     }
+     *   },
+     *   "replication_clusters" : ["use", "usw"],
+     *   "message_ttl_in_seconds" : 300
+     * }</code>
+     * </pre>
+     *
+     * @see Policies
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Policies> getPoliciesAsync(String namespace);
+
+    /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -183,7 +252,19 @@ public interface Namespaces {
 
     /**
      * Create a new namespace.
-     * <p>
+     * <p/>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param numBundles
+     *            Number of bundles
+     */
+    CompletableFuture<Void> createNamespaceAsync(String namespace, int numBundles);
+
+    /**
+     * Create a new namespace.
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -203,8 +284,20 @@ public interface Namespaces {
     void createNamespace(String namespace, BundlesData bundlesData) throws PulsarAdminException;
 
     /**
+     * Create a new namespace asynchronously.
+     * <p/>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundlesData
+     *            Bundles Data
+     */
+    CompletableFuture<Void> createNamespaceAsync(String namespace, BundlesData bundlesData);
+
+    /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -222,8 +315,18 @@ public interface Namespaces {
     void createNamespace(String namespace) throws PulsarAdminException;
 
     /**
+     * Create a new namespace asynchronously.
+     * <p/>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> createNamespaceAsync(String namespace);
+
+    /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new empty namespace with no policies attached.
      *
      * @param namespace
@@ -244,8 +347,21 @@ public interface Namespaces {
     void createNamespace(String namespace, Set<String> clusters) throws PulsarAdminException;
 
     /**
+     * Create a new namespace asynchronously.
+     * <p/>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusters
+     *            Clusters in which the namespace will be present. If more than one cluster is present, replication
+     *            across clusters will be enabled.
+     */
+    CompletableFuture<Void> createNamespaceAsync(String namespace, Set<String> clusters);
+
+    /**
      * Create a new namespace.
-     * <p>
+     * <p/>
      * Creates a new namespace with the specified policies.
      *
      * @param namespace
@@ -267,8 +383,20 @@ public interface Namespaces {
     void createNamespace(String namespace, Policies policies) throws PulsarAdminException;
 
     /**
+     * Create a new namespace asynchronously.
+     * <p/>
+     * Creates a new namespace with the specified policies.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param policies
+     *            Policies for the namespace
+     */
+    CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies);
+
+    /**
      * Delete an existing namespace.
-     * <p>
+     * <p/>
      * The namespace needs to be empty.
      *
      * @param namespace
@@ -286,8 +414,18 @@ public interface Namespaces {
     void deleteNamespace(String namespace) throws PulsarAdminException;
 
     /**
+     * Delete an existing namespace asynchronously.
+     * <p/>
+     * The namespace needs to be empty.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> deleteNamespaceAsync(String namespace);
+
+    /**
      * Delete an existing bundle in a namespace.
-     * <p>
+     * <p/>
      * The bundle needs to be empty.
      *
      * @param namespace
@@ -308,7 +446,7 @@ public interface Namespaces {
 
     /**
      * Delete an existing bundle in a namespace asynchronously.
-     * <p>
+     * <p/>
      * The bundle needs to be empty.
      *
      * @param namespace
@@ -322,9 +460,9 @@ public interface Namespaces {
 
     /**
      * Get permissions on a namespace.
-     * <p>
+     * <p/>
      * Retrieve the permissions for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -347,10 +485,29 @@ public interface Namespaces {
     Map<String, Set<AuthAction>> getPermissions(String namespace) throws PulsarAdminException;
 
     /**
+     * Get permissions on a namespace asynchronously.
+     * <p/>
+     * Retrieve the permissions for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>{
+     *   "my-role" : [ "produce" ]
+     *   "other-role" : [ "consume" ]
+     * }</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String namespace);
+
+    /**
      * Grant permission on a namespace.
-     * <p>
+     * <p/>
      * Grant a new permission to a client role on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -376,8 +533,28 @@ public interface Namespaces {
     void grantPermissionOnNamespace(String namespace, String role, Set<AuthAction> actions) throws PulsarAdminException;
 
     /**
+     * Grant permission on a namespace asynchronously.
+     * <p/>
+     * Grant a new permission to a client role on a namespace.
+     * <p/>
+     * Request parameter example:
+     *
+     * <pre>
+     * <code>["produce", "consume"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param role
+     *            Client role to which grant permission
+     * @param actions
+     *            Auth actions (produce and consume)
+     */
+    CompletableFuture<Void> grantPermissionOnNamespaceAsync(String namespace, String role, Set<AuthAction> actions);
+
+    /**
      * Revoke permissions on a namespace.
-     * <p>
+     * <p/>
      * Revoke all permissions to a client role on a namespace.
      *
      * @param namespace
@@ -395,13 +572,35 @@ public interface Namespaces {
     void revokePermissionsOnNamespace(String namespace, String role) throws PulsarAdminException;
 
     /**
+     * Revoke permissions on a namespace asynchronously.
+     * <p/>
+     * Revoke all permissions to a client role on a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param role
+     *            Client role to which remove permissions
+     */
+    CompletableFuture<Void> revokePermissionsOnNamespaceAsync(String namespace, String role);
+
+    /**
      * Grant permission to role to access subscription's admin-api.
      * @param namespace
      * @param subscription
      * @param roles
      * @throws PulsarAdminException
      */
-    void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles) throws PulsarAdminException;
+    void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
+            throws PulsarAdminException;
+
+    /**
+     * Grant permission to role to access subscription's admin-api asynchronously.
+     * @param namespace
+     * @param subscription
+     * @param roles
+     */
+    CompletableFuture<Void> grantPermissionOnSubscriptionAsync(
+            String namespace, String subscription, Set<String> roles);
 
     /**
      * Revoke permissions on a subscription's admin-api access.
@@ -413,8 +612,16 @@ public interface Namespaces {
     void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException;
 
     /**
+     * Revoke permissions on a subscription's admin-api access asynchronously.
+     * @param namespace
+     * @param subscription
+     * @param role
+     */
+    CompletableFuture<Void> revokePermissionOnSubscriptionAsync(String namespace, String subscription, String role);
+
+    /**
      * Get the replication clusters for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -436,8 +643,22 @@ public interface Namespaces {
     List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the replication clusters for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getNamespaceReplicationClustersAsync(String namespace);
+
+    /**
      * Set the replication clusters for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -463,8 +684,24 @@ public interface Namespaces {
     void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
 
     /**
+     * Set the replication clusters for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     */
+    CompletableFuture<Void> setNamespaceReplicationClustersAsync(String namespace, Set<String> clusterIds);
+
+    /**
      * Get the message TTL for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -484,8 +721,22 @@ public interface Namespaces {
     int getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the message TTL for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getNamespaceMessageTTLAsync(String namespace);
+
+    /**
      * Set the messages Time to Live for all the topics within a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -506,10 +757,25 @@ public interface Namespaces {
      */
     void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException;
 
+    /**
+     * Set the messages Time to Live for all the topics within a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param ttlInSeconds
+     *            TTL values for all messages for all topics in this namespace
+     */
+    CompletableFuture<Void> setNamespaceMessageTTLAsync(String namespace, int ttlInSeconds);
 
     /**
-     * Set anti-affinity group name for a namespace
-     * <p>
+     * Set anti-affinity group name for a namespace.
+     * <p/>
      * Request example:
      *
      * @param namespace
@@ -527,7 +793,19 @@ public interface Namespaces {
     void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup) throws PulsarAdminException;
 
     /**
-     * Get all namespaces that grouped with given anti-affinity group
+     * Set anti-affinity group name for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * @param namespace
+     *            Namespace name
+     * @param namespaceAntiAffinityGroup
+     *            anti-affinity group name for a namespace
+     */
+    CompletableFuture<Void> setNamespaceAntiAffinityGroupAsync(String namespace, String namespaceAntiAffinityGroup);
+
+    /**
+     * Get all namespaces that grouped with given anti-affinity group.
      *
      * @param tenant
      *            tenant is only used for authorization. Client has to be admin of any of the tenant to access this
@@ -543,8 +821,23 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Get anti-affinity group name for a namespace
-     * <p>
+     * Get all namespaces that grouped with given anti-affinity group asynchronously.
+     *
+     * @param tenant
+     *            tenant is only used for authorization. Client has to be admin of any of the tenant to access this
+     *            api api.
+     * @param cluster
+     *            cluster name
+     * @param namespaceAntiAffinityGroup
+     *            Anti-affinity group name
+     * @return list of namespace grouped under a given anti-affinity group
+     */
+    CompletableFuture<List<String>> getAntiAffinityNamespacesAsync(
+            String tenant, String cluster, String namespaceAntiAffinityGroup);
+
+    /**
+     * Get anti-affinity group name for a namespace.
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -564,6 +857,20 @@ public interface Namespaces {
     String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
+     * Get anti-affinity group name for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace);
+
+    /**
      * Delete anti-affinity group name for a namespace.
      *
      * @param namespace
@@ -579,10 +886,18 @@ public interface Namespaces {
     void deleteNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
+     * Delete anti-affinity group name for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> deleteNamespaceAntiAffinityGroupAsync(String namespace);
+
+    /**
      * Set the deduplication status for all topics within a namespace.
-     * <p>
+     * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -604,6 +919,24 @@ public interface Namespaces {
     void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
+     * Set the deduplication status for all topics within a namespace asynchronously.
+     * <p/>
+     * When deduplication is enabled, the broker will prevent to store the same message multiple times.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param enableDeduplication
+     *            wether to enable or disable deduplication feature
+     */
+    CompletableFuture<Void> setDeduplicationStatusAsync(String namespace, boolean enableDeduplication);
+
+    /**
      * Get the bundles split data.
      *
      * @param namespace
@@ -618,9 +951,9 @@ public interface Namespaces {
 
     /**
      * Get backlog quota map on a namespace.
-     * <p>
+     * <p/>
      * Get backlog quota map on a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -651,12 +984,39 @@ public interface Namespaces {
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String namespace) throws PulsarAdminException;
 
     /**
+     * Get backlog quota map on a namespace asynchronously.
+     * <p/>
+     * Get backlog quota map on a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "namespace_memory" : {
+     *          "limit" : "134217728",
+     *          "policy" : "consumer_backlog_eviction"
+     *      },
+     *      "destination_storage" : {
+     *          "limit" : "-1",
+     *          "policy" : "producer_exception"
+     *      }
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> getBacklogQuotaMapAsync(String namespace);
+
+    /**
      * Set a backlog quota for all the topics on a namespace.
-     * <p>
+     * <p/>
      * Set a backlog quota on a namespace.
-     * <p>
+     * <p/>
      * The backlog quota can be set on this resource:
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -683,10 +1043,35 @@ public interface Namespaces {
     void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
 
     /**
+     * Set a backlog quota for all the topics on a namespace asynchronously.
+     * <p/>
+     * Set a backlog quota on a namespace.
+     * <p/>
+     * The backlog quota can be set on this resource:
+     * <p/>
+     * Request parameter example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "limit" : "134217728",
+     *     "policy" : "consumer_backlog_eviction"
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param backlogQuota
+     *            the new BacklogQuota
+     */
+    CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota);
+
+    /**
      * Remove a backlog quota policy from a namespace.
-     * <p>
+     * <p/>
      * Remove a backlog quota policy from a namespace.
-     * <p>
+     * <p/>
      * The backlog retention policy will fall back to the default.
      *
      * @param namespace
@@ -702,10 +1087,22 @@ public interface Namespaces {
     void removeBacklogQuota(String namespace) throws PulsarAdminException;
 
     /**
+     * Remove a backlog quota policy from a namespace asynchronously.
+     * <p/>
+     * Remove a backlog quota policy from a namespace.
+     * <p/>
+     * The backlog retention policy will fall back to the default.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
+
+    /**
      * Set the persistence configuration for all the topics on a namespace.
-     * <p>
+     * <p/>
      * Set the persistence configuration on a namespace.
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -721,10 +1118,6 @@ public interface Namespaces {
      * </code>
      * </pre>
      *
-     * @param tenant
-     *            Tenant name
-     * @param cluster
-     *            Cluster name
      * @param namespace
      *            Namespace name
      * @param persistence
@@ -742,10 +1135,37 @@ public interface Namespaces {
     void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException;
 
     /**
+     * Set the persistence configuration for all the topics on a namespace asynchronously.
+     * <p/>
+     * Set the persistence configuration on a namespace.
+     * <p/>
+     * Request parameter example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "bookkeeperEnsemble" : 3,                 // Number of bookies to use for a topic
+     *     "bookkeeperWriteQuorum" : 2,              // How many writes to make of each entry
+     *     "bookkeeperAckQuorum" : 2,                // Number of acks (guaranteed copies) to wait for each entry
+     *     "managedLedgerMaxMarkDeleteRate" : 10.0,  // Throttling rate of mark-delete operation
+     *                                               // to avoid high number of updates for each
+     *                                               // consumer
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param persistence
+     *            Persistence policies object
+     */
+    CompletableFuture<Void> setPersistenceAsync(String namespace, PersistencePolicies persistence);
+
+    /**
      * Get the persistence configuration for a namespace.
-     * <p>
+     * <p/>
      * Get the persistence configuration for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -761,10 +1181,6 @@ public interface Namespaces {
      * </code>
      * </pre>
      *
-     * @param tenant
-     *            Tenant name
-     * @param cluster
-     *            Cluster name
      * @param namespace
      *            Namespace name
      *
@@ -780,9 +1196,34 @@ public interface Namespaces {
     PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the persistence configuration for a namespace asynchronously.
+     * <p/>
+     * Get the persistence configuration for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "bookkeeperEnsemble" : 3,                 // Number of bookies to use for a topic
+     *     "bookkeeperWriteQuorum" : 2,              // How many writes to make of each entry
+     *     "bookkeeperAckQuorum" : 2,                // Number of acks (guaranteed copies) to wait for each entry
+     *     "managedLedgerMaxMarkDeleteRate" : 10.0,  // Throttling rate of mark-delete operation
+     *                                               // to avoid high number of updates for each
+     *                                               // consumer
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String namespace);
+
+    /**
      * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
      * group.
-     * 
+     *
      * @param namespace
      *            namespace name
      * @param bookieAffinityGroup
@@ -791,23 +1232,49 @@ public interface Namespaces {
      */
     void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
             throws PulsarAdminException;
-    
+
+    /**
+     * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
+     * group asynchronously.
+     *
+     * @param namespace
+     *            namespace name
+     * @param bookieAffinityGroup
+     *            bookie affinity group
+     */
+    CompletableFuture<Void> setBookieAffinityGroupAsync(String namespace, BookieAffinityGroupData bookieAffinityGroup);
+
     /**
      * Delete bookie affinity group configured for a namespace.
-     * 
+     *
      * @param namespace
      * @throws PulsarAdminException
      */
     void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
+     * Delete bookie affinity group configured for a namespace asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> deleteBookieAffinityGroupAsync(String namespace);
+
+    /**
      * Get bookie affinity group configured for a namespace.
-     * 
+     *
      * @param namespace
      * @return
      * @throws PulsarAdminException
      */
     BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get bookie affinity group configured for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<BookieAffinityGroupData> getBookieAffinityGroupAsync(String namespace);
 
     /**
      * Set the retention configuration for all the topics on a namespace.
@@ -841,6 +1308,28 @@ public interface Namespaces {
     void setRetention(String namespace, RetentionPolicies retention) throws PulsarAdminException;
 
     /**
+     * Set the retention configuration for all the topics on a namespace asynchronously.
+     * <p/>
+     * Set the retention configuration on a namespace. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> setRetentionAsync(String namespace, RetentionPolicies retention);
+
+    /**
      * Get the retention configuration for a namespace.
      * <p/>
      * Get the retention configuration for a namespace.
@@ -871,6 +1360,28 @@ public interface Namespaces {
     RetentionPolicies getRetention(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the retention configuration for a namespace asynchronously.
+     * <p/>
+     * Get the retention configuration for a namespace.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String namespace);
+
+    /**
      * Unload a namespace from the current serving broker.
      *
      * @param namespace
@@ -888,7 +1399,15 @@ public interface Namespaces {
     void unload(String namespace) throws PulsarAdminException;
 
     /**
-     * Get the replication configuration version for a given namespace
+     * Unload a namespace from the current serving broker asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> unloadAsync(String namespace);
+
+    /**
+     * Get the replication configuration version for a given namespace.
      *
      * @param namespace
      * @return Replication configuration version
@@ -898,7 +1417,15 @@ public interface Namespaces {
     String getReplicationConfigVersion(String namespace) throws PulsarAdminException;
 
     /**
-     * Unload namespace bundle
+     * Get the replication configuration version for a given namespace asynchronously.
+     *
+     * @param namespace
+     * @return Replication configuration version
+     */
+    CompletableFuture<String> getReplicationConfigVersionAsync(String namespace);
+
+    /**
+     * Unload namespace bundle.
      *
      * @param namespace
      * @param bundle
@@ -909,7 +1436,7 @@ public interface Namespaces {
     void unloadNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
 
     /**
-     * Unload namespace bundle asynchronously
+     * Unload namespace bundle asynchronously.
      *
      * @param namespace
      * @param bundle
@@ -920,18 +1447,30 @@ public interface Namespaces {
     CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace, String bundle);
 
     /**
-     * Split namespace bundle
+     * Split namespace bundle.
      *
      * @param namespace
-     * @param range of bundle to split
-     * @param unload newly split bundles from the broker
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
      * @throws PulsarAdminException
-     *             Unexpected error
      */
-    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles) throws PulsarAdminException;
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
+            throws PulsarAdminException;
 
     /**
-     * Set message-publish-rate (topics under this namespace can publish this many messages per second)
+     * Split namespace bundle asynchronously.
+     *
+     * @param namespace
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
+     */
+    CompletableFuture<Void> splitNamespaceBundleAsync(
+            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName);
+
+    /**
+     * Set message-publish-rate (topics under this namespace can publish this many messages per second).
      *
      * @param namespace
      * @param publishMsgRate
@@ -941,18 +1480,34 @@ public interface Namespaces {
      */
     void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException;
 
-    /** Get message-publish-rate (topics under this namespace can publish this many messages per second)
-    *
-    * @param namespace
-    * @returns messageRate
-    *            number of messages per second
-    * @throws PulsarAdminException
-    *             Unexpected error
-    */
+    /**
+     * Set message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
+     *
+     * @param namespace
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate);
+
+    /**
+     * Get message-publish-rate (topics under this namespace can publish this many messages per second).
+     *
+     * @param namespace
+     * @return number of messages per second
+     * @throws PulsarAdminException Unexpected error
+     */
     PublishRate getPublishRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
+     * Get message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
+     *
+     * @param namespace
+     * @return number of messages per second
+     */
+    CompletableFuture<PublishRate> getPublishRateAsync(String namespace);
+
+    /**
+     * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace
      * @param dispatchRate
@@ -962,18 +1517,41 @@ public interface Namespaces {
      */
     void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
 
-    /** Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
-    *
-    * @param namespace
-    * @returns messageRate
-    *            number of messages per second
-    * @throws PulsarAdminException
-    *             Unexpected error
-    */
+    /**
+     * Set message-dispatch-rate asynchronously.
+     * <p/>
+     * topics under this namespace can dispatch this many messages per second
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
+     *
+     * @param namespace
+     * @returns messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
     DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate)
+     * Get message-dispatch-rate asynchronously.
+     * <p/>
+     * Topics under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns messageRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getDispatchRateAsync(String namespace);
+
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
      *
      * @param namespace
      * @param subscribeRate
@@ -983,7 +1561,17 @@ public interface Namespaces {
      */
     void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException;
 
-    /** Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period)
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
+
+    /**
+     * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).
      *
      * @param namespace
      * @returns subscribeRate
@@ -993,7 +1581,19 @@ public interface Namespaces {
     SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+     * Get namespace-subscribe-rate asynchronously.
+     * <p/>
+     * Topics under this namespace allow subscribe times per consumer in a period.
+     *
+     * @param namespace
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
+
+    /**
+     * Set subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second
      *
      * @param namespace
      * @param dispatchRate
@@ -1003,7 +1603,21 @@ public interface Namespaces {
      */
     void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
 
-    /** Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+    /**
+     * Set subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Get subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
      *
      * @param namespace
      * @returns DispatchRate
@@ -1014,7 +1628,20 @@ public interface Namespaces {
     DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Set replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+     * Get subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace);
+
+    /**
+     * Set replicator-message-dispatch-rate.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
      *
      * @param namespace
      * @param dispatchRate
@@ -1024,7 +1651,21 @@ public interface Namespaces {
      */
     void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
 
-    /** Get replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Get replicator-message-dispatch-rate.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
      *
      * @param namespace
      * @returns DispatchRate
@@ -1035,7 +1676,18 @@ public interface Namespaces {
     DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Clear backlog for all topics on a namespace
+     * Get replicator-message-dispatch-rate asynchronously.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace);
+
+    /**
+     * Clear backlog for all topics on a namespace.
      *
      * @param namespace
      * @throws PulsarAdminException
@@ -1044,7 +1696,14 @@ public interface Namespaces {
     void clearNamespaceBacklog(String namespace) throws PulsarAdminException;
 
     /**
-     * Clear backlog for a given subscription on all topics on a namespace
+     * Clear backlog for all topics on a namespace asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> clearNamespaceBacklogAsync(String namespace);
+
+    /**
+     * Clear backlog for a given subscription on all topics on a namespace.
      *
      * @param namespace
      * @param subscription
@@ -1054,7 +1713,15 @@ public interface Namespaces {
     void clearNamespaceBacklogForSubscription(String namespace, String subscription) throws PulsarAdminException;
 
     /**
-     * Clear backlog for all topics on a namespace bundle
+     * Clear backlog for a given subscription on all topics on a namespace asynchronously.
+     *
+     * @param namespace
+     * @param subscription
+     */
+    CompletableFuture<Void> clearNamespaceBacklogForSubscriptionAsync(String namespace, String subscription);
+
+    /**
+     * Clear backlog for all topics on a namespace bundle.
      *
      * @param namespace
      * @param bundle
@@ -1064,7 +1731,7 @@ public interface Namespaces {
     void clearNamespaceBundleBacklog(String namespace, String bundle) throws PulsarAdminException;
 
     /**
-     * Clear backlog for all topics on a namespace bundle asynchronously
+     * Clear backlog for all topics on a namespace bundle asynchronously.
      *
      * @param namespace
      * @param bundle
@@ -1074,7 +1741,7 @@ public interface Namespaces {
     CompletableFuture<Void> clearNamespaceBundleBacklogAsync(String namespace, String bundle);
 
     /**
-     * Clear backlog for a given subscription on all topics on a namespace bundle
+     * Clear backlog for a given subscription on all topics on a namespace bundle.
      *
      * @param namespace
      * @param bundle
@@ -1086,7 +1753,7 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Clear backlog for a given subscription on all topics on a namespace bundle asynchronously
+     * Clear backlog for a given subscription on all topics on a namespace bundle asynchronously.
      *
      * @param namespace
      * @param bundle
@@ -1098,7 +1765,7 @@ public interface Namespaces {
             String subscription);
 
     /**
-     * Unsubscribes the given subscription on all topics on a namespace
+     * Unsubscribe the given subscription on all topics on a namespace.
      *
      * @param namespace
      * @param subscription
@@ -1107,7 +1774,15 @@ public interface Namespaces {
     void unsubscribeNamespace(String namespace, String subscription) throws PulsarAdminException;
 
     /**
-     * Unsubscribes the given subscription on all topics on a namespace bundle
+     * Unsubscribe the given subscription on all topics on a namespace asynchronously.
+     *
+     * @param namespace
+     * @param subscription
+     */
+    CompletableFuture<Void> unsubscribeNamespaceAsync(String namespace, String subscription);
+
+    /**
+     * Unsubscribe the given subscription on all topics on a namespace bundle.
      *
      * @param namespace
      * @param bundle
@@ -1117,7 +1792,7 @@ public interface Namespaces {
     void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription) throws PulsarAdminException;
 
     /**
-     * Unsubscribes the given subscription on all topics on a namespace bundle asynchronously
+     * Unsubscribe the given subscription on all topics on a namespace bundle asynchronously.
      *
      * @param namespace
      * @param bundle
@@ -1129,9 +1804,9 @@ public interface Namespaces {
 
     /**
      * Set the encryption required status for all topics within a namespace.
-     * <p>
+     * <p/>
      * When encryption required is true, the broker will prevent to store unencrypted messages.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1152,18 +1827,157 @@ public interface Namespaces {
      */
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 
-     /**
-     * Set the given subscription auth mode on all topics on a namespace
+    /**
+     * Set the encryption required status for all topics within a namespace asynchronously.
+     * <p/>
+     * When encryption required is true, the broker will prevent to store unencrypted messages.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param encryptionRequired
+     *            whether message encryption is required or not
+     */
+    CompletableFuture<Void> setEncryptionRequiredStatusAsync(String namespace, boolean encryptionRequired);
+
+    /**
+     * Get the delayed delivery messages for all topics within a namespace.
+     * <p/>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "active" : true,   // Enable or disable delayed delivery for messages on a namespace
+     *     "tickTime" : 1000, // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DelayedDeliveryPolicies getDelayedDelivery(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery messages for all topics within a namespace asynchronously.
+     * <p/>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "active" : true,   // Enable or disable delayed delivery for messages on a namespace
+     *     "tickTime" : 1000, // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryAsync(String namespace);
+
+    /**
+     * Set the delayed delivery messages for all topics within a namespace.
+     * <p/>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
+     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDelayedDeliveryMessages(String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies)
+            throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery messages for all topics within a namespace asynchronously.
+     * <p/>
+     * If disabled, messages will be immediately delivered and there will
+     * be no tracking overhead.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "tickTime" : 1000, // Enable or disable delayed delivery for messages on a namespace
+     *     "active" : true,   // The tick time for when retrying on delayed delivery messages
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param delayedDeliveryPolicies
+     *            Whether to enable the delayed delivery for messages.
+     */
+    CompletableFuture<Void> setDelayedDeliveryMessagesAsync(
+            String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies);
+
+    /**
+     * Set the given subscription auth mode on all topics on a namespace.
      *
      * @param namespace
      * @param subscriptionAuthMode
      * @throws PulsarAdminException
      */
-    void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException;
+    void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode)
+            throws PulsarAdminException;
+
+    /**
+     * Set the given subscription auth mode on all topics on a namespace asynchronously.
+     *
+     * @param namespace
+     * @param subscriptionAuthMode
+     */
+    CompletableFuture<Void> setSubscriptionAuthModeAsync(String namespace, SubscriptionAuthMode subscriptionAuthMode);
 
     /**
      * Get the maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1183,8 +1997,22 @@ public interface Namespaces {
     int getMaxProducersPerTopic(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the maxProducersPerTopic for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getMaxProducersPerTopicAsync(String namespace);
+
+    /**
      * Set maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1206,8 +2034,24 @@ public interface Namespaces {
     void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException;
 
     /**
+     * Set maxProducersPerTopic for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxProducersPerTopic
+     *            maxProducersPerTopic value for a namespace
+     */
+    CompletableFuture<Void> setMaxProducersPerTopicAsync(String namespace, int maxProducersPerTopic);
+
+    /**
      * Get the maxProducersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1227,8 +2071,22 @@ public interface Namespaces {
     int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the maxProducersPerTopic for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getMaxConsumersPerTopicAsync(String namespace);
+
+    /**
      * Set maxConsumersPerTopic for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1250,8 +2108,24 @@ public interface Namespaces {
     void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException;
 
     /**
+     * Set maxConsumersPerTopic for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerTopic
+     *            maxConsumersPerTopic value for a namespace
+     */
+    CompletableFuture<Void> setMaxConsumersPerTopicAsync(String namespace, int maxConsumersPerTopic);
+
+    /**
      * Get the maxConsumersPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1271,8 +2145,22 @@ public interface Namespaces {
     int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the maxConsumersPerSubscription for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String namespace);
+
+    /**
      * Set maxConsumersPerSubscription for a namespace.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1294,9 +2182,176 @@ public interface Namespaces {
     void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
 
     /**
+     * Set maxConsumersPerSubscription for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     */
+    CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String namespace, int maxConsumersPerSubscription);
+
+    /**
+     * Get the maxUnackedMessagesPerConsumer for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesPerConsumerAsync(String namespace);
+
+    /**
+     * Set maxUnackedMessagesPerConsumer for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerConsumer
+     *            maxUnackedMessagesPerConsumer value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerConsumer(String namespace, int maxUnackedMessagesPerConsumer)
+            throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerConsumer for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerConsumer
+     *            maxUnackedMessagesPerConsumer value for a namespace
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(String namespace, int maxUnackedMessagesPerConsumer);
+
+    /**
+     * Get the maxUnackedMessagesPerSubscription for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesPerSubscriptionAsync(String namespace);
+
+    /**
+     * Set maxUnackedMessagesPerSubscription for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerSubscription
+     *            Max number of unacknowledged messages allowed per shared subscription.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxUnackedMessagesPerSubscription(String namespace, int maxUnackedMessagesPerSubscription)
+            throws PulsarAdminException;
+
+    /**
+     * Set maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxUnackedMessagesPerSubscription
+     *            Max number of unacknowledged messages allowed per shared subscription.
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace, int maxUnackedMessagesPerSubscription);
+
+    /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1316,9 +2371,24 @@ public interface Namespaces {
     long getCompactionThreshold(String namespace) throws PulsarAdminException;
 
     /**
+     * Get the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Long> getCompactionThresholdAsync(String namespace);
+
+    /**
      * Set the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
      * can have before compaction is triggered. 0 disables.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1340,10 +2410,27 @@ public interface Namespaces {
     void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
 
     /**
+     * Set the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     */
+    CompletableFuture<Void> setCompactionThresholdAsync(String namespace, long compactionThreshold);
+
+    /**
      * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
      * in the namespace before data starts being offloaded to longterm storage.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1363,11 +2450,31 @@ public interface Namespaces {
     long getOffloadThreshold(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
+     * Get the offloadThreshold for a namespace asynchronously.
+     * <p/>
+     * The maximum number of bytes stored on the pulsar cluster for topics
      * in the namespace before data starts being offloaded to longterm storage.
      *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Long> getOffloadThresholdAsync(String namespace);
+
+    /**
+     * Set the offloadThreshold for a namespace.
+     * <p/>
+     * The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     * <p/>
      * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
-     * <p>
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -1386,20 +2493,41 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setOffloadThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
+    void setOffloadThreshold(String namespace, long offloadThreshold) throws PulsarAdminException;
+
+    /**
+     * Set the offloadThreshold for a namespace asynchronously.
+     * <p/>
+     * The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     * <p/>
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThreshold
+     *            maximum number of bytes stored before offloading is triggered
+     */
+    CompletableFuture<Void> setOffloadThresholdAsync(String namespace, long offloadThreshold);
 
     /**
      * Get the offload deletion lag for a namespace, in milliseconds.
      * The number of milliseconds to wait before deleting a ledger segment which has been offloaded from
      * the Pulsar cluster's local storage (i.e. BookKeeper).
-     *
+     * <p/>
      * If the offload deletion lag has not been set for the namespace, the method returns 'null'
      * and the namespace will use the configured default of the pulsar broker.
-     *
+     * <p/>
      * A negative value disables deletion of the local ledger completely, though it will still be deleted
      * if it exceeds the topics retention policy, along with the offloaded copy.
      *
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -1420,11 +2548,36 @@ public interface Namespaces {
     Long getOffloadDeleteLagMs(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the offload deletion lag for a namespace.
+     * Get the offload deletion lag asynchronously for a namespace, in milliseconds.
+     * <p/>
+     * The number of milliseconds to wait before deleting a ledger segment which has been offloaded from
+     * the Pulsar cluster's local storage (i.e. BookKeeper).
+     * <p/>
+     * If the offload deletion lag has not been set for the namespace, the method returns 'null'
+     * and the namespace will use the configured default of the pulsar broker.
+     * <p/>
+     * A negative value disables deletion of the local ledger completely, though it will still be deleted
+     * if it exceeds the topics retention policy, along with the offloaded copy.
      *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>3600000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the offload deletion lag for the namespace in milliseconds, or null if not set
+     */
+    CompletableFuture<Long> getOffloadDeleteLagMsAsync(String namespace);
+
+    /**
+     * Set the offload deletion lag for a namespace.
+     * <p/>
      * The offload deletion lag is the amount of time to wait after offloading a ledger segment to long term storage,
      * before deleting its copy stored on the Pulsar cluster's local storage (i.e. BookKeeper).
-     *
+     * <p/>
      * A negative value disables deletion of the local ledger completely, though it will still be deleted
      * if it exceeds the topics retention policy, along with the offloaded copy.
      *
@@ -1443,8 +2596,24 @@ public interface Namespaces {
     void setOffloadDeleteLag(String namespace, long lag, TimeUnit unit) throws PulsarAdminException;
 
     /**
-     * Clear the offload deletion lag for a namespace.
+     * Set the offload deletion lag for a namespace asynchronously.
+     * <p/>
+     * The offload deletion lag is the amount of time to wait after offloading a ledger segment to long term storage,
+     * before deleting its copy stored on the Pulsar cluster's local storage (i.e. BookKeeper).
+     * <p/>
+     * A negative value disables deletion of the local ledger completely, though it will still be deleted
+     * if it exceeds the topics retention policy, along with the offloaded copy.
      *
+     * @param namespace
+     *            Namespace name
+     * @param lag the duration to wait before deleting the local copy
+     * @param unit the timeunit of the duration
+     */
+    CompletableFuture<Void> setOffloadDeleteLagAsync(String namespace, long lag, TimeUnit unit);
+
+    /**
+     * Clear the offload deletion lag for a namespace.
+     * <p/>
      * The namespace will fall back to using the configured default of the pulsar broker.
      *
      * @throws NotAuthorizedException
@@ -1457,10 +2626,17 @@ public interface Namespaces {
     void clearOffloadDeleteLag(String namespace) throws PulsarAdminException;
 
     /**
+     * Clear the offload deletion lag for a namespace asynchronously.
+     * <p/>
+     * The namespace will fall back to using the configured default of the pulsar broker.
+     */
+    CompletableFuture<Void> clearOffloadDeleteLagAsync(String namespace);
+
+    /**
      * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
-     *
-     * <p>If this is
+     * <p/>
+     * If this is
      * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled},
      * then all new schemas provided via the producer are rejected, and schemas must be updated through the REST api.
      *
@@ -1480,12 +2656,12 @@ public interface Namespaces {
     /**
      * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
-     *
-     * <p>To disable all new schema updates through the producer, set this to
+     * <p/>
+     * To disable all new schema updates through the producer, set this to
      * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled}.
      *
      * @param namespace The namespace in whose policy should be set
-     * @param autoUpdate true if connecting producers can automatically update the schema, false otherwise
+     * @param strategy
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
@@ -1510,6 +2686,14 @@ public interface Namespaces {
      */
     boolean getSchemaValidationEnforced(String namespace)
             throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for namespace asynchronously.
+     *
+     * @return the schema validation enforced flag
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace);
+
     /**
      * Set schema validation enforced for namespace.
      * if a producer without a schema attempts to produce to a topic with schema in this the namespace, the
@@ -1529,6 +2713,17 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
+     * Set schema validation enforced for namespace asynchronously.
+     * if a producer without a schema attempts to produce to a topic with schema in this the namespace, the
+     * producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't
+     * support schema. if you enable this setting, it will cause non-java clients failed to produce.
+     *
+     * @param namespace pulsar namespace name
+     * @param schemaValidationEnforced flag to enable or disable schema validation for the given namespace
+     */
+    CompletableFuture<Void> setSchemaValidationEnforcedAsync(String namespace, boolean schemaValidationEnforced);
+
+    /**
      * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
      *
@@ -1542,7 +2737,16 @@ public interface Namespaces {
      *             Unexpected error
      */
     SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String namespace)
-            throws PulsarAdminException;;
+            throws PulsarAdminException;
+
+    /**
+     * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed asynchronously.
+     *
+     * @param namespace The namespace in whose policy we are interested
+     * @return the strategy used to check compatibility
+     */
+    CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String namespace);
 
     /**
      * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
@@ -1562,7 +2766,17 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Get whether allow auto update schema
+     * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed asynchronously.
+     *
+     * @param namespace The namespace in whose policy should be set
+     * @param strategy The schema compatibility strategy
+     */
+    CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String namespace,
+                                        SchemaCompatibilityStrategy strategy);
+
+    /**
+     * Get whether allow auto update schema.
      *
      * @param namespace pulsar namespace name
      * @return the schema validation enforced flag
@@ -1577,6 +2791,16 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
+     * Get whether allow auto update schema asynchronously.
+     *
+     * @param namespace pulsar namespace name
+     * @return the schema validation enforced flag
+     */
+    CompletableFuture<Boolean> getIsAllowAutoUpdateSchemaAsync(String namespace);
+
+    /**
+     * Set whether to allow automatic schema updates.
+     * <p/>
      * The flag is when producer bring a new schema and the schema pass compatibility check
      * whether allow schema auto registered
      *
@@ -1591,4 +2815,136 @@ public interface Namespaces {
      */
     void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
             throws PulsarAdminException;
+
+    /**
+     * Set whether to allow automatic schema updates asynchronously.
+     * <p/>
+     * The flag is when producer bring a new schema and the schema pass compatibility check
+     * whether allow schema auto registered
+     *
+     * @param namespace pulsar namespace name
+     * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     */
+    CompletableFuture<Void> setIsAllowAutoUpdateSchemaAsync(String namespace, boolean isAllowAutoUpdateSchema);
+
+    /**
+     * Set the offload configuration for all the topics in a namespace.
+     * <p/>
+     * Set the offload configuration in a namespace. This operation requires pulsar tenant access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadPolicies
+     *            Offload configuration
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+
+    /**
+     * Set the offload configuration for all the topics in a namespace asynchronously.
+     * <p/>
+     * Set the offload configuration in a namespace. This operation requires pulsar tenant access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadPolicies
+     *            Offload configuration
+     */
+    CompletableFuture<Void> setOffloadPoliciesAsync(String namespace, OffloadPolicies offloadPolicies);
+
+    /**
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    OffloadPolicies getOffloadPolicies(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the offload configuration for a namespace asynchronously.
+     * <p/>
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "region" : "us-east-2",                   // The long term storage region
+     *     "bucket" : "bucket",                      // Bucket to place offloaded ledger into
+     *     "endpoint" : "endpoint",                  // Alternative endpoint to connect to
+     *     "maxBlockSize" : 1024,                    // Max Block Size, default 64MB
+     *     "readBufferSize" : 1024,                  // Read Buffer Size, default 1MB
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String namespace);
 }

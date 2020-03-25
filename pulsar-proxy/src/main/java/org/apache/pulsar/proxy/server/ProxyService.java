@@ -29,14 +29,23 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -45,10 +54,14 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Pulsar proxy service
@@ -76,7 +89,11 @@ public class ProxyService implements Closeable {
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
-    protected static int proxyLogLevel;
+    @Getter
+    @Setter
+    protected int proxyLogLevel;
+
+    private final ScheduledExecutorService statsExecutor;
 
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
@@ -98,22 +115,40 @@ public class ProxyService implements Closeable {
     static final Counter bytesCounter = Counter
             .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
 
+    @Getter
+    private final Set<ProxyConnection> clientCnxs;
+    @Getter
+    private final Map<String, TopicStats> topicStats;
+
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws IOException {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
+        this.clientCnxs = Sets.newConcurrentHashSet();
+        this.topicStats = Maps.newConcurrentMap();
 
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
-        if (proxyConfig.getproxyLogLevel().isPresent()) {
-            ProxyService.proxyLogLevel = Integer.valueOf(proxyConfig.getproxyLogLevel().get());
+        if (proxyConfig.getProxyLogLevel().isPresent()) {
+            proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
         } else {
-            ProxyService.proxyLogLevel = 0;
+            proxyLogLevel = 0;
         }
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
         this.authenticationService = authenticationService;
+
+        statsExecutor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
+        statsExecutor.schedule(()->{
+            ((ProxyService) this).clientCnxs.forEach(cnx -> {
+                cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
+            }); 
+            ((ProxyService) this).topicStats.forEach((topic, stats) -> {
+                stats.calculate();
+            });
+        }, 60, TimeUnit.SECONDS);
     }
 
     public void start() throws Exception {
@@ -197,6 +232,9 @@ public class ProxyService implements Closeable {
             listenChannelTls.close();
         }
 
+        if (statsExecutor != null) {
+            statsExecutor.shutdown();
+        }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }

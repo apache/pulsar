@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -33,19 +34,21 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
@@ -55,9 +58,11 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +70,9 @@ import org.slf4j.LoggerFactory;
 public class PersistentReplicator extends AbstractReplicator implements Replicator, ReadEntriesCallback, DeleteCallback {
 
     private final PersistentTopic topic;
-    private final ManagedCursor cursor;
+    private final String replicatorName;
+    private final ManagedLedger ledger;
+    protected ManagedCursor cursor;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
@@ -97,12 +104,34 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     private final ReplicatorStats stats = new ReplicatorStats();
 
+    // Only for test
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
-        this.topic = topic;
+        this.replicatorName = cursor.getName();
+        this.ledger = cursor.getManagedLedger();
         this.cursor = cursor;
+        this.topic = topic;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+        PENDING_MESSAGES_UPDATER.set(this, 0);
+
+        readBatchSize = Math.min(
+            producerQueueSize,
+            topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        producerQueueThreshold = (int) (producerQueueSize * 0.9);
+
+        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+
+        startProducer();
+    }
+
+    public PersistentReplicator(PersistentTopic topic, String replicatorName, String localCluster, String remoteCluster,
+            BrokerService brokerService, ManagedLedger ledger) throws NamingException {
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
+        this.replicatorName = replicatorName;
+        this.ledger = ledger;
+        this.topic = topic;
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
@@ -149,13 +178,43 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     @Override
     protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog();
+        return cursor.getNumberOfEntriesInBacklog(false);
     }
 
     @Override
     protected void disableReplicatorRead() {
         // deactivate cursor after successfully close the producer
         this.cursor.setInactive();
+    }
+
+    @Override
+    protected synchronized CompletableFuture<Void> openCursorAsync() {
+        log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
+        if (cursor != null) {
+            log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
+            if (expiryMonitor == null) {
+                this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+            }
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> res = new CompletableFuture<>();
+        ledger.asyncOpenCursor(replicatorName, InitialPosition.Earliest, new OpenCursorCallback() {
+            @Override
+            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                log.info("[{}][{} -> {}] Open cursor succeed for replicator", topicName, localCluster, remoteCluster);
+                PersistentReplicator.this.cursor = cursor;
+                PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+                res.complete(null);
+            }
+
+            @Override
+            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{} -> {}] Open cursor failed for replicator", topicName, localCluster, remoteCluster, exception);
+                res.completeExceptionally(new PersistenceException(exception));
+            }
+
+        }, null);
+        return res;
     }
 
 
@@ -507,7 +566,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Backlog size before clearing: {}", topicName, localCluster, remoteCluster,
-                    cursor.getNumberOfEntriesInBacklog());
+                    cursor.getNumberOfEntriesInBacklog(false));
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -515,7 +574,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             public void clearBacklogComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Backlog size after clearing: {}", topicName, localCluster, remoteCluster,
-                            cursor.getNumberOfEntriesInBacklog());
+                            cursor.getNumberOfEntriesInBacklog(false));
                 }
                 future.complete(null);
             }
@@ -535,7 +594,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Skipping {} messages, current backlog {}", topicName, localCluster, remoteCluster,
-                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
         }
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
@@ -543,7 +602,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     public void skipEntriesComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{} -> {}] Skipped {} messages, new backlog {}", topicName, localCluster,
-                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
                     }
@@ -601,11 +660,13 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         msgExpired.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        if (expiryMonitor != null) {
+            stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        }
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog();
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -633,13 +694,15 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public void expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog() == 0)
-                || (cursor.getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
+                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return;
         }
-        expiryMonitor.expireMessages(messageTTLInSeconds);
+        if (expiryMonitor != null) {
+            expiryMonitor.expireMessages(messageTTLInSeconds);
+        }
     }
 
     @Override

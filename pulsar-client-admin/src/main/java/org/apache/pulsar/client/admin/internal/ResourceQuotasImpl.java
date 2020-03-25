@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
@@ -26,7 +32,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
@@ -40,51 +45,136 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }
 
+    @Override
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
         try {
-            return request(adminV2Quotas).get(ResourceQuota.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getDefaultResourceQuotaAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
+    @Override
+    public CompletableFuture<ResourceQuota> getDefaultResourceQuotaAsync() {
+        final CompletableFuture<ResourceQuota> future = new CompletableFuture<>();
+        asyncGetRequest(adminV2Quotas,
+                new InvocationCallback<ResourceQuota>() {
+                    @Override
+                    public void completed(ResourceQuota resourceQuota) {
+                        future.complete(resourceQuota);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
         try {
-            request(adminV2Quotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            setDefaultResourceQuotaAsync(quota).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
+    @Override
+    public CompletableFuture<Void> setDefaultResourceQuotaAsync(ResourceQuota quota) {
+        return asyncPostRequest(adminV2Quotas, Entity.entity(quota, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public ResourceQuota getNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, bundle);
-            return request(path).get(ResourceQuota.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getNamespaceBundleResourceQuotaAsync(namespace, bundle)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
+    @Override
+    public CompletableFuture<ResourceQuota> getNamespaceBundleResourceQuotaAsync(String namespace, String bundle) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle);
+        final CompletableFuture<ResourceQuota> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<ResourceQuota>() {
+                    @Override
+                    public void completed(ResourceQuota resourceQuota) {
+                        future.complete(resourceQuota);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void setNamespaceBundleResourceQuota(String namespace, String bundle, ResourceQuota quota)
             throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, bundle);
-            request(path).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            setNamespaceBundleResourceQuotaAsync(namespace, bundle, quota)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
+    @Override
+    public CompletableFuture<Void> setNamespaceBundleResourceQuotaAsync(
+            String namespace, String bundle, ResourceQuota quota) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle);
+        return asyncPostRequest(path, Entity.entity(quota, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public void resetNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, bundle);
-            request(path).delete();
-        } catch (Exception e) {
-            throw getApiException(e);
+            resetNamespaceBundleResourceQuotaAsync(namespace, bundle)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> resetNamespaceBundleResourceQuotaAsync(String namespace, String bundle) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle);
+        return asyncDeleteRequest(path);
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {

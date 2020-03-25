@@ -145,11 +145,11 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       resolver_(executor_->createTcpResolver()),
       socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
-      strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
+      strand_(boost::asio::make_strand(executor_->io_service_->get_executor())),
 #elif BOOST_VERSION >= 106600
-      strand_(executor_->io_service_.get_executor()),
+      strand_(executor_->io_service_->get_executor()),
 #else
-      strand_(executor_->io_service_),
+      strand_(*(executor_->io_service_)),
 #endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
@@ -253,9 +253,10 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 
     if (serverProtocolVersion_ >= v1) {
         // Only send keep-alive probes if the broker supports it
-        keepAliveTimer_ = executor_->createDeadlineTimer();
-        keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
-        keepAliveTimer_->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        DeadlineTimerPtr keepAliveTimer = executor_->createDeadlineTimer();
+        keepAliveTimer->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
+        keepAliveTimer->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        keepAliveTimer_ = keepAliveTimer;
     }
 
     if (serverProtocolVersion_ >= v8) {
@@ -284,10 +285,14 @@ void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerSta
          it != pendingConsumerStatsMap_.end(); ++it) {
         consumerStatsRequests.push_back(it->first);
     }
-    consumerStatsRequestTimer_->expires_from_now(operationsTimeout_);
-    consumerStatsRequestTimer_->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout,
-                                                     shared_from_this(), std::placeholders::_1,
-                                                     consumerStatsRequests));
+
+    DeadlineTimerPtr timer = consumerStatsRequestTimer_;
+    if (timer) {
+        timer->expires_from_now(operationsTimeout_);
+        timer->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout, shared_from_this(),
+                                    std::placeholders::_1, consumerStatsRequests));
+    }
+
     lock.unlock();
     // Complex logic since promises need to be fulfilled outside the lock
     for (int i = 0; i < consumerStatsPromises.size(); i++) {

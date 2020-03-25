@@ -42,6 +42,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -109,13 +111,16 @@ public class PulsarFunctionTlsTest {
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
         config.setAuthenticationProviders(providers);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
         functionsWorkerService = spy(createPulsarFunctionWorker(config));
         AuthenticationService authenticationService = new AuthenticationService(config);
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
         when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
         when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         PulsarAdmin admin = mock(PulsarAdmin.class);

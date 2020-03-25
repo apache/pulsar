@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -52,7 +51,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-public abstract class ConsumerBase<T> extends HandlerState implements TimerTask, Consumer<T> {
+public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -101,7 +100,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
         if (batchReceivePolicy.getTimeoutMs() > 0) {
-            batchReceiveTimeout = client.timer().newTimeout(this, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -287,7 +286,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
     }
-  
+
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
@@ -464,7 +463,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     }
 
     protected boolean hasEnoughMessagesForBatchReceive() {
-        if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumMessages() <= 0) {
+        if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumBytes() <= 0) {
             return false;
         }
         return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
@@ -507,7 +506,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
 
         private OpBatchReceive(CompletableFuture<Messages<T>> future) {
             this.future = future;
-            this.createdAt = System.currentTimeMillis();
+            this.createdAt = System.nanoTime();
         }
 
         static <T> OpBatchReceive<T> of(CompletableFuture<Messages<T>> future) {
@@ -545,8 +544,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
 
     protected abstract void messageProcessed(Message<?> msg);
 
-    @Override
-    public void run(Timeout timeout) throws Exception {
+
+    private void pendingBatchReceiveTask(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
@@ -566,8 +565,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
 
             while (firstOpBatchReceive != null) {
                 // If there is at least one batch receive, calculate the diff between the batch receive timeout
-                // and the current time.
-                long diff = (firstOpBatchReceive.createdAt + batchReceivePolicy.getTimeoutMs()) - System.currentTimeMillis();
+                // and the elapsed time since the operation was created.
+                long diff = batchReceivePolicy.getTimeoutMs()
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstOpBatchReceive.createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the batch receive has been timed out.
                     // complete the OpBatchReceive and continue to check the next OpBatchReceive in pendingBatchReceives.
@@ -580,7 +580,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
                     break;
                 }
             }
-            batchReceiveTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
     }
 

@@ -120,6 +120,13 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
@@ -277,13 +284,6 @@
     <dependency>
       <groupId>com.carrotsearch</groupId>
       <artifactId>hppc</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>buildtools</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>

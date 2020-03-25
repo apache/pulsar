@@ -83,7 +83,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -93,6 +92,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -734,12 +734,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public long getNumberOfEntriesInBacklog() {
+    public long getNumberOfEntriesInBacklog(boolean isPrecise) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Consumer {} cursor ml-entries: {} -- deleted-counter: {} other counters: mdPos {} rdPos {}",
                     ledger.getName(), name, ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger),
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
+        if (isPrecise) {
+            return getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+        }
+
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
@@ -948,14 +952,21 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // order trim and reset operations on a ledger
         ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
-            if (ledger.isValidPosition(newPosition) || newPosition.equals(PositionImpl.earliest)
-                    || newPosition.equals(PositionImpl.latest)) {
-                internalResetCursor(newPosition, callback);
-            } else {
-                // caller (replay) should handle this error and retry cursor reset
-                callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(newPosition.toString()),
-                        newPosition);
+            PositionImpl actualPosition = newPosition;
+
+            if (!ledger.isValidPosition(actualPosition) &&
+                !actualPosition.equals(PositionImpl.earliest) &&
+                !actualPosition.equals(PositionImpl.latest)) {
+                actualPosition = ledger.getNextValidPosition(actualPosition);
+
+                if (actualPosition == null) {
+                    // next valid position would only return null when newPos
+                    // is larger than all available positions, then it's latest in effect.
+                    actualPosition = PositionImpl.latest;
+                }
             }
+
+            internalResetCursor(actualPosition, callback);
         }));
     }
 
@@ -1105,7 +1116,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
-                .forEach(p -> ledger.asyncReadEntry((PositionImpl) p, cb, ctx));
+                .forEach(p ->{
+                    if (((PositionImpl) p).compareTo(this.readPosition) == 0) {
+                        this.setReadPosition(this.readPosition.getNext());
+                        log.warn("[{}][{}] replayPosition{} equals readPosition{}," + " need set next readPositio",
+                                ledger.getName(), name, (PositionImpl) p, this.readPosition);
+                    }
+                    ledger.asyncReadEntry((PositionImpl) p, cb, ctx);
+                });
 
         return alreadyAcknowledgedPositions;
     }
@@ -1940,7 +1958,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @param properties
      * @param callback
      */
-    private void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
+    void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
 
         if (shouldPersistUnackRangesToLedger()) {
@@ -2035,6 +2053,30 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     @Override
                     public void operationFailed(MetaStoreException e) {
+                        if (e instanceof MetaStoreException.BadVersionException) {
+                            log.warn("[{}] Failed to update cursor metadata for {} due to version conflict {}",
+                                    ledger.name, name, e.getMessage());
+                            // it means previous owner of the ml might have updated the version incorrectly. So, check
+                            // the ownership and refresh the version again.
+                            if (ledger.mlOwnershipChecker != null && ledger.mlOwnershipChecker.get()) {
+                                ledger.getStore().asyncGetCursorInfo(ledger.getName(), name,
+                                        new MetaStoreCallback<ManagedCursorInfo>() {
+                                            @Override
+                                            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                                                cursorLedgerStat = stat;
+                                            }
+
+                                            @Override
+                                            public void operationFailed(MetaStoreException e) {
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug(
+                                                            "[{}] Failed to refresh cursor metadata-version for {} due to {}",
+                                                            ledger.name, name, e.getMessage());
+                                                }
+                                            }
+                                        });
+                            }
+                        }
                         callback.operationFailed(e);
                     }
                 });

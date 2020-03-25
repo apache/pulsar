@@ -69,6 +69,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (++numMessagesInBatch == 1) {
             // some properties are common amongst the different messages in the batch, hence we just pick it up from
             // the first message
+            messageMetadata.setSequenceId(msg.getSequenceId());
             lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
             batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
@@ -87,7 +88,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.setSequenceId(lowestSequenceId);
         }
         highestSequenceId = msg.getSequenceId();
-        producer.lastSequenceIdPushed = msg.getSequenceId();
+        producer.lastSequenceIdPushed = Math.max(producer.lastSequenceIdPushed, msg.getSequenceId());
 
         return isBatchFull();
     }

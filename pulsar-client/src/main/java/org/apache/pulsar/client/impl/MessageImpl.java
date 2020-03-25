@@ -65,7 +65,7 @@ public class MessageImpl<T> implements Message<T> {
     private final int redeliveryCount;
 
     // Constructor for out-going message
-    static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
+    public static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;
@@ -105,7 +105,8 @@ public class MessageImpl<T> implements Message<T> {
 
         if (msgMetadata.getPropertiesCount() > 0) {
             this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                            (oldValue,newValue) -> newValue)));
         } else {
             properties = Collections.emptyMap();
         }
@@ -299,6 +300,7 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    @Override
     public long getSequenceId() {
         checkNotNull(msgMetadataBuilder);
         if (msgMetadataBuilder.hasSequenceId()) {
@@ -330,8 +332,10 @@ public class MessageImpl<T> implements Message<T> {
     public synchronized Map<String, String> getProperties() {
         if (this.properties == null) {
             if (msgMetadataBuilder.getPropertiesCount() > 0) {
-                this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+                  this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                           .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                                   (oldValue,newValue) -> newValue)));
+                
             } else {
                 this.properties = Collections.emptyMap();
             }

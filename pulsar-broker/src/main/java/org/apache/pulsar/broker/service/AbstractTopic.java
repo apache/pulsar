@@ -80,6 +80,8 @@ public abstract class AbstractTopic implements Topic {
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
+    protected volatile int maxUnackedMessagesOnConsumer = -1;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     private LongAdder bytesInCounter = new LongAdder();
@@ -275,7 +277,7 @@ public abstract class AbstractTopic implements Topic {
     public void resetTopicPublishCountAndEnableReadIfRequired() {
         // broker rate not exceeded. and completed topic limiter reset.
         if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 
@@ -283,16 +285,34 @@ public abstract class AbstractTopic implements Topic {
     public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
         // topic rate not exceeded, and completed broker limiter reset.
         if (!topicPublishRateLimiter.isPublishRateExceeded() && doneBrokerReset) {
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 
     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    protected void enableProducerRead() {
+    protected void enableProducerReadForPublishRateLimiting() {
         if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+            producers.values().forEach(producer -> {
+                producer.getCnx().cancelPublishRateLimiting();
+                producer.getCnx().enableCnxAutoRead();
+            });
+        }
+    }
+
+    protected void enableProducerReadForPublishBufferLimiting() {
+        if (producers != null) {
+            producers.values().forEach(producer -> {
+                producer.getCnx().cancelPublishBufferLimiting();
+                producer.getCnx().enableCnxAutoRead();
+            });
+        }
+    }
+
+    protected void disableProducerRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
         }
     }
 
@@ -387,7 +407,7 @@ public abstract class AbstractTopic implements Topic {
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 

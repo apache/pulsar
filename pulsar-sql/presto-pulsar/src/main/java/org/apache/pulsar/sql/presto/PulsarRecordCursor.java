@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.sql.presto.PulsarInternalColumn.PartitionColumn;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -110,8 +112,18 @@ public class PulsarRecordCursor implements RecordCursor {
             close();
             throw new RuntimeException(e);
         }
+
+        OffloadPolicies offloadPolicies = pulsarSplit.getOffloadPolicies();
+        if (offloadPolicies != null) {
+            offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
+            offloadPolicies.setManagedLedgerOffloadMaxThreads(
+                    pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
+        }
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(), pulsarConnectorCache.getManagedLedgerConfig(),
+                pulsarConnectorCache.getManagedLedgerFactory(),
+                pulsarConnectorCache.getManagedLedgerConfig(
+                        TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
+                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
@@ -407,7 +419,15 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        if (this.schemaHandler instanceof KeyValueSchemaHandler) {
+            ByteBuf keyByteBuf = null;
+            if (this.currentMessage.getKeyBytes().isPresent()) {
+                keyByteBuf = this.currentMessage.getKeyBytes().get();
+            }
+            currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
+        } else {
+            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        }
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing

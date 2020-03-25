@@ -53,7 +53,7 @@ public interface Subscription {
 
     Dispatcher getDispatcher();
 
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
 
     default long getNumberOfEntriesDelayed() {
         return 0;
@@ -64,6 +64,8 @@ public interface Subscription {
     CompletableFuture<Void> close();
 
     CompletableFuture<Void> delete();
+
+    CompletableFuture<Void> deleteForcefully();
 
     CompletableFuture<Void> disconnect();
 

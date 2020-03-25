@@ -134,7 +134,7 @@ class ProcessRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function.
+     * The core logic that initialize the process container and executes the function.
      */
     @Override
     public void start() {

@@ -53,6 +53,8 @@ for conf_filename in conf_files:
     # Update values from Env
     for k in sorted(os.environ.keys()):
         v = os.environ[k]
+        if k.startswith(PF_ENV_PREFIX):
+            k = k[len(PF_ENV_PREFIX):]
         if k in keys:
             print('[%s] Applying config %s = %s' % (conf_filename, k, v))
             idx = keys[k]
@@ -68,6 +70,9 @@ for conf_filename in conf_files:
         if k not in keys:
             print('[%s] Adding config %s = %s' % (conf_filename, k, v))
             lines.append('%s=%s\n' % (k, v))
+        else:
+            print('[%s] Updating config %s = %s' %(conf_filename, k, v))
+            lines[keys[k]] = '%s=%s\n' % (k, v)
 
     # Store back the updated config in the same file
     f = open(conf_filename, 'w')

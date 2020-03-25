@@ -234,7 +234,6 @@ public class PulsarSink<T> implements Sink<T> {
             CompletableFuture<MessageId> future = msg.sendAsync();
 
             future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
-            future.join();
         }
     }
 
@@ -281,7 +280,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty()) {
+        if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());
         }
 

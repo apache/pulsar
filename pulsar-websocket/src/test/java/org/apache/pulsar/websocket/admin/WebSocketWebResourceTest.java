@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.WebSocketService;
 
 public class WebSocketWebResourceTest {

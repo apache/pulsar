@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -43,21 +45,15 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
@@ -371,7 +367,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     "  The Function Authentication Provider is responsible to distributing the necessary" +
                     " authentication information to individual functions e.g. user tokens"
     )
-    private String functionAuthProviderClassName;
+    @Getter(AccessLevel.NONE) private String functionAuthProviderClassName;
+
+    public String getFunctionAuthProviderClassName() {
+        // if we haven't set a value and are running kubernetes, we default to the SecretsTokenAuthProvider
+        // as that matches behavior before this property could be overridden
+        if (!StringUtils.isEmpty(functionAuthProviderClassName)) {
+            return functionAuthProviderClassName;
+        } else {
+            if (StringUtils.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName()) || getKubernetesContainerFactory() != null) {
+                return KubernetesSecretsTokenAuthProvider.class.getName();
+            }
+            return null;
+        }
+    }
 
     @FieldContext(
             doc = "The full class-name of an instance of RuntimeCustomizer." +

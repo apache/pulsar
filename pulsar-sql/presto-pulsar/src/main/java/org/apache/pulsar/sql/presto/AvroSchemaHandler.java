@@ -78,6 +78,11 @@ public class AvroSchemaHandler implements SchemaHandler {
     }
 
     @Override
+    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
+        return null;
+    }
+
+    @Override
     public Object extractField(int index, Object currentRecord) {
         try {
             GenericRecord record = (GenericRecord) currentRecord;

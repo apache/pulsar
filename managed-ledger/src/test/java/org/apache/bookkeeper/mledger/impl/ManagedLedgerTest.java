@@ -46,7 +46,6 @@ import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -96,18 +95,21 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
@@ -115,6 +117,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
@@ -122,6 +125,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTest.class);
 
     private static final Charset Encoding = Charsets.UTF_8;
+
+    @DataProvider(name = "checkOwnershipFlag")
+    public Object[][] checkOwnershipFlagProvider() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
 
     @Test
     public void managedLedgerApi() throws Exception {
@@ -175,14 +183,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertFalse(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0);
         assertEquals(cursor.readEntries(100), new ArrayList<Entry>());
 
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
         assertTrue(cursor.hasMoreEntries());
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
         List<Entry> entries = cursor.readEntries(100);
@@ -242,7 +250,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 2);
         assertFalse(cursor.hasMoreEntries());
 
         assertEquals(ledger.getNumberOfEntries(), 2);
@@ -251,7 +259,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertFalse(cursor.hasMoreEntries());
         assertEquals(ledger.getNumberOfActiveEntries(), 1);
 
@@ -266,7 +274,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getTotalSize(), "dummy-entry-1".getBytes(Encoding).length * 2);
 
         assertEquals(cursor.getNumberOfEntries(), 1);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         assertTrue(cursor.hasMoreEntries());
 
         entries = cursor.readEntries(100);
@@ -354,7 +362,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                 fail(exception.getMessage());
             }
-        }, null);
+        }, null, null);
 
         counter.await();
 
@@ -1814,7 +1822,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.addEntry("msg2".getBytes());
         ml.close();
 
-        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
         CountDownLatch l1 = new CountDownLatch(1);
 
         // obtain the ledger info
@@ -1979,7 +1987,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (3) Validate: cache should remove all entries read by both active cursors
-		log.info("expected, found : {}, {}", (5 * (totalInsertedEntries)), entryCache.getSize());
+        log.info("expected, found : {}, {}", (5 * (totalInsertedEntries)), entryCache.getSize());
         assertEquals((5 * totalInsertedEntries), entryCache.getSize());
 
         final int remainingEntries = totalInsertedEntries - readEntries;
@@ -2313,7 +2321,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
 
         assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
-        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog(false));
 
         ledger.close();
 
@@ -2525,6 +2533,100 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 Assert.assertSame(oldOp, newOp);
             }
         }
+    }
+
+    /**
+     * It verifies that managed-cursor can recover metadata-version if it fails to update due to version conflict. This
+     * test verifies that version recovery happens if checkOwnership supplier is passed while creating managed-ledger.
+     * 
+     * @param checkOwnershipFlag
+     * @throws Exception
+     */
+    @Test(dataProvider = "checkOwnershipFlag")
+    public void recoverMLWithBadVersion(boolean checkOwnershipFlag) throws Exception {
+
+        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactoryImpl factory1 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+
+        final MutableObject<ManagedLedger> ledger1 = new MutableObject<>(), ledger2 = new MutableObject<>();
+        final MutableObject<ManagedCursorImpl> cursor1 = new MutableObject<>(), cursor2 = new MutableObject<>();
+
+        createLedger(factory1, ledger1, cursor1, checkOwnershipFlag);
+        ledger1.getValue().addEntry("test1".getBytes(Encoding));
+        ledger1.getValue().addEntry("test2".getBytes(Encoding));
+        Entry entry = cursor1.getValue().readEntries(1).get(0);
+        cursor1.getValue().delete(entry.getPosition());
+
+        createLedger(factory2, ledger2, cursor2, checkOwnershipFlag);
+        entry = cursor2.getValue().readEntries(1).get(0);
+
+        // 1. closing cursor will change the zk-version
+        cursor1.getValue().close();
+
+        // 2. try to creatCursorLedger which should fail first time because of BadVersionException
+        // However, if checkOwnershipFlag is eanbled the managed-cursor will reover from that exception.
+        boolean isFailed = updateCusorMetadataByCreatingMetadataLedger(cursor2);
+        Assert.assertTrue(isFailed);
+
+        isFailed = updateCusorMetadataByCreatingMetadataLedger(cursor2);
+        if (checkOwnershipFlag) {
+            Assert.assertFalse(isFailed);
+        } else {
+            Assert.assertTrue(isFailed);
+        }
+
+        log.info("Test completed");
+    }
+
+    private boolean updateCusorMetadataByCreatingMetadataLedger(MutableObject<ManagedCursorImpl> cursor2)
+            throws InterruptedException {
+        MutableObject<Boolean> failed = new MutableObject<>();
+        failed.setValue(false);
+        CountDownLatch createLedgerDoneLatch = new CountDownLatch(1);
+        cursor2.getValue().createNewMetadataLedger(new VoidCallback() {
+
+            @Override
+            public void operationComplete() {
+                createLedgerDoneLatch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                failed.setValue(true);
+                createLedgerDoneLatch.countDown();
+            }
+
+        });
+        createLedgerDoneLatch.await();
+        return failed.getValue();
+    }
+
+    private void createLedger(ManagedLedgerFactoryImpl factory, MutableObject<ManagedLedger> ledger1,
+            MutableObject<ManagedCursorImpl> cursor1, boolean checkOwnershipFlag) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        factory.asyncOpen("my_test_ledger", new ManagedLedgerConfig(), new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                ledger1.setValue(ledger);
+                ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                        cursor1.setValue((ManagedCursorImpl) cursor);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    }
+                }, null);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, checkOwnershipFlag ? () -> true : null, null);
+        latch.await();
     }
 
     private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

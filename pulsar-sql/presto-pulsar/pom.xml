@@ -88,19 +88,6 @@
             <version>${presto.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- test dependencies -->
-
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
 
     </dependencies>
 
@@ -124,6 +111,7 @@
                                     <include>org.apache.pulsar:pulsar-client-original</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-original</include>
                                     <include>org.apache.pulsar:managed-ledger</include>
+                                    <include>org.apache.pulsar:pulsar-metadata</include>
 
                                     <include>org.glassfish.jersey*:*</include>
                                     <include>javax.ws.rs:*</include>

@@ -24,6 +24,7 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -64,6 +65,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -106,7 +108,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -117,6 +118,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,6 +144,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
 
     // Ever increasing counter of entries added
+    @VisibleForTesting
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "entriesAddedCounter");
     @SuppressWarnings("unused")
@@ -186,6 +189,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
+    protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
 
@@ -250,6 +254,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
             final String name) {
+        this(factory, bookKeeper, store, config, scheduledExecutor, orderedExecutor, name, null);
+    }
+    public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
+            final String name, final Supplier<Boolean> mlOwnershipChecker) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;
@@ -273,6 +282,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
+        this.mlOwnershipChecker = mlOwnershipChecker;
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -300,7 +310,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Opened ledger {}: ", name, id, BKException.getMessage(rc));
+                                log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
                             }
                             if (rc == BKException.Code.OK) {
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
@@ -1984,7 +1994,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             overRetentionQuota, currentLedger.getId());
                 }
                 if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] ledger id skipped for deletion as it is currently being written to", name,
+                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
                 } else if (expired) {
@@ -2144,7 +2154,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 @Override
                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                    log.warn("[{}] Failed to delete cursor {}", name, cursor, exception);
+                    log.warn("[{}] Failed to delete cursor {} : {}", name, cursor, exception);
                     cursorDeleteException.compareAndSet(null, exception);
                     if (cursorsToDelete.decrementAndGet() == 0) {
                         // Trigger callback only once
@@ -2183,7 +2193,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
-                log.error("[{}] Error deleting ledger {}", name, ledgerId, BKException.getMessage(rc));
+                log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
                 scheduledExecutor.schedule(safeRun(() -> {
                     asyncDeleteLedger(ledgerId, retry - 1);
                 }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
@@ -3174,6 +3184,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         return offloadedSize;
+    }
+
+    @VisibleForTesting
+    public void setEntriesAddedCounter(long count) {
+        ENTRIES_ADDED_COUNTER_UPDATER.set(this, count);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);

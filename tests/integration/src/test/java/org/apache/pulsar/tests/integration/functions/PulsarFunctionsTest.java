@@ -61,6 +61,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -81,10 +83,10 @@ import static org.testng.Assert.fail;
 @Slf4j
 public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
-   final Duration ONE_MINUTE = Duration.ofMinutes(1);
-   final Duration TEN_SECONDS = Duration.ofSeconds(10);
+    final Duration ONE_MINUTE = Duration.ofMinutes(1);
+    final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-   final RetryPolicy statusRetryPolicy = new RetryPolicy()
+    final RetryPolicy statusRetryPolicy = new RetryPolicy()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
@@ -93,53 +95,63 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         super(functionRuntimeType);
     }
 
-    @Test
+    @Test(groups = "sink")
     public void testKafkaSink() throws Exception {
         final String kafkaContainerName = "kafka-" + randomName(8);
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, groups = "sink")
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, groups = "sink")
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, groups = "sink")
     public void testHdfsSink() throws Exception {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test
+    @Test(groups = "sink")
     public void testJdbcSink() throws Exception {
         testSink(new JdbcSinkTester(), true);
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, groups = "sink")
     public void testElasticSearchSink() throws Exception {
         testSink(new ElasticSearchSinkTester(), true);
     }
 
-    @Test
+    @Test(groups = "sink")
+    public void testRabbitMQSink() throws Exception {
+        final String containerName = "rabbitmq-" + randomName(8);
+        testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
+    }
+
+    @Test(groups = "source")
     public void testDebeziumMySqlSource() throws Exception {
         testDebeziumMySqlConnect();
     }
 
-    @Test
+    @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
         testDebeziumPostgreSqlConnect();
     }
 
-    @Test
+    @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
         testDebeziumMongoDbConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
         tester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(tester, builtin);
@@ -153,6 +165,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                                         boolean builtinSink,
                                                                         SourceTester<ServiceContainerT> sourceTester)
             throws Exception {
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
         ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(sinkTester, builtinSink);
@@ -824,12 +840,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.PYTHON);
     }
+    @Test(groups = "function")
+    public void testGoFunctionLocalRun() throws Exception {
+        testFunctionLocalRun(Runtime.GO);
+    }
 
-    @Test
+    @Test(groups = "function")
     public void testJavaFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.JAVA);
     }
@@ -839,23 +859,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+
         String inputTopicName = "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
 
         final int numMessages = 10;
-        String cmd;
+        String cmd = "";
         CommandGenerator commandGenerator = new CommandGenerator();
         commandGenerator.setAdminUrl("pulsar://pulsar-broker-0:6650");
         commandGenerator.setSourceTopic(inputTopicName);
         commandGenerator.setSinkTopic(outputTopicName);
         commandGenerator.setFunctionName("localRunTest");
         commandGenerator.setRuntime(runtime);
-        if (runtime == Runtime.JAVA) {
-            commandGenerator.setFunctionClassName(EXCLAMATION_JAVA_CLASS);
-            cmd = commandGenerator.generateLocalRunCommand(null);
-        } else {
-            commandGenerator.setFunctionClassName(EXCLAMATION_PYTHON_CLASS);
-            cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_PYTHON_FILE);
+        switch (runtime) {
+            case JAVA:
+                commandGenerator.setFunctionClassName(EXCLAMATION_JAVA_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(null);
+                break;
+            case PYTHON:
+                commandGenerator.setFunctionClassName(EXCLAMATION_PYTHON_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                commandGenerator.setFunctionClassName(null);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_GO_FILE);
+                break;
         }
 
         log.info("cmd: {}", cmd);
@@ -955,6 +987,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
@@ -1047,7 +1083,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test
+    @Test(groups="function")
     public void testSlidingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4",
@@ -1075,7 +1111,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testWindowFunction("sliding", EXPECTED_RESULTS);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testTumblingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4,5,6,7,8,9",
@@ -1097,12 +1133,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Test CRUD functions on different runtimes.
     //
 
-    @Test
+    @Test(groups = "function")
     public void testPythonFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.PYTHON);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testJavaFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.JAVA);
     }
@@ -1110,6 +1146,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private void testFunctionNegAck(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
+        }
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
         }
 
         Schema<?> schema;
@@ -1278,14 +1319,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         checkSubscriptionsCleanup(inputTopicName);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonPublishFunction() throws Exception {
         testPublishFunction(Runtime.PYTHON);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testJavaPublishFunction() throws Exception {
         testPublishFunction(Runtime.JAVA);
+    }
+
+    @Test
+    public void testGoPublishFunction() throws Exception {
+        testPublishFunction(Runtime.GO);
     }
 
     private void testPublishFunction(Runtime runtime) throws Exception {
@@ -1300,6 +1346,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             schema = Schema.BYTES;
         }
 
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -1311,27 +1362,39 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-
-        if (runtime == Runtime.PYTHON) {
-            submitFunction(
-                    runtime,
-                    inputTopicName,
-                    outputTopicName,
-                    functionName,
-                    PUBLISH_FUNCTION_PYTHON_FILE,
-                    PUBLISH_PYTHON_CLASS,
-                    schema,
-                    Collections.singletonMap("publish-topic", outputTopicName));
-        } else {
-            submitFunction(
-                    runtime,
-                    inputTopicName,
-                    outputTopicName,
-                    functionName,
-                    null,
-                    PUBLISH_JAVA_CLASS,
-                    schema,
-                    Collections.singletonMap("publish-topic", outputTopicName));
+        switch (runtime){
+            case JAVA:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        null,
+                        PUBLISH_JAVA_CLASS,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
+                break;
+            case PYTHON:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        PUBLISH_FUNCTION_PYTHON_FILE,
+                        PUBLISH_PYTHON_CLASS,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
+                break;
+            case GO:
+                submitFunction(
+                        runtime,
+                        inputTopicName,
+                        outputTopicName,
+                        functionName,
+                        PUBLISH_FUNCTION_GO_FILE,
+                        null,
+                        schema,
+                        Collections.singletonMap("publish-topic", outputTopicName));
         }
 
         // get function info
@@ -1341,11 +1404,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
+
         if (Runtime.JAVA == runtime) {
             // java supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema
+            // python doesn't support schema. Does Go? Maybe we need a switch instead for the Go case.
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -1399,7 +1463,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         checkSubscriptionsCleanup(inputTopicName);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testSerdeFunction() throws Exception {
         testCustomSerdeFunction();
     }
@@ -1407,6 +1471,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private void testCustomSerdeFunction() throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
+        }
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
         }
 
         String inputTopicName = "persistent://public/default/test-serde-java-input-" + randomName(8);
@@ -1441,32 +1510,32 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, false);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonExclamationFunctionWithExtraDeps() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, true);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonExclamationZipFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, true, false);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testPythonExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, true, false, false);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testJavaExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, false, false, false);
     }
 
-    @Test
+    @Test(groups = "function")
     public void testJavaExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, true, false, false);
     }
@@ -1478,6 +1547,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
+        }
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
         }
 
         Schema<?> schema;
@@ -1630,14 +1704,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);
         }
-        String command;
-        if (Runtime.JAVA == runtime) {
-            command = generator.generateCreateFunctionCommand();
-        } else if (Runtime.PYTHON == runtime) {
-            generator.setRuntime(runtime);
-            command = generator.generateCreateFunctionCommand(functionFile);
-        } else {
-            throw new IllegalArgumentException("Unsupported runtime : " + runtime);
+        String command = "";
+
+        switch (runtime){
+            case JAVA:
+                command = generator.generateCreateFunctionCommand();
+                break;
+            case PYTHON:
+            case GO:
+                generator.setRuntime(runtime);
+                command = generator.generateCreateFunctionCommand(functionFile);
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
 
         log.info("---------- Function command: {}", command);
@@ -1833,7 +1912,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     PulsarCluster.ADMIN_SCRIPT,
                     "topics",
                     "stats",
-                     topic);
+                    topic);
             TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.subscriptions.size(), 0);
 
@@ -1988,12 +2067,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    @Test
+    @Test(groups = "function")
     public void testAutoSchemaFunction() throws Exception {
         String inputTopicName = "test-autoschema-input-" + randomName(8);
         String outputTopicName = "test-autoshcema-output-" + randomName(8);
         String functionName = "test-autoschema-fn-" + randomName(8);
         final int numMessages = 10;
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
 
         // submit the exclamation function
         submitFunction(
@@ -2065,6 +2149,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2156,6 +2245,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
 
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -2245,6 +2339,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
