@@ -70,7 +70,7 @@ public class AvroReader<T> implements SchemaReader<T> {
             reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-            this.reader = new ReflectDatumReader<>(reflectData);
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
         }
