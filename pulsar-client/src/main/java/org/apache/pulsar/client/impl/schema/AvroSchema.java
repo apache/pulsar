@@ -121,7 +121,7 @@ public class AvroSchema<T> extends StructSchema<T> {
         ClassLoader pojoClassLoader = null;
         if (clazz != null) {
             pojoClassLoader = clazz.getClassLoader();
-            log.info("3pojoClassLoader: {}", pojoClassLoader);
+            log.info("4pojoClassLoader: {}", pojoClassLoader);
         }
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
