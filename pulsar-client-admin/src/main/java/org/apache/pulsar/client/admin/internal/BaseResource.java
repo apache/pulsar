@@ -195,7 +195,7 @@ public abstract class BaseResource {
 
     public PulsarAdminException getApiException(Throwable e) {
         if (e instanceof PulsarAdminException) {
-            return (PulsarAdminException)e;
+            return (PulsarAdminException) e;
         } else if (e instanceof ServiceUnavailableException) {
             if (e.getCause() instanceof java.net.ConnectException) {
                 return new ConnectException(e.getCause());
