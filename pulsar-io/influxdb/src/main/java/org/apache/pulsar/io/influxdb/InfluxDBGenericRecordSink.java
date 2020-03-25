@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.influxdb;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -41,16 +42,18 @@ import java.util.Map;
 )
 @Slf4j
 public class InfluxDBGenericRecordSink implements Sink<GenericRecord> {
-    private Sink<GenericRecord> sink;
+    protected Sink<GenericRecord> sink;
 
     @Override
     public void open(Map<String, Object> map, SinkContext sinkContext) throws Exception {
         try {
-            InfluxDBSinkConfig.load(map);
+            val configV2 = InfluxDBSinkConfig.load(map);
+            configV2.validate();
             sink = new InfluxDBSink();
         } catch (Exception e) {
             try {
-                org.apache.pulsar.io.influxdb.v1.InfluxDBSinkConfig.load(map);
+                val configV1 = org.apache.pulsar.io.influxdb.v1.InfluxDBSinkConfig.load(map);
+                configV1.validate();
                 sink = new org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink();
             } catch (Exception e1) {
                 throw new Exception("For InfluxDB V2: \n" + e.toString() + "\n"
