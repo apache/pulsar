@@ -941,10 +941,10 @@ public interface Topics {
 
     /**
      * Delete a subscription.
-     * <p>
+     * <p/>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
      * Force flag deletes subscription forcefully by closing all active consumers.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
@@ -981,10 +981,10 @@ public interface Topics {
 
     /**
      * Delete a subscription asynchronously.
-     * <p>
+     * <p/>
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
      * Force flag deletes subscription forcefully by closing all active consumers.
-     * <p>
+     * <p/>
      *
      * @param topic
      *            topic name
