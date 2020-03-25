@@ -62,6 +62,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup schemas
+        System.out.println("PulsarSource functionClassLoader: " + functionClassLoader);
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
 
@@ -149,11 +150,12 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     @SuppressWarnings("unchecked")
     @VisibleForTesting
     Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
+        System.out.println("setupConsumerConfigs ...");
         Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
                 this.functionClassLoader);
-        log.info("typeArg class: {}, classLoader: {}", typeArg.getName(), typeArg.getClassLoader());
+        System.out.println("typeArg class: " + typeArg.getName() + ", classLoader: " + typeArg.getClassLoader());
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
