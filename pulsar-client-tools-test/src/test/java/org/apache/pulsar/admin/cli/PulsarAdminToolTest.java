@@ -639,7 +639,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getSubscriptions("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("unsubscribe persistent://myprop/clust/ns1/ds1 -s sub1"));
-        verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1");
+        verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
@@ -725,7 +725,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getSubscriptions("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("unsubscribe persistent://myprop/clust/ns1/ds1 -s sub1"));
-        verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1");
+        verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         topics.run(split("stats persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
