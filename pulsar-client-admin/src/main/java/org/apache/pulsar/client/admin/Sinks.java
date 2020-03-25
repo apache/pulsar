@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.io.SinkConfig;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.SinkStatus;
 
 /**
  * Admin interface for Sink management.
@@ -35,9 +35,9 @@ import java.util.concurrent.CompletableFuture;
 public interface Sinks {
     /**
      * Get the list of sinks.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar Sinks.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -53,9 +53,9 @@ public interface Sinks {
 
     /**
      * Get the list of sinks asynchronously.
-     * <p>
+     * <p/>
      * Get the list of all the Pulsar Sinks.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -66,7 +66,7 @@ public interface Sinks {
 
     /**
      * Get the configuration for the specified sink.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -93,7 +93,7 @@ public interface Sinks {
 
     /**
      * Get the configuration for the specified sink asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -132,7 +132,7 @@ public interface Sinks {
 
     /**
      * Create a new sink with package url.
-     * <p>
+     * <p/>
      * Create a new sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -148,7 +148,7 @@ public interface Sinks {
 
     /**
      * Create a new sink with package url asynchronously.
-     * <p>
+     * <p/>
      * Create a new sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -163,7 +163,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink.
-     * <p>
+     * <p/>
      *
      * @param sinkConfig
      *            the sink configuration object
@@ -179,7 +179,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink asynchronously.
-     * <p>
+     * <p/>
      *
      * @param sinkConfig
      *            the sink configuration object
@@ -188,7 +188,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink.
-     * <p>
+     * <p/>
      *
      * @param sinkConfig
      *            the sink configuration object
@@ -205,7 +205,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink asynchronously.
-     * <p>
+     * <p/>
      *
      * @param sinkConfig
      *            the sink configuration object
@@ -216,7 +216,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink.
-     * <p>
+     * <p/>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -237,7 +237,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink asynchronously.
-     * <p>
+     * <p/>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -252,7 +252,7 @@ public interface Sinks {
 
     /**
      * Update the configuration for a sink.
-     * <p>
+     * <p/>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -271,11 +271,12 @@ public interface Sinks {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException;
+    void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions)
+            throws PulsarAdminException;
 
     /**
      * Update the configuration for a sink asynchronously.
-     * <p>
+     * <p/>
      * Update a sink by providing url from which fun-pkg can be downloaded. supported url: http/file
      * eg:
      * File: file:/dir/fileName.jar
@@ -292,7 +293,7 @@ public interface Sinks {
 
     /**
      * Delete an existing sink.
-     * <p>
+     * <p/>
      * Delete a sink
      *
      * @param tenant
@@ -315,7 +316,7 @@ public interface Sinks {
 
     /**
      * Delete an existing sink asynchronously.
-     * <p>
+     * <p/>
      * Delete a sink
      *
      * @param tenant
@@ -368,7 +369,8 @@ public interface Sinks {
      * @return
      * @throws PulsarAdminException
      */
-    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant, String namespace, String sink, int id)
+    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(
+            String tenant, String namespace, String sink, int id)
             throws PulsarAdminException;
 
     /**
@@ -384,7 +386,8 @@ public interface Sinks {
      *            Sink instance-id
      * @return
      */
-    CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(String tenant, String namespace, String sink, int id);
+    CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(
+            String tenant, String namespace, String sink, int id);
 
     /**
      * Restart sink instance.
@@ -574,7 +577,7 @@ public interface Sinks {
     CompletableFuture<List<ConnectorDefinition>> getBuiltInSinksAsync();
 
     /**
-     * Reload the available built-in connectors, include Source and Sink
+     * Reload the available built-in connectors, include Source and Sink.
      *
      * @throws PulsarAdminException
      *             Unexpected error

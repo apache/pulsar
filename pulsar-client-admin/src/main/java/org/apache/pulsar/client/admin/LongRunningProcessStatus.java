@@ -22,6 +22,9 @@ package org.apache.pulsar.client.admin;
  * Status of long running process.
  */
 public class LongRunningProcessStatus {
+    /**
+     * Status code.
+     */
     public enum Status {
         NOT_RUN,
         RUNNING,

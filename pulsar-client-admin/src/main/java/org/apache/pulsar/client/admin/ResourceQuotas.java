@@ -18,19 +18,22 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
-import java.util.concurrent.CompletableFuture;
-
+/**
+ * Admin interface on interacting with resource quotas.
+ */
 public interface ResourceQuotas {
 
     /**
      * Get default resource quota for new resource bundles.
-     * <p>
+     * <p/>
      * Get default resource quota for new resource bundles.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -55,9 +58,9 @@ public interface ResourceQuotas {
 
     /**
      * Get default resource quota for new resource bundles asynchronously.
-     * <p>
+     * <p/>
      * Get default resource quota for new resource bundles.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -78,9 +81,9 @@ public interface ResourceQuotas {
 
     /**
      * Set default resource quota for new namespace bundles.
-     * <p>
+     * <p/>
      * Set default resource quota for new namespace bundles.
-     * <p>
+     * <p/>
      * The resource quota can be set with these properties:
      * <ul>
      * <li><code>msgRateIn</code> : The maximum incoming messages per second.
@@ -92,7 +95,7 @@ public interface ResourceQuotas {
      * </li>
      * </ul>
      *
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -120,9 +123,9 @@ public interface ResourceQuotas {
 
     /**
      * Set default resource quota for new namespace bundles asynchronously.
-     * <p>
+     * <p/>
      * Set default resource quota for new namespace bundles.
-     * <p>
+     * <p/>
      * The resource quota can be set with these properties:
      * <ul>
      * <li><code>msgRateIn</code> : The maximum incoming messages per second.
@@ -134,7 +137,7 @@ public interface ResourceQuotas {
      * </li>
      * </ul>
      *
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -157,9 +160,9 @@ public interface ResourceQuotas {
 
     /**
      * Get resource quota of a namespace bundle.
-     * <p>
+     * <p/>
      * Get resource quota of a namespace bundle.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -191,9 +194,9 @@ public interface ResourceQuotas {
 
     /**
      * Get resource quota of a namespace bundle asynchronously.
-     * <p>
+     * <p/>
      * Get resource quota of a namespace bundle.
-     * <p>
+     * <p/>
      * Response example:
      *
      * <pre>
@@ -219,9 +222,9 @@ public interface ResourceQuotas {
 
     /**
      * Set resource quota for a namespace bundle.
-     * <p>
+     * <p/>
      * Set resource quota for a namespace bundle.
-     * <p>
+     * <p/>
      * The resource quota can be set with these properties:
      * <ul>
      * <li><code>msgRateIn</code> : The maximum incoming messages per second.
@@ -233,7 +236,7 @@ public interface ResourceQuotas {
      * </li>
      * </ul>
      *
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -268,9 +271,9 @@ public interface ResourceQuotas {
 
     /**
      * Set resource quota for a namespace bundle asynchronously.
-     * <p>
+     * <p/>
      * Set resource quota for a namespace bundle.
-     * <p>
+     * <p/>
      * The resource quota can be set with these properties:
      * <ul>
      * <li><code>msgRateIn</code> : The maximum incoming messages per second.
@@ -282,7 +285,7 @@ public interface ResourceQuotas {
      * </li>
      * </ul>
      *
-     * <p>
+     * <p/>
      * Request parameter example:
      *
      * <pre>
@@ -310,9 +313,9 @@ public interface ResourceQuotas {
 
     /**
      * Reset resource quota for a namespace bundle to default value.
-     * <p>
+     * <p/>
      * Reset resource quota for a namespace bundle to default value.
-     * <p>
+     * <p/>
      * The resource quota policy will fall back to the default.
      *
      * @param namespace
@@ -331,9 +334,9 @@ public interface ResourceQuotas {
 
     /**
      * Reset resource quota for a namespace bundle to default value asynchronously.
-     * <p>
+     * <p/>
      * Reset resource quota for a namespace bundle to default value.
-     * <p>
+     * <p/>
      * The resource quota policy will fall back to the default.
      *
      * @param namespace

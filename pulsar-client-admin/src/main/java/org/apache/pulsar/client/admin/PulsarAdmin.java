@@ -156,7 +156,7 @@ public class PulsarAdmin implements Closeable {
         if (auth != null) {
             auth.start();
         }
-        
+
         if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
         }
@@ -208,7 +208,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -230,7 +230,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -249,7 +249,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -410,7 +410,7 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * Close the Pulsar admin client to release all the resources
+     * Close the Pulsar admin client to release all the resources.
      */
     @Override
     public void close() {
