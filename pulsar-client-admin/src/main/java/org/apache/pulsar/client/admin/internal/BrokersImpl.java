@@ -94,7 +94,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerUrl) {
+    public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(
+            String cluster, String brokerUrl) {
         WebTarget path = adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces");
         final CompletableFuture<Map<String, NamespaceOwnershipStatus>> future = new CompletableFuture<>();
         asyncGetRequest(path,

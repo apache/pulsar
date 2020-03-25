@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal.http;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,7 +42,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +66,9 @@ import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
 import org.glassfish.jersey.client.spi.Connector;
 
+/**
+ * Customized Jersey client connector with multi-host support.
+ */
 @Slf4j
 public class AsyncHttpConnector implements Connector {
 
@@ -112,11 +115,15 @@ public class AsyncHttpConnector implements Connector {
                 // Set client key and certificate if available
                 AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                                                            conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(), authData.getTlsPrivateKey());
+                    sslCtx = SecurityUtility.createNettySslContextForClient(
+                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                            conf.getTlsTrustCertsFilePath(),
+                            authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                                                            conf.getTlsTrustCertsFilePath());
+                    sslCtx = SecurityUtility.createNettySslContextForClient(
+                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                            conf.getTlsTrustCertsFilePath());
                 }
 
                 confBuilder.setSslContext(sslCtx);
@@ -168,7 +175,8 @@ public class AsyncHttpConnector implements Connector {
             if (throwable != null) {
                 callback.failure(throwable);
             } else {
-                ClientResponse jerseyResponse = new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
+                ClientResponse jerseyResponse =
+                        new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
                 response.getHeaders().forEach(e -> jerseyResponse.header(e.getKey(), e.getValue()));
                 if (response.hasResponseBody()) {
                     jerseyResponse.setEntityStream(response.getResponseBodyAsStream());
@@ -198,7 +206,8 @@ public class AsyncHttpConnector implements Connector {
                     (t, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof CancellationException) {
-                                resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
+                                resultFuture.completeExceptionally(
+                                        new RetryException("Operation future was cancelled.", throwable));
                             } else {
                                 if (retries > 0) {
                                     retryOperation(
@@ -206,8 +215,9 @@ public class AsyncHttpConnector implements Connector {
                                             operation,
                                             retries - 1);
                                 } else {
-                                    resultFuture.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
-                                            "has been exhausted.", throwable));
+                                    resultFuture.completeExceptionally(
+                                            new RetryException("Could not complete the operation. Number of retries "
+                                            + "has been exhausted.", throwable));
                                 }
                             }
                         } else {
@@ -220,6 +230,9 @@ public class AsyncHttpConnector implements Connector {
         }
     }
 
+    /**
+     * Retry Exception.
+     */
     public static class RetryException extends Exception {
         public RetryException(String message, Throwable cause) {
             super(message, cause);
@@ -231,7 +244,8 @@ public class AsyncHttpConnector implements Connector {
         URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);
 
-        BoundRequestBuilder builder = httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
+        BoundRequestBuilder builder =
+                httpClient.prepare(currentRequest.getMethod(), currentRequest.getUri().toString());
 
         if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
