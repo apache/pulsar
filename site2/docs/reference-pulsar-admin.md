@@ -1910,6 +1910,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|The subscription to delete||
+|`-f`, `--force`|Disconnect and close all consumers and delete subscription forcefully|false|
 
 
 ### `stats`

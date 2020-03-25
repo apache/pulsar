@@ -183,7 +183,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 6) Delete the subscription
         response = mock(AsyncResponse.class);
-        persistentTopics.deleteSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true);
+        persistentTopics.deleteSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", false,true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());

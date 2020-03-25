@@ -84,6 +84,7 @@ import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -1300,6 +1301,55 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deleteSubscription("persistent://prop-xyz/ns1-bundles/ds2", "my-sub");
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
+    }
+
+    @Test
+    public void testDeleteSubscription() throws Exception {
+        final String subName = "test-sub";
+        final String persistentTopicName = "persistent://prop-xyz/ns1/test-sub-topic";
+
+        // disable auto subscription creation
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        // create a topic and produce some messages
+        publishMessagesOnPersistentTopic(persistentTopicName, 5);
+        assertEquals(admin.topics().getList("prop-xyz/ns1"),
+            Lists.newArrayList(persistentTopicName));
+
+        // create the subscription by PulsarAdmin
+        admin.topics().createSubscription(persistentTopicName, subName, MessageId.earliest);
+
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
+
+        // create consumer and subscription
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsar.getWebServiceAddress())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Exclusive).subscribe();
+
+        // try to delete the subscription with a connected consumer
+        try {
+            admin.topics().deleteSubscription(persistentTopicName, subName);
+            fail("should have failed");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // failed to delete the subscription
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
+
+        // try to delete the subscription with a connected consumer forcefully
+        admin.topics().deleteSubscription(persistentTopicName, subName, true);
+
+        // delete the subscription successfully
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName).size(), 0);
+
+        // reset to default
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+
+        client.close();
     }
 
     @Test(dataProvider = "bundling")
