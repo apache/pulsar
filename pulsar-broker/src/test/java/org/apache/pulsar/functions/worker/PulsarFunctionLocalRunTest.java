@@ -339,6 +339,7 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
+        functionConfig.setForwardSourceMessageProperty(true);
         return functionConfig;
     }
 
