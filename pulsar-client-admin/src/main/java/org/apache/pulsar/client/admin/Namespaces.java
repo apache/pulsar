@@ -939,9 +939,10 @@ public interface Namespaces {
 
     /**
      * Sets the autoTopicCreation policy for a given namespace, overriding broker settings
-     * <p>
-     * When autoTopicCreationOverride is enabled, new topics will be created upon connection regardless of the broker level configuration.
-     * <p>
+     * <p/>
+     * When autoTopicCreationOverride is enabled, new topics will be created upon connection,
+     * regardless of the broker level configuration.
+     * <p/>
      * Request example:
      *
      * <pre>
@@ -966,11 +967,13 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setAutoTopicCreation(String namespace, AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException;
+    void setAutoTopicCreation(String namespace, AutoTopicCreationOverride autoTopicCreationOverride)
+            throws PulsarAdminException;
 
     /**
-     * Removes the autoTopicCreation policy for a given namespace, allowing the broker to dictate the auto-creation policy
-     * <p>
+     * Removes the autoTopicCreation policy for a given namespace,
+     * allowing the broker to dictate the auto-creation policy.
+     * <p/>
      *
      * @param namespace
      *            Namespace name
