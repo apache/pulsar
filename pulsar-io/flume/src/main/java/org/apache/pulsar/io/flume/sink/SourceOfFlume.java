@@ -87,7 +87,7 @@ public class SourceOfFlume extends AbstractPollableSource implements BatchSizeSu
                 }
             }
             if (eventList.size() > 0) {
-                counter.addToEventReceivedCount((long) eventList.size());
+                counter.addToEventReceivedCount(eventList.size());
                 getChannelProcessor().processEventBatch(eventList);
                 eventList.clear();
                 return Status.READY;

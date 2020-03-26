@@ -637,7 +637,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) su, 1, TimeUnit.MINUTES);
+                        pulsar.getNamespaceService().unloadNamespaceBundle(su, 1, TimeUnit.MINUTES);
                     } catch (Exception e) {
                         log.warn("Failed to unload namespace bundle {}", su, e);
                     }
@@ -1778,7 +1778,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
             if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                 field.setAccessible(true);
-                if (((FieldContext) field.getAnnotation(FieldContext.class)).dynamic()) {
+                if (field.getAnnotation(FieldContext.class).dynamic()) {
                     dynamicConfigurationMap.put(field.getName(), new ConfigField(field));
                 }
             }

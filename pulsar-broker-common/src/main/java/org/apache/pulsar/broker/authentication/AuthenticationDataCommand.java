@@ -79,7 +79,7 @@ public class AuthenticationDataCommand implements AuthenticationDataSource {
     @Override
     public Certificate[] getTlsCertificates() {
         try {
-            return (Certificate[]) sslSession.getPeerCertificates();
+            return sslSession.getPeerCertificates();
         } catch (SSLPeerUnverifiedException e) {
             return null;
         }

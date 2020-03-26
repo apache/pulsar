@@ -65,13 +65,13 @@ public class SecurityUtility {
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
             throws GeneralSecurityException {
-        return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
+        return createSslContext(allowInsecureConnection, trustCertificates, null, null);
     }
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, (Certificate[]) null,
-                (PrivateKey) null);
+        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, null,
+                null);
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
@@ -106,7 +106,7 @@ public class SecurityUtility {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
-        SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
+        SslContextBuilder builder = SslContextBuilder.forServer(privateKey, certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
         setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
@@ -229,7 +229,7 @@ public class SecurityUtility {
 
     private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
             X509Certificate[] certificates) {
-        builder.keyManager(privateKey, (X509Certificate[]) certificates);
+        builder.keyManager(privateKey, certificates);
     }
 
     private static void setupCiphers(SslContextBuilder builder, Set<String> ciphers) {
