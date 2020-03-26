@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -53,6 +54,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -64,6 +66,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 
+import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,16 +94,14 @@ public class Namespaces extends NamespacesBase {
                                   @PathParam("namespace") String namespace,
                                   @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
                                   @Suspended AsyncResponse asyncResponse) {
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
 
         pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
-                .thenAccept(topics -> {
-                    asyncResponse.resume(topics);
-                })
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("Failed to get topics list for namespace {}", namespaceName, ex);
                     asyncResponse.resume(ex);
@@ -114,8 +115,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public Policies getPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.POLICIES);
         return getNamespacePolicies(namespaceName);
     }
 
@@ -129,7 +130,7 @@ public class Namespaces extends NamespacesBase {
     public void createNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             Policies policies) {
         validateNamespaceName(tenant, namespace);
-
+        validateTenantOperation(tenant, TenantOperation.CREATE_NAMESPACE);
         policies = getDefaultPolicesIfNull(policies);
         internalCreateNamespace(policies);
     }
@@ -178,8 +179,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.PERMISSIONS);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -244,8 +245,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not global") })
     public Set<String> getNamespaceReplicationClusters(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_REPLICATION_CLUSTERS);
 
         return internalGetNamespaceReplicationClusters();
     }
@@ -270,9 +271,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public int getNamespaceMessageTTL(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_MESSAGE_TTL);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.message_ttl_in_seconds;
@@ -384,9 +384,9 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
     public BundlesData getBundlesData(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLES);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -558,8 +558,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BACKLOG_QUOTAS);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.backlog_quota_map;
