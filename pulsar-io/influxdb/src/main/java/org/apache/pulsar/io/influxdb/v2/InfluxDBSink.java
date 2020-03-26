@@ -19,8 +19,7 @@
 package org.apache.pulsar.io.influxdb.v2;
 
 import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.WriteApi;
-import com.influxdb.client.WriteOptions;
+import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import lombok.extern.slf4j.Slf4j;
@@ -30,8 +29,8 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.influxdb.BatchSink;
 
 import java.util.List;
 import java.util.Map;
@@ -40,36 +39,29 @@ import java.util.Map;
  * Pulsar sink for InfluxDB2
  */
 @Slf4j
-public class InfluxDBSink implements Sink<GenericRecord> {
+public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
 
     private WritePrecision writePrecision;
 
     protected InfluxDBClientBuilder influxDBClientBuilder = new InfluxDBClientBuilderImpl();
 
     private InfluxDBClient influxDBClient;
-    private WriteApi writeApi;
+    private WriteApiBlocking writeApi;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         InfluxDBSinkConfig influxDBSinkConfig = InfluxDBSinkConfig.load(config);
         influxDBSinkConfig.validate();
+        super.init(influxDBSinkConfig.getBatchTimeMs(), influxDBSinkConfig.getBatchSize());
 
         influxDBClient = influxDBClientBuilder.build(influxDBSinkConfig);
 
-        val writeOptions = WriteOptions.builder()
-                .batchSize(influxDBSinkConfig.getBatchSize())
-                .flushInterval(influxDBSinkConfig.getBatchTimeMs())
-                .build();
-        writeApi = influxDBClient.getWriteApi(writeOptions);
+        writeApi = influxDBClient.getWriteApiBlocking();
         writePrecision = WritePrecision.fromValue(influxDBSinkConfig.getPrecision().toLowerCase());
     }
 
     @Override
-    public void write(Record<GenericRecord> record) throws Exception {
-        writeApi.writePoint(buildPoint(record));
-    }
-
-    private Point buildPoint(Record<GenericRecord> record) {
+    final protected Point buildPoint(Record<GenericRecord> record) {
         val genericRecord = record.getValue();
 
         // looking for measurement
@@ -131,6 +123,19 @@ public class InfluxDBSink implements Sink<GenericRecord> {
         return point;
     }
 
+    @Override
+    protected void writePoints(List<Point> points) throws Exception {
+        writeApi.writePoints(points);
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (null != influxDBClient) {
+            influxDBClient.close();
+        }
+    }
+
     private void addPointField(Point point, String fieldName, Object value) throws SchemaSerializationException {
         if (value instanceof Number) {
             point.addField(fieldName, (Number) value);
@@ -142,27 +147,6 @@ public class InfluxDBSink implements Sink<GenericRecord> {
             point.addField(fieldName, value.toString());
         } else {
             throw new SchemaSerializationException("Unknown value type for field " + fieldName + ". Type: " + value.getClass());
-        }
-    }
-
-    @Override
-    public void close() throws Exception {
-        if (null != influxDBClient) {
-            writeApi.close();
-            influxDBClient.close();
-        }
-    }
-
-    private Object getFiled(GenericRecord record, String fieldName) {
-        List<Field> fields = record.getFields();
-        val fieldMatch = fields.stream()
-                .filter(field -> fieldName.equals(field.getName()))
-                .findAny()
-                .orElse(null);
-        if (null != fieldMatch) {
-            return record.getField(fieldMatch);
-        } else {
-            return null;
         }
     }
 }

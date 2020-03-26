@@ -20,7 +20,7 @@ package org.apache.pulsar.io.influxdb.v2;
 
 import com.google.common.collect.Maps;
 import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.WriteApi;
+import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.write.Point;
 import lombok.Data;
 import org.apache.avro.util.Utf8;
@@ -42,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -63,7 +64,7 @@ public class InfluxDBSinkTest {
 
     InfluxDBSink influxSink;
     InfluxDBClient influxDBClient;
-    WriteApi writeApi;
+    WriteApiBlocking writeApi;
 
     private Long timestamp;
 
@@ -84,10 +85,10 @@ public class InfluxDBSinkTest {
         influxSink = new InfluxDBSink();
         influxSink.influxDBClientBuilder = mock(InfluxDBClientBuilder.class);
         influxDBClient = mock(InfluxDBClient.class);
-        writeApi = mock(WriteApi.class);
+        writeApi = mock(WriteApiBlocking.class);
 
         when(influxSink.influxDBClientBuilder.build(any())).thenReturn(influxDBClient);
-        when(influxDBClient.getWriteApi(any())).thenReturn(writeApi);
+        when(influxDBClient.getWriteApiBlocking()).thenReturn(writeApi);
     }
 
     @Test
@@ -154,10 +155,10 @@ public class InfluxDBSinkTest {
         map.put("logLevel", "NONE");
 
         map.put("gzipEnable", false);
-        map.put("batchTimeMs", 1000);
-        map.put("batchSize", 5000);
+        map.put("batchTimeMs", 10000);
+        map.put("batchSize", 2);
         influxSink.open(map, null);
-        verify(influxDBClient, times(1)).getWriteApi(any());
+        verify(influxDBClient, times(1)).getWriteApiBlocking();
 
         // test write
         Message<GenericRecord> message = mock(MessageImpl.class);
@@ -172,18 +173,21 @@ public class InfluxDBSinkTest {
                 .build();
 
         influxSink.write(record);
-        verify(writeApi, times(1)).writePoint(any(Point.class));
+        verify(writeApi, times(0)).writePoints(anyList());
+        influxSink.write(record);
+        Thread.sleep(100);
+        verify(writeApi, times(1)).writePoints(anyList());
 
-        ArgumentCaptor<Point> captor = ArgumentCaptor.forClass(Point.class);
-        verify(writeApi).writePoint(captor.capture());
-        Point point = captor.getValue();
-        assertTrue(point.hasFields());
-        assertEquals("ns", point.getPrecision().getValue());
-        assertEquals("cpu,host=server-1,region=us-west model=\"lenovo\",value=10i "+timestamp, point.toLineProtocol());
+        ArgumentCaptor<List<Point>> captor = ArgumentCaptor.forClass(List.class);
+        verify(writeApi).writePoints(captor.capture());
+        List<Point> points = captor.getValue();
+        assertEquals(2, points.size());
+        assertTrue(points.get(0).hasFields());
+        assertEquals("ns", points.get(0).getPrecision().getValue());
+        assertEquals("cpu,host=server-1,region=us-west model=\"lenovo\",value=10i "+timestamp, points.get(0).toLineProtocol());
 
         // test close
         influxSink.close();
-        verify(writeApi, times(1)).close();
         verify(influxDBClient, times(1)).close();
     }
 }

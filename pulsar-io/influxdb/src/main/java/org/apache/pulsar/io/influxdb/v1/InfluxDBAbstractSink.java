@@ -18,29 +18,23 @@
  */
 package org.apache.pulsar.io.influxdb.v1;
 
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.influxdb.BatchSink;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
+import org.influxdb.dto.Point;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A simple abstract class for InfluxDB sink
  */
 @Slf4j
-public abstract class InfluxDBAbstractSink<T> implements Sink<T> {
+public abstract class InfluxDBAbstractSink<T> extends BatchSink<Point, T> {
 
-    private InfluxDBSinkConfig influxDBSinkConfig;
     private InfluxDB influxDB;
     private InfluxDB.ConsistencyLevel consistencyLevel;
     private String influxDatabase;
@@ -48,15 +42,12 @@ public abstract class InfluxDBAbstractSink<T> implements Sink<T> {
 
     protected InfluxDBBuilder influxDBBuilder = new InfluxDBBuilderImpl();
 
-    private long batchTimeMs;
-    private int batchSize;
-    private List<Record<T>> incomingList;
-    private ScheduledExecutorService flushExecutor;
-
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        influxDBSinkConfig = InfluxDBSinkConfig.load(config);
+        InfluxDBSinkConfig influxDBSinkConfig = InfluxDBSinkConfig.load(config);
         influxDBSinkConfig.validate();
+
+        super.init(influxDBSinkConfig.getBatchTimeMs(), influxDBSinkConfig.getBatchSize());
 
         try {
             consistencyLevel = InfluxDB.ConsistencyLevel.valueOf(influxDBSinkConfig.getConsistencyLevel().toUpperCase());
@@ -75,82 +66,24 @@ public abstract class InfluxDBAbstractSink<T> implements Sink<T> {
         if (!databases.contains(influxDatabase)) {
             influxDB.createDatabase(influxDatabase);
         }
-
-        batchTimeMs = influxDBSinkConfig.getBatchTimeMs();
-        batchSize = influxDBSinkConfig.getBatchSize();
-        incomingList = Lists.newArrayList();
-        flushExecutor = Executors.newScheduledThreadPool(1);
-        flushExecutor.scheduleAtFixedRate(() -> flush(), batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public void write(Record<T> record) throws Exception {
-        int currentSize;
-        synchronized (this) {
-            if (null != record) {
-                incomingList.add(record);
-            }
-            currentSize = incomingList.size();
-        }
-
-        if (currentSize == batchSize) {
-            flushExecutor.submit(() -> flush());
-        }
-    }
-
-    private void flush() {
-        BatchPoints.Builder batchBuilder = BatchPoints
-            .database(influxDatabase)
-            .retentionPolicy(retentionPolicy)
-            .consistency(consistencyLevel);
-
-        List<Record<T>>  toFlushList;
-
-        synchronized (this) {
-            if (incomingList.isEmpty()) {
-                return;
-            }
-            toFlushList = incomingList;
-            incomingList = Lists.newArrayList();
-        }
-
-        if (CollectionUtils.isNotEmpty(toFlushList)) {
-            for (Record<T> record: toFlushList) {
-                try {
-                    buildBatch(record, batchBuilder);
-                } catch (Exception e) {
-                    record.fail();
-                    toFlushList.remove(record);
-                    log.warn("Record flush thread was exception ", e);
-                }
-            }
-        }
-
-        BatchPoints batch = batchBuilder.build();
-        try {
-            if (CollectionUtils.isNotEmpty(batch.getPoints())) {
-                influxDB.write(batch);
-            }
-            toFlushList.forEach(tRecord -> tRecord.ack());
-            batch.getPoints().clear();
-            toFlushList.clear();
-        } catch (Exception e) {
-            toFlushList.forEach(tRecord -> tRecord.fail());
-            log.error("InfluxDB write batch data exception ", e);
-        }
     }
 
     @Override
     public void close() throws Exception {
+        super.close();
         if (null != influxDB) {
             influxDB.close();
         }
-
-        if (null != flushExecutor) {
-            flushExecutor.shutdown();
-        }
     }
 
-    // build Point in BatchPoints builder
-    public abstract void buildBatch(Record<T> message, BatchPoints.Builder batchBuilder) throws Exception;
+    @Override
+    protected void writePoints(List<Point> points) throws Exception {
+        BatchPoints.Builder batchBuilder = BatchPoints
+                .database(influxDatabase)
+                .retentionPolicy(retentionPolicy)
+                .consistency(consistencyLevel);
+
+        points.forEach((batchBuilder::point));
+        influxDB.write(batchBuilder.build());
+    }
 }

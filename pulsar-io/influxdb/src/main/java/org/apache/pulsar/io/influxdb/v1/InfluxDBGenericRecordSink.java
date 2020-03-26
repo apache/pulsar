@@ -26,10 +26,8 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -46,29 +44,29 @@ public class InfluxDBGenericRecordSink extends InfluxDBAbstractSink<GenericRecor
     private final Set<String> FIELDS_TO_SKIP = ImmutableSet.of("measurement", "tags");
 
     @Override
-    public void buildBatch(Record<GenericRecord> message, BatchPoints.Builder batchBuilder) throws Exception {
+    protected Point buildPoint(Record<GenericRecord> message) throws Exception {
         Map<String, String> tags;
         Map<String, Object> fields = Maps.newHashMap();
 
         GenericRecord record = message.getValue();
 
-        Field measurementField = getFiled(record, "measurement");
+        Object measurementField = getFiled(record, "measurement");
         if (null == measurementField) {
             throw new SchemaSerializationException("measurement is a required field.");
         }
 
-        String measurement = record.getField(measurementField).toString();
+        String measurement = measurementField.toString();
 
         // Looking for tags
-        Field tagsField = getFiled(record, "tags");
+        Object tagsField = getFiled(record, "tags");
         if (null == tagsField) {
             tags = ImmutableMap.of();
-        } else if (Map.class.isAssignableFrom(record.getField(tagsField).getClass())) {
-            tags = ((Map<Object, Object>) record.getField(tagsField)).entrySet()
-                .stream().collect(Collectors.toMap(
-                    entry -> entry.getKey().toString(),
-                    entry -> entry.getValue().toString())
-                );
+        } else if (Map.class.isAssignableFrom(tagsField.getClass())) {
+            tags = ((Map<Object, Object>) tagsField).entrySet()
+                    .stream().collect(Collectors.toMap(
+                            entry -> entry.getKey().toString(),
+                            entry -> entry.getValue().toString())
+                    );
         } else {
             // Field 'tags' that is not of Map type will be ignored
             tags = ImmutableMap.of();
@@ -89,18 +87,9 @@ public class InfluxDBGenericRecordSink extends InfluxDBAbstractSink<GenericRecor
         }
 
         Point.Builder builder = Point.measurement(measurement)
-            .time(timestamp, TimeUnit.MILLISECONDS)
-            .tag(tags)
-            .fields(fields);
-        Point point = builder.build();
-        batchBuilder.point(point);
-    }
-
-    private Field getFiled(GenericRecord record, String fieldName) {
-        List<Field> fields = record.getFields();
-        return fields.stream()
-            .filter(field -> fieldName.equals(field.getName()))
-            .findAny()
-            .orElse(null);
+                .time(timestamp, TimeUnit.MILLISECONDS)
+                .tag(tags)
+                .fields(fields);
+        return builder.build();
     }
 }
