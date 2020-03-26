@@ -938,7 +938,7 @@ public interface Namespaces {
     CompletableFuture<Void> setDeduplicationStatusAsync(String namespace, boolean enableDeduplication);
 
     /**
-     * Sets the autoTopicCreation policy for a given namespace, overriding broker settings
+     * Sets the autoTopicCreation policy for a given namespace, overriding broker settings.
      * <p/>
      * When autoTopicCreationOverride is enabled, new topics will be created upon connection,
      * regardless of the broker level configuration.
@@ -971,8 +971,35 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Removes the autoTopicCreation policy for a given namespace,
-     * allowing the broker to dictate the auto-creation policy.
+     * Sets the autoTopicCreation policy for a given namespace, overriding broker settings asynchronously.
+     * <p/>
+     * When autoTopicCreationOverride is enabled, new topics will be created upon connection,
+     * regardless of the broker level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoTopicCreation" : true,
+     *      "topicType" : "partitioned",
+     *      "defaultNumPartitions": 2
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param autoTopicCreationOverride
+     *            Override policies for auto topic creation
+     */
+    CompletableFuture<Void> setAutoTopicCreationAsync(
+            String namespace, AutoTopicCreationOverride autoTopicCreationOverride);
+
+    /**
+     * Removes the autoTopicCreation policy for a given namespace.
+     * <p/>
+     * Allowing the broker to dictate the auto-creation policy.
      * <p/>
      *
      * @param namespace
@@ -986,6 +1013,17 @@ public interface Namespaces {
      *             Unexpected error
      */
     void removeAutoTopicCreation(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the autoTopicCreation policy for a given namespace asynchronously.
+     * <p/>
+     * Allowing the broker to dictate the auto-creation policy.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeAutoTopicCreationAsync(String namespace);
 
     /**
      * Get the bundles split data.
