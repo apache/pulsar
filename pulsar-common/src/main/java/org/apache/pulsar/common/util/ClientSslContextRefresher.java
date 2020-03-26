@@ -41,7 +41,7 @@ public class ClientSslContextRefresher {
 
         if (authData != null && authData.hasDataForTls()) {
             this.sslContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                    this.tlsTrustCertsFilePath, authData.getTlsCertificates(),
+                    this.tlsTrustCertsFilePath, (X509Certificate[]) authData.getTlsCertificates(),
                     authData.getTlsPrivateKey());
         } else {
             this.sslContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
@@ -53,7 +53,7 @@ public class ClientSslContextRefresher {
         if (authData != null && authData.hasDataForTls()) {
             try {
                 this.sslContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                        this.tlsTrustCertsFilePath, authData.getTlsCertificates(),
+                        this.tlsTrustCertsFilePath, (X509Certificate[]) authData.getTlsCertificates(),
                         authData.getTlsPrivateKey());
             } catch (GeneralSecurityException | IOException e) {
                 LOG.error("Exception occured while trying to refresh sslContext: ", e);
