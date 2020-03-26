@@ -374,13 +374,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             this.delayedDeliveryTracker = Optional.empty();
         }
 
-        if (delayedDeliveryTracker.isPresent()) {
-            delayedDeliveryTracker.get().close();
-        }
+        delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
 
-        if (dispatchRateLimiter.isPresent()) {
-            dispatchRateLimiter.get().close();
-        }
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
         return disconnectAllConsumers();
     }

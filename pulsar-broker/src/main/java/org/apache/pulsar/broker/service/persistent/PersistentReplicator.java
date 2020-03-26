@@ -388,9 +388,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     continue;
                 }
 
-                if (dispatchRateLimiter.isPresent()) {
-                    dispatchRateLimiter.get().tryDispatchPermit(1, entry.getLength());
-                }
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
@@ -756,9 +754,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         super.disconnect(failIfHasBacklog).thenRun(() -> {
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().close();
-            }
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
             future.complete(null);
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
