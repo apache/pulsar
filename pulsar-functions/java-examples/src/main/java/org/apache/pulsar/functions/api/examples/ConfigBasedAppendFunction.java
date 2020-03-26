@@ -32,14 +32,6 @@ public class ConfigBasedAppendFunction implements Function<String, String> {
         String key = "config-key";
         Optional<Object> appendValue = context.getUserConfigValue(key);
 
-<<<<<<< HEAD
         return appendValue.map(o -> input + (String) o).orElseGet(() -> input + "!");
-=======
-        if (appendValue.isPresent()) {
-            return input + appendValue.get();
-        } else {
-            return input + "!";
-        }
->>>>>>> apache/master
     }
 }
