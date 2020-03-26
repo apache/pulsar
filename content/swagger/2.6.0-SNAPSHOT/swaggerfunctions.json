@@ -1380,9 +1380,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "topicName" : {
-          "type" : "string"
-        },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
         },
@@ -1391,13 +1388,6 @@
           "format" : "int64"
         },
         "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1418,10 +1408,20 @@
             "format" : "byte"
           }
         },
-        "replicatedFrom" : {
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "topicName" : {
           "type" : "string"
         },
         "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
           "type" : "string"
         },
         "data" : {

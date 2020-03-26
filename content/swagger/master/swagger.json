@@ -1547,6 +1547,65 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/autoTopicCreation" : {
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Override broker's allowAutoTopicCreation setting for a namespace",
+        "description" : "",
+        "operationId" : "setAutoTopicCreation",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid autoTopicCreation override"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Remove override of broker's allowAutoTopicCreation in a namespace",
+        "description" : "",
+        "operationId" : "removeAutoTopicCreation",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/backlogQuota" : {
       "post" : {
         "tags" : [ "namespaces" ],
@@ -4489,7 +4548,7 @@
     "/non-persistent/{tenant}/{namespace}/{topic}/internal-info" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Get the internal stats for the topic.",
+        "summary" : "Get the stored topic metadata.",
         "description" : "",
         "operationId" : "getManagedLedgerInfo",
         "produces" : [ "application/json" ],
@@ -5375,7 +5434,7 @@
       "delete" : {
         "tags" : [ "non-persistent topic" ],
         "summary" : "Delete a subscription.",
-        "description" : "There should not be any active consumers on the subscription.",
+        "description" : "The subscription cannot be deleted if delete is not forcefully and there are any active consumers attached to it. Force delete ignores connected consumers and deletes subscription by explicitly closing them.",
         "operationId" : "deleteSubscription",
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -5402,6 +5461,13 @@
           "description" : "Subscription to be deleted",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "force",
+          "in" : "query",
+          "description" : "Disconnect and close all consumers and delete subscription forcefully",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -6642,7 +6708,7 @@
     "/persistent/{tenant}/{namespace}/{topic}/internal-info" : {
       "get" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Get the internal stats for the topic.",
+        "summary" : "Get the stored topic metadata.",
         "description" : "",
         "operationId" : "getManagedLedgerInfo",
         "produces" : [ "application/json" ],
@@ -7534,7 +7600,7 @@
       "delete" : {
         "tags" : [ "persistent topic" ],
         "summary" : "Delete a subscription.",
-        "description" : "There should not be any active consumers on the subscription.",
+        "description" : "The subscription cannot be deleted if delete is not forcefully and there are any active consumers attached to it. Force delete ignores connected consumers and deletes subscription by explicitly closing them.",
         "operationId" : "deleteSubscription",
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -7561,6 +7627,13 @@
           "description" : "Subscription to be deleted",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "force",
+          "in" : "query",
+          "description" : "Disconnect and close all consumers and delete subscription forcefully",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -9146,6 +9219,21 @@
       },
       "description" : "The auto failover policy configuration data"
     },
+    "AutoTopicCreationOverride" : {
+      "type" : "object",
+      "properties" : {
+        "allowAutoTopicCreation" : {
+          "type" : "boolean"
+        },
+        "topicType" : {
+          "type" : "string"
+        },
+        "defaultNumPartitions" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    },
     "BacklogQuota" : {
       "type" : "object",
       "properties" : {
@@ -9682,16 +9770,9 @@
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -9699,6 +9780,13 @@
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -10392,6 +10480,9 @@
         "deduplicationEnabled" : {
           "type" : "boolean"
         },
+        "autoTopicCreationOverride" : {
+          "$ref" : "#/definitions/AutoTopicCreationOverride"
+        },
         "publishMaxMessageRate" : {
           "type" : "object",
           "additionalProperties" : {
@@ -10802,11 +10893,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
