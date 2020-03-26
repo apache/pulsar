@@ -1084,6 +1084,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     }
     lock.unlock();
 
+    this->ackGroupingTrackerPtr_->flushAndClean();
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
         ClientImplPtr client = client_.lock();
