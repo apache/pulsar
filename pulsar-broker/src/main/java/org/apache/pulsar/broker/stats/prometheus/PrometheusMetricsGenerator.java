@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,10 +20,17 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.Enumeration;
+import java.util.Map;
 
 import org.apache.pulsar.broker.PulsarService;
+
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
+
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 import io.netty.buffer.ByteBuf;
@@ -75,9 +82,51 @@ public class PrometheusMetricsGenerator {
             FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
                     pulsar.getConfiguration().getClusterName(), stream);
 
+            generateBrokerBasicMetrics(pulsar, stream);
+
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
             buf.release();
+        }
+    }
+
+    private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
+        String clusterName = pulsar.getConfiguration().getClusterName();
+        // generate managedLedgerCache metrics
+        parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
+                clusterName, "managedLedgerCache", Collector.Type.GAUGE, stream);
+
+        // generate managerLedger metrics
+        parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+                clusterName, "manageLedger", Collector.Type.GAUGE, stream);
+
+        // generate brokerService topic metrics
+        parseMetricsToPrometheusMetrics(pulsar.getBrokerService().getTopicMetrics(),
+                clusterName, "brokerService", Collector.Type.GAUGE, stream);
+
+        // generate load manager loadBalancing metrics
+        parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),
+                clusterName, "loadBalancing", Collector.Type.GAUGE, stream);
+    }
+
+    private static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster, String metricName,
+                                                        Collector.Type metricType, SimpleTextOutputStream stream) {
+        stream.write("# TYPE ").write(metricName).write(' ').write(getTypeStr(metricType)).write('\n');
+        for (Metrics metrics1 : metrics) {
+            String labels = "{cluster=\"" + cluster + "\"";
+            for (Map.Entry<String, String> entry : metrics1.getDimensions().entrySet()) {
+                if (entry.getKey().isEmpty() || "cluster".equals(entry.getKey())) {
+                    continue;
+                }
+                labels += ", " + entry.getKey() + "=\"" + entry.getValue() + "\"";
+            }
+            labels += "} ";
+
+            for (Map.Entry<String, Object> entry : metrics1.getMetrics().entrySet()) {
+                stream.write(entry.getKey().replace(".", ":"))
+                        .write(labels).write(String.valueOf(entry.getValue()))
+                        .write(' ').write(System.currentTimeMillis()).write("\n");
+            }
         }
     }
 
@@ -116,17 +165,17 @@ public class PrometheusMetricsGenerator {
 
     static String getTypeStr(Collector.Type type) {
         switch (type) {
-        case COUNTER:
-            return "counter";
-        case GAUGE:
-            return "gauge";
-        case SUMMARY        :
-            return "summary";
-        case HISTOGRAM:
-            return "histogram";
-        case UNTYPED:
-        default:
-            return "untyped";
+            case COUNTER:
+                return "counter";
+            case GAUGE:
+                return "gauge";
+            case SUMMARY:
+                return "summary";
+            case HISTOGRAM:
+                return "histogram";
+            case UNTYPED:
+            default:
+                return "untyped";
         }
     }
 
