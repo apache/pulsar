@@ -76,9 +76,9 @@ public class MockZooKeeper extends ZooKeeper {
         try {
 
             sun.reflect.ReflectionFactory rf = sun.reflect.ReflectionFactory.getReflectionFactory();
-            Constructor objDef = Object.class.getDeclaredConstructor(new Class[0]);
+            Constructor objDef = Object.class.getDeclaredConstructor();
             Constructor intConstr = rf.newConstructorForSerialization(MockZooKeeper.class, objDef);
-            MockZooKeeper zk = MockZooKeeper.class.cast(intConstr.newInstance());
+            MockZooKeeper zk = (MockZooKeeper) intConstr.newInstance();
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();

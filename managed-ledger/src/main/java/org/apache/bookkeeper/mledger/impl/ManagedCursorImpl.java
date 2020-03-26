@@ -1120,7 +1120,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (((PositionImpl) p).compareTo(this.readPosition) == 0) {
                         this.setReadPosition(this.readPosition.getNext());
                         log.warn("[{}][{}] replayPosition{} equals readPosition{}," + " need set next readPositio",
-                                ledger.getName(), name, (PositionImpl) p, this.readPosition);
+                                ledger.getName(), name, p, this.readPosition);
                     }
                     ledger.asyncReadEntry((PositionImpl) p, cb, ctx);
                 });
@@ -1474,7 +1474,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             callback.markDeleteFailed(
                     new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
-                            + ((PositionImpl) position).toString()),
+                            + position.toString()),
                     ctx);
         }
 

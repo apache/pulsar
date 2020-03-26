@@ -570,7 +570,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             builder.setLedgerId(startMessageId.getLedgerId());
             builder.setEntryId(startMessageId.getEntryId());
             if (startMessageId instanceof BatchMessageIdImpl) {
-                builder.setBatchIndex(((BatchMessageIdImpl) startMessageId).getBatchIndex());
+                builder.setBatchIndex(startMessageId.getBatchIndex());
             }
 
             startMessageIdData = builder.build();

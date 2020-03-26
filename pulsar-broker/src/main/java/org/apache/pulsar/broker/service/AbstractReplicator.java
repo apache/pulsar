@@ -250,7 +250,7 @@ public abstract class AbstractReplicator {
     private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
         TopicName topicName = TopicName.get(topic);
         String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
-                topicName.getNamespace().toString(), topicName.getDomain().toString(),
+                topicName.getNamespace(), topicName.getDomain().toString(),
                 topicName.getEncodedLocalName());
         boolean isPartitionedTopic = false;
         try {
