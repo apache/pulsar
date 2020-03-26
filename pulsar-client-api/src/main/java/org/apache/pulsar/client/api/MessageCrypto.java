@@ -28,6 +28,8 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
  */
 public interface MessageCrypto<MetadataT, BuilderT> {
 
+    int IV_LEN = 12;
+
     /*
      * Encrypt data key using the public key(s) in the argument. <p> If more than one key name is specified, data key is
      * encrypted using each of those keys. If the public key is expired or changed, application is responsible to remove

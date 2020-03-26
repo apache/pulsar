@@ -1756,7 +1756,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                     ? e.getMetadataList().stream().collect(
                                                             Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
                                                     : null)));
-            byte[] encParam = new byte[MessageCrypto.ivLen];
+            byte[] encParam = new byte[MessageCrypto.IV_LEN];
             msgMetadata.getEncryptionParam().copyTo(encParam, 0);
             Optional<Integer> batchSize = Optional
                     .ofNullable(msgMetadata.hasNumMessagesInBatch() ? msgMetadata.getNumMessagesInBatch() : null);

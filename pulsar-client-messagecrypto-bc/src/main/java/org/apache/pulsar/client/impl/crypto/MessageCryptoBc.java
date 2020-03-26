@@ -57,7 +57,6 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -101,8 +100,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
-    public static final int ivLen = 12;
-    private byte[] iv = new byte[ivLen];
+    private byte[] iv = new byte[IV_LEN];
     private Cipher cipher;
     MessageDigest digest;
     private String logCtx;
@@ -126,7 +124,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         secureRandom = rand;
 
         // Initial seed
-        secureRandom.nextBytes(new byte[ivLen]);
+        secureRandom.nextBytes(new byte[IV_LEN]);
     }
 
     public MessageCryptoBc(String logCtx, boolean keyGenNeeded) {
@@ -175,7 +173,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Generate data key to encrypt messages
         dataKey = keyGenerator.generateKey();
 
-        iv = new byte[ivLen];
+        iv = new byte[IV_LEN];
     }
 
     private PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
