@@ -337,6 +337,7 @@ public class AuthorizationService {
      *
      * @param clusterName
      * @param operation
+     * @param originalRole
      * @param role
      * @param authData
      *            additional authdata in json for targeted authorization provider
@@ -344,22 +345,25 @@ public class AuthorizationService {
      * @throws IllegalStateException
      *             when failed to grant permission
      */
-    public CompletableFuture<Boolean> allowClusterOperation(String clusterName, ClusterOperation operation,
-                                                           String role, AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, ClusterOperation operation,
+                                                                 String originalRole, String role,
+                                                                 AuthenticationDataSource authData) {
+        if (provider != null) {
+            return provider.allowClusterOperationAsync(clusterName, originalRole, role, operation, authData);
         }
 
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowClusterOperationAsync"));
+    }
+
+    public Boolean allowClusterOperation(String clusterName, ClusterOperation operation,
+                                                                 String orignalRole, String role,
+                                                                 AuthenticationDataSource authData) {
         if (provider != null) {
-            return provider.allowClusterOperation(clusterName, role, operation, authData)
-                    .thenApply(authorized -> {
-                        if (!authorized) {
-                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
-                        }
-                        return authorized;
-                    });
+            return provider.allowClusterOperation(clusterName, orignalRole, role, operation, authData);
         }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+
+        throw new IllegalStateException("No authorization provider configured for allowClusterOperation");
     }
 
     /**
@@ -375,23 +379,24 @@ public class AuthorizationService {
      * @throws IllegalStateException
      *             when failed to grant permission
      */
-    public CompletableFuture<Boolean> allowTenantOperation(String tenantName, TenantOperation operation,
-                                                           String originalRole, String role,
-                                                           AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, TenantOperation operation,
+                                                                 String originalRole, String role,
+                                                                 AuthenticationDataSource authData) {
+        if (provider != null) {
+            return provider.allowTenantOperationAsync(tenantName, originalRole, role, operation, authData);
         }
 
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTenantOperationAsync"));
+    }
+
+    public Boolean allowTenantOperation(String tenantName, TenantOperation operation, String orignalRole, String role,
+                                        AuthenticationDataSource authData) {
         if (provider != null) {
-            return provider.allowTenantOperation(tenantName, originalRole, role, operation, authData)
-                    .thenApply(authorized -> {
-                        if (!authorized) {
-                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
-                        }
-                        return authorized;
-                    });
+            return provider.allowTenantOperation(tenantName, orignalRole, role, operation, authData);
         }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+
+        throw new IllegalStateException("No authorization provider configured for allowClusterOperation");
     }
 
     /**
@@ -407,23 +412,25 @@ public class AuthorizationService {
      * @throws IllegalStateException
      *             when failed to grant permission
      */
-    public CompletableFuture<Boolean> allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
-                                                              String originalRole, String role,
-                                                              AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation,
+                                                                   String originalRole, String role,
+                                                                   AuthenticationDataSource authData) {
+        if (provider != null) {
+            return provider.allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData);
         }
 
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowNamespaceOperationAsync"));
+    }
+
+    public Boolean allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
+                                           String orignalRole, String role, AuthenticationDataSource authData) {
         if (provider != null) {
-            return provider.allowNamespaceOperation(namespaceName, originalRole, role, operation, authData)
-                    .thenApply(authorized -> {
-                        if (!authorized) {
-                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
-                        }
-                        return authorized;
-                    });
+            return provider.allowNamespaceOperation(namespaceName, orignalRole, role, operation, authData);
         }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+
+        throw new IllegalStateException("No authorization provider configured for allowNamespaceOperation");
     }
 
     /**
@@ -438,21 +445,24 @@ public class AuthorizationService {
      * @throws IllegalStateException
      *             when failed to grant permission
      */
-    public CompletableFuture<Boolean> allowTopicOperation(TopicName topicName, String role,  TopicOperation operation,
-                                                          AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, TopicOperation operation,
+                                                               String originalRole, String role,
+                                                               AuthenticationDataSource authData) {
+        if (provider != null) {
+            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
         }
 
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTopicOperationAsync"));
+    }
+
+    public Boolean allowTopicOperation(TopicName topicName, TopicOperation operation,
+                                         String orignalRole, String role,
+                                         AuthenticationDataSource authData) {
         if (provider != null) {
-            return provider.allowTopicOperation(topicName, role, operation, authData)
-                    .thenApply(authorized -> {
-                        if (!authorized) {
-                            throw new RestException(Response.Status.FORBIDDEN, "Unauthorized");
-                        }
-                        return authorized;
-                    });
+            return provider.allowTopicOperation(topicName, orignalRole, role, operation, authData);
         }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+
+        throw new IllegalStateException("No authorization provider configured for allowTopicOperation");
     }
 }

@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -35,6 +36,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
 
 /**
  * Provider of authorization mechanism
@@ -194,6 +196,7 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a cluster to the given client
      * @param clusterName
+     * @param originalRole
      * @param role
      * @param operation
      * @param authData
@@ -202,11 +205,22 @@ public interface AuthorizationProvider extends Closeable {
      *                IllegalArgumentException when topic not found<br/>
      *                IllegalStateException when failed to grant permission
      */
-    default CompletableFuture<Boolean> allowClusterOperation(String clusterName, String role,
+    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, String originalRole, String role,
                                                              ClusterOperation operation,
                                                              AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
                 new IllegalStateException("ClusterOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowClusterOperation(String clusterName, String originalRole, String role, ClusterOperation operation,
+                                       AuthenticationDataSource authData) {
+        try {
+            return allowClusterOperationAsync(clusterName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
     }
 
     /**
@@ -218,13 +232,24 @@ public interface AuthorizationProvider extends Closeable {
      * @param authData
      * @return
      */
-    default CompletableFuture<Boolean> allowTenantOperation(String tenantName, String originalRole, String role,
+    default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                             TenantOperation operation,
                                                             AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization" +
                                 " provider you are using.",
                         operation.toString(), tenantName)));
+    }
+
+    default Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation,
+                                      AuthenticationDataSource authData) {
+        try {
+            return allowTenantOperationAsync(tenantName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
     }
 
     /**
@@ -239,16 +264,28 @@ public interface AuthorizationProvider extends Closeable {
      *                IllegalArgumentException when namespace not found<br/>
      *                IllegalStateException when failed to grant permission
      */
-    default CompletableFuture<Boolean> allowNamespaceOperation(NamespaceName namespaceName, String originalRole,
-                                                               String role, NamespaceOperation operation,
-                                                               AuthenticationDataSource authData) {
+    default CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole,
+                                                                 String role, NamespaceOperation operation,
+                                                                 AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
             new IllegalStateException("NamespaceOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowNamespaceOperation(NamespaceName namespaceName, String originalRole, String role,
+                                         NamespaceOperation operation, AuthenticationDataSource authData) {
+        try {
+            return allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
     }
 
     /**
      * Grant authorization-action permission on a topic to the given client
      * @param topic
+     * @param originalRole
      * @param role
      * @param operation
      * @param authData
@@ -257,9 +294,21 @@ public interface AuthorizationProvider extends Closeable {
      *                IllegalArgumentException when topic not found<br/>
      *                IllegalStateException when failed to grant permission
      */
-    default CompletableFuture<Boolean> allowTopicOperation(TopicName topic, String role, TopicOperation operation,
-                                              AuthenticationDataSource authData) {
+    default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role,
+                                                             TopicOperation operation,
+                                                             AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
             new IllegalStateException("TopicOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation,
+                                     AuthenticationDataSource authData) {
+        try {
+            return allowTopicOperationAsync(topicName, originalRole, role, operation, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
     }
 }

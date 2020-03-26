@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.Joiner;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -510,28 +511,30 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> allowClusterOperation(String clusterName, String role, ClusterOperation operation,
-                                                           AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, String originalRole, String role,
+                                                            ClusterOperation operation,
+                                                            AuthenticationDataSource authData) {
         return isSuperUser(role, conf);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTenantOperation(String tenantName, String originalRole, String role,
+    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                            TenantOperation operation,
                                                            AuthenticationDataSource authData) {
         return validateTenantAdminAccess(tenantName, originalRole, role, authData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowNamespaceOperation(NamespaceName namespaceName, String originalRole,
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole,
                                                               String role, NamespaceOperation operation,
                                                               AuthenticationDataSource authData) {
         return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTopicOperation(TopicName topicName, String role, TopicOperation operation,
-                                                          AuthenticationDataSource authData) {
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, String originalRole, String role,
+                                                               TopicOperation operation,
+                                                               AuthenticationDataSource authData) {
         CompletableFuture<Boolean> isAuthorizedFuture;
 
         switch (operation) {
