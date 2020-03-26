@@ -2861,7 +2861,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
-        // try to decrypt
+        // try to decrypt use default MessageCryptoBc
         MessageCrypto crypto = new MessageCryptoBc("test", false);
         Builder metadataBuilder = MessageMetadata.newBuilder();
         org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();

@@ -75,6 +75,7 @@ import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.ECNamedCurveTable;
 import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -180,7 +181,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         Reader keyReader = new StringReader(new String(keyBytes));
         PublicKey publicKey = null;
-        try (org.bouncycastle.openssl.PEMParser pemReader = new org.bouncycastle.openssl.PEMParser(keyReader)) {
+        try (PEMParser pemReader = new PEMParser(keyReader)) {
             Object pemObj = pemReader.readObject();
             JcaPEMKeyConverter pemConverter = new JcaPEMKeyConverter();
             SubjectPublicKeyInfo keyInfo = null;
@@ -205,8 +206,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 pemObj = pemReader.readObject();
             }
 
-            if (pemObj instanceof org.bouncycastle.cert.X509CertificateHolder) {
-                keyInfo = ((org.bouncycastle.cert.X509CertificateHolder) pemObj).getSubjectPublicKeyInfo();
+            if (pemObj instanceof X509CertificateHolder) {
+                keyInfo = ((X509CertificateHolder) pemObj).getSubjectPublicKeyInfo();
             } else {
                 keyInfo = (SubjectPublicKeyInfo) pemObj;
             }

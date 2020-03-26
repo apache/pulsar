@@ -225,7 +225,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Create msgCrypto if not created already
         if (conf.getCryptoKeyReader() != null) {
-            this.msgCrypto = new MessageCryptoBc(String.format("[%s] [%s]", topic, subscription), false);
+            if (conf.getMessageCrypto() != null) {
+                this.msgCrypto = conf.getMessageCrypto();
+            } else {
+                // default to use MessageCryptoBc;
+                MessageCrypto msgCryptoBc;
+                try {
+                    msgCryptoBc = new MessageCryptoBc(
+                            String.format("[%s] [%s]", topic, subscription),
+                            false);
+                } catch (Exception e) {
+                    log.error("MessageCryptoBc may not included in the jar. e:", e);
+                    msgCryptoBc = null;
+                }
+                this.msgCrypto = msgCryptoBc;
+            }
         } else {
             this.msgCrypto = null;
         }

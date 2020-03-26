@@ -32,7 +32,6 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -40,7 +39,6 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -53,7 +51,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -117,7 +114,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected volatile long lastSequenceIdPushed;
     private volatile boolean isLastSequenceIdPotentialDuplicated;
 
-    private MessageCrypto msgCrypto = null;
+    private final MessageCrypto msgCrypto;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
 
@@ -160,8 +157,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         if (conf.isEncryptionEnabled()) {
             String logCtx = "[" + topic + "] [" + producerName + "] [" + producerId + "]";
-            this.msgCrypto = new MessageCryptoBc(logCtx, true);
 
+            if (conf.getMessageCrypto() != null) {
+                this.msgCrypto = conf.getMessageCrypto();
+            } else {
+                // default to use MessageCryptoBc;
+                MessageCrypto msgCryptoBc;
+                try {
+                    msgCryptoBc = new MessageCryptoBc(logCtx, true);;
+                } catch (Exception e) {
+                    log.error("MessageCryptoBc may not included in the jar in Producer. e:", e);
+                    msgCryptoBc = null;
+                }
+                this.msgCrypto = msgCryptoBc;
+            }
+        } else {
+            this.msgCrypto = null;
+        }
+
+        if (this.msgCrypto != null) {
             // Regenerate data key cipher at fixed interval
             keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(() -> {
                 try {
@@ -170,12 +184,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     if (!producerCreatedFuture.isDone()) {
                         log.warn("[{}] [{}] [{}] Failed to add public key cipher.", topic, producerName, producerId);
                         producerCreatedFuture.completeExceptionally(
-                            PulsarClientException.wrap(e, String.format("The producer %s of the topic %s " +
-                                "adds the public key cipher was failed", producerName, topic)));
+                                PulsarClientException.wrap(e,
+                                        String.format("The producer %s of the topic %s " +
+                                                      "adds the public key cipher was failed",
+                                                producerName, topic)));
                     }
                 }
             }, 0L, 4L, TimeUnit.HOURS);
-
         }
 
         if (conf.getSendTimeoutMs() > 0) {
