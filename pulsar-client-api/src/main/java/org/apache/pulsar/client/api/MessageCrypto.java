@@ -19,15 +19,15 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.buffer.ByteBuf;
-import java.io.Serializable;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 /**
  * Interface that abstracts the method to encrypt/decrypt message for End to End Encryption.
  */
-public interface MessageCrypto extends Serializable {
+public interface MessageCrypto<MetadataT, BuilderT> {
+
     /*
      * Encrypt data key using the public key(s) in the argument. <p> If more than one key name is specified, data key is
      * encrypted using each of those keys. If the public key is expired or changed, application is responsible to remove
@@ -62,7 +62,7 @@ public interface MessageCrypto extends Serializable {
      * @return encryptedData if success
      */
     ByteBuf encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
-                    MessageMetadata.Builder msgMetadata, ByteBuf payload) throws PulsarClientException;
+                    Supplier<BuilderT> messageMetadataBuilderSupplier, ByteBuf payload) throws PulsarClientException;
 
     /*
      * Decrypt the payload using the data key. Keys used to encrypt data key can be retrieved from msgMetadata
@@ -75,5 +75,5 @@ public interface MessageCrypto extends Serializable {
      *
      * @return decryptedData if success, null otherwise
      */
-    ByteBuf decrypt(MessageMetadata msgMetadata, ByteBuf payload, CryptoKeyReader keyReader);
+    ByteBuf decrypt(Supplier<MetadataT> messageMetadataSupplier, ByteBuf payload, CryptoKeyReader keyReader);
 }

@@ -20,7 +20,7 @@
     </dependency>
   </dependencies>
 
-  <!--  build a shaded jar that only includes bouncycastle-->
+  <!--  build a fat jar that only includes bouncycastle for easy replace-->
   <build>
     <plugins>
       <plugin>

@@ -44,10 +44,11 @@
             <artifactId>pulsar-transaction-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-common</artifactId>
-            <version>${project.version}</version>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-buffer</artifactId>
+            <version>${netty.version}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
