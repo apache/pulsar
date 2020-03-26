@@ -9,6 +9,8 @@ For the first time ever, the Apache Pulsar PMC team is publishing a user survey 
 adoption, details how organizations are leveraging Pulsar to build real-time streaming
 applications, and highlights key features on Pulsar’s product roadmap.
 
+![](/img/pulsar-user-ban.jpg)
+
 Pulsar adoption has largely been driven by the market’s increased demand for real-time,
 data-enabled technologies. While companies have tried to leverage monolithic messaging
 systems to build-out real-time offerings, they’ve hit major roadblocks. Ultimately, these
@@ -25,7 +27,7 @@ Narvar, Overstock, Nutanix, Yahoo! JAPAN, Tencent, OVHCloud, and Clever Cloud, w
 its ability to deliver on performance, scalability, and resiliency. As the Pulsar project
 and community garner increasing attention, we’re excited to share the **2020 Apache Pulsar User Survey Report**.
 
-![](../img/pulsar-adoption.png)
+![](/img/pulsar-adoption.png)
 
 In the 2020 Apache Pulsar User Survey Report, we hear from 165 users and learn how their
 companies are leveraging Pulsar’s cloud-native, multi-layer design architecture, built-in
