@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -606,6 +607,56 @@ public interface Namespaces {
     void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
+     * Sets the autoTopicCreation policy for a given namespace, overriding broker settings
+     * <p/>
+     * When autoTopicCreationOverride is enabled, new topics will be created upon connection,
+     * regardless of the broker level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoTopicCreation" : true,
+     *      "topicType" : "partitioned",
+     *      "defaultNumPartitions": 2
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param autoTopicCreationOverride
+     *            Override policies for auto topic creation
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAutoTopicCreation(String namespace, AutoTopicCreationOverride autoTopicCreationOverride)
+            throws PulsarAdminException;
+
+    /**
+     * Removes the autoTopicCreation policy for a given namespace,
+     * allowing the broker to dictate the auto-creation policy.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAutoTopicCreation(String namespace) throws PulsarAdminException;
+
+    /**
      * Get the bundles split data.
      *
      * @param namespace
@@ -784,7 +835,7 @@ public interface Namespaces {
     /**
      * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
      * group.
-     * 
+     *
      * @param namespace
      *            namespace name
      * @param bookieAffinityGroup
@@ -793,10 +844,10 @@ public interface Namespaces {
      */
     void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
             throws PulsarAdminException;
-    
+
     /**
      * Delete bookie affinity group configured for a namespace.
-     * 
+     *
      * @param namespace
      * @throws PulsarAdminException
      */
@@ -804,7 +855,7 @@ public interface Namespaces {
 
     /**
      * Get bookie affinity group configured for a namespace.
-     * 
+     *
      * @param namespace
      * @return
      * @throws PulsarAdminException

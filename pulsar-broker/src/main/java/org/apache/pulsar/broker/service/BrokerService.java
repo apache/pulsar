@@ -123,6 +123,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -132,6 +133,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -671,7 +673,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, pulsar.getConfiguration().isAllowAutoTopicCreation()).thenApply(Optional::get);
+        return getTopic(topic, isAllowAutoTopicCreation(topic)).thenApply(Optional::get);
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -1861,8 +1863,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 // If topic is already exist, creating partitioned topic is not allowed.
                                 if (metadata.partitions == 0
                                         && !topicExists
-                                        && pulsar.getConfiguration().isAllowAutoTopicCreation()
-                                        && pulsar.getConfiguration().isDefaultTopicTypePartitioned()) {
+                                        && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
+                                        && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
                                     return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
                                 } else {
                                     return CompletableFuture.completedFuture(metadata);
@@ -1873,7 +1875,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+        int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
         checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
@@ -2105,5 +2107,54 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
         foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
         return currentMessagePublishBufferBytes.get();
+    }
+
+    public boolean isAllowAutoTopicCreation(final String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return isAllowAutoTopicCreation(topicName);
+    }
+
+    public boolean isAllowAutoTopicCreation(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null) {
+            return autoTopicCreationOverride.allowAutoTopicCreation;
+        } else {
+            return pulsar.getConfiguration().isAllowAutoTopicCreation();
+        }
+    }
+
+    public boolean isDefaultTopicTypePartitioned(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null) {
+            return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.topicType);
+        } else {
+            return pulsar.getConfiguration().isDefaultTopicTypePartitioned();
+        }
+    }
+
+    public int getDefaultNumPartitions(final TopicName topicName) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        if (autoTopicCreationOverride != null) {
+            return autoTopicCreationOverride.defaultNumPartitions;
+        } else {
+            return pulsar.getConfiguration().getDefaultNumPartitions();
+        }
+    }
+
+    private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
+        try {
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
+                return policies.get().autoTopicCreationOverride;
+            }
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
+            return null;
+        }
+        log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        return null;
     }
 }

@@ -45,6 +45,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -293,6 +294,43 @@ public class Namespaces extends NamespacesBase {
             boolean enableDeduplication) {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplication(enableDeduplication);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
+    public void setAutoTopicCreation(
+            @Suspended final AsyncResponse asyncResponse,
+                                                  @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                                  AutoTopicCreationOverride autoTopicCreationOverride) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e ) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
+                                        @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        try {
+            validateNamespaceName(tenant, namespace);
+            internalRemoveAutoTopicCreation(asyncResponse);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET

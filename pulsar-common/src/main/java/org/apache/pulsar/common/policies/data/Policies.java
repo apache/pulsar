@@ -49,6 +49,8 @@ public class Policies {
 
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
+    // If set, it will override the broker settings for allowing auto topic creation
+    public AutoTopicCreationOverride autoTopicCreationOverride = null;
     public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -106,7 +108,7 @@ public class Policies {
         return Objects.hash(auth_policies, replication_clusters,
                 backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
-                clusterSubscribeRate, deduplicationEnabled, persistence,
+                clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
                 encryption_required, delayed_delivery_policies,
@@ -136,6 +138,7 @@ public class Policies {
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
+                    && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,
@@ -183,6 +186,7 @@ public class Policies {
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
+                .add("autoTopicCreationOverride", autoTopicCreationOverride)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)

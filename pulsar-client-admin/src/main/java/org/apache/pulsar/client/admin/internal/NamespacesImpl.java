@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -373,6 +374,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void setAutoTopicCreation(String namespace,
+                                     AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "autoTopicCreation");
+            request(path).post(Entity.entity(autoTopicCreationOverride,
+                    MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void removeAutoTopicCreation(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "autoTopicCreation");
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
@@ -550,7 +575,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         } catch (Exception e) {
             throw getApiException(e);
         }
-    
+
     }
 
     @Override
@@ -563,7 +588,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throw getApiException(e);
         }
     }
-    
+
     @Override
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
         try {
