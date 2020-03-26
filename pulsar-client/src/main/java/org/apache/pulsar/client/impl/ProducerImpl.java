@@ -111,7 +111,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final CompressionCodec compressor;
 
+    static final AtomicLongFieldUpdater<ProducerImpl> LAST_SEQ_ID_PUBLISHED_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(ProducerImpl.class, "lastSequenceIdPublished");
     private volatile long lastSequenceIdPublished;
+
     static final AtomicLongFieldUpdater<ProducerImpl> LAST_SEQ_ID_PUSHED_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "lastSequenceIdPushed");
     protected volatile long lastSequenceIdPushed;
@@ -850,7 +853,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op = pendingCallbacks.poll();
             if (op != null) {
                 OpSendMsg finalOp = op;
-                LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
+                LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this,
                         last -> Math.max(last, getHighestSequenceId(finalOp)));
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
