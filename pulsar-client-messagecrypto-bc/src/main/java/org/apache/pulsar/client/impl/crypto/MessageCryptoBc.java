@@ -218,7 +218,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                         ecParam.getH(), ecParam.getSeed());
                 KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
                 ECPublicKeySpec keySpec = new ECPublicKeySpec(((BCECPublicKey) publicKey).getQ(), ecSpec);
-                publicKey = (PublicKey) keyFactory.generatePublic(keySpec);
+                publicKey = keyFactory.generatePublic(keySpec);
             }
         } catch (IOException | NoSuchAlgorithmException | NoSuchProviderException | InvalidKeySpecException e) {
             throw new Exception(e);
@@ -271,7 +271,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                         ecParam.getH(), ecParam.getSeed());
                 KeyFactory keyFactory = KeyFactory.getInstance(ECDSA, BouncyCastleProvider.PROVIDER_NAME);
                 ECPrivateKeySpec keySpec = new ECPrivateKeySpec(((BCECPrivateKey) privateKey).getS(), ecSpec);
-                privateKey = (PrivateKey) keyFactory.generatePrivate(keySpec);
+                privateKey = keyFactory.generatePrivate(keySpec);
             }
 
         } catch (IOException e) {

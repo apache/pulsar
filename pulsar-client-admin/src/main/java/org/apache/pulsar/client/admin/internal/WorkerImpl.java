@@ -18,19 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.Worker;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.functions.WorkerInfo;
-import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
-import org.apache.pulsar.common.stats.Metrics;
-
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.Response;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +25,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Worker;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
+import org.apache.pulsar.common.stats.Metrics;
 
 @Slf4j
 public class WorkerImpl extends BaseResource implements Worker {
@@ -76,8 +78,8 @@ public class WorkerImpl extends BaseResource implements Worker {
                         if (!response.getStatusInfo().equals(Response.Status.OK)) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
-                            List<WorkerFunctionInstanceStats> metricsList
-                                    = response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
+                            List<WorkerFunctionInstanceStats> metricsList =
+                                    response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
                             future.complete(metricsList);
                         }
                     }

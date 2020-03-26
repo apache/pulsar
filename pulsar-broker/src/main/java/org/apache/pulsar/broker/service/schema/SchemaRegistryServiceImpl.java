@@ -321,7 +321,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             for (int i = lastIndex; i >= 0; i--) {
                 if (list.get(i).schema.isDeleted()) {
                     if (i == lastIndex) { // if the latest schema is a delete, there's no schemas to compare
-                        return Collections.<SchemaAndMetadata>emptyList();
+                        return Collections.emptyList();
                     } else {
                         return list.subList(i + 1, list.size());
                     }

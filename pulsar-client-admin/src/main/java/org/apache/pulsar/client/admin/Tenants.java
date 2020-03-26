@@ -28,12 +28,12 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
- * Admin interface for tenants management
+ * Admin interface for tenants management.
  */
 public interface Tenants {
     /**
      * Get the list of tenants.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -50,7 +50,7 @@ public interface Tenants {
 
     /**
      * Get the list of tenants asynchronously.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -63,7 +63,7 @@ public interface Tenants {
 
     /**
      * Get the config of the tenant.
-     * <p>
+     * <p/>
      * Get the admin configuration for a given tenant.
      *
      * @param tenant
@@ -81,7 +81,7 @@ public interface Tenants {
 
     /**
      * Get the config of the tenant asynchronously.
-     * <p>
+     * <p/>
      * Get the admin configuration for a given tenant.
      *
      * @param tenant
@@ -92,7 +92,7 @@ public interface Tenants {
 
     /**
      * Create a new tenant.
-     * <p>
+     * <p/>
      * Provisions a new tenant. This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -113,7 +113,7 @@ public interface Tenants {
 
     /**
      * Create a new tenant asynchronously.
-     * <p>
+     * <p/>
      * Provisions a new tenant. This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -125,7 +125,7 @@ public interface Tenants {
 
     /**
      * Update the admins for a tenant.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -144,7 +144,7 @@ public interface Tenants {
 
     /**
      * Update the admins for a tenant asynchronously.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -156,7 +156,7 @@ public interface Tenants {
 
     /**
      * Delete an existing tenant.
-     * <p>
+     * <p/>
      * Delete a tenant and all namespaces and topics under it.
      *
      * @param tenant
@@ -175,7 +175,7 @@ public interface Tenants {
 
     /**
      * Delete an existing tenant asynchronously.
-     * <p>
+     * <p/>
      * Delete a tenant and all namespaces and topics under it.
      *
      * @param tenant

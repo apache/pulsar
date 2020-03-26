@@ -208,7 +208,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 1000000)
+    @Test(timeOut = 10000)
     public void conflictingConsumerTest() throws Exception {
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
@@ -244,7 +244,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 100000)
+    @Test(timeOut = 10000)
     public void conflictingProducerTest() throws Exception {
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/producer/persistent/my-property/my-ns/my-topic4?producerName=my-producer";

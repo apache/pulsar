@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -27,13 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
@@ -149,7 +148,8 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     }
 
     @Override
-    public CompletableFuture<Void> setNamespaceBundleResourceQuotaAsync(String namespace, String bundle, ResourceQuota quota) {
+    public CompletableFuture<Void> setNamespaceBundleResourceQuotaAsync(
+            String namespace, String bundle, ResourceQuota quota) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle);
         return asyncPostRequest(path, Entity.entity(quota, MediaType.APPLICATION_JSON));
