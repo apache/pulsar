@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,6 @@ import java.util.Enumeration;
 import java.util.Map;
 
 import org.apache.pulsar.broker.PulsarService;
-
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
@@ -123,8 +122,8 @@ public class PrometheusMetricsGenerator {
             labels += "} ";
 
             for (Map.Entry<String, Object> entry : metrics1.getMetrics().entrySet()) {
-                stream.write(entry.getKey().replace(".", ":"))
-                        .write(labels).write(String.valueOf(entry.getValue()))
+                stream.write(entry.getKey().replace(".", ":")).write(labels)
+                        .write(String.valueOf(entry.getValue()))
                         .write(' ').write(System.currentTimeMillis()).write("\n");
             }
         }
@@ -165,17 +164,17 @@ public class PrometheusMetricsGenerator {
 
     static String getTypeStr(Collector.Type type) {
         switch (type) {
-            case COUNTER:
-                return "counter";
-            case GAUGE:
-                return "gauge";
-            case SUMMARY:
-                return "summary";
-            case HISTOGRAM:
-                return "histogram";
-            case UNTYPED:
-            default:
-                return "untyped";
+        case COUNTER:
+            return "counter";
+        case GAUGE:
+            return "gauge";
+        case SUMMARY        :
+            return "summary";
+        case HISTOGRAM:
+            return "histogram";
+        case UNTYPED:
+        default:
+            return "untyped";
         }
     }
 
