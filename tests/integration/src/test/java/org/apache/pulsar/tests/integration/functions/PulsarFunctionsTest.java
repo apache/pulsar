@@ -2072,6 +2072,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "function")
     public void testAutoSchemaFunction() throws Exception {
+        log.info("testAutoSchemaFunction start ...");
         String inputTopicName = "test-autoschema-input-" + randomName(8);
         String outputTopicName = "test-autoshcema-output-" + randomName(8);
         String functionName = "test-autoschema-fn-" + randomName(8);
@@ -2149,13 +2150,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         if (pulsarCluster == null) {
+            log.info("pulsarClient is null");
             this.setupCluster();
             this.setupFunctionWorkers();
         }
 
         @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
-        log.info("pulsar client init");
+        log.info("pulsar client init - input: {}, output: {}", inputTopic, outputTopic);
 
         @Cleanup Consumer<AvroTestObject> consumer = pulsarClient
                 .newConsumer(Schema.AVRO(AvroTestObject.class))
@@ -2163,12 +2165,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .subscriptionName("test-avro-schema")
                 .topic(outputTopic)
                 .subscribe();
-        log.info("pulsar consumer init");
+        log.info("pulsar consumer init - {}", outputTopic);
 
         @Cleanup Producer<AvroTestObject> producer = pulsarClient
                 .newProducer(Schema.AVRO(AvroTestObject.class))
                 .topic(inputTopic).create();
-        log.info("pulsar producer init");
+        log.info("pulsar producer init - {}", inputTopic);
 
         submitFunction(
                 Runtime.JAVA,
