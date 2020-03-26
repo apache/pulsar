@@ -88,6 +88,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
 
+    protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     protected volatile int totalAvailablePermits = 0;
     private volatile int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
@@ -500,10 +502,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), redeliveryTracker);
 
-                long msgSent = sendMessageInfo.getTotalMessages();
+                int msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
                 entriesToDispatch -= messagesForC;
-                totalAvailablePermits -= msgSent;
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -msgSent);
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             }
