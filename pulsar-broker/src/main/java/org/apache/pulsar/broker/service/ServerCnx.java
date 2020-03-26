@@ -805,7 +805,7 @@ public class ServerCnx extends PulsarHandler {
                         }
 
                         boolean createTopicIfDoesNotExist = forceTopicCreation
-                                && service.pulsar().getConfig().isAllowAutoTopicCreation();
+                                && service.isAllowAutoTopicCreation(topicName.toString());
 
                         service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
                                 .thenCompose(optTopic -> {

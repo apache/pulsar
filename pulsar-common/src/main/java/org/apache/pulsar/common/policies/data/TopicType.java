@@ -16,19 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.hdfs2.sink.text;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.Sink;
+package org.apache.pulsar.common.policies.data;
 
 /**
- * A Simple Sink class for Hdfs Text File.
+ * Topic types -- partitioned or non-partitioned.
  */
-public class HdfsStringSink extends HdfsAbstractTextFileSink<String, String> implements Sink<String> {
-    @Override
-    public KeyValue<String, String> extractKeyValue(Record<String> record) {
-       String key = record.getKey().orElseGet(() -> record.getValue());
-       return new KeyValue<>(key, record.getValue());
+public enum TopicType {
+    PARTITIONED("partitioned"),
+    NON_PARTITIONED("non-partitioned");
+    private String type;
+
+    TopicType(String type) {
+        this.type = type;
+    }
+
+    public String toString() {
+        return type;
+    }
+
+    public static boolean isValidTopicType(String type) {
+        for (TopicType topicType : TopicType.values()) {
+            if (topicType.toString().equalsIgnoreCase(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

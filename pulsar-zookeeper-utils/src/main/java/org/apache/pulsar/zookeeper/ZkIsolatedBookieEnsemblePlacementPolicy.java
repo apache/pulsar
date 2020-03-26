@@ -94,7 +94,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
         if (obj instanceof List<?>) {
             List<String> result = new ArrayList<>();
             for (Object o : (List<?>) obj) {
-                result.add(String.class.cast(o));
+                result.add((String) o);
             }
             return String.join(",", result);
         } else {
