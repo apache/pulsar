@@ -481,7 +481,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                     .whenComplete((result, cause) -> {
                         if (null != cause) {
                             statsManager.incrSysExceptions(cause);
-                            logger.error("Failed to publish to topic with error {}", cause);
+                            logger.error("Failed to publish to topic with error", cause);
                         }
                     });
         }

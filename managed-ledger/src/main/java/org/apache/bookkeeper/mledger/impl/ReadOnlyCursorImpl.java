@@ -53,7 +53,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
 
     @Override
     public void skipEntries(int numEntriesToSkip) {
-        log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip);
+        log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip, getName());
         readPosition = ledger.getPositionAfterN(readPosition, numEntriesToSkip, PositionBound.startIncluded).getNext();
     }
 
