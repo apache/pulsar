@@ -59,6 +59,8 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
         this.functions = new FunctionsImpl(this);
     }
 
+    
+
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -106,6 +108,14 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                                           final @PathParam("namespace") String namespace,
                                           final @PathParam("functionName") String functionName) {
         return functions.getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}")
+    public List<String> listSources(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace) {
+        return functions.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @GET
