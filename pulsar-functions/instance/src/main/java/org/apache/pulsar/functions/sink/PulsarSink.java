@@ -83,7 +83,7 @@ public class PulsarSink<T> implements Sink<T> {
             this.schema = schema;
         }
 
-        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
