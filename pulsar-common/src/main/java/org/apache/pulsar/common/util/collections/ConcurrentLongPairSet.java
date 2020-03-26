@@ -25,7 +25,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -215,7 +215,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
         private volatile long[] table;
 
         private volatile int capacity;
-        private static final AtomicLongFieldUpdater<Section> SIZE_UPDATER = AtomicLongFieldUpdater
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER = AtomicIntegerFieldUpdater
                 .newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;

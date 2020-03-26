@@ -24,7 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongFunction;
 
@@ -196,8 +196,9 @@ public class ConcurrentLongHashMap<V> {
         private volatile V[] values;
 
         private volatile int capacity;
-        private static final AtomicLongFieldUpdater<Section> SIZE_UPDATER = AtomicLongFieldUpdater
-                .newUpdater(Section.class, "size");
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
+
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
