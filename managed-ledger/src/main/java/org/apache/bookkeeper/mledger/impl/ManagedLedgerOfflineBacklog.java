@@ -220,7 +220,7 @@ public class ManagedLedgerOfflineBacklog {
         MetaStore store = factory.getMetaStore();
         BookKeeper bk = factory.getBookKeeper();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
-        final long errorInReadingCursor = (long) -1;
+        final long errorInReadingCursor = -1;
         ConcurrentOpenHashMap<String, Long> ledgerRetryMap = new ConcurrentOpenHashMap<>();
 
         final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();

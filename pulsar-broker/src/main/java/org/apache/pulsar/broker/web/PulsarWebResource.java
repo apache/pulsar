@@ -116,7 +116,7 @@ public abstract class PulsarWebResource {
     public static String splitPath(String source, int slice) {
         Iterable<String> parts = Splitter.on('/').limit(slice).split(source);
         Iterator<String> s = parts.iterator();
-        String result = new String();
+        String result = "";
         for (int i = 0; i < slice; i++) {
             result = s.next();
         }

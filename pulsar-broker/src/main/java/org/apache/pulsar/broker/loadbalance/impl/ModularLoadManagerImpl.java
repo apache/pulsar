@@ -519,9 +519,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     }
 
                     // This is needed too in case a broker which was assigned a bundle dies and comes back up.
-                    if ( preallocatedBundleToBroker.containsKey(preallocatedBundleName) ) {
-                        preallocatedBundleToBroker.remove(preallocatedBundleName);
-                    }
+                    preallocatedBundleToBroker.remove(preallocatedBundleName);
                 }
             }
 

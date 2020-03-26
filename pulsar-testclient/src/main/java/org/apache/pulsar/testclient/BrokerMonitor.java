@@ -148,7 +148,7 @@ public class BrokerMonitor {
                 double maxUsage;
                 if (data instanceof LoadReport) {
                     final LoadReport loadReport = (LoadReport) data;
-                    numBundles = (int) loadReport.getNumBundles();
+                    numBundles = loadReport.getNumBundles();
                     messageRate = loadReport.getMsgRateIn() + loadReport.getMsgRateOut();
                     longTermMessageRate = loadReport.getAllocatedMsgRateIn() + loadReport.getAllocatedMsgRateOut();
                     messageThroughput = (loadReport.getAllocatedBandwidthIn() + loadReport.getAllocatedBandwidthOut())

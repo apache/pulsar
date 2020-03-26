@@ -2529,7 +2529,7 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         }
 
-        ((PersistentTopic) topic).getLastMessageId().whenComplete((v, e) -> {
+        topic.getLastMessageId().whenComplete((v, e) -> {
             if (e != null) {
                 asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
             } else {

@@ -326,7 +326,7 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
             for (String topic : topics) {
-                NamespaceBundle topicBundle = (NamespaceBundle) pulsar().getNamespaceService()
+                NamespaceBundle topicBundle = pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
                 if (bundle.equals(topicBundle)) {
                     throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
@@ -1744,7 +1744,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<Policies> policies;
                 try {
-                    policies = policiesCache().get(AdminResource.path(POLICIES, ns.toString()));
+                    policies = policiesCache().get(AdminResource.path(POLICIES, ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -1804,7 +1804,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (quota.getLimit() < 0 && (retention.getRetentionSizeInMB() > 0 || retention.getRetentionTimeInMinutes() > 0)) {
             return false;
         }
-        if (quota.getLimit() >= ((long) retention.getRetentionSizeInMB() * 1024 * 1024)) {
+        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         return true;
