@@ -154,6 +154,13 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-worker</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <!-- bouncy-castle-bc-shaded already contains this-->
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
