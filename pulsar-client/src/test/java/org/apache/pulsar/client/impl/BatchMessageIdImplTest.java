@@ -100,12 +100,24 @@ public class BatchMessageIdImplTest {
     }
 
     @Test
-    public void shouldBeSymmetric() {
+    public void compareToSymmetricTest() {
         MessageIdImpl simpleMessageId = new MessageIdImpl(1, 2, 3);
+        // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
         BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(1, 2, 3, -1);
-        Assert.assertTrue(simpleMessageId.compareTo(batchMessageId1) == batchMessageId1.compareTo(simpleMessageId));
-
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(1, 2, 3, 1);
-        Assert.assertTrue(simpleMessageId.compareTo(batchMessageId2) == batchMessageId2.compareTo(simpleMessageId));
+        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(1, 2, 2, 1);
+        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(1, 2, 2, -1);
+
+        assertEquals(simpleMessageId.compareTo(batchMessageId1), 0);
+        assertEquals(batchMessageId1.compareTo(simpleMessageId), 0);
+
+        assertEquals(batchMessageId2.compareTo(simpleMessageId), 1);
+        assertEquals(simpleMessageId.compareTo(batchMessageId2), -1);
+
+        assertEquals(simpleMessageId.compareTo(batchMessageId3), 1);
+        assertEquals(batchMessageId3.compareTo(simpleMessageId), -1);
+
+        assertEquals(simpleMessageId.compareTo(batchMessageId4), 1);
+        assertEquals(batchMessageId4.compareTo(simpleMessageId), -1);
     }
 }
