@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class BatchMessageIdImplTest {
@@ -98,4 +99,13 @@ public class BatchMessageIdImplTest {
         }
     }
 
+    @Test
+    public void shouldBeSymmetric() {
+        MessageIdImpl simpleMessageId = new MessageIdImpl(1, 2, 3);
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(1, 2, 3, -1);
+        Assert.assertTrue(simpleMessageId.compareTo(batchMessageId1) == batchMessageId1.compareTo(simpleMessageId));
+
+        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(1, 2, 3, 1);
+        Assert.assertTrue(simpleMessageId.compareTo(batchMessageId2) == batchMessageId2.compareTo(simpleMessageId));
+    }
 }
