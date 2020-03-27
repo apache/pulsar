@@ -16,20 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.admin;
+package org.apache.pulsar.client;
 
 import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
-import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -40,7 +36,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-@Slf4j
 public class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
@@ -76,19 +71,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
-
-        // load bcfips in
-        URL bouncyCastleUrl = this.getClass().getClassLoader().getResource("bouncy-castle-bcfips.nar");
-
-        Path narPath;
-        try {
-            narPath = Paths.get(bouncyCastleUrl.toURI());
-        } catch (Exception e) {
-            log.error("failed to get Bouncy Castle FIPS Path, url: {}. Exception: ", bouncyCastleUrl, e);
-            return;
-        }
-        String bcNarDir = narPath.toFile().getParent();
-        System.setProperty("BcPath", bcNarDir);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
