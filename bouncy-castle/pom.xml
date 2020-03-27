@@ -40,5 +40,9 @@
 
     <!--a module for shaded bouncy-castle class, aimed to provide fat jars for easy operation-->
     <module>bc-shaded</module>
+
+    <!--2 module for fips version test-->
+    <module>bcfips-include-test</module>
+    <module>bcfips-nar-test</module>
   </modules>
 </project>
