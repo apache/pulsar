@@ -322,6 +322,7 @@ public class PulsarService implements AutoCloseable {
             }
 
             state = State.Closed;
+            isClosedCondition.signalAll();
         } catch (Exception e) {
             throw new PulsarServerException(e);
         } finally {
