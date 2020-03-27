@@ -348,6 +348,10 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, ClusterOperation operation,
                                                                  String originalRole, String role,
                                                                  AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         if (provider != null) {
             return provider.allowClusterOperationAsync(clusterName, originalRole, role, operation, authData);
         }
@@ -359,6 +363,10 @@ public class AuthorizationService {
     public Boolean allowClusterOperation(String clusterName, ClusterOperation operation,
                                                                  String orignalRole, String role,
                                                                  AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
         if (provider != null) {
             return provider.allowClusterOperation(clusterName, orignalRole, role, operation, authData);
         }
@@ -382,6 +390,10 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, TenantOperation operation,
                                                                  String originalRole, String role,
                                                                  AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         if (provider != null) {
             return provider.allowTenantOperationAsync(tenantName, originalRole, role, operation, authData);
         }
@@ -392,6 +404,10 @@ public class AuthorizationService {
 
     public Boolean allowTenantOperation(String tenantName, TenantOperation operation, String orignalRole, String role,
                                         AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
         if (provider != null) {
             return provider.allowTenantOperation(tenantName, orignalRole, role, operation, authData);
         }
@@ -416,6 +432,10 @@ public class AuthorizationService {
                                                                    NamespaceOperation operation,
                                                                    String originalRole, String role,
                                                                    AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         if (provider != null) {
             return provider.allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData);
         }
@@ -426,6 +446,10 @@ public class AuthorizationService {
 
     public Boolean allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
                                            String orignalRole, String role, AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
         if (provider != null) {
             return provider.allowNamespaceOperation(namespaceName, orignalRole, role, operation, authData);
         }
@@ -448,6 +472,10 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, TopicOperation operation,
                                                                String originalRole, String role,
                                                                AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
         if (provider != null) {
             return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
         }
@@ -459,6 +487,10 @@ public class AuthorizationService {
     public Boolean allowTopicOperation(TopicName topicName, TopicOperation operation,
                                          String orignalRole, String role,
                                          AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
         if (provider != null) {
             return provider.allowTopicOperation(topicName, orignalRole, role, operation, authData);
         }
