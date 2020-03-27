@@ -55,7 +55,7 @@ public class JsonReader<T> implements SchemaReader<T> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("JsonReader close inputStream close error", e.getMessage());
+                log.error("JsonReader close inputStream close error", e);
             }
         }
     }

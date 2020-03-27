@@ -157,7 +157,7 @@ public class ManagedLedgerOfflineBacklog {
                             final long id = ledgers.lastKey();
                             AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> {
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Opened ledger {}: ", managedLedgerName, id,
+                                    log.debug("[{}] Opened ledger {}: {}", managedLedgerName, id,
                                             BKException.getMessage(rc));
                                 }
                                 if (rc == BKException.Code.OK) {
