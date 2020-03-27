@@ -166,7 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
-    <bouncycastlefips.version>1.0.1</bouncycastlefips.version>
+    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.10.1</jackson.version>
     <jackson.databind.version>2.10.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
