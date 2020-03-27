@@ -1131,7 +1131,7 @@ public class PersistentSubscription implements Subscription {
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Failed to mark delete for position ", topicName, subName, ctx, exception);
+                    log.debug("[{}][{}] Failed to mark delete for position {} due to: {}", topicName, subName, ctx, exception);
                 }
                 marketDeleteFuture.completeExceptionally(exception);
             }

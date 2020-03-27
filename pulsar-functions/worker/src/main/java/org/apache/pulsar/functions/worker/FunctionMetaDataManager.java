@@ -105,7 +105,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             this.functionMetaDataTopicTailer.start();
 
         } catch (Exception e) {
-            log.error("Failed to initialize meta data store: ", e.getMessage(), e);
+            log.error("Failed to initialize meta data store", e);
             throw new RuntimeException(e);
         }
     }

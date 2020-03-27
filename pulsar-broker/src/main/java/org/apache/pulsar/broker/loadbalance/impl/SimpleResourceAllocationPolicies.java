@@ -54,7 +54,7 @@ public class SimpleResourceAllocationPolicies {
             return namespaceIsolationPolicies
                     .get(AdminResource.path("clusters", clusterName, NAMESPACE_ISOLATION_POLICIES));
         } catch (Exception e) {
-            LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies [{}]", e);
+            LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies", e);
             return Optional.empty();
         }
     }
@@ -68,7 +68,7 @@ public class SimpleResourceAllocationPolicies {
                 return false;
             }
         } catch (Exception e) {
-            LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies [{}]", e);
+            LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies", e);
             return false;
         }
     }
@@ -82,7 +82,7 @@ public class SimpleResourceAllocationPolicies {
 
             return Optional.ofNullable(policies.get().getPolicyByNamespace(namespace));
         } catch (Exception e) {
-            LOG.warn("Unable to get the namespaceIsolationPolicies [{}]", e);
+            LOG.warn("Unable to get the namespaceIsolationPolicies", e);
             return Optional.empty();
         }
     }
@@ -106,7 +106,7 @@ public class SimpleResourceAllocationPolicies {
 
             return policies.get().isSharedBroker(broker);
         } catch (Exception e) {
-            LOG.warn("isPrimaryForAnyNamespace: [{}]", e);
+            LOG.warn("isPrimaryForAnyNamespace", e);
         }
         return false;
     }

@@ -852,7 +852,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
         } catch (Exception e) {
-            log.warn("Error when attempting to update local broker data: {}", e);
+            log.warn("Error when attempting to update local broker data", e);
         }
         return localData;
     }
@@ -882,7 +882,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 lastData.update(localData);
             }
         } catch (Exception e) {
-            log.warn("Error writing broker data on ZooKeeper: {}", e);
+            log.warn("Error writing broker data on ZooKeeper", e);
         }
     }
 
