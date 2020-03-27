@@ -38,8 +38,7 @@
     <module>bc</module>
     <module>bcfips</module>
 
-    <!--2 module for shaded bouncy-castle class, aimed to provide fat jars-->
+    <!--a module for shaded bouncy-castle class, aimed to provide fat jars for easy operation-->
     <module>bc-shaded</module>
-    <module>bcfips-shaded</module>
   </modules>
 </project>
