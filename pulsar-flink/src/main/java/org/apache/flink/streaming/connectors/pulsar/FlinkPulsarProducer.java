@@ -22,6 +22,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.util.function.Function;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
+import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarPropertiesExtractor;
 import org.apache.flink.util.SerializableObject;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.MessageId;
@@ -66,6 +68,11 @@ public class FlinkPulsarProducer<T>
      * User-provided key extractor for assigning a key to a pulsar message.
      */
     protected final PulsarKeyExtractor<T> flinkPulsarKeyExtractor;
+
+    /**
+     * User-provided properties extractor for assigning a key to a pulsar message.
+     */
+    protected final PulsarPropertiesExtractor<T> flinkPulsarPropertiesExtractor;
 
     /**
      * Produce Mode.
@@ -110,7 +117,8 @@ public class FlinkPulsarProducer<T>
                                String defaultTopicName,
                                Authentication authentication,
                                SerializationSchema<T> serializationSchema,
-                               PulsarKeyExtractor<T> keyExtractor) {
+                               PulsarKeyExtractor<T> keyExtractor,
+                               PulsarPropertiesExtractor<T> propertiesExtractor) {
         checkArgument(StringUtils.isNotBlank(serviceUrl), "Service url cannot be blank");
         checkArgument(StringUtils.isNotBlank(defaultTopicName), "TopicName cannot be blank");
         checkNotNull(authentication, "auth cannot be null, set disabled for no auth");
@@ -123,17 +131,20 @@ public class FlinkPulsarProducer<T>
         this.producerConf.setTopicName(defaultTopicName);
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
+        this.flinkPulsarPropertiesExtractor = getOrNullPropertiesExtractor(propertiesExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
     }
 
     public FlinkPulsarProducer(ClientConfigurationData clientConfigurationData,
                                ProducerConfigurationData producerConfigurationData,
                                SerializationSchema<T> serializationSchema,
-                               PulsarKeyExtractor<T> keyExtractor) {
+                               PulsarKeyExtractor<T> keyExtractor,
+                               PulsarPropertiesExtractor<T> propertiesExtractor) {
         this.clientConf = checkNotNull(clientConfigurationData, "client conf can not be null");
         this.producerConf = checkNotNull(producerConfigurationData, "producer conf can not be null");
         this.schema = checkNotNull(serializationSchema, "Serialization Schema not set");
         this.flinkPulsarKeyExtractor = getOrNullKeyExtractor(keyExtractor);
+        this.flinkPulsarPropertiesExtractor = getOrNullPropertiesExtractor(propertiesExtractor);
         ClosureCleaner.ensureSerializable(serializationSchema);
     }
 
@@ -145,6 +156,13 @@ public class FlinkPulsarProducer<T>
      */
     public PulsarKeyExtractor<T> getKeyExtractor() {
         return flinkPulsarKeyExtractor;
+    }
+
+    /**
+     * @return pulsar properties extractor.
+     */
+    public PulsarPropertiesExtractor<T> getPulsarPropertiesExtractor() {
+        return flinkPulsarPropertiesExtractor;
     }
 
     /**
@@ -180,6 +198,16 @@ public class FlinkPulsarProducer<T>
     private static <T> PulsarKeyExtractor<T> getOrNullKeyExtractor(PulsarKeyExtractor<T> extractor) {
         if (null == extractor) {
             return PulsarKeyExtractor.NULL;
+        } else {
+            return extractor;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> PulsarPropertiesExtractor<T> getOrNullPropertiesExtractor(
+            PulsarPropertiesExtractor<T> extractor) {
+        if (null == extractor) {
+            return PulsarPropertiesExtractor.EMPTY;
         } else {
             return extractor;
         }
@@ -257,6 +285,7 @@ public class FlinkPulsarProducer<T>
             }
         }
         msgBuilder.value(serializedValue)
+                .properties(this.flinkPulsarPropertiesExtractor.getProperties(value))
                 .sendAsync()
                 .thenApply(successCallback)
                 .exceptionally(failureCallback);

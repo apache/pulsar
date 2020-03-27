@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
@@ -161,6 +162,8 @@ public class ServerCnx extends PulsarHandler {
     private FeatureFlags features;
     // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledPublishBufferLimiting = false;
+    private static final AtomicLongFieldUpdater<ServerCnx> MSG_PUBLISH_BUFFER_SIZE_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ServerCnx.class, "messagePublishBufferSize");
     private volatile long messagePublishBufferSize = 0;
 
     enum State {
@@ -1759,7 +1762,7 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void startSendOperation(Producer producer, int msgSize) {
-        messagePublishBufferSize += msgSize;
+        MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
         boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
         if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
@@ -1775,7 +1778,7 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
-        messagePublishBufferSize -= msgSize;
+        MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, -msgSize);
         if (--pendingSendRequest == resumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
