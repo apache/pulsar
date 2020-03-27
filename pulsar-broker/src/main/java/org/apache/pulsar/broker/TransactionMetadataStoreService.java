@@ -117,7 +117,7 @@ public class TransactionMetadataStoreService {
         if (metadataStore != null) {
             metadataStore.closeAsync().whenComplete((v, ex) -> {
                 if (ex != null) {
-                    LOG.error("Close transaction metadata store with id {} error", ex);
+                    LOG.error("Close transaction metadata store with id " + tcId, ex);
                 } else {
                     LOG.info("Removed and closed transaction meta store {}", tcId);
                 }

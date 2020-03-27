@@ -118,7 +118,7 @@ public class LoadManagerShared {
             try {
                 brokerUrl = new URL(brokerUrlString);
             } catch (MalformedURLException e) {
-                log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
+                log.error("Unable to parse brokerUrl from ResourceUnitId", e);
                 continue;
             }
             // todo: in future check if the resource unit has resources to take the namespace
