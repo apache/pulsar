@@ -47,8 +47,6 @@ import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,11 +77,11 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -2863,8 +2861,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
-        // try to decrypt
-        MessageCrypto crypto = new MessageCrypto("test", false);
+        // try to decrypt use default MessageCryptoBc
+        MessageCrypto crypto = new MessageCryptoBc("test", false);
         Builder metadataBuilder = MessageMetadata.newBuilder();
         org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();
         encKeyBuilder.setKey(encryptionKeyName);
@@ -2879,7 +2877,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         metadataBuilder.addEncryptionKeys(encKey);
         metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
         metadataBuilder.setUncompressedSize(uncompressedSize);
-        ByteBuf decryptedPayload = crypto.decrypt(metadataBuilder.build(), payloadBuf, reader);
+        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
@@ -3288,7 +3286,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     /**
      * It verifies that message failure successfully releases semaphore and client successfully receives
      * InvalidMessageException.
-     * 
+     *
      * @throws Exception
      */
     @Test
