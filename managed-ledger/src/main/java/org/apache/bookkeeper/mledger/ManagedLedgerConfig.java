@@ -31,6 +31,9 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+
 /**
  * Configuration class for a ManagedLedger.
  */
@@ -521,7 +524,7 @@ public class ManagedLedgerConfig {
      * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
      * readTimeoutSeconds <= 0)
      *
-     * @param readTimeoutSeconds
+     * @param readEntryTimeoutSeconds
      * @return
      */
     public ManagedLedgerConfig setReadEntryTimeoutSeconds(long readEntryTimeoutSeconds) {
@@ -556,7 +559,7 @@ public class ManagedLedgerConfig {
     /**
      * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
      * 
-     * @param bookKeeperEnsemblePlacementPolicy
+     * @param bookKeeperEnsemblePlacementPolicyClassName
      */
     public void setBookKeeperEnsemblePlacementPolicyClassName(
             Class<? extends EnsemblePlacementPolicy> bookKeeperEnsemblePlacementPolicyClassName) {

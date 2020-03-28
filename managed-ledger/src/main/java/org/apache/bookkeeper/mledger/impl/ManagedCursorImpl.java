@@ -148,8 +148,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // Stat of the cursor z-node
     private volatile Stat cursorLedgerStat;
 
-    private static final LongPairConsumer<PositionImpl> positionRangeConverter = (key, value) -> new PositionImpl(key,
-            value);
+    private static final LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
     private static final LongPairConsumer<PositionImplRecyclable> recyclePositionRangeConverter = (key, value) -> {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ledgerId = key;
@@ -226,7 +225,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.ledger = ledger;
         this.name = cursorName;
         this.individualDeletedMessages = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<PositionImpl>(4096, positionRangeConverter)
+                ? new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter)
                 : new LongPairRangeSet.DefaultRangeSet<>(positionRangeConverter);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         STATE_UPDATER.set(this, State.Uninitialized);
@@ -1963,10 +1962,10 @@ public class ManagedCursorImpl implements ManagedCursor {
      * that can be persist in zk-metastore. If current unack-range is higher than configured threshold then broker
      * persists mark-delete into cursor-ledger else into zk-metastore.
      *
-     * @param cursorsLedgerId
      * @param position
      * @param properties
      * @param callback
+     * @param ctx
      */
     void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
@@ -2029,10 +2028,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         if (state == State.Closed) {
-            ledger.getExecutor().execute(safeRun(() -> {
-                callback.operationFailed(new MetaStoreException(
-                        new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
-            }));
+            ledger.getExecutor().execute(safeRun(() -> callback.operationFailed(new MetaStoreException(
+                    new CursorAlreadyClosedException(name + " cursor already closed")))));
             return;
         }
 
@@ -2234,12 +2231,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 mdEntry.newPosition, name);
 
                         ledger.mbean.startCursorLedgerDeleteOp();
-                        bookkeeper.asyncDeleteLedger(lh.getId(), new DeleteCallback() {
-                            @Override
-                            public void deleteComplete(int rc, Object ctx) {
-                                ledger.mbean.endCursorLedgerDeleteOp();
-                            }
-                        }, null);
+                        bookkeeper.asyncDeleteLedger(lh.getId(), (rc1, ctx1) -> ledger.mbean.endCursorLedgerDeleteOp(), null);
                         callback.operationFailed(exception);
                     }
                 });
@@ -2426,15 +2418,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         LedgerHandle lh = cursorLedger;
         ledger.mbean.startCursorLedgerCloseOp();
         log.info("[{}] [{}] Closing metadata ledger {}", ledger.getName(), name, lh.getId());
-        lh.asyncClose(new CloseCallback() {
-            @Override
-            public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-                ledger.mbean.endCursorLedgerCloseOp();
-                if (rc == BKException.Code.OK) {
-                    callback.closeComplete(ctx);
-                } else {
-                    callback.closeFailed(createManagedLedgerException(rc), ctx);
-                }
+        lh.asyncClose((rc, lh1, ctx1) -> {
+            ledger.mbean.endCursorLedgerCloseOp();
+            if (rc == BKException.Code.OK) {
+                callback.closeComplete(ctx1);
+            } else {
+                callback.closeFailed(createManagedLedgerException(rc), ctx1);
             }
         }, ctx);
     }
@@ -2484,9 +2473,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}] Failed to delete ledger {}: {}", ledger.getName(), lh.getId(),
                         BKException.getMessage(rc));
                 if (!isNoSuchLedgerExistsException(rc)) {
-                    ledger.getScheduledExecutor().schedule(safeRun(() -> {
-                        asyncDeleteLedger(lh, retry - 1);
-                    }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                    ledger.getScheduledExecutor().schedule(safeRun(() -> asyncDeleteLedger(lh, retry - 1)),
+                        DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 }
                 return;
             } else {
@@ -2520,9 +2508,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Failed to delete ledger {}: {}", ledger.getName(), name, cursorLedger.getId(),
                         BKException.getMessage(rc));
                 if (!isNoSuchLedgerExistsException(rc)) {
-                    ledger.getScheduledExecutor().schedule(safeRun(() -> {
-                        asyncDeleteCursorLedger(retry - 1);
-                    }), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                    ledger.getScheduledExecutor().schedule(safeRun(() -> asyncDeleteCursorLedger(retry - 1)),
+                            DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 }
             }
         }, null);

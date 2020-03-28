@@ -281,53 +281,49 @@ public class ManagedLedgerOfflineBacklog {
                         }
                         final long entryId = lac;
                         // read last acked message position for subscription
-                        lh.asyncReadEntries(entryId, entryId, new AsyncCallback.ReadCallback() {
-                            @Override
-                            public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq,
-                                    Object ctx) {
-                                try {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("readComplete rc={} entryId={}", rc, entryId);
-                                    }
-                                    if (rc != BKException.Code.OK) {
-                                        log.warn("[{}] Error reading from metadata ledger {} for cursor {}: {}",
-                                                managedLedgerName, ledgerId, cursorName, BKException.getMessage(rc));
-                                        // indicate that this cursor should be excluded
-                                        offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
-                                                lh.getId());
-                                    } else {
-                                        LedgerEntry entry = seq.nextElement();
-                                        MLDataFormats.PositionInfo positionInfo;
-                                        try {
-                                            positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
-                                        } catch (InvalidProtocolBufferException e) {
-                                            log.warn(
-                                                "[{}] Error reading position from metadata ledger {} for cursor {}: {}",
-                                                managedLedgerName, ledgerId, cursorName, e);
-                                            offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
-                                                    lh.getId());
-                                            return;
-                                        }
-                                        final PositionImpl lastAckedMessagePosition = new PositionImpl(positionInfo);
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] Cursor {} MD {} read last ledger position {}",
-                                                    managedLedgerName, cursorName, lastAckedMessagePosition,
-                                                    lastLedgerPosition);
-                                        }
-                                        // calculate cursor backlog
-                                        Range<PositionImpl> range = Range.openClosed(lastAckedMessagePosition,
-                                                lastLedgerPosition);
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] Calculating backlog for cursor {} using range {}",
-                                                    managedLedgerName, cursorName, range);
-                                        }
-                                        long cursorBacklog = getNumberOfEntries(range, ledgers);
-                                        offlineTopicStats.messageBacklog += cursorBacklog;
-                                        offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh.getId());
-                                    }
-                                } finally {
-                                    cursorCounter.countDown();
+                        lh.asyncReadEntries(entryId, entryId, (rc1, lh1, seq, ctx) -> {
+                            try {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("readComplete rc={} entryId={}", rc1, entryId);
                                 }
+                                if (rc1 != BKException.Code.OK) {
+                                    log.warn("[{}] Error reading from metadata ledger {} for cursor {}: {}",
+                                            managedLedgerName, ledgerId, cursorName, BKException.getMessage(rc1));
+                                    // indicate that this cursor should be excluded
+                                    offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
+                                            lh1.getId());
+                                } else {
+                                    LedgerEntry entry = seq.nextElement();
+                                    MLDataFormats.PositionInfo positionInfo;
+                                    try {
+                                        positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
+                                    } catch (InvalidProtocolBufferException e) {
+                                        log.warn(
+                                            "[{}] Error reading position from metadata ledger {} for cursor {}: {}",
+                                            managedLedgerName, ledgerId, cursorName, e);
+                                        offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
+                                                lh1.getId());
+                                        return;
+                                    }
+                                    final PositionImpl lastAckedMessagePosition = new PositionImpl(positionInfo);
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Cursor {} MD {} read last ledger position {}",
+                                                managedLedgerName, cursorName, lastAckedMessagePosition,
+                                                lastLedgerPosition);
+                                    }
+                                    // calculate cursor backlog
+                                    Range<PositionImpl> range = Range.openClosed(lastAckedMessagePosition,
+                                            lastLedgerPosition);
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Calculating backlog for cursor {} using range {}",
+                                                managedLedgerName, cursorName, range);
+                                    }
+                                    long cursorBacklog = getNumberOfEntries(range, ledgers);
+                                    offlineTopicStats.messageBacklog += cursorBacklog;
+                                    offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh1.getId());
+                                }
+                            } finally {
+                                cursorCounter.countDown();
                             }
                         }, null);
 
@@ -431,9 +427,7 @@ public class ManagedLedgerOfflineBacklog {
         PositionImpl lastAckedMessagePosition = null;
         try {
             bookKeeperAdmin = new BookKeeperAdmin(bookKeeper);
-            Iterator<LedgerEntry> entries = bookKeeperAdmin.readEntries(ledgerId, 0, lastEntry).iterator();
-            while (entries.hasNext()) {
-                LedgerEntry ledgerEntry = entries.next();
+            for (LedgerEntry ledgerEntry : bookKeeperAdmin.readEntries(ledgerId, 0, lastEntry)) {
                 lastEntry = ledgerEntry.getEntryId();
                 if (log.isDebugEnabled()) {
                     log.debug(" Read entry {} from ledger {} for cursor {}", lastEntry, ledgerId, cursorName);
