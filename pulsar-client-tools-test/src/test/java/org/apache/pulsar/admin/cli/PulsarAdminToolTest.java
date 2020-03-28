@@ -662,6 +662,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false);
 
+        cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
 
@@ -747,6 +750,9 @@ public class PulsarAdminToolTest {
 
         topics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
+
+        topics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("skip-all persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");

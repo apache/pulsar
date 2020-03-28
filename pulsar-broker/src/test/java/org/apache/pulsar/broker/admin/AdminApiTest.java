@@ -112,6 +112,7 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -996,6 +997,46 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         JsonObject partitionTopicInfo = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(gson.toJson(partitionTopicInfo), expectedResult);
+    }
+
+    @Test
+    public void testGetPartitionedStatsInternal() throws Exception {
+        String partitionedTopic = "my-topic";
+        String subName = "my-sub";
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2);
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList(partitionedTopicName));
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+
+        // create consumer and subscription
+        pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName(subName).subscribe();
+
+        // publish several messages
+        publishMessagesOnPersistentTopic(partitionedTopicName, 10);
+
+        String partitionTopic0 = partitionedTopicName + "-partition-0";
+        String partitionTopic1 = partitionedTopicName + "-partition-1";
+
+        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0);
+        assertEquals(internalStats0.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
+
+        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1);
+        assertEquals(internalStats1.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
+
+        // expected internal stats
+        PartitionedTopicMetadata partitionedTopicMetadata = new PartitionedTopicMetadata(2);
+        PartitionedTopicInternalStats expectedInternalStats = new PartitionedTopicInternalStats(partitionedTopicMetadata);
+        expectedInternalStats.partitions.put(partitionTopic0, internalStats0);
+        expectedInternalStats.partitions.put(partitionTopic1, internalStats1);
+
+        // partitioned internal stats
+        PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
+
+        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
+        String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
+
+        assertEquals(result, expectedResult);
     }
 
     @Test(dataProvider = "numBundles")
