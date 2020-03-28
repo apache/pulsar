@@ -96,9 +96,7 @@ public class AuthTokenUtils {
                 .setSubject(subject)
                 .signWith(signingKey);
 
-        if (expiryTime.isPresent()) {
-            builder.setExpiration(expiryTime.get());
-        }
+        expiryTime.ifPresent(builder::setExpiration);
 
         return builder.compact();
     }

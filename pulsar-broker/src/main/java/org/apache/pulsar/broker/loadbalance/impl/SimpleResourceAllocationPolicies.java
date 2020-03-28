@@ -62,11 +62,7 @@ public class SimpleResourceAllocationPolicies {
     public boolean areIsolationPoliciesPresent(NamespaceName namespace) {
         try {
             Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            if (policies.isPresent()) {
-                return policies.get().getPolicyByNamespace(namespace) != null;
-            } else {
-                return false;
-            }
+            return policies.filter(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace) != null).isPresent();
         } catch (Exception e) {
             LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies", e);
             return false;
@@ -76,11 +72,8 @@ public class SimpleResourceAllocationPolicies {
     private Optional<NamespaceIsolationPolicy> getNamespaceIsolationPolicy(NamespaceName namespace) {
         try {
             Optional<NamespaceIsolationPolicies> policies =getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            if (!policies.isPresent()) {
-                return Optional.empty();
-            }
+            return policies.map(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace));
 
-            return Optional.ofNullable(policies.get().getPolicyByNamespace(namespace));
         } catch (Exception e) {
             LOG.warn("Unable to get the namespaceIsolationPolicies", e);
             return Optional.empty();
@@ -100,11 +93,8 @@ public class SimpleResourceAllocationPolicies {
     public boolean isSharedBroker(String broker) {
         try {
             Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            if (!policies.isPresent()) {
-                return true;
-            }
+            return policies.map(isolationPolicies -> isolationPolicies.isSharedBroker(broker)).orElse(true);
 
-            return policies.get().isSharedBroker(broker);
         } catch (Exception e) {
             LOG.warn("isPrimaryForAnyNamespace", e);
         }

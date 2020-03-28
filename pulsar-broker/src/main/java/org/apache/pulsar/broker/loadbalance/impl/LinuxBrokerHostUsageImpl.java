@@ -186,21 +186,18 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalNicLimitKbps(List<String> nics) {
-        if (overrideBrokerNicSpeedGbps.isPresent()) {
-            // Use the override value as configured. Return the total max speed across all available NICs, converted
-            // from Gbps into Kbps
-            return overrideBrokerNicSpeedGbps.get() * nics.size() * 1024 * 1024;
-        }
-
-        // Nic speed is in Mbits/s, return kbits/s
-        return nics.stream().mapToDouble(s -> {
-            try {
-                return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(s))));
-            } catch (IOException e) {
-                LOG.error("Failed to read speed for nic " + s, e);
-                return 0d;
-            }
-        }).sum() * 1024;
+        // Use the override value as configured. Return the total max speed across all available NICs, converted
+        // from Gbps into Kbps
+        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1024 * 1024)
+                .orElseGet(() -> nics.stream().mapToDouble(s -> {
+                    // Nic speed is in Mbits/s, return kbits/s
+                    try {
+                        return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(s))));
+                    } catch (IOException e) {
+                        LOG.error("Failed to read speed for nic " + s, e);
+                        return 0d;
+                    }
+                }).sum() * 1024);
     }
 
     private Path getNicTxPath(String nic) {

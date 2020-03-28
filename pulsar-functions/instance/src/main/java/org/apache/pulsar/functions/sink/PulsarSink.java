@@ -294,9 +294,7 @@ public class PulsarSink<T> implements Sink<T> {
         } else {
             // It is coming from some source
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
-            if (eventTime.isPresent()) {
-                msg.eventTime(eventTime.get());
-            }
+            eventTime.ifPresent(msg::eventTime);
         }
 
         pulsarSinkProcessor.sendOutputMessage(msg, record);
