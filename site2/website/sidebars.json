@@ -74,7 +74,8 @@
       "security-kerberos",
       "security-authorization",
       "security-encryption",
-      "security-extending"
+      "security-extending",
+      "security-bouncy-castle"
     ],
     "Client libraries": [
       "client-libraries-java",
