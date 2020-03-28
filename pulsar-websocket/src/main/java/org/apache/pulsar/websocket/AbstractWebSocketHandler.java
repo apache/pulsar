@@ -181,7 +181,13 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         final String domain = parts.get(domainIndex);
         final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
                 NamespaceName.get( parts.get(4), parts.get(5), parts.get(6));
-        final String name = parts.get(7);
+        //The topic name which contains slashes is also split ， so it needs to be jointed
+        int startPosition = 7;
+        StringBuilder topicName = new StringBuilder(parts.get(startPosition));
+        while (++startPosition < parts.size()) {
+            topicName.append("/").append(parts.get(startPosition));
+        }
+        final String name = topicName.toString();
 
         return TopicName.get(domain, namespace, name);
     }
