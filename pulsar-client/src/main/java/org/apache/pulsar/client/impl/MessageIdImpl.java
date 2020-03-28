@@ -186,7 +186,19 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int compareTo(MessageId o) {
-        if (o instanceof MessageIdImpl) {
+        if (o instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl other = (BatchMessageIdImpl) o;
+            int res = ComparisonChain.start()
+                    .compare(this.ledgerId, other.ledgerId)
+                    .compare(this.entryId, other.entryId)
+                    .compare(this.getPartitionIndex(), other.getPartitionIndex())
+                    .result();
+            if (res == 0 && other.getBatchIndex() > -1) {
+                return -1;
+            } else {
+                return res;
+            }
+        } else if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             return ComparisonChain.start()
                 .compare(this.ledgerId, other.ledgerId)
