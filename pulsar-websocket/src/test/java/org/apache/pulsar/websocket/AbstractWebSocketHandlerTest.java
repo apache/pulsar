@@ -70,8 +70,6 @@ public class AbstractWebSocketHandlerTest {
         topicName = webSocketHandler.getTopic();
         Assert.assertEquals("persistent://my-property/my-ns/my-topic", topicName.toString());
 
-        System.out.println(StringUtils.substringBetween("/ws/producer/persistent/my-property/my-cluster/my-ns/my-topic","/"));
-        System.out.println(StringUtils.substringBetween("/ws/producer/persistent/my-property/my-cluster/my-ns/my-topic","/"));
     }
 
     class WebSocketHandlerImpl extends AbstractWebSocketHandler {
