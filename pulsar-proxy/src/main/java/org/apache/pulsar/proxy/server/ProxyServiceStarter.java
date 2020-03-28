@@ -124,8 +124,6 @@ public class ProxyServiceStarter {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         }
 
-        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(config));
         // create proxy service

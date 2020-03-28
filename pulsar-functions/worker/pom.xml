@@ -44,6 +44,21 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <!-- bouncy-castle-bc-shaded that contains in pulsar-client-original already contains this-->
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk15on</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-ext-jdk15on</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

@@ -93,6 +93,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>io.swagger:*</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
                 </includes>
               </artifactSet>
               <filters>
