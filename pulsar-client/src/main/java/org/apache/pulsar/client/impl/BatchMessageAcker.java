@@ -24,7 +24,7 @@ import java.util.BitSet;
 class BatchMessageAcker {
 
     private BatchMessageAcker() {
-        this.bitSet = null;
+        this.bitSet = new BitSet();
         this.batchSize = 0;
     }
 

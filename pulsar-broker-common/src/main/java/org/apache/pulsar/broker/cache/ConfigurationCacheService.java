@@ -111,7 +111,7 @@ public class ConfigurationCacheService {
             @Override
             @SuppressWarnings("unchecked")
             public NamespaceIsolationPolicies deserialize(String path, byte[] content) throws Exception {
-                return new NamespaceIsolationPolicies((Map<String, NamespaceIsolationData>) ObjectMapperFactory
+                return new NamespaceIsolationPolicies(ObjectMapperFactory
                         .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationData>>() {
                         }));
             }

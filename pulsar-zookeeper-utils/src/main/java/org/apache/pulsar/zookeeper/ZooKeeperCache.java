@@ -233,7 +233,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
 
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            zk.exists(path, watcher, (StatCallback) (rc, path1, ctx, stat) -> {
+            zk.exists(path, watcher, (rc, path1, ctx, stat) -> {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
@@ -423,7 +423,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     return;
                 }
 
-                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                zk.getChildren(path, watcher, (rc, path1, ctx, children) -> {
                     if (rc == Code.OK.intValue()) {
                         future.complete(Sets.newTreeSet(children));
                     } else if (rc == Code.NONODE.intValue()) {

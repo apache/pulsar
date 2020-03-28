@@ -76,8 +76,8 @@ public class PulsarSaslServer {
                 int indexOf = servicePrincipalNameAndHostname.indexOf("/");
 
                 // e.g. serviceHostnameAndKerbDomain := "myhost.foo.com@EXAMPLE.COM"
-                final String serviceHostnameAndKerbDomain = servicePrincipalNameAndHostname.substring(indexOf + 1,
-                    servicePrincipalNameAndHostname.length());
+                final String serviceHostnameAndKerbDomain = servicePrincipalNameAndHostname.substring(indexOf + 1
+                );
                 int indexOfAt = serviceHostnameAndKerbDomain.indexOf("@");
 
                 // Handle Kerberos Service as well as User Principal Names

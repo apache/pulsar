@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -28,11 +33,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
@@ -144,7 +144,8 @@ public class BookiesImpl extends BaseResource implements Bookies {
     }
 
     @Override
-    public CompletableFuture<Void> updateBookieRackInfoAsync(String bookieAddress, String group, BookieInfo bookieInfo) {
+    public CompletableFuture<Void> updateBookieRackInfoAsync(
+            String bookieAddress, String group, BookieInfo bookieInfo) {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
         return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
     }

@@ -16,26 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-
-public interface SchemaStorage {
-
-    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
-
-    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
-
-    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
-
-    CompletableFuture<SchemaVersion> delete(String key);
-
-    SchemaVersion versionFromBytes(byte[] version);
-
-    void start() throws Exception;
-
-    void close() throws Exception;
-
-}
+package org.apache.pulsar.client.admin.internal;

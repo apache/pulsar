@@ -71,7 +71,7 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("GenericJsonReader close inputStream close error", e.getMessage());
+                log.error("GenericJsonReader close inputStream close error", e);
             }
         }
     }

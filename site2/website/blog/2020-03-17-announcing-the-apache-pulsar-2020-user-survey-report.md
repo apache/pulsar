@@ -9,6 +9,8 @@ For the first time ever, the Apache Pulsar PMC team is publishing a user survey 
 adoption, details how organizations are leveraging Pulsar to build real-time streaming
 applications, and highlights key features on Pulsar’s product roadmap.
 
+![](../img/pulsar-user-ban.jpg)
+
 Pulsar adoption has largely been driven by the market’s increased demand for real-time,
 data-enabled technologies. While companies have tried to leverage monolithic messaging
 systems to build-out real-time offerings, they’ve hit major roadblocks. Ultimately, these
