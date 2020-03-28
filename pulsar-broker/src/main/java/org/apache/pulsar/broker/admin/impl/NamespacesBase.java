@@ -2046,7 +2046,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected long internalGetOffloadThreshold() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).offload_threshold;
+        Policies policies = getNamespacePolicies(namespaceName);
+        if (policies.offload_policies == null) {
+            return policies.offload_threshold;
+        } else {
+            return policies.offload_policies.getManagedLedgerOffloadThresholdInBytes();
+        }
     }
 
     protected void internalSetOffloadThreshold(long newThreshold) {
@@ -2057,8 +2062,13 @@ public abstract class NamespacesBase extends AdminResource {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
+
             Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (policies.offload_policies != null) {
+                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+            }
             policies.offload_threshold = newThreshold;
+
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
@@ -2083,7 +2093,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected Long internalGetOffloadDeletionLag() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).offload_deletion_lag_ms;
+        Policies policies = getNamespacePolicies(namespaceName);
+        if (policies.offload_policies == null) {
+            return policies.offload_deletion_lag_ms;
+        } else {
+            return policies.offload_policies.getManagedLedgerOffloadDeletionLagInMillis();
+        }
     }
 
     protected void internalSetOffloadDeletionLag(Long newDeletionLagMs) {
@@ -2094,8 +2109,13 @@ public abstract class NamespacesBase extends AdminResource {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
+
             Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (policies.offload_policies != null) {
+                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+            }
             policies.offload_deletion_lag_ms = newDeletionLagMs;
+
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadDeletionLagMs configuration: namespace={}, value={}",
@@ -2234,6 +2254,20 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
+
+            if (offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis()
+                    .equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+            } else {
+                policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
+            }
+            if (offloadPolicies.getManagedLedgerOffloadThresholdInBytes() ==
+                    OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) {
+                offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+            } else {
+                policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
+            }
+
             policies.offload_policies = offloadPolicies;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion(),
                     (rc, path1, ctx, stat) -> {

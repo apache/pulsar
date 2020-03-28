@@ -1032,19 +1032,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+
+            if (offloadPolicies == null) {
+                offloadPolicies = new OffloadPolicies();
+                offloadPolicies.setManagedLedgerOffloadDriver(pulsar.getConfiguration().getManagedLedgerOffloadDriver());
+                offloadPolicies.setManagedLedgerOffloadThresholdInBytes(
+                        pulsar.getConfiguration().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes()
+                );
+                offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(
+                        pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()
+                );
+            }
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
-            policies.ifPresent(p -> {
-                    long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
-                    if (p.offload_deletion_lag_ms != null) {
-                        lag = p.offload_deletion_lag_ms;
-                    }
-                    long bytes = serviceConfig.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
-                    if (p.offload_threshold != -1L) {
-                        bytes = p.offload_threshold;
-                    }
-                    managedLedgerConfig.setOffloadLedgerDeletionLag(lag, TimeUnit.MILLISECONDS);
-                    managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(bytes);
-                });
 
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
