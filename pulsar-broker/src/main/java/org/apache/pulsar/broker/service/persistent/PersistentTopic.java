@@ -894,13 +894,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 public void deleteLedgerComplete(Object ctx) {
                                     brokerService.removeTopicFromCache(topic);
 
-                                    if (dispatchRateLimiter.isPresent()) {
-                                        dispatchRateLimiter.get().close();
-                                    }
+                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                                    if (subscribeRateLimiter.isPresent()) {
-                                        subscribeRateLimiter.get().close();
-                                    }
+                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
@@ -982,18 +978,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // Everything is now closed, remove the topic from map
                     brokerService.removeTopicFromCache(topic);
 
-                    ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.orElse(null);
-                    if (ctrl != null) {
-                        ctrl.close();
-                    }
+                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 
-                    if (dispatchRateLimiter.isPresent()) {
-                        dispatchRateLimiter.get().close();
-                    }
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                    if (subscribeRateLimiter.isPresent()) {
-                        subscribeRateLimiter.get().close();
-                    }
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);

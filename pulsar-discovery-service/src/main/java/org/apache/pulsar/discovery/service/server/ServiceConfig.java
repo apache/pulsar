@@ -168,7 +168,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @Deprecated
     public boolean isTlsEnabled() {
-        return tlsEnabled || webServicePortTls != null || servicePortTls != null;
+        return tlsEnabled || webServicePortTls.isPresent() || servicePortTls.isPresent();
     }
 
     @Deprecated
