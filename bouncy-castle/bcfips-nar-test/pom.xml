@@ -28,9 +28,9 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>bouncy-castle-bcfips-nar-test</artifactId>
+  <artifactId>bcfips-nar-test</artifactId>
   <name>Pulsar Bouncy Castle FIPS Nar Test</name>
-  <description> Broker and client runs auth with nar load BC FIPS verison</description>
+  <description> Broker and client runs auth with nar load BC FIPS version</description>
 
   <dependencies>
     <dependency>
