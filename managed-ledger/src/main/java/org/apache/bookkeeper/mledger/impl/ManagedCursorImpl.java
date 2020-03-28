@@ -2231,7 +2231,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 mdEntry.newPosition, name);
 
                         ledger.mbean.startCursorLedgerDeleteOp();
-                        bookkeeper.asyncDeleteLedger(lh.getId(), (rc1, ctx1) -> ledger.mbean.endCursorLedgerDeleteOp(), null);
+                        bookkeeper.asyncDeleteLedger(lh.getId(), new DeleteCallback() {
+                            @Override
+                            public void deleteComplete(int rc, Object ctx) {
+                                ledger.mbean.endCursorLedgerDeleteOp();
+                            }
+                        }, null);
                         callback.operationFailed(exception);
                     }
                 });
@@ -2418,12 +2423,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         LedgerHandle lh = cursorLedger;
         ledger.mbean.startCursorLedgerCloseOp();
         log.info("[{}] [{}] Closing metadata ledger {}", ledger.getName(), name, lh.getId());
-        lh.asyncClose((rc, lh1, ctx1) -> {
-            ledger.mbean.endCursorLedgerCloseOp();
-            if (rc == BKException.Code.OK) {
-                callback.closeComplete(ctx1);
-            } else {
-                callback.closeFailed(createManagedLedgerException(rc), ctx1);
+        lh.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
+                ledger.mbean.endCursorLedgerCloseOp();
+                if (rc == BKException.Code.OK) {
+                    callback.closeComplete(ctx);
+                } else {
+                    callback.closeFailed(createManagedLedgerException(rc), ctx);
+                }
             }
         }, ctx);
     }

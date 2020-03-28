@@ -306,27 +306,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Last ledger stat may be zeroed, we must update it
                 if (ledgers.size() > 0) {
                     final long id = ledgers.lastKey();
-                    OpenCallback opencb = (rc, lh, ctx1) -> executor.executeOrdered(name, safeRun(() -> {
-                        mbean.endDataLedgerOpenOp();
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
-                        }
-                        if (rc == Code.OK) {
-                            LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
-                                    .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                    .setTimestamp(clock.millis()).build();
-                            ledgers.put(id, info);
-                            initializeBookKeeper(callback);
-                        } else if (isNoSuchLedgerExistsException(rc)) {
-                            log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
-                            ledgers.remove(ledgers.lastKey());
-                            initializeBookKeeper(callback);
-                        } else {
-                            log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
-                            callback.initializeFailed(createManagedLedgerException(rc));
-                            return;
-                        }
-                    }));
+                    OpenCallback opencb = (rc, lh, ctx1) -> {
+                        executor.executeOrdered(name, safeRun(() -> {
+                            mbean.endDataLedgerOpenOp();
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
+                            }
+                            if (rc == BKException.Code.OK) {
+                                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
+                                        .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
+                                        .setTimestamp(clock.millis()).build();
+                                ledgers.put(id, info);
+                                initializeBookKeeper(callback);
+                            } else if (isNoSuchLedgerExistsException(rc)) {
+                                log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
+                                ledgers.remove(ledgers.lastKey());
+                                initializeBookKeeper(callback);
+                            } else {
+                                log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
+                                callback.initializeFailed(createManagedLedgerException(rc));
+                                return;
+                            }
+                        }));
+                    };
 
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Opening ledger {}", name, id);
@@ -2391,19 +2393,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                 .thenCompose((ignore) -> getLedgerHandle(ledgerId))
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
-                .thenCompose((ignore) -> Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                                               TimeUnit.SECONDS.toHours(1)).limit(10),
-                                   FAIL_ON_CONFLICT,
-                                   () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
-                                   scheduledExecutor, name)
-                    .whenComplete((ignore2, exception) -> {
-                            if (exception != null) {
-                                cleanupOffloaded(
-                                    ledgerId, uuid,
-                                    driverName, driverMetadata,
-                                    "Metastore failure");
-                            }
-                        }))
+                .thenCompose((ignore) -> {
+                        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
+                                           FAIL_ON_CONFLICT,
+                                           () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
+                                           scheduledExecutor, name)
+                            .whenComplete((ignore2, exception) -> {
+                                    if (exception != null) {
+                                        cleanupOffloaded(
+                                            ledgerId, uuid,
+                                            driverName, driverMetadata,
+                                            "Metastore failure");
+                                    }
+                                });
+                    })
                 .whenComplete((ignore, exception) -> {
                         if (exception != null) {
                             log.warn("[{}] Exception occurred during offload", name, exception);
@@ -2435,7 +2439,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerInfo transform(LedgerInfo oldInfo) throws ManagedLedgerException;
     }
 
-    static Predicate<Throwable> FAIL_ON_CONFLICT = (throwable) -> !(throwable instanceof OffloadConflict) && Retries.NonFatalPredicate.test(throwable);
+    static Predicate<Throwable> FAIL_ON_CONFLICT = (throwable) -> {
+        return !(throwable instanceof OffloadConflict) && Retries.NonFatalPredicate.test(throwable);
+    };
 
     static class OffloadConflict extends ManagedLedgerException {
         OffloadConflict(String msg) {
