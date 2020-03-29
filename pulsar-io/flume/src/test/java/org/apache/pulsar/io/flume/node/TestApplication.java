@@ -117,7 +117,7 @@ public class TestApplication {
         eventBus.post(materializedConfiguration);
         application.start();
 
-        Thread.sleep(1005L);
+        Thread.sleep(1003L);
 
         verify(sourceRunner).start();
         verify(sinkRunner).start();
