@@ -73,7 +73,7 @@ public class KeyValueSchemaHandler implements SchemaHandler {
 
     @Override
     public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
-        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = deserializeCommon(keyPayload, dataPayload);
+        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(keyPayload, dataPayload);
         Object keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey());
         Object valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue());
         return new KeyValue<>(keyObj, valueObj);
@@ -81,23 +81,15 @@ public class KeyValueSchemaHandler implements SchemaHandler {
 
     @Override
     public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
-        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = deserializeCommon(keyPayload, dataPayload);
+        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(keyPayload, dataPayload);
         Object keyObj;
         Object valueObj;
-        if (keySchemaHandler instanceof AvroSchemaHandler) {
-            keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey(), schemaVersion);
-        } else {
-            keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey());
-        }
-        if (valueSchemaHandler instanceof AvroSchemaHandler) {
-            valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue(), schemaVersion);
-        } else {
-            valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue());
-        }
+        keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey(), schemaVersion);
+        valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue(), schemaVersion);
         return new KeyValue<>(keyObj, valueObj);
     }
 
-    private KeyValue<ByteBuf, ByteBuf> deserializeCommon(ByteBuf keyPayload, ByteBuf dataPayload) {
+    private KeyValue<ByteBuf, ByteBuf> getKeyValueByteBuf(ByteBuf keyPayload, ByteBuf dataPayload) {
         ByteBuf keyByteBuf;
         ByteBuf valueByteBuf;
         if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {

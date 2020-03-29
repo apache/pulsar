@@ -49,12 +49,8 @@ public class AvroSchemaHandler implements SchemaHandler {
                       PulsarConnectorConfig pulsarConnectorConfig,
                       SchemaInfo schemaInfo,
                       List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
-        this.schemaInfo = schemaInfo;
-        this.genericAvroSchema = new GenericAvroSchema(schemaInfo);
-        this.genericAvroSchema
-                .setSchemaInfoProvider(
-                        new PulsarSqlSchemaInfoProvider(topicName, pulsarConnectorConfig.getPulsarAdmin()));
-        this.columnHandles = columnHandles;
+        this(new PulsarSqlSchemaInfoProvider(topicName,
+                                pulsarConnectorConfig.getPulsarAdmin()), schemaInfo, columnHandles);
     }
 
     AvroSchemaHandler(PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider,

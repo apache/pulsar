@@ -423,17 +423,11 @@ public class PulsarRecordCursor implements RecordCursor {
             if (this.currentMessage.getKeyBytes().isPresent()) {
                 keyByteBuf = this.currentMessage.getKeyBytes().get();
             }
-            if (currentMessage.getSchemaVersion() != null) {
-                currentRecord = this.schemaHandler.deserialize(keyByteBuf,
-                        this.currentMessage.getData(), this.currentMessage.getSchemaVersion());
-            } else {
-                currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
-            }
-        } else if (currentMessage.getSchemaVersion() != null) {
+            currentRecord = this.schemaHandler.deserialize(keyByteBuf,
+                    this.currentMessage.getData(), this.currentMessage.getSchemaVersion());
+        } else {
             currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData(),
                     this.currentMessage.getSchemaVersion());
-        } else {
-            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
         }
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 

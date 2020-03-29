@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Multi version generic schema provider by guava cache.
+ * Multi version schema info provider for Pulsar SQL leverage guava cache.
  */
 public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
 
