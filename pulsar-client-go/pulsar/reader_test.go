@@ -75,7 +75,7 @@ func TestReader(t *testing.T) {
 	assert.Nil(t, err)
 	defer reader.Close()
 
-	assert.Equal(t, reader.Topic(), "persistent://public/default/" + topic )
+	assert.Equal(t, reader.Topic(), "persistent://public/default/"+topic)
 
 	ctx := context.Background()
 

@@ -18,46 +18,74 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
  */
+@Slf4j
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        Schema.Parser fromParser = new Schema.Parser();
-        Schema fromSchema = fromParser.parse(new String(from.getData(), UTF_8));
-        Schema.Parser toParser = new Schema.Parser();
-        Schema toSchema =  toParser.parse(new String(to.getData(), UTF_8));
-
-        SchemaValidator schemaValidator = createSchemaValidator(strategy, true);
-        try {
-            schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
-        } catch (SchemaValidationException e) {
-            return false;
-        }
-        return true;
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
-    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy,
-                                                 boolean onlyLatestValidator) {
+    @Override
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        LinkedList<Schema> fromList = new LinkedList<>();
+        checkArgument(from != null, "check compatibility list is null");
+        try {
+            for (SchemaData schemaData : from) {
+                Schema.Parser parser = new Schema.Parser();
+                parser.setValidateDefaults(false);
+                fromList.addFirst(parser.parse(new String(schemaData.getData(), UTF_8)));
+            }
+            Schema.Parser parser = new Schema.Parser();
+            parser.setValidateDefaults(false);
+            Schema toSchema = parser.parse(new String(to.getData(), UTF_8));
+            SchemaValidator schemaValidator = createSchemaValidator(strategy);
+            schemaValidator.validate(toSchema, fromList);
+        } catch (SchemaParseException e) {
+            log.error("Error during schema parsing: {}", e.getMessage(), e);
+            throw new IncompatibleSchemaException(e);
+        } catch (SchemaValidationException e) {
+            log.error("Error during schema compatibility check: {}", e.getMessage(), e);
+            throw new IncompatibleSchemaException(e);
+        }
+    }
+
+    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) throws IncompatibleSchemaException {
         final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
         switch (compatibilityStrategy) {
+            case BACKWARD_TRANSITIVE:
+                return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), false);
             case BACKWARD:
-                return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), onlyLatestValidator);
+                return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), true);
+            case FORWARD_TRANSITIVE:
+                return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), false);
             case FORWARD:
-                return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), onlyLatestValidator);
+                return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), true);
+            case FULL_TRANSITIVE:
+                return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), false);
             case FULL:
-                return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), onlyLatestValidator);
+                return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), true);
+            case ALWAYS_COMPATIBLE:
+                return AlwaysSchemaValidator.INSTANCE;
             default:
                 return NeverSchemaValidator.INSTANCE;
         }

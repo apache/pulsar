@@ -1,16 +1,25 @@
 ---
 id: io-cdc
-title: CDC Connector
-sidebar_label: CDC Connector
+title: CDC connector
+sidebar_label: CDC connector
 ---
 
-## Source
+CDC source connectors capture log changes of databases (such as MySQL, MongoDB, and PostgreSQL) into Pulsar.
 
-The CDC Source connector is used to capture change log of existing databases like MySQL, MongoDB, PostgreSQL into Pulsar.
+> CDC source connectors are built on top of [Canal](https://github.com/alibaba/canal) and [Debezium](https://debezium.io/) and store all data into Pulsar cluster in a persistent, replicated, and partitioned way.
 
-The CDC Source connector is built on top of [Debezium](https://debezium.io/) and [Canal](https://github.com/alibaba/canal). This connector stores all data into Pulsar Cluster in a persistent, replicated and partitioned way.
-This CDC Source are tested by using MySQL, and you could get more information regarding how it works at [this debezium link](https://debezium.io/docs/connectors/mysql/) or [this canal link](https://github.com/alibaba/canal/wiki).
-Regarding how Debezium works, please reference to [Debezium tutorial](https://debezium.io/docs/tutorial/). Regarding how Canal works, please reference to [Canal tutorial](https://github.com/alibaba/canal/wiki). It is recommended that you go through this tutorial first.
+Currently, Pulsar has the following CDC connectors.
 
-- [Debezium Connector](io-cdc-debezium.md)
-- [Alibaba Canal Connector](io-cdc-canal.md)
+Name|Java Class
+|---|---
+[Canal source connector](io-canal-source.md)|[org.apache.pulsar.io.canal.CanalStringSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/java/org/apache/pulsar/io/canal/CanalStringSource.java)
+[Debezium source connector](io-cdc-debezium.md)|<li>[org.apache.pulsar.io.debezium.DebeziumSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/core/src/main/java/org/apache/pulsar/io/debezium/DebeziumSource.java)<br/><li>[org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/java/org/apache/pulsar/io/debezium/mysql/DebeziumMysqlSource.java)<br/><li>[org.apache.pulsar.io.debezium.postgres.DebeziumPostgresSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/java/org/apache/pulsar/io/debezium/postgres/DebeziumPostgresSource.java)
+
+For more information about Canal and Debezium, see the information below.
+
+Subject | Reference
+|---|---
+How to use Canal source connector with MySQL|[Canal guide](https://github.com/alibaba/canal/wiki)
+How does Canal work | [Canal tutorial](https://github.com/alibaba/canal/wiki)
+How to use Debezium source connector with MySQL | [Debezium guide](https://debezium.io/docs/connectors/mysql/)
+How does Debezium work | [Debezium tutorial](https://debezium.io/docs/tutorial/)

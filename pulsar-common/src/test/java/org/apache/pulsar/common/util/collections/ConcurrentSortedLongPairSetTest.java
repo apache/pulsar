@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -31,7 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
-import org.apache.pulsar.common.util.collections.LongPairSet.LongPairPredicate;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -85,8 +85,8 @@ public class ConcurrentSortedLongPairSetTest {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        final int nThreads = 16;
-        final int N = 100_000;
+        final int nThreads = 8;
+        final int N = 1000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
@@ -215,8 +215,8 @@ public class ConcurrentSortedLongPairSetTest {
         long t2 = 2;
         long t1_b = 1;
         assertEquals(t1, t1_b);
-        assertFalse(t1 == t2);
-        assertFalse(t1_b == t2);
+        assertNotEquals(t2, t1);
+        assertNotEquals(t2, t1_b);
 
         set.add(t1, t1);
         assertTrue(set.contains(t1, t1));

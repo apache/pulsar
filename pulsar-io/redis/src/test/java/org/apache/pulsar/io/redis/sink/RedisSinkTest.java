@@ -18,27 +18,18 @@
  */
 package org.apache.pulsar.io.redis.sink;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.io.redis.EmbeddedRedisUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * redis Sink test
@@ -47,17 +38,6 @@ import java.util.Map;
 public class RedisSinkTest {
 
     private EmbeddedRedisUtils embeddedRedisUtils;
-
-    /**
-     * A Simple class to test redis class
-     */
-    @Data
-    @ToString
-    @EqualsAndHashCode
-    public static class Foo {
-        private String field1;
-        private String field2;
-    }
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -83,26 +63,7 @@ public class RedisSinkTest {
         RedisSink sink = new RedisSink();
 
         // prepare a foo Record
-        Foo obj = new Foo();
-        obj.setField1("FakeFiled1");
-        obj.setField2("FakeFiled1");
-        AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
-
-        byte[] bytes = schema.encode(obj);
-        ByteBuf payload = Unpooled.copiedBuffer(bytes);
-        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
-        autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
-
-        Message<GenericRecord> message = new MessageImpl("fake_topic_name", "77:777", configs, payload, autoConsumeSchema);
-        Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
-            .message(message)
-            .topicName("fake_topic_name")
-            .build();
-
-        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-            obj.toString(),
-            message.getValue().toString(),
-            record.getValue().toString());
+        Record<byte[]> record = build("fakeTopic", "fakeKey", "fakeValue");
 
         // open should success
         sink.open(configs, null);
@@ -114,5 +75,30 @@ public class RedisSinkTest {
         // sleep to wait backend flush complete
         Thread.sleep(1000);
 
+    }
+
+    private Record<byte[]> build(String topic, String key, String value) {
+        // prepare a SinkRecord
+        SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
+            @Override
+            public Optional<String> getKey() {
+                return Optional.empty();
+            }
+
+            @Override
+            public byte[] getValue() {
+                return value.getBytes(StandardCharsets.UTF_8);
+            }
+
+            @Override
+            public Optional<String> getDestinationTopic() {
+                if (topic != null) {
+                    return Optional.of(topic);
+                } else {
+                    return Optional.empty();
+                }
+            }
+        }, value.getBytes(StandardCharsets.UTF_8));
+        return record;
     }
 }

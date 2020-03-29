@@ -19,6 +19,18 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
+
+import java.util.List;
+import java.util.Optional;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.SSLContext;
+import javax.ws.rs.NotAuthorizedException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -29,6 +41,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
@@ -39,16 +52,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import java.security.cert.X509Certificate;
-import java.util.List;
 
 @Slf4j
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
@@ -61,8 +64,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
@@ -80,6 +83,10 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientTlsEnabled(true);
 
         super.internalSetup();
+
+        PulsarAdmin admin = buildAdminClient("admin");
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.close();
     }
 
     @AfterMethod
@@ -122,7 +129,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     PulsarClient buildClient(String user) throws Exception {
         return PulsarClient.builder()
-            .serviceUrl("pulsar+ssl://localhost:" + BROKER_PORT_TLS)
+            .serviceUrl(pulsar.getBrokerServiceUrlTls())
             .enableTlsHostnameVerification(false)
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",

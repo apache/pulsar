@@ -64,15 +64,15 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private static final double[] PERCENTILES = { 0.5, 0.75, 0.95, 0.99, 0.999, 1.0 };
 
     public ProducerStatsRecorderImpl() {
-        numMsgsSent = null;
-        numBytesSent = null;
-        numSendFailed = null;
-        numAcksReceived = null;
-        totalMsgsSent = null;
-        totalBytesSent = null;
-        totalSendFailed = null;
-        totalAcksReceived = null;
-        ds = null;
+        numMsgsSent = new LongAdder();
+        numBytesSent = new LongAdder();
+        numSendFailed = new LongAdder();
+        numAcksReceived = new LongAdder();
+        totalMsgsSent = new LongAdder();
+        totalBytesSent = new LongAdder();
+        totalSendFailed = new LongAdder();
+        totalAcksReceived = new LongAdder();
+        ds = DoublesSketch.builder().build(256);
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -101,7 +101,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
-            log.error("Failed to dump config info: {}", e);
+            log.error("Failed to dump config info", e);
         }
 
         stat = (timeout) -> {
@@ -137,7 +137,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                         | currentNumMsgsSent) != 0) {
 
                     for (int i = 0; i < latencyPctValues.length; i++) {
-                        if (latencyPctValues[i] == Double.NaN) {
+                        if (Double.isNaN(latencyPctValues[i])) {
                             latencyPctValues[i] = 0;
                         }
                     }
@@ -191,7 +191,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     public void incrementNumAcksReceived(long latencyNs) {
         numAcksReceived.increment();
         synchronized (ds) {
-            ds.update(TimeUnit.NANOSECONDS.toMicros(latencyNs));
+            ds.update(TimeUnit.NANOSECONDS.toMillis(latencyNs));
         }
     }
 

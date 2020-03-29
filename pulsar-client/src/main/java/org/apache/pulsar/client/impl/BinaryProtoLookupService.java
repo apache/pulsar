@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,14 +36,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,8 +139,11 @@ public class BinaryProtoLookupService implements LookupService {
                 }
             }).exceptionally((sendException) -> {
                 // lookup failed
-                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage(),
-                        sendException instanceof ClosedChannelException ? null : sendException);
+                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.warn("[{}] Lookup response exception: {}", topicName.toString(), sendException);
+                }
+
                 addressFuture.completeExceptionally(sendException);
                 return null;
             });
@@ -165,8 +167,9 @@ public class BinaryProtoLookupService implements LookupService {
                     partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
                 } catch (Exception e) {
                     partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
-                            format("Failed to parse partition-response redirect=%s , partitions with %s",
-                                    lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
+                        format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s",
+                            lookupDataResult.redirect, topicName.toString(), lookupDataResult.partitions,
+                            e.getMessage())));
                 }
             }).exceptionally((e) -> {
                 log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
@@ -207,9 +210,11 @@ public class BinaryProtoLookupService implements LookupService {
         CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
-            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
-            0 , TimeUnit.MILLISECONDS);
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(1, TimeUnit.MINUTES)
+                .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
     }
@@ -247,8 +252,10 @@ public class BinaryProtoLookupService implements LookupService {
         }).exceptionally((e) -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                topicsFuture.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getTopicsUnderNamespace within configured timeout."));
+                topicsFuture.completeExceptionally(
+                    new PulsarClientException.TimeoutException(
+                        format("Could not get topics of namespace %s within configured timeout",
+                            namespace.toString())));
                 return null;
             }
 

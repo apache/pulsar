@@ -78,7 +78,7 @@ class PulsarCLogger : public pulsar::Logger {
     PulsarCLogger(const std::string &file, pulsar_logger logger, void *ctx)
         : file_(file), logger_(logger), ctx_(ctx) {}
 
-    bool isEnabled(Level level) { return level >= pulsar::Logger::INFO; }
+    bool isEnabled(Level level) { return level >= pulsar::Logger::LEVEL_INFO; }
 
     void log(Level level, int line, const std::string &message) {
         logger_((pulsar_logger_level_t)level, file_.c_str(), line, message.c_str(), ctx_);

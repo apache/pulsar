@@ -151,10 +151,12 @@ void export_config() {
             .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
             .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
             .def("property", &ConsumerConfiguration::setProperty, return_self<>())
+            .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
+            .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
-            .def("message_listener", &ReaderConfiguration_setReaderListener, return_self<>())
+            .def("reader_listener", &ReaderConfiguration_setReaderListener, return_self<>())
             .def("schema", &ReaderConfiguration::getSchema, return_value_policy<copy_const_reference>())
             .def("schema", &ReaderConfiguration::setSchema, return_self<>())
             .def("receiver_queue_size", &ReaderConfiguration::getReceiverQueueSize)

@@ -19,93 +19,201 @@
 package org.apache.pulsar.common.schema;
 
 /**
- * Types of supported schema for Pulsar messages
+ * Types of supported schema for Pulsar messages.
+ *
+ * <p>Ideally we should have just one single set of enum definitions
+ * for schema type. but we have 3 locations of defining schema types.
+ *
+ * <p>when you are adding a new schema type that whose
+ * schema info is required to be recorded in schema registry,
+ * add corresponding schema type into `pulsar-common/src/main/proto/PulsarApi.proto`
+ * and `pulsar-broker/src/main/proto/SchemaRegistryFormat.proto`.
  */
 public enum SchemaType {
     /**
-     * No schema defined
+     * No schema defined.
      */
-    NONE,
+    NONE(0),
 
     /**
-     * boolean schema defined
+     * Simple String encoding with UTF-8.
+     */
+    STRING(1),
+
+    /**
+     * JSON object encoding and validation.
+     */
+    JSON(2),
+
+    /**
+     * Protobuf message encoding and decoding.
+     */
+    PROTOBUF(3),
+
+    /**
+     * Serialize and deserialize via avro.
+     */
+    AVRO(4),
+
+    /**
+     * boolean schema defined.
      * @since 2.3.0
      */
-    BOOLEAN,
-
-    /**
-     * Simple String encoding with UTF-8
-     */
-    STRING,
+    BOOLEAN(5),
 
     /**
      * A 8-byte integer.
      */
-    INT8,
+    INT8(6),
 
     /**
      * A 16-byte integer.
      */
-    INT16,
+    INT16(7),
 
     /**
      * A 32-byte integer.
      */
-    INT32,
+    INT32(8),
 
     /**
      * A 64-byte integer.
      */
-    INT64,
+    INT64(9),
 
     /**
      * A float number.
      */
-    FLOAT,
+    FLOAT(10),
 
     /**
-     * A double number
+     * A double number.
      */
-    DOUBLE,
+    DOUBLE(11),
+
+    /**
+     * Date.
+     * @since 2.4.0
+     */
+    DATE(12),
+
+    /**
+     * Time.
+     * @since 2.4.0
+     */
+    TIME(13),
+
+    /**
+     * Timestamp.
+     * @since 2.4.0
+     */
+    TIMESTAMP(14),
+
+    /**
+     * A Schema that contains Key Schema and Value Schema.
+     */
+    KEY_VALUE(15),
+
+    //
+    // Schemas that don't have schema info. the value should be negative.
+    //
 
     /**
      * A bytes array.
      */
-    BYTES,
-
-    /**
-     * JSON object encoding and validation
-     */
-    JSON,
-
-    /**
-     * Protobuf message encoding and decoding
-     */
-    PROTOBUF,
-
-    /**
-     * Serialize and deserialize via avro
-     */
-    AVRO,
+    BYTES(-1),
 
     /**
      * Auto Detect Schema Type.
      */
     @Deprecated
-    AUTO,
+    AUTO(-2),
 
     /**
      * Auto Consume Type.
      */
-    AUTO_CONSUME,
+    AUTO_CONSUME(-3),
 
     /**
      * Auto Publish Type.
      */
-    AUTO_PUBLISH,
+    AUTO_PUBLISH(-4);
 
-    /**
-     * A Schema that contains Key Schema and Value Schema.
-     */
-    KEY_VALUE
+    int value;
+
+    SchemaType(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return this.value;
+    }
+
+    public static SchemaType valueOf(int value) {
+        switch (value) {
+          case 0: return NONE;
+          case 1: return STRING;
+          case 2: return JSON;
+          case 3: return PROTOBUF;
+          case 4: return AVRO;
+          case 5: return BOOLEAN;
+          case 6: return INT8;
+          case 7: return INT16;
+          case 8: return INT32;
+          case 9: return INT64;
+          case 10: return FLOAT;
+          case 11: return DOUBLE;
+          case 12: return DATE;
+          case 13: return TIME;
+          case 14: return TIMESTAMP;
+          case 15: return KEY_VALUE;
+          case -1: return BYTES;
+          case -2: return AUTO;
+          case -3: return AUTO_CONSUME;
+          case -4: return AUTO_PUBLISH;
+          default: return NONE;
+        }
+      }
+
+
+    public boolean isPrimitive() {
+        return isPrimitiveType(this);
+    }
+
+    public boolean isStruct() {
+        return isStructType(this);
+    }
+
+    public static boolean isPrimitiveType(SchemaType type) {
+        switch (type) {
+            case STRING:
+            case BOOLEAN:
+            case INT8:
+            case INT16:
+            case INT32:
+            case INT64:
+            case FLOAT:
+            case DOUBLE:
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+            case BYTES:
+            case NONE:
+                return true;
+            default:
+                return false;
+        }
+
+    }
+
+    public static boolean isStructType(SchemaType type) {
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

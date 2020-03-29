@@ -46,13 +46,13 @@ public class ServiceConfig implements PulsarConfiguration {
     private int zookeeperSessionTimeoutMs = 30_000;
 
     // Port to use to server binary-proto request
-    private Integer servicePort = 5000;
+    private Optional<Integer> servicePort = Optional.ofNullable(5000);
     // Port to use to server binary-proto-tls request
-    private Integer servicePortTls;
+    private Optional<Integer> servicePortTls = Optional.empty();
     // Port to use to server HTTP request
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.ofNullable(8080);
     // Port to use to server HTTPS request
-    private Integer webServicePortTls;
+    private Optional<Integer> webServicePortTls = Optional.empty();
     // Control whether to bind directly on localhost rather than on normal
     // hostname
     private boolean bindOnLocalhost = false;
@@ -135,40 +135,40 @@ public class ServiceConfig implements PulsarConfiguration {
     }
 
     public Optional<Integer> getServicePort() {
-        return Optional.ofNullable(servicePort);
+        return servicePort;
     }
 
-    public void setServicePort(int servicePort) {
+    public void setServicePort(Optional<Integer> servicePort) {
         this.servicePort = servicePort;
     }
 
     public Optional<Integer> getServicePortTls() {
-        return Optional.ofNullable(servicePortTls);
+        return servicePortTls;
     }
 
-    public void setServicePortTls(int servicePortTls) {
+    public void setServicePortTls(Optional<Integer> servicePortTls) {
         this.servicePortTls = servicePortTls;
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
-    public void setWebServicePort(int webServicePort) {
+    public void setWebServicePort(Optional<Integer> webServicePort) {
         this.webServicePort = webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 
-    public void setWebServicePortTls(int webServicePortTls) {
+    public void setWebServicePortTls(Optional<Integer> webServicePortTls) {
         this.webServicePortTls = webServicePortTls;
     }
 
     @Deprecated
     public boolean isTlsEnabled() {
-        return tlsEnabled || webServicePortTls != null || servicePortTls != null;
+        return tlsEnabled || webServicePortTls.isPresent() || servicePortTls.isPresent();
     }
 
     @Deprecated

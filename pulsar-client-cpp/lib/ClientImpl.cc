@@ -35,6 +35,9 @@
 #include <algorithm>
 #include <regex>
 #include <mutex>
+#ifdef USE_LOG4CXX
+#include "Log4CxxLogger.h"
+#endif
 
 DECLARE_LOG_OBJECT()
 
@@ -51,7 +54,7 @@ const std::string generateRandomName() {
     ss << nanoSeconds;
     SHA1(reinterpret_cast<const unsigned char*>(ss.str().c_str()), ss.str().length(), hash);
 
-    const int nameLength = 6;
+    const int nameLength = 10;
     std::stringstream hexHash;
     for (int i = 0; i < nameLength / 2; i++) {
         hexHash << hexDigits[(hash[i] & 0xF0) >> 4];
@@ -161,7 +164,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
                                       CreateProducerCallback callback) {
     if (!result) {
         ProducerImplBasePtr producer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
@@ -218,7 +221,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
         return;
     }
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << topicName->toString());
         callback(ResultOperationNotSupported, Reader());
         return;
@@ -340,18 +343,6 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
             lock.unlock();
             callback(ResultInvalidConfiguration, Consumer());
             return;
-        } else if (conf.getConsumerType() == ConsumerShared) {
-            ConsumersList consumers(consumers_);
-            for (auto& weakPtr : consumers) {
-                ConsumerImplBasePtr consumer = weakPtr.lock();
-                if (consumer && consumer->getSubscriptionName() == consumerName &&
-                    consumer->getTopic() == topic && !consumer->isClosed()) {
-                    lock.unlock();
-                    LOG_INFO("Reusing existing consumer instance for " << topic << " -- " << consumerName);
-                    callback(ResultOk, Consumer(consumer));
-                    return;
-                }
-            }
         }
     }
 
@@ -369,7 +360,7 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
             conf.setConsumerName(generateRandomName());
         }
         ConsumerImplBasePtr consumer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             if (conf.getReceiverQueueSize() == 0) {
                 LOG_ERROR("Can't use partitioned topic if the queue size is 0.");
                 callback(ResultInvalidConfiguration, Consumer());
@@ -444,7 +435,7 @@ void ClientImpl::handleGetPartitions(const Result result, const LookupDataResult
 
     StringList partitions;
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         for (unsigned int i = 0; i < partitionMetadata->getPartitions(); i++) {
             partitions.push_back(topicName->getTopicPartitionName(i));
         }
@@ -570,6 +561,7 @@ void ClientImpl::shutdown() {
         }
     }
 
+    pool_.close();
     ioExecutorProvider_->close();
     listenerExecutorProvider_->close();
     partitionListenerExecutorProvider_->close();

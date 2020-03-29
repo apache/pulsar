@@ -18,19 +18,20 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.IOException;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.Map;
 import java.util.Set;
+
 import javax.naming.AuthenticationException;
+
 import org.apache.pulsar.common.api.AuthData;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
- * Interface for accessing data which are used in variety of authentication schemes on client side
+ * Interface for accessing data which are used in variety of authentication schemes on client side.
  */
 public interface AuthenticationDataProvider extends Serializable {
     /*
@@ -77,7 +78,7 @@ public interface AuthenticationDataProvider extends Serializable {
 
     /**
      *
-     * @return a authentication scheme, or <code>null<c/ode> if the request will not be authenticated
+     * @return a authentication scheme, or {@code null} if the request will not be authenticated.
      */
     default String getHttpAuthType() {
         return null;
@@ -87,7 +88,7 @@ public interface AuthenticationDataProvider extends Serializable {
      *
      * @return an enumeration of all the header names
      */
-    default Set<Map.Entry<String, String>> getHttpHeaders() {
+    default Set<Map.Entry<String, String>> getHttpHeaders() throws Exception {
         return null;
     }
 
@@ -117,9 +118,9 @@ public interface AuthenticationDataProvider extends Serializable {
      * then returns null if authentication has completed;
      * returns authenticated data back to server side, if authentication has not completed.
      *
-     * Mainly used for mutual authentication like sasl.
+     * <p>Mainly used for mutual authentication like sasl.
      */
-    default AuthData authenticate(AuthData data) throws IOException, AuthenticationException {
+    default AuthData authenticate(AuthData data) throws AuthenticationException {
         byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);
         return AuthData.of(bytes);
     }

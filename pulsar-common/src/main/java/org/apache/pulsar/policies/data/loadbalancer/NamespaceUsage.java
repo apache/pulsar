@@ -25,46 +25,46 @@ package org.apache.pulsar.policies.data.loadbalancer;
  *
  */
 public class NamespaceUsage {
-    /** Total rate of messages produced on the broker. msg/s */
+    /** Total rate of messages produced on the broker (msg/s). */
     private double msgRateIn;
 
-    /** Total throughput of messages produced on the broker. byte/s */
+    /** Total throughput of messages produced on the broker (byte/s). */
     private double msgThroughputIn;
 
-    /** Rate of persistent messages produced on the broker. msg/s */
+    /** Rate of persistent messages produced on the broker (msg/s). */
     private double msgPersistentRateIn;
 
-    /** Throughput of persistent messages produced on the broker. byte/s */
+    /** Throughput of persistent messages produced on the broker (byte/s). */
     private double msgPersistentThroughputIn;
 
-    /** Rate of non-persistent messages produced on the broker. msg/s */
+    /** Rate of non-persistent messages produced on the broker (msg/s). */
     private double msgNonPersistentRateIn;
 
-    /** Throughput of non-persistent messages produced on the broker. byte/s */
+    /** Throughput of non-persistent messages produced on the broker (byte/s). */
     private double msgNonPersistentThroughputIn;
 
-    /** Total rate of messages consumed from the broker. msg/s */
+    /** Total rate of messages consumed from the broker (msg/s). */
     private double msgRateOut;
 
-    /** Total throughput of messages consumed from the broker. byte/s */
+    /** Total throughput of messages consumed from the broker (byte/s). */
     private double msgThroughputOut;
 
-    /** Number of messages in backlog for the broker */
+    /** Number of messages in backlog for the broker. */
     private long msgBacklog;
 
-    /** Space used to store the messages for the broker. bytes */
+    /** Space used to store the messages for the broker (bytes). */
     private long storageSize;
 
-    /** total number of producers = producer(queues) + producer(topics) */
+    /** Total number of producers = producer(queues) + producer(topics). */
     private long totalProducers;
 
-    /** number of clusters the namespace is replicated on */
+    /** Number of clusters the namespace is replicated on. */
     private long totalReplicatedClusters;
 
-    /** total number of queues */
+    /** Total number of queues. */
     private long totalQueues;
 
-    /** total number of topics */
+    /** Total number of topics. */
     private long totalTopics;
 
     private long activeSubscribers;

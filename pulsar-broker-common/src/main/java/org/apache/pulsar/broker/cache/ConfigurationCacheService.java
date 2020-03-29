@@ -67,6 +67,8 @@ public class ConfigurationCacheService {
     public static final String POLICIES_ROOT = "/admin/policies";
     private static final String CLUSTERS_ROOT = "/admin/clusters";
 
+    public static final String PARTITIONED_TOPICS_ROOT = "/admin/partitioned-topics";
+
     public ConfigurationCacheService(ZooKeeperCache cache) throws PulsarServerException {
         this(cache, null);
     }
@@ -98,7 +100,7 @@ public class ConfigurationCacheService {
         };
 
         this.clustersListCache = new ZooKeeperChildrenCache(cache, CLUSTERS_ROOT);
-        
+
         CLUSTER_FAILURE_DOMAIN_ROOT = CLUSTERS_ROOT + "/" + configuredClusterName + "/" + FAILURE_DOMAIN;
         if (isNotBlank(configuredClusterName)) {
             createFailureDomainRoot(cache.getZooKeeper(), CLUSTER_FAILURE_DOMAIN_ROOT);
@@ -109,12 +111,12 @@ public class ConfigurationCacheService {
             @Override
             @SuppressWarnings("unchecked")
             public NamespaceIsolationPolicies deserialize(String path, byte[] content) throws Exception {
-                return new NamespaceIsolationPolicies((Map<String, NamespaceIsolationData>) ObjectMapperFactory
+                return new NamespaceIsolationPolicies(ObjectMapperFactory
                         .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationData>>() {
                         }));
             }
         };
-        
+
         this.failureDomainCache = new ZooKeeperDataCache<FailureDomain>(cache) {
             @Override
             public FailureDomain deserialize(String path, byte[] content) throws Exception {
@@ -169,7 +171,7 @@ public class ConfigurationCacheService {
     public ZooKeeperCache cache() {
         return cache;
     }
-    
+
     public ZooKeeperDataCache<TenantInfo> propertiesCache() {
         return this.propertiesCache;
     }
@@ -189,7 +191,7 @@ public class ConfigurationCacheService {
     public ZooKeeperChildrenCache failureDomainListCache() {
         return this.failureDomainListCache;
     }
-    
+
     public ZooKeeper getZooKeeper() {
         return this.cache.getZooKeeper();
     }
@@ -197,7 +199,7 @@ public class ConfigurationCacheService {
     public ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache() {
         return this.namespaceIsolationPoliciesCache;
     }
-    
+
     public ZooKeeperDataCache<FailureDomain> failureDomainCache() {
         return this.failureDomainCache;
     }

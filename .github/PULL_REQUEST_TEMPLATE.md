@@ -1,4 +1,4 @@
-<--
+<!--
 ### Contribution Checklist
   
   - Name the pull request in the form "[Issue XYZ][component] Title of the pull request", where *XYZ* should be replaced by the actual issue number.

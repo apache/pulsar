@@ -58,6 +58,7 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
+    private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
 
     @VisibleForTesting
@@ -82,7 +83,7 @@ public class PulsarSink<T> implements Sink<T> {
             this.schema = schema;
         }
 
-        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
@@ -233,16 +234,17 @@ public class PulsarSink<T> implements Sink<T> {
             CompletableFuture<MessageId> future = msg.sendAsync();
 
             future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
-            future.join();
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties, ComponentStatsManager stats) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
+                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
+        this.functionClassLoader = functionClassLoader;
     }
 
     @Override
@@ -278,7 +280,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty()) {
+        if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());
         }
 
@@ -292,9 +294,7 @@ public class PulsarSink<T> implements Sink<T> {
         } else {
             // It is coming from some source
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
-            if (eventTime.isPresent()) {
-                msg.eventTime(eventTime.get());
-            }
+            eventTime.ifPresent(msg::eventTime);
         }
 
         pulsarSinkProcessor.sendOutputMessage(msg, record);
@@ -314,9 +314,7 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) Schema.BYTES;
         }
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
-
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
             return null;
@@ -327,7 +325,7 @@ public class PulsarSink<T> implements Sink<T> {
                     pulsarSinkConfig.getSchemaType(), false);
         } else {
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSerdeClassName(), false);
+                    pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader);
         }
     }
 }

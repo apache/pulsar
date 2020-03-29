@@ -19,20 +19,18 @@
 #ifndef TOPIC_METADATA_HPP_
 #define TOPIC_METADATA_HPP_
 
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 /**
  * Metadata of a topic that can be used for message routing.
  */
-class TopicMetadata {
+class PULSAR_PUBLIC TopicMetadata {
    public:
     virtual ~TopicMetadata() {}
 
     virtual int getNumPartitions() const = 0;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* TOPIC_METADATA_HPP_ */

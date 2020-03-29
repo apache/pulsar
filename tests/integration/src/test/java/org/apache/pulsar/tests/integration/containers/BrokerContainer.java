@@ -27,6 +27,6 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
 
     public BrokerContainer(String clusterName, String hostName) {
         super(
-            clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, INVALID_PORT);
+            clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, BROKER_HTTP_PORT);
     }
 }

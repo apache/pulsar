@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.io.MoreFiles;	
+import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -35,18 +31,18 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
@@ -60,6 +56,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -68,14 +65,11 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Slf4j
 public class FunctionActioner {
 
@@ -95,6 +89,7 @@ public class FunctionActioner {
         this.connectorsManager = connectorsManager;
         this.pulsarAdmin = pulsarAdmin;
     }
+
 
     public void startFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         try {
@@ -117,7 +112,7 @@ public class FunctionActioner {
                     URL url = new URL(pkgLocation);
                     File pkgFile = new File(url.toURI());
                     packageFile = pkgFile.getAbsolutePath();
-                } else if (isFunctionCodeBuiltin(functionDetails)) {
+                } else if (WorkerUtils.isFunctionCodeBuiltin(functionDetails)) {
                     File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
                     packageFile = pkgFile.getAbsolutePath();
                 } else {
@@ -126,7 +121,7 @@ public class FunctionActioner {
                     pkgDir.mkdirs();
                     File pkgFile = new File(
                             pkgDir,
-                            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
+                            new File(getDownloadFileName(functionMetaData.getFunctionDetails(), functionMetaData.getPackageLocation())).getName());
                     downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
                     packageFile = pkgFile.getAbsolutePath();
                 }
@@ -136,14 +131,12 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
-            return;
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
             log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
-            return;
         }
     }
 
@@ -153,7 +146,16 @@ public class FunctionActioner {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
+        // check to make sure functionAuthenticationSpec has any data and authentication is enabled.
+        // If not set to null, since for protobuf,
+        // even if the field is not set its not going to be null. Have to use the "has" method to check
+        Function.FunctionAuthenticationSpec functionAuthenticationSpec = null;
+        if (workerConfig.isAuthenticationEnabled() && instance.getFunctionMetaData().hasFunctionAuthSpec()) {
+            functionAuthenticationSpec = instance.getFunctionMetaData().getFunctionAuthSpec();
+        }
+
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
+                functionAuthenticationSpec,
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
@@ -163,8 +165,8 @@ public class FunctionActioner {
         return runtimeSpawner;
     }
 
-
-    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, int instanceId, String clusterName) {
+    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
+            functionAuthSpec, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
@@ -172,8 +174,9 @@ public class FunctionActioner {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        instanceConfig.setPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
+        instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         return instanceConfig;
     }
 
@@ -204,12 +207,16 @@ public class FunctionActioner {
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
 
         if(downloadFromHttp) {
-            Utils.downloadFromHttpUrl(pkgLocationPath, new FileOutputStream(tempPkgFile));
+            FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
         } else {
-            Utils.downloadFromBookkeeper(
+            FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
+            WorkerUtils.downloadFromBookkeeper(
                     dlogNamespace,
-                    new FileOutputStream(tempPkgFile),
+                    tempPkgFos,
                     pkgLocationPath);
+            if (tempPkgFos != null) {
+                tempPkgFos.close();
+            }
         }
 
         try {
@@ -229,6 +236,30 @@ public class FunctionActioner {
         } finally {
             tempPkgFile.delete();
         }
+
+        if(details.getRuntime() == Function.FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
+            pkgFile.setExecutable(true);
+            log.info("Golang function package file {} is set to executable", pkgFile);
+        }
+    }
+
+    private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {
+        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        // clean up function package
+        File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
+
+        if (pkgDir.exists()) {
+            try {
+                MoreFiles.deleteRecursively(
+                        Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
+            } catch (IOException e) {
+                log.warn("Failed to delete package for function: {}",
+                        FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
+            }
+        }
     }
 
     public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
@@ -242,30 +273,41 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(null);
         }
 
-        // clean up function package
-        File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
-
-        if (pkgDir.exists()) {
-            try {
-                MoreFiles.deleteRecursively(
-                    Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
-            } catch (IOException e) {
-                log.warn("Failed to delete package for function: {}",
-                        FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
-            }
-        }
+        cleanupFunctionFiles(functionRuntimeInfo);
     }
 
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                .getFunctionDetails();
-        log.info("{}/{}/{}-{} Terminating function...", details.getTenant(), details.getNamespace(), details.getName(),
-                functionRuntimeInfo.getFunctionInstance().getInstanceId());
-        String fqfn = FunctionDetailsUtils.getFullyQualifiedName(details);
+        FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+        String fqfn = FunctionCommon.getFullyQualifiedName(details);
+        log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        FunctionDetails funcDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
-        stopFunction(functionRuntimeInfo);
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().close();
+
+            // cleanup any auth data cached
+            if (workerConfig.isAuthenticationEnabled()) {
+                functionRuntimeInfo.getRuntimeSpawner()
+                        .getRuntimeFactory().getAuthProvider().ifPresent(functionAuthProvider -> {
+                            try {
+                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                                functionAuthProvider
+                                        .cleanUpAuthData(
+                                                details,
+                                                Optional.ofNullable(getFunctionAuthData(
+                                                        Optional.ofNullable(
+                                                                functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
+
+                            } catch (Exception e) {
+                                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                            }
+                        });
+            }
+            functionRuntimeInfo.setRuntimeSpawner(null);
+        }
+
+        cleanupFunctionFiles(functionRuntimeInfo);
+
         //cleanup subscriptions
         if (details.getSource().getCleanupSubscription()) {
             Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();
@@ -306,11 +348,11 @@ public class FunctionActioner {
                                                             List<Map<String, String>> existingConsumers = Collections.emptyList();
                                                             try {
                                                                 TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                                                                SubscriptionStats sub = stats.subscriptions.get(InstanceUtils.getDefaultSubscriptionName(details));
+                                                                SubscriptionStats sub = stats.subscriptions.get(subscriptionName);
                                                                 if (sub != null) {
                                                                     existingConsumers = sub.consumers.stream()
-                                                                    .map(consumerStats -> consumerStats.metadata)
-                                                                    .collect(Collectors.toList());
+                                                                            .map(consumerStats -> consumerStats.metadata)
+                                                                            .collect(Collectors.toList());
                                                                 }
                                                             } catch (PulsarAdminException e1) {
 
@@ -350,25 +392,7 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    public static boolean isFunctionCodeBuiltin(FunctionDetailsOrBuilder functionDetails) {
-        if (functionDetails.hasSource()) {
-            SourceSpec sourceSpec = functionDetails.getSource();
-            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        if (functionDetails.hasSink()) {
-            SinkSpec sinkSpec = functionDetails.getSink();
-            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException {
+    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException, ClassNotFoundException {
         if (functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
@@ -401,7 +425,7 @@ public class FunctionActioner {
     }
 
     private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSourceType(className, ncl).getName();
 
@@ -419,7 +443,7 @@ public class FunctionActioner {
     }
 
     private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSinkType(className, ncl).getName();
 
@@ -436,4 +460,29 @@ public class FunctionActioner {
         }
     }
 
+    private static String getDownloadFileName(FunctionDetails FunctionDetails,
+                                             Function.PackageLocationMetaData packageLocation) {
+        if (!org.apache.commons.lang.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
+            return packageLocation.getOriginalFileName();
+        }
+        String[] hierarchy = FunctionDetails.getClassName().split("\\.");
+        String fileName;
+        if (hierarchy.length <= 0) {
+            fileName = FunctionDetails.getClassName();
+        } else if (hierarchy.length == 1) {
+            fileName =  hierarchy[0];
+        } else {
+            fileName = hierarchy[hierarchy.length - 2];
+        }
+        switch (FunctionDetails.getRuntime()) {
+            case JAVA:
+                return fileName + ".jar";
+            case PYTHON:
+                return fileName + ".py";
+            case GO:
+                return fileName + ".go";
+            default:
+                throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
+        }
+    }
 }

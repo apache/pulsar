@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
@@ -106,7 +106,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             doCumulativeAck(msgId);
         } else {
             // Individual ack
-            pendingIndividualAcks.add(msgId);
+            if (msgId instanceof BatchMessageIdImpl) {
+                pendingIndividualAcks.add(new MessageIdImpl(msgId.getLedgerId(),
+                        msgId.getEntryId(), msgId.getPartitionIndex()));
+            } else {
+                pendingIndividualAcks.add(msgId);
+            }
             if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
                 flush();
             }
@@ -208,9 +213,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
+    public void flushAndClean() {
+        flush();
+        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+        pendingIndividualAcks.clear();
+    }
+
+    @Override
     public void close() {
         flush();
-        if (scheduledTask != null) {
+        if (scheduledTask != null && !scheduledTask.isCancelled()) {
             scheduledTask.cancel(true);
         }
     }

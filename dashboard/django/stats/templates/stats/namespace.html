@@ -53,6 +53,7 @@
 </div>
 {% endif %}
 
+{% if topics.results %}
 <table>
 <thead>
     <tr>
@@ -91,6 +92,10 @@
 </table>
 
 {% table_footer topics %}
-
+{% else %}
+<form method="GET" action="{% url 'deleteNamespace' namespace.name %}">
+    <input type="submit" value="Delete this namespace"/>
+</form>
+{% endif %}
 
 {% endblock %}

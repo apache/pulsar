@@ -19,6 +19,9 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
@@ -83,7 +86,7 @@ public class RangeCacheTest {
         s1.release();
         s2.release();
 
-        assertEquals(cache.get(2), null);
+        assertNull(cache.get(2));
 
         cache.put(2, new RefString("2"));
         cache.put(8, new RefString("8"));
@@ -111,7 +114,7 @@ public class RangeCacheTest {
 
     @Test
     void customWeighter() {
-        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length());
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
         cache.put(1, new RefString("one"));
@@ -121,12 +124,31 @@ public class RangeCacheTest {
     }
 
     @Test
+    void customTimeExtraction() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
+
+        cache.put(1, new RefString("1"));
+        cache.put(2, new RefString("22"));
+        cache.put(3, new RefString("333"));
+        cache.put(4, new RefString("4444"));
+
+        assertEquals(cache.getSize(), 10);
+        assertEquals(cache.getNumberOfEntries(), 4);
+
+        long evictedSize = cache.evictLEntriesBeforeTimestamp(3);
+        assertEquals(evictedSize, 6);
+
+        assertEquals(cache.getSize(), 4);
+        assertEquals(cache.getNumberOfEntries(), 1);
+    }
+
+    @Test
     void doubleInsert() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
         RefString s0 = new RefString("zero");
         assertEquals(s0.refCnt(), 1);
-        assertEquals(cache.put(0, s0), true);
+        assertTrue(cache.put(0, s0));
         assertEquals(s0.refCnt(), 1);
 
         cache.put(1, new RefString("one"));
@@ -139,7 +161,7 @@ public class RangeCacheTest {
 
         RefString s1 = new RefString("uno");
         assertEquals(s1.refCnt(), 1);
-        assertEquals(cache.put(1, s1), false);
+        assertFalse(cache.put(1, s1));
         assertEquals(s1.refCnt(), 1);
         s1.release();
 
@@ -172,7 +194,7 @@ public class RangeCacheTest {
 
     @Test
     void eviction() {
-        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length());
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
         cache.put(0, new RefString("zero"));
         cache.put(1, new RefString("one"));
@@ -184,18 +206,18 @@ public class RangeCacheTest {
 
         assertEquals(cache.getNumberOfEntries(), 2);
         assertEquals(cache.getSize(), 8);
-        assertEquals(cache.get(0), null);
-        assertEquals(cache.get(1), null);
+        assertNull(cache.get(0));
+        assertNull(cache.get(1));
         assertEquals(cache.get(2).s, "two");
         assertEquals(cache.get(3).s, "three");
 
         assertEquals(cache.evictLeastAccessedEntries(100), Pair.of(2, (long) 8));
         assertEquals(cache.getNumberOfEntries(), 0);
         assertEquals(cache.getSize(), 0);
-        assertEquals(cache.get(0), null);
-        assertEquals(cache.get(1), null);
-        assertEquals(cache.get(2), null);
-        assertEquals(cache.get(3), null);
+        assertNull(cache.get(0));
+        assertNull(cache.get(1));
+        assertNull(cache.get(2));
+        assertNull(cache.get(3));
 
         try {
             cache.evictLeastAccessedEntries(0);

@@ -47,11 +47,11 @@ endif()
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
                         ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
-			${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
-			${Boost_PYTHON36_LIBRARY})
+                        ${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
+                        ${Boost_PYTHON36_LIBRARY})
 
 if (APPLE)
-    set(PYTHON_WRAPPER_LIBS ${PYTHON_LIBRARIES} ${PYTHON_WRAPPER_LIBS}
+    set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
                          ${Boost_PYTHON27-MT_LIBRARY_RELEASE} ${Boost_PYTHON37-MT_LIBRARY_RELEASE})
 
     if (LINK_STATIC)
@@ -71,8 +71,11 @@ if (NOT PYTHON_WRAPPER_LIBS)
 endif ()
 
 if (APPLE)
+    set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -undefined dynamic_lookup")
     target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS} ${COMMON_LIBS} ${ICU_LIBS})
 else ()
-    set (CMAKE_SHARED_LINKER_FLAGS " -static-libgcc  -static-libstdc++")
+    if (NOT MSVC)
+      set (CMAKE_SHARED_LINKER_FLAGS " -static-libgcc  -static-libstdc++")
+    endif()
     target_link_libraries(_pulsar pulsarStatic ${PYTHON_WRAPPER_LIBS} ${COMMON_LIBS})
 endif ()

@@ -22,10 +22,13 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 
 import org.apache.zookeeper.ZooKeeper;
@@ -51,7 +54,9 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> properties) throws IOException {
         return mockedBk;
     }
 

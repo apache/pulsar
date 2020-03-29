@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
@@ -28,13 +26,12 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairC
 
 /**
  * Hash set where values are composed of pairs of longs.
- *
  */
 public interface LongPairSet {
 
     /**
      * Adds composite value of item1 and item2 to set.
-     * 
+     *
      * @param item1
      * @param item2
      * @return
@@ -43,7 +40,7 @@ public interface LongPairSet {
 
     /**
      * Removes composite value of item1 and item2 from set.
-     * 
+     *
      * @param item1
      * @param item2
      * @return
@@ -52,15 +49,15 @@ public interface LongPairSet {
 
     /**
      * Removes composite value of item1 and item2 from set if provided predicate {@link LongPairPredicate} matches.
-     * 
+     *
      * @param filter
      * @return
      */
     int removeIf(LongPairPredicate filter);
 
     /**
-     * execute {@link LongPairConsumer} processor for each entry in the set
-     * 
+     * Execute {@link LongPairConsumer} processor for each entry in the set.
+     *
      * @param processor
      */
     void forEach(LongPairConsumer processor);
@@ -76,19 +73,18 @@ public interface LongPairSet {
     Set<LongPair> items(int numberOfItems);
 
     /**
-     * @return a new list of keys with max provided numberOfItems
-     * 
-     * @param messagesToRead
+     *
+     * @param numberOfItems
      * @param longPairConverter
      *            converts (long,long) pair to <T> object
-     * 
-     * @return
+     *
+     * @return a new list of keys with max provided numberOfItems
      */
     <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter);
 
     /**
      * Check if set is empty.
-     * 
+     *
      * @return
      */
     boolean isEmpty();
@@ -98,27 +94,29 @@ public interface LongPairSet {
      */
     void clear();
 
+    /**
+     * Predicate to checks for a key-value pair where both of them have long types.
+     */
     public interface LongPairPredicate {
         boolean test(long v1, long v2);
     }
 
     /**
      * Returns size of the set.
-     * 
+     *
      * @return
      */
     long size();
 
     /**
      * Checks if given (item1,item2) composite value exists into set.
-     * 
+     *
      * @param item1
      * @param item2
      * @return
      */
     boolean contains(long item1, long item2);
-    
-    
+
     /**
      * Represents a function that accepts two long arguments and produces a result. This is the two-arity specialization
      * of {@link Function}.

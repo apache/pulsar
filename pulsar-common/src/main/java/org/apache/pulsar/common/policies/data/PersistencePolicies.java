@@ -19,7 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.MoreObjects;
+import java.util.Objects;
 
+/**
+ * Configuration of bookkeeper persistence policies.
+ */
 public class PersistencePolicies {
     private int bookkeeperEnsemble;
     private int bookkeeperWriteQuorum;
@@ -54,6 +58,11 @@ public class PersistencePolicies {
         return managedLedgerMaxMarkDeleteRate;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(bookkeeperEnsemble, bookkeeperWriteQuorum,
+                bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate);
+    }
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof PersistencePolicies) {

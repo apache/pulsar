@@ -18,25 +18,32 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+
 import java.nio.ByteBuffer;
-import org.apache.pulsar.client.api.Schema;
+
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A bytebuffer schema is effectively a `BYTES` schema.
  */
-public class ByteBufferSchema implements Schema<ByteBuffer> {
+public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
+
+    private static final ByteBufferSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("ByteBuffer")
+            .setType(SchemaType.BYTES)
+            .setSchema(new byte[0]);
+        INSTANCE = new ByteBufferSchema();
+    }
 
     public static ByteBufferSchema of() {
         return INSTANCE;
     }
-
-    private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("ByteBuffer")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
 
     @Override
     public byte[] encode(ByteBuffer data) {
@@ -65,6 +72,18 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
             return null;
         } else {
             return ByteBuffer.wrap(data);
+        }
+    }
+
+    @Override
+    public ByteBuffer decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            int size = byteBuf.readableBytes();
+            byte[] bytes = new byte[size];
+            byteBuf.readBytes(bytes);
+            return ByteBuffer.wrap(bytes);
         }
     }
 

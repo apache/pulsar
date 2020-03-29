@@ -49,8 +49,17 @@ public class SourceConfigUtilsTest {
         sourceConfig.setTopicName("test-output");
         sourceConfig.setSerdeClassName("test-serde");
         sourceConfig.setParallelism(1);
+        sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sourceConfig.setConfigs(new HashMap<>());
+
+        Map<String, String> consumerConfigs = new HashMap<>();
+        consumerConfigs.put("security.protocal", "SASL_PLAINTEXT");
+        Map<String, Object> configs = new HashMap<>();
+        configs.put("topic", "kafka");
+        configs.put("bootstrapServers", "server-1,server-2");
+        configs.put("consumerConfigProperties", consumerConfigs);
+
+        sourceConfig.setConfigs(configs);
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -108,13 +117,6 @@ public class SourceConfigUtilsTest {
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(mergedConfig)
         );
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Destination topics differ")
-    public void testMergeDifferentOutput() {
-        SourceConfig sourceConfig = createSourceConfig();
-        SourceConfig newSourceConfig = createUpdatedSourceConfig("topicName", "Different");
-        SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantess cannot be altered")
@@ -190,6 +192,21 @@ public class SourceConfigUtilsTest {
                 resources
         );
         mergedConfig.setResources(sourceConfig.getResources());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
+    public void testMergeRuntimeFlags() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig newFunctionConfig = createUpdatedSourceConfig("runtimeFlags", "-Dfoo=bar2");
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
+        );
+        mergedConfig.setRuntimeFlags(sourceConfig.getRuntimeFlags());
         assertEquals(
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(mergedConfig)

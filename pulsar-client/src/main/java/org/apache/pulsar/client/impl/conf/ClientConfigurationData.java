@@ -18,29 +18,36 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import java.io.Serializable;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.Clock;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import lombok.Data;
+import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This is a simple holder of the client configuration values.
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String serviceUrl;
     @JsonIgnore
-    private ServiceUrlProvider serviceUrlProvider;
+    private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private Authentication authentication = new AuthenticationDisabled();
+    private transient Authentication authentication = new AuthenticationDisabled();
+    private String authPluginClassName;
+    private String authParams;
+
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
 
@@ -59,6 +66,29 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
+    private int requestTimeoutMs = 60000;
+    private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
+    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+
+    @JsonIgnore
+    private Clock clock = Clock.systemDefaultZone();
+
+    public Authentication getAuthentication() {
+        if (authentication == null) {
+            this.authentication = new AuthenticationDisabled();
+        }
+        return authentication;
+    }
+
+    public boolean isUseTls() {
+        if (useTls)
+            return true;
+        if (getServiceUrl() != null && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
+            this.useTls = true;
+            return true;
+        }
+        return false;
+    }
 
     public ClientConfigurationData clone() {
         try {

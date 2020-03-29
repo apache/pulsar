@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -64,8 +65,7 @@ public class BacklogQuotaManager {
                     .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
-            log.error(String.format("Failed to read policies data, will apply the default backlog quota: namespace=%s",
-                    namespace), e);
+            log.error("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }
@@ -144,7 +144,7 @@ public class BacklogQuotaManager {
             }
 
             // Calculate number of messages to be skipped using the current backlog and the skip factor.
-            long entriesInBacklog = slowestConsumer.getNumberOfEntriesInBacklog();
+            long entriesInBacklog = slowestConsumer.getNumberOfEntriesInBacklog(false);
             int messagesToSkip = (int) (messageSkipFactor * entriesInBacklog);
             try {
                 // If there are no messages to skip, break out of the loop
@@ -184,9 +184,9 @@ public class BacklogQuotaManager {
      */
     private void disconnectProducers(PersistentTopic persistentTopic) {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        ConcurrentOpenHashSet<Producer> producers = persistentTopic.getProducers();
+        Map<String, Producer> producers = persistentTopic.getProducers();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             log.info("Producer [{}] has exceeded backlog quota on topic [{}]. Disconnecting producer",
                     producer.getProducerName(), persistentTopic.getName());
             futures.add(producer.disconnect());

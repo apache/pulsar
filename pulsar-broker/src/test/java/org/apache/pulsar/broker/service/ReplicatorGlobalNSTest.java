@@ -45,13 +45,13 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 60000)
+    @BeforeClass(timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 60000)
+    @AfterClass(timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -59,7 +59,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     /**
      * If local cluster is removed from the global namespace then all topics under that namespace should be deleted from
      * the cluster.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -87,7 +87,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
         Assert.assertFalse(producer1.isConnected());
@@ -115,10 +115,10 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
                 .enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         producer1.close();
 
-        admin1.persistentTopics().delete(topicName, true);
+        admin1.topics().delete(topicName, true);
 
         MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 5, 150);
+                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
 

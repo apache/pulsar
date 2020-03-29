@@ -18,25 +18,29 @@
  */
 package org.apache.pulsar.io.flume.source;
 
+import static org.mockito.Mockito.mock;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
-import org.apache.flume.*;
-import org.apache.flume.conf.Configurables;
-import org.apache.flume.event.EventBuilder;
-import org.apache.pulsar.io.core.SourceContext;
-import org.mockito.Mock;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.apache.flume.sink.AvroSink;
-import org.apache.flume.channel.MemoryChannel;
-import org.junit.Assert;
 
 import java.util.Map;
 
+import org.apache.flume.Channel;
+import org.apache.flume.Context;
+import org.apache.flume.Event;
+import org.apache.flume.Sink;
+import org.apache.flume.Transaction;
+import org.apache.flume.channel.MemoryChannel;
+import org.apache.flume.conf.Configurables;
+import org.apache.flume.event.EventBuilder;
+import org.apache.flume.sink.AvroSink;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.flume.AbstractFlumeTests;
+import org.junit.Assert;
+import org.mockito.Mock;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.*;
 
 public class StringSourceTests extends AbstractFlumeTests {
 
@@ -54,7 +58,7 @@ public class StringSourceTests extends AbstractFlumeTests {
         }
         Context context = new Context();
         context.put("hostname", "127.0.0.1");
-        context.put("port", "44444");
+        context.put("port", "44445");
         context.put("batch-size", String.valueOf(2));
         context.put("connect-timeout", String.valueOf(2000L));
         context.put("request-timeout", String.valueOf(3000L));
@@ -70,8 +74,8 @@ public class StringSourceTests extends AbstractFlumeTests {
     @AfterMethod
     public void tearDown() throws Exception {
         sink.stop();
+        sink = null;
     }
-
 
     @Test
     public void TestOpenAndReadSource() throws Exception {

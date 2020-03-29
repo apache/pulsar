@@ -18,14 +18,13 @@
  */
 #pragma once
 
+#include <pulsar/defines.h>
 #include <pulsar/c/result.h>
 #include <pulsar/c/message.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#pragma GCC visibility push(default)
 
 typedef struct _pulsar_reader pulsar_reader_t;
 
@@ -34,7 +33,7 @@ typedef void (*pulsar_result_callback)(pulsar_result, void *);
 /**
  * @return the topic this reader is reading from
  */
-const char *pulsar_reader_get_topic(pulsar_reader_t *reader);
+PULSAR_PUBLIC const char *pulsar_reader_get_topic(pulsar_reader_t *reader);
 
 /**
  * Read a single message.
@@ -46,7 +45,7 @@ const char *pulsar_reader_get_topic(pulsar_reader_t *reader);
  * @return ResultOk when a message is received
  * @return ResultInvalidConfiguration if a message listener had been set in the configuration
  */
-pulsar_result pulsar_reader_read_next(pulsar_reader_t *reader, pulsar_message_t **msg);
+PULSAR_PUBLIC pulsar_result pulsar_reader_read_next(pulsar_reader_t *reader, pulsar_message_t **msg);
 
 /**
  * Read a single message
@@ -57,18 +56,17 @@ pulsar_result pulsar_reader_read_next(pulsar_reader_t *reader, pulsar_message_t 
  * @return ResultTimeout if the receive timeout was triggered
  * @return ResultInvalidConfiguration if a message listener had been set in the configuration
  */
-pulsar_result pulsar_reader_read_next_with_timeout(pulsar_reader_t *reader, pulsar_message_t **msg,
-                                                   int timeoutMs);
+PULSAR_PUBLIC pulsar_result pulsar_reader_read_next_with_timeout(pulsar_reader_t *reader,
+                                                                 pulsar_message_t **msg, int timeoutMs);
 
-pulsar_result pulsar_reader_close(pulsar_reader_t *reader);
+PULSAR_PUBLIC pulsar_result pulsar_reader_close(pulsar_reader_t *reader);
 
-void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback callback, void *ctx);
+PULSAR_PUBLIC void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback callback,
+                                             void *ctx);
 
-void pulsar_reader_free(pulsar_reader_t *reader);
+PULSAR_PUBLIC void pulsar_reader_free(pulsar_reader_t *reader);
 
-pulsar_result pulsar_reader_has_message_available(pulsar_reader_t *reader, int *available);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC pulsar_result pulsar_reader_has_message_available(pulsar_reader_t *reader, int *available);
 
 #ifdef __cplusplus
 }

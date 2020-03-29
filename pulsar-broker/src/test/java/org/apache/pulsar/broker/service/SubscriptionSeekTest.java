@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -75,19 +76,19 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
 
         PersistentSubscription sub = topicRef.getSubscription("my-subscription");
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         consumer.seek(MessageId.latest);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
         Thread.sleep(500);
         consumer.seek(MessageId.earliest);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         Thread.sleep(500);
         consumer.seek(messageIds.get(5));
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 5);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
     }
 
     @Test
@@ -130,33 +131,73 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         long currentTimestamp = System.currentTimeMillis();
         consumer.seek(currentTimestamp);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
         Thread.sleep(1000);
         consumer.seek(currentTimestamp - resetTimeInMillis);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
     }
 
     @Test
     public void testSeekTimeOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
-        long timestamp = 1550479732;
-
-        admin.topics().createPartitionedTopic(topicName, 2);
+        final String resetTimeStr = "100s";
+        final int partitions = 2;
+        long resetTimeInMillis = TimeUnit.SECONDS
+                .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
+        admin.topics().createPartitionedTopic(topicName, partitions);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        // Disable pre-fetch in consumer to track the messages received
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
 
-        try {
-            consumer.seek(timestamp);
-            fail("Should not have succeeded");
-        } catch (PulsarClientException e) {
-            // Expected
+        List<PersistentSubscription> subs = new ArrayList<>();
+
+        for (int i = 0; i < partitions; i++) {
+            PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopicReference(topicName + TopicName.PARTITIONED_TOPIC_SUFFIX + i).get();
+            assertNotNull(topicRef);
+            assertEquals(topicRef.getProducers().size(), 1);
+            assertEquals(topicRef.getSubscriptions().size(), 1);
+            PersistentSubscription sub = topicRef.getSubscription("my-subscription");
+            assertNotNull(sub);
+            subs.add(sub);
         }
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        long backlogs = 0;
+        for (PersistentSubscription sub : subs) {
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
+        }
+
+        assertEquals(backlogs, 10);
+
+        backlogs = 0;
+        long currentTimestamp = System.currentTimeMillis();
+        consumer.seek(currentTimestamp);
+        for (PersistentSubscription sub : subs) {
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
+        }
+        assertEquals(backlogs, 0);
+
+        // Wait for consumer to reconnect
+        Thread.sleep(1000);
+        consumer.seek(currentTimestamp - resetTimeInMillis);
+        backlogs = 0;
+
+        for (PersistentSubscription sub : subs) {
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
+        }
+        assertEquals(backlogs, 10);
     }
 
 }

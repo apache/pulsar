@@ -87,7 +87,7 @@ for J in $NOTICEJARS; do
 done
 
 # check pulsar sql jars
-JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | sed 's!.*/!!' | sort)
+JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | sed 's!.*/!!' | sort)
 LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
 LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
 LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
@@ -110,7 +110,7 @@ done
 for J in $LICENSEJARS; do
     echo "$JARS" | grep -q $J
     if [ $? != 0 ]; then
-        echo $J mentioned in LICENSE, but not bundled
+        echo $J mentioned in lib/presto/LICENSE, but not bundled
         EXIT=2
     fi
 done

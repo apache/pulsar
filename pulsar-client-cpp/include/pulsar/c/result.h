@@ -19,11 +19,11 @@
 
 #pragma once
 
+#include <pulsar/defines.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#pragma GCC visibility push(default)
 
 typedef enum {
     pulsar_result_Ok,  /// Operation successful
@@ -76,9 +76,7 @@ typedef enum {
 } pulsar_result;
 
 // Return string representation of result code
-const char *pulsar_result_str(pulsar_result result);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC const char *pulsar_result_str(pulsar_result result);
 
 #ifdef __cplusplus
 }

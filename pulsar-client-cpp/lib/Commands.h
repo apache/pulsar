@@ -20,6 +20,7 @@
 #define LIB_COMMANDS_H_
 
 #include <pulsar/Authentication.h>
+#include <pulsar/defines.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
 
@@ -49,7 +50,7 @@ class Commands {
     };
     enum WireFormatConstant
     {
-        MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
+        DefaultMaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
         MaxFrameSize = (5 * 1024 * 1024)
     };
 
@@ -111,14 +112,15 @@ class Commands {
 
     static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static void serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                         const unsigned long& maxMessageSizeInBytes);
+    static PULSAR_PUBLIC void serializeSingleMessageInBatchWithPayload(
+        const Message& msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
     static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId);
+    static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp);
     static SharedBuffer newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
     static SharedBuffer newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
 

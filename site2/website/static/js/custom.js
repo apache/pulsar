@@ -64,6 +64,67 @@ window.addEventListener('load', function() {
     }
   });
 
+  const href = document.querySelector('a[href="/en/versions"]');
+  let version = href.textContent;
+
+  if (version === 'next') {
+    version = 'master'
+  }
+
+  // setup rest api menu items in nav bar
+  const restapis = document.querySelector("a[href='#restapis']").parentNode;
+  const restapisMenu =
+    '<li>' +
+    '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+    '<div id="restapis-dropdown" class="hide">' +
+      '<ul id="restapis-dropdown-items">' +
+        '<li><a href="/admin-rest-api?version=' + version + '">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '">Sinks </a></li>' +
+      '</ul>' +
+    '</div>' +
+    '</li>';
+
+  restapis.innerHTML = restapisMenu;
+
+  const restapisMenuItem = document.getElementById("restapis-menu");
+  const restapisDropDown = document.getElementById("restapis-dropdown");
+  restapisMenuItem.addEventListener("click", function(event) {
+    event.preventDefault();
+
+    if (restapisDropDown.className == 'hide') {
+      restapisDropDown.className = 'visible';
+    } else {
+      restapisDropDown.className = 'hide';
+    }
+  });
+
+  // setup cli menu items in nav bar
+  const cli = document.querySelector("a[href='#cli']").parentNode;
+  const cliMenu =
+      '<li>' +
+      '<a id="cli-menu" href="#">Cli <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+      '<div id="cli-dropdown" class="hide">' +
+      '<ul id="cli-dropdown-items">' +
+      '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
+      '</ul>' +
+      '</div>' +
+      '</li>';
+
+  cli.innerHTML = cliMenu;
+
+  const cliMenuItem = document.getElementById("cli-menu");
+  const cliDropDown = document.getElementById("cli-dropdown");
+  cliMenuItem.addEventListener("click", function(event) {
+    event.preventDefault();
+
+    if (cliDropDown.className == 'hide') {
+      cliDropDown.className = 'visible';
+    } else {
+      cliDropDown.className = 'hide';
+    }
+  });
 
   function button(label, ariaLabel, icon, className) {
     const btn = document.createElement('button');

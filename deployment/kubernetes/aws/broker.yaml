@@ -63,7 +63,7 @@ spec:
 #            dnsPolicy: ClusterFirstWithHostNet
             containers:
               - name: broker
-                image: apachepulsar/pulsar:1.20.0-incubating
+                image: apachepulsar/pulsar:latest
                 command: ["sh", "-c"]
                 args:
                   - >
@@ -127,7 +127,7 @@ metadata:
 spec:
     containers:
       - name: pulsar-admin
-        image: apachepulsar/pulsar:1.20.0-incubating
+        image: apachepulsar/pulsar:latest
         command: ["sh", "-c"]
         args:
           - >

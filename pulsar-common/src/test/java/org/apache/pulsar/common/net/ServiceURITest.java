@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.net;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
 import java.net.URI;
@@ -55,6 +54,7 @@ public class ServiceURITest {
             "pulsar://localhost:6650:6651/",    // invalid hostname pair
             "pulsar://localhost:xyz/",          // invalid port
             "pulsar://localhost:-6650/",        // negative port
+            "pulsar://fec0:0:0:ffff::1:6650",   // missing brackets
         };
 
         for (String uri : uris) {
@@ -123,6 +123,30 @@ public class ServiceURITest {
     }
 
     @Test
+    public void testIpv6Uri() {
+        String serviceUri = "pulsar://pulsaruser@[fec0:0:0:ffff::1]:6650/path/to/namespace";
+        assertServiceUri(
+            serviceUri,
+            "pulsar",
+            new String[0],
+            "pulsaruser",
+            new String[] { "[fec0:0:0:ffff::1]:6650" },
+            "/path/to/namespace");
+    }
+
+    @Test
+    public void testIpv6UriWithoutPulsarPort() {
+        String serviceUri = "pulsar://[fec0:0:0:ffff::1]/path/to/namespace";
+        assertServiceUri(
+            serviceUri,
+            "pulsar",
+            new String[0],
+            null,
+            new String[] { "[fec0:0:0:ffff::1]:6650" },
+            "/path/to/namespace");
+    }
+
+    @Test
     public void testMultipleHostsSemiColon() {
         String serviceUri = "pulsar://host1:6650;host2:6650;host3:6650/path/to/namespace";
         assertServiceUri(
@@ -178,7 +202,7 @@ public class ServiceURITest {
             "http",
             new String[0],
             null,
-            new String[] { "host1:8080", "host2:8080", "host3:8080" },
+            new String[] { "host1:80", "host2:80", "host3:80" },
             "/path/to/namespace");
     }
 
@@ -190,7 +214,7 @@ public class ServiceURITest {
             "https",
             new String[0],
             null,
-            new String[] { "host1:8443", "host2:8443", "host3:8443" },
+            new String[] { "host1:443", "host2:443", "host3:443" },
             "/path/to/namespace");
     }
 

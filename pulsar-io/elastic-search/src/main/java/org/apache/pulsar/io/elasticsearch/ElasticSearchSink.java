@@ -61,8 +61,6 @@ import org.elasticsearch.common.xcontent.XContentType;
 )
 public class ElasticSearchSink implements Sink<byte[]> {
 
-    protected static final String DOCUMENT = "doc";
-
     private URL url;
     private RestHighLevelClient client;
     private CredentialsProvider credentialsProvider;
@@ -84,7 +82,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     public void write(Record<byte[]> record) {
         KeyValue<String, byte[]> keyValue = extractKeyValue(record);
         IndexRequest indexRequest = Requests.indexRequest(elasticSearchConfig.getIndexName());
-        indexRequest.type(DOCUMENT);
+        indexRequest.type(elasticSearchConfig.getTypeName());
         indexRequest.source(keyValue.getValue(), XContentType.JSON);
 
         try {
@@ -100,7 +98,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     }
 
     public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
-        String key = record.getKey().orElseGet(null);
+        String key = record.getKey().orElse("");
         return new KeyValue<>(key, record.getValue());
     }
 

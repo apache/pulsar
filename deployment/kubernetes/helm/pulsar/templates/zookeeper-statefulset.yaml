@@ -66,7 +66,7 @@ spec:
               - key: "app"
                 operator: In
                 values:
-                - "{{ template "pulsar.name" . }}-{{ .Values.zookeeper.component }}"
+                - "{{ template "pulsar.name" . }}"
               - key: "release"
                 operator: In
                 values:
@@ -136,7 +136,9 @@ spec:
       resources:
         requests:
           storage: {{ .Values.zookeeper.volumes.data.size }}
-    {{- if .Values.zookeeper.volumes.data.storageClass }}
+    {{- if .Values.zookeeper.volumes.data.storageClassName }}
+      storageClassName: "{{ .Values.zookeeper.volumes.data.storageClassName }}"
+    {{- else if .Values.zookeeper.volumes.data.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
     {{- end }}
 {{- end }}

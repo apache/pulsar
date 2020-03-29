@@ -19,6 +19,7 @@
 #ifndef PULSAR_CPP_BROKERCONSUMERSTATS_H
 #define PULSAR_CPP_BROKERCONSUMERSTATS_H
 
+#include <pulsar/defines.h>
 #include <string.h>
 #include <iostream>
 #include <pulsar/Result.h>
@@ -26,13 +27,12 @@
 #include <memory>
 #include <pulsar/ConsumerType.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 class BrokerConsumerStatsImplBase;
 class PulsarWrapper;
 
 /* @note: isValid() or getXXX() methods are not allowed on an invalid BrokerConsumerStats */
-class BrokerConsumerStats {
+class PULSAR_PUBLIC BrokerConsumerStats {
    private:
     std::shared_ptr<BrokerConsumerStatsImplBase> impl_;
 
@@ -84,12 +84,10 @@ class BrokerConsumerStats {
     std::shared_ptr<BrokerConsumerStatsImplBase> getImpl() const;
 
     friend class PulsarWrapper;
-    friend std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats &obj);
+    friend PULSAR_PUBLIC std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats &obj);
 };
 typedef std::function<void(Result result, BrokerConsumerStats brokerConsumerStats)>
     BrokerConsumerStatsCallback;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATS_H

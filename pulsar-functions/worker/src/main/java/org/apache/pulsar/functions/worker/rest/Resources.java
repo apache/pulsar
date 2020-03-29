@@ -18,17 +18,20 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
-import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
-import org.apache.pulsar.functions.worker.rest.api.v3.FunctionApiV3Resource;
-import org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3Resource;
-import org.apache.pulsar.functions.worker.rest.api.v3.SourceApiV3Resource;
-import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
+import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.FunctionsApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SinkApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SinksApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SourceApiV3Resource;
+import org.apache.pulsar.functions.worker.rest.api.v3.SourcesApiV3Resource;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 public final class Resources {
 
@@ -38,8 +41,9 @@ public final class Resources {
     public static Set<Class<?>> getApiV2Resources() {
         return new HashSet<>(
                 Arrays.asList(
-                        FunctionApiV2Resource.class,
+                        FunctionsApiV2Resource.class,
                         WorkerApiV2Resource.class,
+                        WorkerStatsApiV2Resource.class,
                         MultiPartFeature.class
                 ));
     }
@@ -48,9 +52,11 @@ public final class Resources {
         return new HashSet<>(
                 Arrays.asList(
                         MultiPartFeature.class,
+                        SourcesApiV3Resource.class,
                         SourceApiV3Resource.class,
+                        SinksApiV3Resource.class,
                         SinkApiV3Resource.class,
-                        FunctionApiV3Resource.class
+                        FunctionsApiV3Resource.class
                 ));
     }
 

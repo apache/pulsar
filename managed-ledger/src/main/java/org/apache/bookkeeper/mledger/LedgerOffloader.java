@@ -26,12 +26,17 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Interface for offloading ledgers to long-term storage
  */
 @Beta
 public interface LedgerOffloader {
+
+    // TODO: improve the user metadata in subsequent changes
+    String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
+    String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
     /**
      * Get offload driver name.
@@ -108,5 +113,17 @@ public interface LedgerOffloader {
      */
     CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
                                             Map<String, String> offloadDriverMetadata);
+
+    /**
+     * Get offload policies of this LedgerOffloader
+     *
+     * @return offload policies
+     */
+    OffloadPolicies getOffloadPolicies();
+
+    /**
+     * Close the resources if necessary
+     */
+    void close();
 }
 

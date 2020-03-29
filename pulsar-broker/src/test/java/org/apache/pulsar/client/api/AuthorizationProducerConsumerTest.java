@@ -29,8 +29,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
+
+import lombok.Cleanup;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -45,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,18 +108,26 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        admin = spy(
+
+        @Cleanup
+        PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        String lookupUrl = pulsar.getBrokerServiceUrl();
 
         Authentication authentication = new ClientAuthentication(clientRole);
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+
+        @Cleanup
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -164,21 +176,23 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         clientAuthProviderSupportedRoles.add(subscriptionRole);
 
+        @Cleanup
         PulsarAdmin superAdmin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
         PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(tenantAdminAuthentication).build());
 
         Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
+        @Cleanup
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(subAdminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(subscriptionRole);
+
+        superAdmin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
@@ -186,7 +200,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -206,12 +223,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // subscriptionRole has namespace-level authorization
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
-        
+
         // grant subscription access to specific different role and only that role can access the subscription
         String otherPrincipal = "Principal-1-to-access-sub";
-        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
-        
+
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
         try {
             sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
@@ -232,17 +249,17 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         superAdmin.namespaces().revokePermissionOnSubscription(namespace, subscriptionName, subscriptionRole);
-        
+
         try {
             sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
             fail("should have fail with authorization exception");
         } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
             // Ok
         }
-        
+
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -251,15 +268,18 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        admin = spy(
+        @Cleanup
+        PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
-
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
 
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
+
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
         admin.tenants().createTenant("prop-prefix",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -437,6 +457,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
                 AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
         }
 
         @Override

@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStr
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import java.util.LinkedHashSet;
@@ -47,13 +48,13 @@ import com.google.common.collect.Sets;
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass(timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -83,7 +84,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
-        // clean up peer-clusters
+     // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);
@@ -106,7 +107,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String topic1 = "persistent://" + namespace1 + "/topic1";
         final String topic2 = "persistent://" + namespace2 + "/topic2";
 
-        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
+        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         try {
             // try to create producer for topic1 (part of cluster: r1) by calling cluster: r3
             client3.newProducer().topic(topic1).create();
@@ -166,7 +168,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String mainClusterName = "r1";
-        assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), null);
+        assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
         LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
         retryStrategically((test) -> {
@@ -178,23 +180,23 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         }, 5, 100);
         assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), peerClusters);
     }
-	
+
     /**
      * Removing local cluster from the replication-cluster should make sure that bundle should not be loaded by the
      * cluster even if owner broker doesn't receive the watch to avoid lookup-conflict between peer-cluster.
-     * 
+     *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);
-        
+
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer-change-repl-ns";
+        final String namespace1 = "pulsar/global/peer-change-repl-ns-" + System.nanoTime();
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));

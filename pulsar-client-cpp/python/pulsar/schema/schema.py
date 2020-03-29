@@ -80,7 +80,7 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
-        return json.dumps(obj.__dict__, indent=True).encode('utf-8')
+        return json.dumps(obj.__dict__, default=lambda o: o.__dict__, indent=True).encode('utf-8')
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))

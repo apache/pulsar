@@ -21,7 +21,7 @@
 namespace: pulsar
 namespaceCreate: yes
 
-## If persistence is enabled, components that has state will
+## If persistence is enabled, components that have state will
 ## be deployed with PersistentVolumeClaims, otherwise, for test
 ## purposes, they will be deployed with emptyDir
 persistence: no
@@ -40,11 +40,17 @@ extra:
   # Bookkeeper auto-recovery
   autoRecovery: yes
   # Pulsar dashboard
-  dashboard: yes
+  # Deprecated
+  # Replace pulsar-dashboard with pulsar-manager
+  dashboard: no
+  # pulsar manager
+  pulsar_manager: yes
   # Bastion pod for administrative commands
   bastion: yes
   # Monitoring stack (prometheus and grafana)
   monitoring: yes
+  # Configure Kubernetes runtime for Functions
+  functionsAsPods: no
 
 ## Which pulsar image to use
 image:
@@ -66,7 +72,7 @@ zookeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -76,8 +82,12 @@ zookeeper:
     data:
       name: data
       size: 20Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -110,8 +120,8 @@ zookeeper:
     maxUnavailable: 1
 
 ## Pulsar Zookeeper metadata. The metadata will be deployed as
-## soon as the las zookeeper node is reachable. The deployment
-## of other components that depends o zookeeper, such as the
+## soon as the last zookeeper node is reachable. The deployment
+## of other components that depends on zookeeper, such as the
 ## bookkeeper nodes, broker nodes, etc will only start to be
 ## deployed when the zookeeper cluster is ready and with the
 ## metadata deployed
@@ -132,7 +142,7 @@ bookkeeper:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -142,8 +152,12 @@ bookkeeper:
     journal:
       name: journal
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -152,8 +166,12 @@ bookkeeper:
     ledgers:
       name: ledgers
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-ssd
@@ -163,13 +181,14 @@ bookkeeper:
   ## templates/bookkeeper-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\"-Xms15g -Xmx15g -XX:MaxDirectMemorySize=15g -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
-    dbStorage_writeCacheMaxSizeMb: "2048"
-    dbStorage_readAheadCacheMaxSizeMb: "2048"
-    dbStorage_rocksDB_blockCacheSize: "268435456"
-    journalMaxSizeMB: "2048"
-    statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
-    useHostNameAsBookieID: "true"
+    BOOKIE_MEM: "\"-Xms15g -Xmx15g -XX:MaxDirectMemorySize=15g -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintHeapAtGC -verbosegc -XX:G1LogLevel=finest\""
+    BOOKIE_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
+    PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "2048"
+    PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "2048"
+    PULSAR_PREFIX_dbStorage_rocksDB_blockCacheSize: "268435456"
+    PULSAR_PREFIX_journalMaxSizeMB: "2048"
+    PULSAR_PREFIX_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+    PULSAR_PREFIX_useHostNameAsBookieID: "true"
   ## Bookkeeper configmap
   ## templates/bookkeeper-service.yaml
   ##
@@ -197,7 +216,7 @@ broker:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -209,11 +228,11 @@ broker:
   configData:
     PULSAR_MEM: "\"-Xms15g -Xmx15g -XX:MaxDirectMemorySize=15g -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.linkCapacity=1024 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB -XX:+ExitOnOutOfMemoryError -XX:+PerfDisableSharedMem\""
     PULSAR_GC: "\"-XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
-    managedLedgerDefaultEnsembleSize: "3"
-    managedLedgerDefaultWriteQuorum: "3"
-    managedLedgerDefaultAckQuorum: "2"
-    deduplicationEnabled: "false"
-    exposeTopicLevelMetricsInPrometheus: "true"
+    PULSAR_PREFIX_managedLedgerDefaultEnsembleSize: "3"
+    PULSAR_PREFIX_managedLedgerDefaultWriteQuorum: "3"
+    PULSAR_PREFIX_managedLedgerDefaultAckQuorum: "2"
+    PULSAR_PREFIX_deduplicationEnabled: "false"
+    PULSAR_PREFIX_exposeTopicLevelMetricsInPrometheus: "true"
   ## Broker service
   ## templates/broker-service.yaml
   ##
@@ -230,6 +249,11 @@ broker:
   pdb:
     usePolicy: yes
     maxUnavailable: 1
+  ## Broker rbac
+  ## templates/broker-rbac.yaml
+  ##
+  functions:
+    component: functions-worker
 
 ## Pulsar Extra: Proxy
 ## templates/proxy-deployment.yaml
@@ -242,7 +266,7 @@ proxy:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -284,7 +308,7 @@ autoRecovery:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -294,10 +318,11 @@ autoRecovery:
   ## templates/autorecovery-configmap.yaml
   ##
   configData:
-    PULSAR_MEM: "\" -Xms1g -Xmx1g \""
+    BOOKIE_MEM: "\" -Xms1g -Xmx1g \""
 
 ## Pulsar Extra: Dashboard
 ## templates/dashboard-deployment.yaml
+## Deprecated
 ##
 dashboard:
   component: dashboard
@@ -305,7 +330,7 @@ dashboard:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-dashboard
@@ -323,6 +348,20 @@ dashboard:
     ports:
     - name: server
       port: 80
+  ingress:
+    enabled: false
+    annotations: {}
+    tls:
+      enabled: false
+
+      ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+      secretName: ""
+
+    ## Required if ingress is enabled
+    hostname: ""
+    path: "/"
+    port: 80
+
 
 ## Pulsar Extra: Bastion
 ## templates/bastion-deployment.yaml
@@ -333,7 +372,7 @@ bastion:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   resources:
     requests:
@@ -354,7 +393,7 @@ prometheus:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: prom/prometheus
@@ -368,8 +407,12 @@ prometheus:
     data:
       name: data
       size: 50Gi
-      ## If the storage class is left undefined when using persistence
-      ## the default storage class for the cluster will be used.
+      ## If you already have an existent storage class and want to reuse it, you can specify its name with the option below
+      ##
+      # storageClassName: existent-storage-class
+      #
+      ## Instead if you want to create a new storage class define it below
+      ## If left undefined no storage class will be defined along with PVC
       ##
       # storageClass:
         # type: pd-standard
@@ -393,7 +436,7 @@ grafana:
   # nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
-  tolarations: []
+  tolerations: []
   gracePeriod: 0
   image:
     repository: apachepulsar/pulsar-grafana
@@ -411,3 +454,70 @@ grafana:
     ports:
     - name: server
       port: 3000
+  plugins: []
+  ## Grafana ingress
+  ## templates/grafana-ingress.yaml
+  ##
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # nginx.ingress.kubernetes.io/rewrite-target: /$1
+      # ingress.kubernetes.io/force-ssl-redirect: "true"
+      ingress.kubernetes.io/rewrite-target: /
+    labels: {}
+
+    tls: []
+
+    ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
+    #- secretName: ""
+
+    ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
+    extraPaths: []
+    ## Required if ingress is enabled
+    hostname: ""
+    protocol: http
+    path: /grafana
+    port: 80
+
+## Components Stack: pulsar_manager
+## templates/pulsar-manager.yaml
+##
+
+pulsar_manager:
+  component: pulsar-manager
+  replicaCount: 1
+  # nodeSelector:
+  # cloud.google.com/gke-nodepool: default-pool
+  annotations: {}
+  tolerations: []
+  gracePeriod: 0
+  image:
+    repository: apachepulsar/pulsar-manager
+    tag: v0.1.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: 250Mi
+      cpu: 0.1
+  configData:
+    REDIRECT_HOST: "http://127.0.0.1"
+    REDIRECT_PORT: "9527"
+    DRIVER_CLASS_NAME: org.postgresql.Driver
+    URL: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
+    LOG_LEVEL: DEBUG
+    ## If you enabled authentication support
+    #JWT_TOKEN: <token>
+    #SECRET_KEY: data:base64,<secret key>
+  ## Pulsar manager service
+  ## templates/pulsar-manager-service.yaml
+  ##
+  service:
+    type: LoadBalancer
+    annotations: {}
+    ports:
+      - name: server
+        port: 9527
+  admin:
+    user: pulsar
+    password: pulsar

@@ -72,4 +72,9 @@ public class MockSpoutOutputCollector implements ISpoutOutputCollector {
         data = null;
         lastMessage = null;
     }
+    
+    @Override
+    public void flush() {
+        // Nothing to flush from buffer
+    }
 }

@@ -67,7 +67,7 @@ void BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
                                                        maxAllowedMessageBatchSizeInBytes_);
     LOG_DEBUG(*this << " After serialization payload size in bytes = " << impl_->payload.readableBytes());
 
-    messagesContainerListPtr_->push_back(MessageContainer(msg, sendCallback));
+    messagesContainerListPtr_->push_back(MessageContainer(msg, sendCallback, msg.getMessageId()));
 
     LOG_DEBUG(*this << " Number of messages in Batch = " << messagesContainerListPtr_->size());
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);
@@ -102,7 +102,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload);
     impl_->payload = encryptedPayload;
 
-    if (impl_->payload.readableBytes() > Commands::MaxMessageSize) {
+    if (impl_->payload.readableBytes() > producer_.keepMaxMessageSize_) {
         // At this point the compressed batch is above the overall MaxMessageSize. There
         // can only 1 single message in the batch at this point.
         batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
@@ -154,10 +154,9 @@ void BatchMessageContainer::batchMessageCallBack(Result r, MessageContainerListP
     }
     LOG_DEBUG("BatchMessageContainer::batchMessageCallBack called with [Result = "
               << r << "] [numOfMessages = " << messagesContainerListPtr->size() << "]");
-    for (MessageContainerList::iterator iter = messagesContainerListPtr->begin();
-         iter != messagesContainerListPtr->end(); iter++) {
-        // callback(result, message)
-        iter->sendCallback_(r, iter->message_);
+    size_t batch_size = messagesContainerListPtr->size();
+    for (size_t i = 0; i < batch_size; i++) {
+        messagesContainerListPtr->operator[](i).callBack(r);
     }
     if (flushCallback) {
         flushCallback(ResultOk);

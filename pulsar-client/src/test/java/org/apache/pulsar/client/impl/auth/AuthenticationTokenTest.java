@@ -29,7 +29,10 @@ import java.io.File;
 import java.util.Collections;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
 
 public class AuthenticationTokenTest {
@@ -37,6 +40,33 @@ public class AuthenticationTokenTest {
     @Test
     public void testAuthToken() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken("token-xyz");
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "token-xyz");
+
+        assertFalse(authData.hasDataForTls());
+        assertNull(authData.getTlsCertificates());
+        assertNull(authData.getTlsPrivateKey());
+
+        assertTrue(authData.hasDataForHttp());
+        assertEquals(authData.getHttpHeaders(),
+                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+
+        authToken.close();
+    }
+
+    @Test
+    public void testAuthTokenClientConfig() throws Exception {
+        ClientConfigurationData clientConfig = new ClientConfigurationData();
+        clientConfig.setServiceUrl("pulsar://service-url");
+        clientConfig.setAuthPluginClassName(AuthenticationToken.class.getName());
+        clientConfig.setAuthParams("token-xyz");
+
+        PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
+
+        Authentication authToken = pulsarClient.getConfiguration().getAuthentication();
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -71,6 +101,34 @@ public class AuthenticationTokenTest {
         File tokenFile = File.createTempFile("pular-test-token", ".key");
         tokenFile.deleteOnExit();
         FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("file://" + tokenFile);
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+
+        // Ensure if the file content changes, the token will get refreshed as well
+        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+
+        AuthenticationDataProvider authData2 = authToken.getAuthData();
+        assertTrue(authData2.hasDataFromCommand());
+        assertEquals(authData2.getCommandData(), "other-token");
+
+        authToken.close();
+    }
+
+    /**
+     * File can have spaces and newlines before or after the token. We should be able to read
+     * the token correctly anyway.
+     */
+    @Test
+    public void testAuthTokenConfigFromFileWithNewline() throws Exception {
+        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        tokenFile.deleteOnExit();
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure("file://" + tokenFile);

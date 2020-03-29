@@ -26,15 +26,16 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.broker.service.BrokerBkEnsemblesTests;
+import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.annotations.Test;
 
-public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
+public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
@@ -49,12 +50,16 @@ public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
 
         int N = 10;
 
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + BROKER_SERVICE_PORT).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
-        CompletableFuture<Producer<String>> producerFuture = client.newProducer(Schema.STRING).topic(topicName)
-                .createAsync();
-        CompletableFuture<Consumer<String>> consumerFuture = client.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionName("sub").subscribeAsync();
+        CompletableFuture<Producer<String>> producerFuture = client.newProducer(Schema.STRING)
+            .topic(topicName)
+            .createAsync();
+        CompletableFuture<Consumer<String>> consumerFuture = client.newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionName("sub")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribeAsync();
 
         CompletableFuture.allOf(producerFuture, consumerFuture).get();
 
@@ -71,8 +76,14 @@ public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
         // Force topic reloading to re-open the schema multiple times in parallel
         admin.namespaces().unload("prop/my-test");
 
-        producerFuture = client.newProducer(Schema.STRING).topic(topicName).createAsync();
-        consumerFuture = client.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub").subscribeAsync();
+        producerFuture = client.newProducer(Schema.STRING)
+            .topic(topicName)
+            .createAsync();
+        consumerFuture = client.newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionName("sub")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribeAsync();
 
         // Re-opening the topic should succeed
         CompletableFuture.allOf(producerFuture, consumerFuture).get();
@@ -95,13 +106,4 @@ public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
         client.close();
     }
 
-    @Test(enabled = false)
-    public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
-        // Ignore test
-    }
-
-    @Test(enabled = false)
-    public void testSkipCorruptDataLedger() throws Exception {
-        // Ignore test
-    }
 }

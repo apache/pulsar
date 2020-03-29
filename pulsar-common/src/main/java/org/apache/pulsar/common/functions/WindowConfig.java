@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.*;
+import lombok.Data;
 import lombok.experimental.Accessors;
 
+/**
+ * Configuration of a windowing function.
+ */
 @Data
-@Setter
-@Getter
 @Accessors(chain = true)
-@ToString
 public class WindowConfig {
 
     public static final String WINDOW_CONFIG_KEY = "__WINDOWCONFIGS__";

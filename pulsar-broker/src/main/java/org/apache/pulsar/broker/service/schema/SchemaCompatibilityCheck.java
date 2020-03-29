@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public interface SchemaCompatibilityCheck {
+
     SchemaType getSchemaType();
 
     /**
@@ -29,23 +32,56 @@ public interface SchemaCompatibilityCheck {
      * @param from the current schema i.e. schema that the broker has
      * @param to the future schema i.e. the schema sent by the producer
      * @param strategy the strategy to use when comparing schemas
+     */
+    void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException;
+
+    /**
+     *
+     * @param from the current schemas i.e. schemas that the broker has
+     * @param to the future schema i.e. the schema sent by the producer
+     * @param strategy the strategy to use when comparing schemas
      * @return whether the schemas are compatible
      */
-    boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy);
+    void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException;
+
+    default boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+        try {
+            checkCompatible(from, to, strategy);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    default boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+        try {
+            checkCompatible(from, to, strategy);
+            return true;
+        } catch (IncompatibleSchemaException e) {
+            return false;
+        }
+    }
 
     SchemaCompatibilityCheck DEFAULT = new SchemaCompatibilityCheck() {
+
         @Override
         public SchemaType getSchemaType() {
             return SchemaType.NONE;
         }
 
         @Override
-        public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+        public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
             if (strategy == SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE) {
-                return false;
-            } else {
-                return true;
+                throw new IncompatibleSchemaException("Schema compatibility strategy is ALWAYS_INCOMPATIBLE");
             }
         }
+
+        @Override
+        public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)  throws IncompatibleSchemaException {
+            if (strategy == SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE) {
+                throw new IncompatibleSchemaException("Schema compatibility strategy is ALWAYS_INCOMPATIBLE");
+            }
+        }
+
     };
 }

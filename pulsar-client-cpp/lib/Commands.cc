@@ -393,6 +393,16 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+    commandSeek->set_message_publish_time(timestamp);
+    return writeMessageWithSize(cmd);
+}
+
 SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::GET_LAST_MESSAGE_ID);
@@ -526,6 +536,49 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::AUTH_RESPONSE:
             return "AUTH_RESPONSE";
+            break;
+        case BaseCommand::ACK_RESPONSE:
+            return "ACK_RESPONSE";
+            break;
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
+            return "GET_OR_CREATE_SCHEMA";
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
+            return "GET_OR_CREATE_SCHEMA_RESPONSE";
+        case BaseCommand::NEW_TXN:
+            return "NEW_TXN";
+            break;
+        case BaseCommand::NEW_TXN_RESPONSE:
+            return "NEW_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN:
+            return "ADD_PARTITION_TO_TXN";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN_RESPONSE:
+            return "ADD_PARTITION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN:
+            return "ADD_SUBSCRIPTION_TO_TXN";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
+            return "ADD_SUBSCRIPTION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN:
+            return "END_TXN";
+            break;
+        case BaseCommand::END_TXN_RESPONSE:
+            return "END_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION:
+            return "END_TXN_ON_PARTITION";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION_RESPONSE:
+            return "END_TXN_ON_PARTITION_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION:
+            return "END_TXN_ON_SUBSCRIPTION";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
+            return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
     };
 }

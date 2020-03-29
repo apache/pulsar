@@ -38,7 +38,13 @@ EOF
 }
 
 BINDIR=$(dirname "$0")
-PULSAR_HOME=$(cd $BINDIR/..;pwd)
+PULSAR_HOME=$(cd -P $BINDIR/..;pwd)
+
+# Check bookkeeper env and load bkenv.sh
+if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/bkenv.sh"
+fi
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -145,6 +151,7 @@ case $startStop in
 
     rotate_out_log $out
     echo starting $command, logging to $logfile
+    echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
     pulsar=$PULSAR_HOME/bin/pulsar
     nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
     echo $! > $pid

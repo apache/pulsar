@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * Consumer statistics recorded by client.
  *
- * All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
+ * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
  */
 public interface ConsumerStats extends Serializable {
@@ -64,6 +64,11 @@ public interface ConsumerStats extends Serializable {
     long getNumReceiveFailed();
 
     /**
+     * @return Number of message batch receive failed in the last interval
+     */
+    long getNumBatchReceiveFailed();
+
+    /**
      * @return Total number of messages received by this consumer
      */
     long getTotalMsgsReceived();
@@ -77,6 +82,11 @@ public interface ConsumerStats extends Serializable {
      * @return Total number of messages receive failures
      */
     long getTotalReceivedFailed();
+
+    /**
+     * @return Total number of messages batch receive failures
+     */
+    long getTotaBatchReceivedFailed();
 
     /**
      * @return Total number of message acknowledgments sent by this consumer

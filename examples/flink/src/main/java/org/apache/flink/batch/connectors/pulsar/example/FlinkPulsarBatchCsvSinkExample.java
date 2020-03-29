@@ -25,6 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.batch.connectors.pulsar.PulsarCsvOutputFormat;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.util.Arrays;
 import java.util.List;
@@ -65,7 +66,7 @@ public class FlinkPulsarBatchCsvSinkExample {
 
         // create PulsarCsvOutputFormat instance
         final OutputFormat<Tuple4<Integer, String, Integer, Integer>> pulsarCsvOutputFormat =
-                new PulsarCsvOutputFormat<>(serviceUrl, topic);
+                new PulsarCsvOutputFormat<>(serviceUrl, topic, new AuthenticationDisabled());
 
         // create DataSet
         DataSet<Tuple4<Integer, String, Integer, Integer>> nasaMissionDS = env.fromCollection(nasaMissions);

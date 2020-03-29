@@ -44,6 +44,10 @@ const (
 	// Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
 	// If that consumer disconnects, one of the other connected consumers will start receiving messages.
 	Failover
+
+	// Multiple consumer will be able to use the same subscription and all messages with the same key
+	// will be dispatched to only one consumer
+	KeyShared
 )
 
 type InitialPosition int
@@ -124,6 +128,8 @@ type ConsumerOptions struct {
 	//  failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
 	//  shared subscription, will lead to the subscription call throwing a PulsarClientException.
 	ReadCompacted bool
+
+	Schema
 }
 
 // An interface that abstracts behavior of Pulsar's consumer
@@ -198,4 +204,6 @@ type Consumer interface {
 	// the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
 	// breaks, the messages are redelivered after reconnect.
 	RedeliverUnackedMessages()
+
+	Schema() Schema
 }

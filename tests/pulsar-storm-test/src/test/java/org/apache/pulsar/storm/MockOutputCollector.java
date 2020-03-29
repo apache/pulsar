@@ -93,4 +93,9 @@ public class MockOutputCollector implements IOutputCollector {
         numTuplesAcked = 0;
     }
 
+    @Override
+    public void flush() {
+        // Nothing to flush from buffer
+    }
+
 }

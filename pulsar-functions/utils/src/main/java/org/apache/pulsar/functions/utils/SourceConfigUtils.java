@@ -19,16 +19,19 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -38,12 +41,14 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
+@Slf4j
 public class SourceConfigUtils {
 
     @Getter
@@ -133,6 +138,16 @@ public class SourceConfigUtils {
         bldr.setDisk(resources.getDisk());
         functionDetailsBuilder.setResources(bldr);
 
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getRuntimeFlags())) {
+            functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
+        }
+
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SOURCE);
+
+        if (!StringUtils.isEmpty(sourceConfig.getCustomRuntimeOptions())) {
+            functionDetailsBuilder.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -142,7 +157,7 @@ public class SourceConfigUtils {
         sourceConfig.setNamespace(functionDetails.getNamespace());
         sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
-        sourceConfig.setProcessingGuarantees(Utils.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sourceConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
@@ -151,8 +166,16 @@ public class SourceConfigUtils {
             sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
         }
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+            TypeReference<HashMap<String,Object>> typeRef
+                    = new TypeReference<HashMap<String,Object>>() {};
+            Map<String, Object> configMap;
+            try {
+                configMap = ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
+            } catch (IOException e) {
+                log.error("Failed to read configs for source {}", FunctionCommon.getFullyQualifiedName(functionDetails), e);
+                throw new RuntimeException(e);
+            }
+            sourceConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
@@ -174,10 +197,19 @@ public class SourceConfigUtils {
             resources.setDisk(functionDetails.getResources().getDisk());
             sourceConfig.setResources(resources);
         }
+
+        if (!isEmpty(functionDetails.getRuntimeFlags())) {
+            sourceConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
+        }
+
+        if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
+            sourceConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
+        }
+
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, String functionPkgUrl, File uploadedInputStreamAsFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -194,36 +226,100 @@ public class SourceConfigUtils {
             throw new IllegalArgumentException("Topic name is invalid");
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
-            throw new IllegalArgumentException("Source parallelism should positive number");
+            throw new IllegalArgumentException("Source parallelism must be a positive number");
         }
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
-
-        String sourceClassName;
-        ClassLoader classLoader;
-        if (!isEmpty(sourceConfig.getClassName())) {
-            sourceClassName = sourceConfig.getClassName();
-            try {
-                classLoader = Utils.extractClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid Source Jar");
-            }
-        } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-        } else {
-            classLoader = Utils.extractNarClassLoader(archivePath, functionPkgUrl, uploadedInputStreamAsFile);
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Source Package is not provided");
-            }
-            try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
-            } catch (IOException e1) {
-                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
-            }
+        if (archivePath == null && sourcePackageFile == null) {
+            throw new IllegalArgumentException("Source package is not provided");
         }
 
-        Class<?> typeArg = getSourceType(sourceClassName, classLoader);
+        Class<?> typeArg;
+        ClassLoader classLoader;
+        String sourceClassName = sourceConfig.getClassName();
+        ClassLoader jarClassLoader = null;
+        ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
+        try {
+            jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
+        } catch (Exception e) {
+            jarClassLoaderException = e;
+        }
+        try {
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+        } catch (Exception e) {
+            narClassLoaderException = e;
+        }
+
+        // if source class name is not provided, we can only try to load archive as a NAR
+        if (isEmpty(sourceClassName)) {
+            if (narClassLoader == null) {
+                throw new IllegalArgumentException("Source package does not have the correct format. " +
+                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                        "Source classname is not provided and attempts to load it as a NAR package produced the following error.",
+                        narClassLoaderException);
+            }
+            try {
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to extract source class from archive", e);
+            }
+            try {
+                typeArg = getSourceType(sourceClassName, narClassLoader);
+                classLoader = narClassLoader;
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                throw new IllegalArgumentException(
+                        String.format("Source class %s must be in class path", sourceClassName), e);
+            }
+
+        } else {
+            // if source class name is provided, we need to try to load it as a JAR and as a NAR.
+            if (jarClassLoader != null) {
+                try {
+                    typeArg = getSourceType(sourceClassName, jarClassLoader);
+                    classLoader = jarClassLoader;
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    // class not found in JAR try loading as a NAR and searching for the class
+                    if (narClassLoader != null) {
+                        try {
+                            typeArg = getSourceType(sourceClassName, narClassLoader);
+                            classLoader = narClassLoader;
+                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                            throw new IllegalArgumentException(
+                                    String.format("Source class %s must be in class path", sourceClassName), e1);
+                        }
+                    } else {
+                        throw new IllegalArgumentException(
+                                String.format("Source class %s must be in class path", sourceClassName), e);
+                    }
+                }
+            } else if (narClassLoader != null) {
+                try {
+                    typeArg = getSourceType(sourceClassName, narClassLoader);
+                    classLoader = narClassLoader;
+                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                    throw new IllegalArgumentException(
+                            String.format("Source class %s must be in class path", sourceClassName), e1);
+                }
+            } else {
+                StringBuilder errorMsg = new StringBuilder("Source package does not have the correct format." +
+                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
+            }
+        }
 
         // Only one of serdeClassName or schemaType should be set
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
@@ -254,8 +350,8 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
-        if (!StringUtils.isEmpty(newConfig.getTopicName()) && !newConfig.getTopicName().equals(existingConfig.getTopicName())) {
-            throw new IllegalArgumentException("Destination topics differ");
+        if (!StringUtils.isEmpty(newConfig.getTopicName())) {
+            mergedConfig.setTopicName(newConfig.getTopicName());
         }
         if (!StringUtils.isEmpty(newConfig.getSerdeClassName())) {
             mergedConfig.setSerdeClassName(newConfig.getSerdeClassName());
@@ -280,6 +376,12 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getArchive())) {
             mergedConfig.setArchive(newConfig.getArchive());
+        }
+        if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
+            mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
+        if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
+            mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
     }

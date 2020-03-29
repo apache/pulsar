@@ -66,7 +66,7 @@ spec:
               - key: "app"
                 operator: In
                 values:
-                - "{{ template "pulsar.name" . }}-{{ .Values.bookkeeper.component }}"
+                - "{{ template "pulsar.name" . }}"
               - key: "release"
                 operator: In
                 values:
@@ -115,6 +115,7 @@ spec:
         - >
           bin/apply-config-from-env.py conf/bookkeeper.conf &&
           bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/apply-config-from-env.py conf/bkenv.sh &&
           bin/pulsar bookie
         ports:
         - name: client
@@ -143,7 +144,9 @@ spec:
       resources:
         requests:
           storage: {{ .Values.bookkeeper.volumes.journal.size }}
-    {{- if .Values.bookkeeper.volumes.journal.storageClass }}
+    {{- if .Values.bookkeeper.volumes.journal.storageClassName }}
+      storageClassName: "{{ .Values.bookkeeper.volumes.journal.storageClassName }}"
+    {{- else if .Values.bookkeeper.volumes.journal.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.journal.name }}"
     {{- end }}
   - metadata:
@@ -153,7 +156,9 @@ spec:
       resources:
         requests:
           storage: {{ .Values.bookkeeper.volumes.ledgers.size }}
-    {{- if .Values.bookkeeper.volumes.ledgers.storageClass }}
+    {{- if .Values.bookkeeper.volumes.ledgers.storageClassName }}
+      storageClassName: "{{ .Values.bookkeeper.volumes.ledgers.storageClassName }}"
+    {{- else if .Values.bookkeeper.volumes.ledgers.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
     {{- end }}
 {{- end }}

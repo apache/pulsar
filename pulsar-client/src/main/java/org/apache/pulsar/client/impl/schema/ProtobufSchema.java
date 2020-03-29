@@ -21,28 +21,32 @@ package org.apache.pulsar.client.impl.schema;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.Parser;
+import com.google.protobuf.GeneratedMessageV3;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.avro.protobuf.ProtobufDatumReader;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.avro.protobuf.ProtobufData;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
+import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
 public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends StructSchema<T> {
 
-    private Parser<T> tParser;
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
     @Getter
@@ -57,29 +61,19 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
-        ProtobufDatumReader datumReader = new ProtobufDatumReader(pojo);
-        return datumReader.getSchema();
+        return ProtobufData.get().getSchema(pojo);
     }
 
-    private ProtobufSchema(Map<String, String> properties, Class<T> pojo) {
-        super(
-            SchemaType.PROTOBUF,
-            createProtobufAvroSchema(pojo),
-            properties);
+    private ProtobufSchema(SchemaInfo schemaInfo, T protoMessageInstance) {
+        super(schemaInfo);
+        setReader(new ProtobufReader<>(protoMessageInstance));
+        setWriter(new ProtobufWriter<>());
         // update properties with protobuf related properties
-        try {
-            T protoMessageInstance = (T) pojo.getMethod("getDefaultInstance").invoke(null);
-            tParser = (Parser<T>) protoMessageInstance.getParserForType();
-
-            Map<String, String> allProperties = new HashMap<>();
-            allProperties.putAll(schemaInfo.getProperties());
-            // set protobuf parsing info
-            allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-
-            schemaInfo.setProperties(allProperties);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new IllegalArgumentException(e);
-        }
+        Map<String, String> allProperties = new HashMap<>();
+        allProperties.putAll(schemaInfo.getProperties());
+        // set protobuf parsing info
+        allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
+        schemaInfo.setProperties(allProperties);
     }
 
     private String getParsingInfo(T protoMessageInstance) {
@@ -101,38 +95,44 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     @Override
-    public byte[] encode(T message) {
-        return message.toByteArray();
-    }
-
-    @Override
-    public T decode(byte[] bytes) {
-        try {
-            return this.tParser.parseFrom(bytes);
-        } catch (Exception e) {
-            throw new RuntimeException(new SchemaSerializationException(e));
-        }
-    }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return schemaInfo;
+    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
+        throw new RuntimeException("ProtobufSchema don't support schema versioning");
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
-        return of(pojo, Collections.emptyMap());
+        return of(pojo, new HashMap<>());
     }
 
-    public static ProtobufSchema ofGenericClass(Class pojo, Map<String, String> properties) {
+    public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
+        return ProtobufSchema.of(schemaDefinition);
+    }
+
+    public static <T> ProtobufSchema of(SchemaDefinition<T> schemaDefinition) {
+        Class<T> pojo = schemaDefinition.getPojo();
+
         if (!com.google.protobuf.GeneratedMessageV3.class.isAssignableFrom(pojo)) {
             throw new IllegalArgumentException(com.google.protobuf.GeneratedMessageV3.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
-        return new ProtobufSchema<>(properties, pojo);
+
+            SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
+                    .type(SchemaType.PROTOBUF)
+                    .name("")
+                    .properties(schemaDefinition.getProperties())
+                    .build();
+
+        try {
+            return new ProtobufSchema(schemaInfo,
+                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+        }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(
-            Class<T> pojo, Map<String, String> properties){
+            Class pojo, Map<String, String> properties){
         return ofGenericClass(pojo, properties);
     }
 }

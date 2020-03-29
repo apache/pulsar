@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,10 +30,14 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.MySQLContainer;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 /**
  * A tester for testing jdbc sink.
  * This will use MySql as DB server
@@ -49,8 +50,6 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
      *
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         private String field1;
         private String field2;
@@ -60,7 +59,7 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
     private static final String NAME = "jdbc";
     private static final String MYSQL = "mysql";
 
-    private AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
+    private AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
     private String tableName = "test";
     private Connection connection;
 
@@ -70,6 +69,8 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
         // container default value is test
         sinkConfig.put("userName", "test");
         sinkConfig.put("password", "test");
+        sinkConfig.put("nonKey", "field2,field3");
+        sinkConfig.put("key", "field1");
         sinkConfig.put("tableName", tableName);
         sinkConfig.put("batchSize", 1);
     }
@@ -126,6 +127,10 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
             PreparedStatement statement = connection.prepareStatement(querySql);
             rs = statement.executeQuery();
 
+            if (kvs.get("ACTION").equals("DELETE")) {
+                assertFalse(rs.first());
+                return;
+            }
             while (rs.next()) {
                 String field1 = rs.getString(1);
                 String field2 = rs.getString(2);

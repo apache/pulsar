@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 
 public interface Subscription {
 
@@ -36,7 +37,11 @@ public interface Subscription {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
-    void removeConsumer(Consumer consumer) throws BrokerServiceException;
+    default void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        removeConsumer(consumer, false);
+    }
+
+    void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException;
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
@@ -44,15 +49,23 @@ public interface Subscription {
 
     String getTopicName();
 
+    boolean isReplicated();
+
     Dispatcher getDispatcher();
 
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
+
+    default long getNumberOfEntriesDelayed() {
+        return 0;
+    }
 
     List<Consumer> getConsumers();
 
     CompletableFuture<Void> close();
 
     CompletableFuture<Void> delete();
+
+    CompletableFuture<Void> deleteForcefully();
 
     CompletableFuture<Void> disconnect();
 
@@ -83,4 +96,17 @@ public interface Subscription {
     String getTypeString();
 
     void addUnAckedMessages(int unAckMessages);
+
+    default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
+        // Default is no-op
+    }
+
+    // Subscription utils
+    static boolean isCumulativeAckMode(SubType subType) {
+        return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);
+    }
+
+    static boolean isIndividualAckMode(SubType subType) {
+        return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
+    }
 }

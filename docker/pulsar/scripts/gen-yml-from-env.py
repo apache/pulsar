@@ -75,6 +75,19 @@ for conf_filename in conf_files:
                 conf_to_modify = conf_to_modify[key_part]
                 modified = True
             i += 1
+
+    containerFactory = os.environ.get('PF_containerFactory', None)
+    conf.pop('containerFactory', None)
+    if containerFactory == 'k8s':
+        conf.pop('processContainerFactory', None)
+        conf.pop('threadContainerFactory', None)
+    elif containerFactory == 'process':
+        conf.pop('kubernetesContainerFactory', None)
+        conf.pop('threadContainerFactory', None)
+    elif containerFactory == 'thread':
+        conf.pop('kubernetesContainerFactory', None)
+        conf.pop('processContainerFactory', None)
+
     # Store back the updated config in the same file
     f = open(conf_filename , 'w')
     yaml.dump(conf, f, default_flow_style=False)

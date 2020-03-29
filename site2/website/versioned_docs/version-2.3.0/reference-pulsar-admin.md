@@ -1296,7 +1296,7 @@ $ pulsar-admin namespaces set-schema-autoupdate-strategy tenant/namespace option
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward).||
+|`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward).|Full|
 |`-d`, `--disabled`|Disable automatic schema updates.|false|
 
 

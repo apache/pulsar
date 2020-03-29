@@ -45,15 +45,18 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private final PulsarClient pulsarClient;
     private final PulsarSourceConfig pulsarSourceConfig;
     private final Map<String, String> properties;
+    private final ClassLoader functionClassLoader;
     private List<String> inputTopics;
-    private List<Consumer<T>> inputConsumers;
+    private List<Consumer<T>> inputConsumers = Collections.emptyList();
     private final TopicSchema topicSchema;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,
+                        ClassLoader functionClassLoader) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
         this.topicSchema = new TopicSchema(pulsarClient);
         this.properties = properties;
+        this.functionClassLoader = functionClassLoader;
     }
 
     @Override
@@ -66,10 +69,12 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
             log.info("Creating consumers for topic : {}, schema : {}",  topic, conf.getSchema());
+
             ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
                     // consume message even if can't decrypt and deliver it along with encryption-ctx
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
+                    .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
                     .subscriptionType(pulsarSourceConfig.getSubscriptionType())
                     .messageListener(this);
 
@@ -122,6 +127,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
+                    consumer.negativeAcknowledge(message);
                 })
                 .build();
 
@@ -146,7 +152,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
+                this.functionClassLoader);
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 

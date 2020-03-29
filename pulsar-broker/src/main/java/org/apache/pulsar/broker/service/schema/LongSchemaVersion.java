@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import com.google.common.base.MoreObjects;
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class LongSchemaVersion implements SchemaVersion {
     private final long version;
@@ -36,7 +36,7 @@ public class LongSchemaVersion implements SchemaVersion {
 
     @Override
     public byte[] bytes() {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.putLong(version);
         buffer.rewind();
         return buffer.array();

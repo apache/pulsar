@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,21 +26,33 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Short`.
  */
-public class ShortSchema implements Schema<Short> {
+public class ShortSchema extends AbstractSchema<Short> {
+
+    private static final ShortSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT16")
+            .setType(SchemaType.INT16)
+            .setSchema(new byte[0]);
+        INSTANCE = new ShortSchema();
+    }
 
     public static ShortSchema of() {
         return INSTANCE;
     }
 
-    private static final ShortSchema INSTANCE = new ShortSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT16")
-        .setType(SchemaType.INT16)
-        .setSchema(new byte[0]);
-
     @Override
     public void validate(byte[] message) {
         if (message.length != 2) {
+            throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 2) {
             throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
         }
     }
@@ -67,6 +79,21 @@ public class ShortSchema implements Schema<Short> {
         for (byte b : bytes) {
             value <<= 8;
             value |= b & 0xFF;
+        }
+        return value;
+    }
+
+    @Override
+    public Short decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        short value = 0;
+
+        for (int i = 0; i < 2; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
         }
         return value;
     }

@@ -114,6 +114,9 @@ public class OverloadShedderTest {
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));
 
+        LocalBrokerData anotherBroker = new LocalBrokerData();
+        String anotherBrokerName = "another-broker";
+
         double brokerThroghput = 0;
 
         for (int i = 1; i <= numBundles; i++) {
@@ -128,6 +131,11 @@ public class OverloadShedderTest {
             bundle.setShortTermData(db);
             loadData.getBundleData().put("bundle-" + i, bundle);
 
+            // This bundle should not be selected for `broker1` since it is belong to another broker.
+            String anotherBundleName = anotherBrokerName + "-bundle-" + (numBundles + i);
+            loadData.getBundleData().put(anotherBundleName, bundle);
+            anotherBroker.getBundles().add(anotherBundleName);
+
             brokerThroghput += throughput;
         }
 
@@ -135,6 +143,7 @@ public class OverloadShedderTest {
         broker1.setMsgThroughputOut(brokerThroghput);
 
         loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+        loadData.getBrokerData().put(anotherBrokerName, new BrokerData(anotherBroker));
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
@@ -178,5 +187,19 @@ public class OverloadShedderTest {
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
         assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
+    }
+
+    @Test
+    public void testPrintResourceUsage() {
+        LocalBrokerData data = new LocalBrokerData();
+
+        data.setCpu(new ResourceUsage(10, 100));
+        data.setMemory(new ResourceUsage(50, 100));
+        data.setDirectMemory(new ResourceUsage(90, 100));
+        data.setBandwidthIn(new ResourceUsage(30, 100));
+        data.setBandwidthOut(new ResourceUsage(20, 100));
+
+        assertEquals(data.printResourceUsage(),
+                "cpu: 10.00%, memory: 50.00%, directMemory: 90.00%, bandwidthIn: 30.00%, bandwidthOut: 20.00%");
     }
 }

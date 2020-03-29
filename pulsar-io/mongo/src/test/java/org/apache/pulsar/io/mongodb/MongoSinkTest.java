@@ -20,19 +20,17 @@
 package org.apache.pulsar.io.mongodb;
 
 import com.mongodb.MongoBulkWriteException;
-import com.mongodb.async.SingleResultCallback;
-import com.mongodb.async.client.MongoClient;
-import com.mongodb.async.client.MongoClients;
-import com.mongodb.async.client.MongoCollection;
-import com.mongodb.async.client.MongoDatabase;
 import com.mongodb.bulk.BulkWriteError;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
+import org.bson.Document;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -43,12 +41,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.*;
-
-@PrepareForTest(MongoClients.class)
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 public class MongoSinkTest {
 
     @Mock
@@ -70,6 +71,10 @@ public class MongoSinkTest {
 
     private Map<String, Object> map;
 
+    private Subscriber subscriber;
+
+    @Mock
+    private Publisher mockPublisher;
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
@@ -78,7 +83,7 @@ public class MongoSinkTest {
 
     @BeforeMethod
     public void setUp() {
-        sink = new MongoSink();
+
         map = TestHelper.createMap(true);
 
         mockRecord = mock(Record.class);
@@ -86,40 +91,39 @@ public class MongoSinkTest {
         mockMongoClient = mock(MongoClient.class);
         mockMongoDb = mock(MongoDatabase.class);
         mockMongoColl = mock(MongoCollection.class);
+        mockPublisher = mock(Publisher.class);
+        sink = new MongoSink(() -> mockMongoClient);
 
-        PowerMockito.mockStatic(MongoClients.class);
 
-        when(MongoClients.create(anyString())).thenReturn(mockMongoClient);
         when(mockMongoClient.getDatabase(anyString())).thenReturn(mockMongoDb);
         when(mockMongoDb.getCollection(anyString())).thenReturn(mockMongoColl);
+        when(mockMongoDb.getCollection(anyString()).insertMany(any())).thenReturn(mockPublisher);
     }
 
     private void initContext(boolean throwBulkError) {
         when(mockRecord.getValue()).thenReturn("{\"hello\":\"pulsar\"}".getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
+            subscriber = invocation.getArgument(0,Subscriber.class);
             MongoBulkWriteException exc = null;
-
             if (throwBulkError) {
-                List<BulkWriteError > writeErrors = Arrays.asList(
+                List<BulkWriteError> writeErrors = Arrays.asList(
                         new BulkWriteError(0, "error", new BsonDocument(), 1));
                 exc = new MongoBulkWriteException(null, writeErrors, null, null);
             }
-
-            cb.onResult(null, exc);
+            subscriber.onError(exc);
             return null;
-        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
+        }).when(mockPublisher).subscribe(any());
     }
 
     private void initFailContext(String msg) {
         when(mockRecord.getValue()).thenReturn(msg.getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgumentAt(1, SingleResultCallback.class);
-            cb.onResult(null, new Exception("Oops"));
+            subscriber = invocation.getArgument(0, Subscriber.class);
+            subscriber.onError(new Exception("0ops"));
             return null;
-        }).when(mockMongoColl).insertMany(anyObject(), anyObject());
+        }).when(mockPublisher).subscribe(any());
     }
 
     @AfterMethod

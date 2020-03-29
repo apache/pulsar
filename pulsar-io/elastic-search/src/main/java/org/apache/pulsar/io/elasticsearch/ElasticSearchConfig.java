@@ -25,10 +25,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -37,10 +33,6 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  * Configuration class for the ElasticSearch Sink Connector.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class ElasticSearchConfig implements Serializable {
 
@@ -62,6 +54,15 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
         required = false,
+        defaultValue = "_doc",
+        help = "The type name that the connector writes messages to, with the default value set to _doc." +
+                " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
+                " and left to the default value otherwise."
+    )
+    private String typeName = "_doc";
+
+    @FieldDoc(
+        required = false,
         defaultValue = "1",
         help = "The number of shards of the index"
     )
@@ -77,6 +78,7 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The username used by the connector to connect to the elastic search cluster. If username is set, a password should also be provided."
     )
     private String username;
@@ -84,6 +86,7 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "The password used by the connector to connect to the elastic search cluster. If password is set, a username should also be provided"
     )
     private String password;
@@ -109,10 +112,10 @@ public class ElasticSearchConfig implements Serializable {
         }
 
         if (indexNumberOfShards < 1) {
-            throw new IllegalArgumentException("indexNumberOfShards must be a positive integer");
+            throw new IllegalArgumentException("indexNumberOfShards must be a strictly positive integer");
         }
 
-        if (indexNumberOfReplicas < 1) {
+        if (indexNumberOfReplicas < 0) {
             throw new IllegalArgumentException("indexNumberOfReplicas must be a positive integer");
         }
     }

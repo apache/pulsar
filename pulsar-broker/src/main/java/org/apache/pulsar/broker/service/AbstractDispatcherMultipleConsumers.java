@@ -18,27 +18,40 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
-
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
 
+import io.netty.buffer.ByteBuf;
+
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.protocol.Commands;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  */
-public abstract class AbstractDispatcherMultipleConsumers {
+public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
-    protected int currentConsumerRoundRobinIndex = 0;
+    protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+
+    protected AbstractDispatcherMultipleConsumers(Subscription subscription) {
+        super(subscription);
+    }
+
     public boolean isConsumerConnected() {
         return !consumerList.isEmpty();
     }
@@ -49,6 +62,10 @@ public abstract class AbstractDispatcherMultipleConsumers {
 
     public synchronized boolean canUnsubscribe(Consumer consumer) {
         return consumerList.size() == 1 && consumerSet.contains(consumer);
+    }
+
+    public boolean isClosed() {
+        return isClosed == TRUE;
     }
 
     public SubType getType() {
@@ -127,7 +144,7 @@ public abstract class AbstractDispatcherMultipleConsumers {
 
     /**
      * Finds index of first available consumer which has higher priority then given targetPriority
-     * 
+     *
      * @param targetPriority
      * @return -1 if couldn't find any available consumer
      */
@@ -187,7 +204,7 @@ public abstract class AbstractDispatcherMultipleConsumers {
 
     /**
      * Finds index of first consumer in list which has same priority as given targetPriority
-     * 
+     *
      * @param targetPriority
      * @return
      */
@@ -199,5 +216,8 @@ public abstract class AbstractDispatcherMultipleConsumers {
         }
         return -1;
     }
+
+    private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
+
 
 }

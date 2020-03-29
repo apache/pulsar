@@ -22,8 +22,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +57,9 @@ public class PrimitiveSchemaTest {
             put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
             put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
             put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
+            put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
+            put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
+            put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()), new Timestamp(new java.util.Date().getTime())));
         }
     };
 
@@ -68,6 +75,9 @@ public class PrimitiveSchemaTest {
             put(Schema.DOUBLE, Arrays.asList(5678567.12312d, -5678567.12341d));
             put(Schema.BYTES, Arrays.asList("my string".getBytes(UTF_8)));
             put(Schema.BYTEBUFFER, Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
+            put(Schema.DATE, Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
+            put(Schema.TIME, Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
+            put(Schema.TIMESTAMP, Arrays.asList(new Timestamp(new java.util.Date().getTime() - 10000), new Timestamp(new java.util.Date().getTime())));
         }
     };
 
@@ -79,10 +89,18 @@ public class PrimitiveSchemaTest {
     @Test(dataProvider = "schemas")
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
-            assertNull(schema.encode(null),
-                "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
-            assertNull(schema.decode( null),
-                "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            byte[] bytes = null;
+            ByteBuf byteBuf =  null;
+            try {
+                assertNull(schema.encode(null),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
+                assertNull(schema.decode(bytes),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+                assertNull(((AbstractSchema) schema).decode(byteBuf),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            } catch (NullPointerException npe) {
+                throw new NullPointerException("NPE when using schema " + schema + " : " + npe.getMessage());
+            }
         }
     }
 
@@ -92,10 +110,15 @@ public class PrimitiveSchemaTest {
             log.info("Test schema {}", test.getKey());
             for (Object value : test.getValue()) {
                 log.info("Encode : {}", value);
-                assertEquals(value,
-                    test.getKey().decode(test.getKey().encode(value)),
-                    "Should get the original " + test.getKey().getSchemaInfo().getName() +
-                        " after serialization and deserialization");
+                try {
+                    assertEquals(value,
+                        test.getKey().decode(test.getKey().encode(value)),
+                        "Should get the original " + test.getKey().getSchemaInfo().getName() +
+                            " after serialization and deserialization");
+                } catch (NullPointerException npe) {
+                    throw new NullPointerException("NPE when using schema " + test.getKey()
+                        + " : " + npe.getMessage());
+                }
             }
         }
     }
@@ -113,6 +136,9 @@ public class PrimitiveSchemaTest {
         assertEquals(SchemaType.BYTES, BytesSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.BYTES, ByteBufferSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.BYTES, ByteBufSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.DATE, DateSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.TIME, TimeSchema.of().getSchemaInfo().getType());
+        assertEquals(SchemaType.TIMESTAMP, TimestampSchema.of().getSchemaInfo().getType());
     }
 
 

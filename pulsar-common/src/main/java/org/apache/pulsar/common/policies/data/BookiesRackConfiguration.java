@@ -24,19 +24,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
+/**
+ * The rack configuration map for bookies.
+ */
 public class BookiesRackConfiguration extends TreeMap<String, Map<String, BookieInfo>> {
 
-    public boolean removeBookie(String address) {
-        for (Map<String, BookieInfo> m : values()) {
-            if (m.remove(address) != null ) {
+    private static final long serialVersionUID = 0L;
+
+    public synchronized boolean removeBookie(String address) {
+        for (Map.Entry<String, Map<String, BookieInfo>> entry : entrySet()) {
+            if (entry.getValue().remove(address) != null) {
+                if (entry.getValue().isEmpty()) {
+                    remove(entry.getKey());
+                }
                 return true;
             }
         }
-
         return false;
     }
 
-    public Optional<BookieInfo> getBookie(String address) {
+    public synchronized Optional<BookieInfo> getBookie(String address) {
         for (Map<String, BookieInfo> m : values()) {
             BookieInfo bi = m.get(address);
             if (bi != null) {
@@ -46,7 +53,7 @@ public class BookiesRackConfiguration extends TreeMap<String, Map<String, Bookie
         return Optional.empty();
     }
 
-    public void updateBookie(String group, String address, BookieInfo bookieInfo) {
+    public synchronized void updateBookie(String group, String address, BookieInfo bookieInfo) {
         checkNotNull(group);
         checkNotNull(address);
         checkNotNull(bookieInfo);

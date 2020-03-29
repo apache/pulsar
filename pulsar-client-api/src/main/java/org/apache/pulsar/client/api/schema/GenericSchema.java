@@ -24,7 +24,7 @@ import org.apache.pulsar.client.api.Schema;
 /**
  * A schema that serializes and deserializes between {@link GenericRecord} and bytes.
  */
-public interface GenericSchema extends Schema<GenericRecord> {
+public interface GenericSchema<T extends GenericRecord> extends Schema<T> {
 
     /**
      * Returns the list of fields.

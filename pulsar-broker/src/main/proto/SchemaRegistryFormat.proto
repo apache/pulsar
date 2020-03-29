@@ -29,6 +29,17 @@ message SchemaInfo {
         JSON = 3;
         PROTOBUF = 4;
         AVRO = 5;
+		BOOLEAN = 6;
+		INT8 = 7;
+		INT16 = 8;
+		INT32 = 9;
+		INT64 = 10;
+		FLOAT = 11;
+		DOUBLE = 12;
+		DATE = 13;
+		TIME = 14;
+		TIMESTAMP = 15;
+		KEYVALUE = 16;
     }
     message KeyValuePair {
         required string key = 1;

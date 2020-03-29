@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.lookup;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
-import static org.apache.pulsar.common.api.Commands.newLookupResponse;
+import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
+import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 
 import io.netty.buffer.ByteBuf;
 
@@ -218,9 +218,9 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         // Initiate lookup once validation completes
-        validationFuture.thenAccept(validaitonFailureResponse -> {
-            if (validaitonFailureResponse != null) {
-                lookupfuture.complete(validaitonFailureResponse);
+        validationFuture.thenAccept(validationFailureResponse -> {
+            if (validationFailureResponse != null) {
+                lookupfuture.complete(validationFailureResponse);
             } else {
                 pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, authoritative)
                         .thenAccept(lookupResult -> {

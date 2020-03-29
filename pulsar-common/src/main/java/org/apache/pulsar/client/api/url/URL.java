@@ -25,6 +25,9 @@ import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 
+/**
+ * Wrapper around {@code java.net.URL} to improve usability.
+ */
 public class URL {
     private static final URLStreamHandlerFactory urlStreamHandlerFactory = new PulsarURLStreamHandlerFactory();
     private final java.net.URL url;

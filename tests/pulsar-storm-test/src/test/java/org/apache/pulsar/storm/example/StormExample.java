@@ -84,7 +84,7 @@ public class StormExample {
         }
     };
 
-    public static void main(String[] args) throws PulsarClientException {
+    public static void main(String[] args) throws Exception {
         // String authPluginClassName = "org.apache.pulsar.client.impl.auth.MyAuthentication";
         // String authParams = "key1:val1,key2:val2";
         // clientConf.setAuthentication(authPluginClassName, authParams);

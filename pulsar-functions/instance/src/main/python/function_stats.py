@@ -179,9 +179,9 @@ class Stats(object):
   def add_user_exception(self, exception):
     error = traceback.format_exc()
     ts = int(time.time() * 1000) if sys.version_info.major >= 3 else long(time.time() * 1000)
-    self.latest_sys_exception.append((error, ts))
-    if len(self.latest_sys_exception) > 10:
-      self.latest_sys_exception.pop(0)
+    self.latest_user_exception.append((error, ts))
+    if len(self.latest_user_exception) > 10:
+      self.latest_user_exception.pop(0)
 
     # report exception via prometheus
     try:
@@ -213,8 +213,6 @@ class Stats(object):
     self.system_exceptions.labels(*exception_metric_labels).set(1.0)
 
   def reset(self):
-    self.latest_user_exception = []
-    self.latest_sys_exception = []
     self._stat_total_processed_successfully_1min._value.set(0.0)
     self._stat_total_user_exceptions_1min._value.set(0.0)
     self._stat_total_sys_exceptions_1min._value.set(0.0)

@@ -111,4 +111,12 @@ public interface ModularLoadManager {
      * @return
      */
     Set<String> getAvailableBrokers();
+
+    /**
+     * Fetch local-broker data from load-manager broker cache
+     * 
+     * @param broker load-balancer zk-path  
+     * @return
+     */
+    LocalBrokerData getBrokerLocalData(String broker);
 }

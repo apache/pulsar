@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,23 +29,20 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedInputStreamTest.class);
+public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
     class RandomInputStream extends InputStream {
         final Random r;
@@ -222,7 +219,7 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
 
         verify(spiedBlobStore, times(1))
-            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), Matchers.<GetOptions>anyObject());
+            .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), any());
     }
 
     @Test

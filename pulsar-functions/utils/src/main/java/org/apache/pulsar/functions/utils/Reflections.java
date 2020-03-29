@@ -63,11 +63,11 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {
-            throw new RuntimeException(userClassName + " not " + xface.getName());
+            throw new RuntimeException(userClassName + " does not implement " + xface.getName());
         }
         Class<T> tCls = (Class<T>) theCls.asSubclass(xface);
         T result;
@@ -104,7 +104,7 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         Object result;
@@ -138,7 +138,7 @@ public class Reflections {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         Object result;
@@ -165,7 +165,7 @@ public class Reflections {
 
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
-            return createInstance(userClassName, Utils.loadJar(jar));
+            return createInstance(userClassName, FunctionCommon.loadJar(jar));
         } catch (Exception ex) {
             return null;
         }
@@ -180,11 +180,11 @@ public class Reflections {
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             return false;
         }
     }
@@ -214,12 +214,12 @@ public class Reflections {
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) Utils.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }
             loader.close();
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             throw new RuntimeException(e);
         }
         return ret;
@@ -238,7 +238,7 @@ public class Reflections {
             if (xface.isAssignableFrom(Class.forName(fqcn))){
                 ret = true;
             }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
         return ret;
@@ -287,7 +287,7 @@ public class Reflections {
         } else {
             try {
                 return classLoader.loadClass(className);
-            } catch (ClassNotFoundException var4) {
+            } catch (ClassNotFoundException | NoClassDefFoundError var4) {
                 if (className.charAt(0) != '[') {
                     throw var4;
                 } else {

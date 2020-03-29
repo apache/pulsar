@@ -19,12 +19,12 @@
 
 -->
 
-![logo](site/img/pulsar.png)
+![logo](site2/website/static/img/pulsar.svg)
 
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
-https://pulsar.apache.org
+Learn more about Pulsar at https://pulsar.apache.org
 
 ## Main features
 * Horizontally scalable (Millions of independent topics and millions
@@ -50,12 +50,25 @@ https://pulsar.apache.org
 
 Requirements:
  * Java JDK 1.8
- * Maven
+ * Maven 3.3.9+
 
 Compile and install:
 
 ```bash
 $ mvn install -DskipTests
+```
+
+Run Unit Tests:
+
+```bash
+$ mvn test
+```
+
+Run Individual Unit Test:
+
+```bash
+$ cd module-name (e.g: pulsar-client)
+$ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
 Start standalone Pulsar service:
@@ -65,7 +78,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
-
+ 
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
@@ -87,7 +100,9 @@ To configure annotation processing in IntelliJ:
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
-4. Click “OK”.
+4. Click "OK".
+
+5. Install the lombok plugin in intellij.
 
 ### Eclipse
 

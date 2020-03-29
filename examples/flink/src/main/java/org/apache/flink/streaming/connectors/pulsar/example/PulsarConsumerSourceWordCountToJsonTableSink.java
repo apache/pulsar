@@ -37,6 +37,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 /**
  * Implements a streaming wordcount program on pulsar topics.
@@ -108,7 +109,7 @@ public class PulsarConsumerSourceWordCountToJsonTableSink {
         table.printSchema();
         TableSink sink = null;
         if (null != outputTopic) {
-            sink = new PulsarJsonTableSink(serviceUrl, outputTopic, ROUTING_KEY);
+            sink = new PulsarJsonTableSink(serviceUrl, outputTopic, new AuthenticationDisabled(), ROUTING_KEY);
         } else {
             // print the results with a csv file
             sink = new CsvTableSink("./examples/file",  "|");

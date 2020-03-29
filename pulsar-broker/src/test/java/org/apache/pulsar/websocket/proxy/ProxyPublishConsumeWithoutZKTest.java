@@ -23,11 +23,11 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
@@ -45,7 +45,6 @@ import org.testng.annotations.Test;
 
 public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     protected String methodName;
-    private int port;
     private ProxyServer proxyServer;
     private WebSocketService service;
 
@@ -54,11 +53,10 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setServiceUrl(pulsar.getWebServiceAddress());
+        config.setServiceUrl(pulsar.getSafeWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
@@ -78,8 +76,8 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     @Test(timeOut=30000)
     public void socketTest() throws Exception {
 
-        String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
+        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);

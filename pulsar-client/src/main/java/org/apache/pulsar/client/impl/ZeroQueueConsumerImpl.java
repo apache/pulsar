@@ -45,20 +45,25 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private final Lock zeroQueueLock = new ReentrantLock();
 
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
+    private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode, startMessageId,
-                schema, interceptors);
+            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
+            MessageId startMessageId, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors,
+            boolean createTopicIfDoesNotExist) {
+        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+                startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
+                createTopicIfDoesNotExist);
     }
 
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
-            return fetchSingleMessageFromBroker();
+            Message<T> msg = fetchSingleMessageFromBroker();
+            trackMessage(msg);
+            return beforeConsume(msg);
         } finally {
             zeroQueueLock.unlock();
         }
@@ -93,7 +98,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             }
             do {
                 message = incomingMessages.take();
-                lastDequeuedMessage = message.getMessageId();
+                lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (this) {
@@ -109,9 +114,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             stats.updateNumMsgsReceived(message);
             return message;
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
             stats.incrementNumReceiveFailed();
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         } finally {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;
@@ -128,7 +132,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // or queue was not empty: send a flow command
         if (waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
-                || listener != null) {
+                || (listener != null && !waitingOnListenerForZeroQueueSize)) {
             sendFlowPermitsToBroker(cnx, 1);
         }
     }
@@ -154,12 +158,15 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                     log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
                             message.getMessageId());
                 }
-                listener.received(ZeroQueueConsumerImpl.this, message);
+                waitingOnListenerForZeroQueueSize = true;
+                trackMessage(message);
+                listener.received(ZeroQueueConsumerImpl.this, beforeConsume(message));
             } catch (Throwable t) {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);
             }
             increaseAvailablePermits(cnx());
+            waitingOnListenerForZeroQueueSize = false;
         });
     }
 

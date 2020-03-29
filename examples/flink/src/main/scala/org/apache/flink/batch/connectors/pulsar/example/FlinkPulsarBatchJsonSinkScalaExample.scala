@@ -22,6 +22,7 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.batch.connectors.pulsar.PulsarJsonOutputFormat
 import scala.beans.BeanProperty
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled
 
 /**
   * Implements a batch Scala program on Pulsar topic by writing Flink DataSet as Json.
@@ -66,7 +67,7 @@ object FlinkPulsarBatchJsonSinkScalaExample {
     println("\tTopic:\t" + topic)
 
     // create PulsarJsonOutputFormat instance
-    val pulsarJsonOutputFormat = new PulsarJsonOutputFormat[NasaMission](serviceUrl, topic)
+    val pulsarJsonOutputFormat = new PulsarJsonOutputFormat[NasaMission](serviceUrl, topic, new AuthenticationDisabled())
 
     // create DataSet
     val nasaMissionDS = env.fromCollection(nasaMissions)

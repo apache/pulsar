@@ -45,6 +45,7 @@ class HTTPLookupService : public LookupService, public std::enable_shared_from_t
     bool tlsAllowInsecure_;
     bool isUseTls_;
     std::string tlsTrustCertsFilePath_;
+    bool tlsValidateHostname_;
 
     static LookupDataResultPtr parsePartitionData(const std::string&);
     static LookupDataResultPtr parseLookupData(const std::string&);

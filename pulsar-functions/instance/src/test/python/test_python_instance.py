@@ -62,6 +62,7 @@ class TestContextImpl(unittest.TestCase):
 
     msg = Message()
     msg.message_id = Mock(return_value="test_message_id")
+    msg.partition_key = Mock(return_value="test_key")
     context_impl.set_current_message_context(msg, "test_topic_name")
 
     context_impl.publish("test_topic_name", "test_message")

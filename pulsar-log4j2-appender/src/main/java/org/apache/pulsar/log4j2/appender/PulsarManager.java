@@ -34,7 +34,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 public class PulsarManager extends AbstractManager {
 
-    static Supplier<ClientBuilder> PULSAR_CLIENT_BUILDER = () -> PulsarClient.builder();
+    static Supplier<ClientBuilder> PULSAR_CLIENT_BUILDER = PulsarClient::builder;
 
     private PulsarClient client;
     private Producer<byte[]> producer;
@@ -126,7 +126,7 @@ public class PulsarManager extends AbstractManager {
             }
             producer = producerBuilder.create();
         } catch (Exception t) {
-            LOGGER.error("Failed to start pulsar manager {}", t);
+            LOGGER.error("Failed to start pulsar manager", t);
             throw t;
         }
     }

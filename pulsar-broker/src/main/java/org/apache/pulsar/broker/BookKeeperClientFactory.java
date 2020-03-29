@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.zookeeper.ZooKeeper;
 
@@ -28,6 +31,9 @@ import org.apache.zookeeper.ZooKeeper;
  * Provider of a new BookKeeper client instance
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException;
+    BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+            Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
+
     void close();
 }

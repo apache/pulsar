@@ -19,35 +19,21 @@
 package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test
 public class LocalZooKeeperConnectionServiceTest {
-    private ZooKeeperClientFactory mockZkClientFactory = new MockedZooKeeperClientFactoryImpl();
-
-    @BeforeMethod
-    void setup() throws Exception {
-
-    }
-
-    @AfterMethod
-    void teardown() throws Exception {
-
-    }
 
     @Test
     void testSimpleZooKeeperConnection() throws Exception {
-
+        MockedZooKeeperClientFactoryImpl mockZkClientFactory = new MockedZooKeeperClientFactoryImpl();
         LocalZooKeeperConnectionService localZkConnectionService = new LocalZooKeeperConnectionService(
                 mockZkClientFactory, "dummy", 1000);
         localZkConnectionService.start(null);
@@ -60,7 +46,7 @@ public class LocalZooKeeperConnectionServiceTest {
 
         // Create persistent node
         LocalZooKeeperConnectionService.checkAndCreatePersistNode(zk, "/path1");
-        assertTrue(zk.exists("/path1", false) != null);
+        assertNotNull(zk.exists("/path1", false));
 
         // Delete and re-create existing node
         zk.setSessionId(-1L); // The sessionId must be set to except 0L in order to re-create.
@@ -69,34 +55,36 @@ public class LocalZooKeeperConnectionServiceTest {
 
         // Try to create existing node (nothing should happen)
         LocalZooKeeperConnectionService.checkAndCreatePersistNode(zk, "/path1");
-        assertTrue(zk.exists("/path1", false) != null);
+        assertNotNull(zk.exists("/path1", false));
 
         // Create new node (data is given as String)
         LocalZooKeeperConnectionService.createIfAbsent(zk, "/path2", "data2", CreateMode.EPHEMERAL);
-        assertTrue(zk.exists("/path2", false) != null);
+        assertNotNull(zk.exists("/path2", false));
         assertEquals(zk.getData("/path2", null, null), "data2".getBytes());
 
         // Create new node (data is given as bytes)
         LocalZooKeeperConnectionService.createIfAbsent(zk, "/path3", "data3".getBytes(), CreateMode.EPHEMERAL);
-        assertTrue(zk.exists("/path3", false) != null);
+        assertNotNull(zk.exists("/path3", false));
         assertEquals(zk.getData("/path3", null, null), "data3".getBytes());
 
         // delete nodes
         LocalZooKeeperConnectionService.deleteIfExists(zk, "/path1", -1);
-        assertTrue(zk.exists("/path1", false) == null);
+        assertNull(zk.exists("/path1", false));
         LocalZooKeeperConnectionService.deleteIfExists(zk, "/path2", -1);
-        assertTrue(zk.exists("/path2", false) == null);
+        assertNull(zk.exists("/path2", false));
         LocalZooKeeperConnectionService.deleteIfExists(zk, "/path3", -1);
-        assertTrue(zk.exists("/path3", false) == null);
+        assertNull(zk.exists("/path3", false));
 
         // delete not existing node
         LocalZooKeeperConnectionService.deleteIfExists(zk, "/not_exist", -1);
 
         // Try to create invalid node (nothing should happen)
         LocalZooKeeperConnectionService.checkAndCreatePersistNode(zk, "/////");
-        assertTrue(zk.exists("//////", false) == null);
+        assertNull(zk.exists("//////", false));
 
         localZkConnectionService.close();
+
+        mockZkClientFactory.close();
     }
 
     @Test

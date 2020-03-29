@@ -19,11 +19,10 @@
 #ifndef PRODUCER_HPP_
 #define PRODUCER_HPP_
 
+#include <pulsar/defines.h>
 #include <pulsar/ProducerConfiguration.h>
 #include <memory>
 #include <stdint.h>
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 class ProducerImplBase;
@@ -33,7 +32,7 @@ class PulsarFriend;
 typedef std::function<void(Result)> FlushCallback;
 typedef std::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
 
-class Producer {
+class PULSAR_PUBLIC Producer {
    public:
     /**
      * Construct an uninitialized Producer.
@@ -148,9 +147,10 @@ class Producer {
     friend class PulsarWrapper;
 
     ProducerImplBasePtr impl_;
+
+    // For unit test case BatchMessageTest::producerFailureResult only
+    void producerFailMessages(Result result);
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* PRODUCER_HPP_ */

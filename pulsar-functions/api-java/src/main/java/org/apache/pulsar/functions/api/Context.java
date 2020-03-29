@@ -19,6 +19,10 @@
 package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
+
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.slf4j.Logger;
 
 import java.util.Collection;
@@ -84,6 +88,7 @@ public interface Context {
 
     /**
      * The id of the function that we are executing
+     *
      * @return The function id
      */
     String getFunctionId();
@@ -119,10 +124,20 @@ public interface Context {
     /**
      * Increment the builtin distributed counter referred by key.
      *
-     * @param key The name of the key
+     * @param key    The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
+
+    /**
+     * Increment the builtin distributed counter referred by key
+     * but dont wait for the completion of the increment operation
+     *
+     * @param key    The name of the key
+     * @param amount The amount to be incremented
+     */
+    CompletableFuture<Void> incrCounterAsync(String key, long amount);
 
     /**
      * Retrieve the counter value for the key.
@@ -133,12 +148,43 @@ public interface Context {
     long getCounter(String key);
 
     /**
-     * Update the state value for the key.
+     * Retrieve the counter value for the key, but don't wait
+     * for the operation to be completed
      *
      * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    CompletableFuture<Long> getCounterAsync(String key);
+
+    /**
+     * Update the state value for the key.
+     *
+     * @param key   name of the key
      * @param value state value of the key
      */
     void putState(String key, ByteBuffer value);
+
+    /**
+     * Update the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key   name of the key
+     * @param value state value of the key
+     */
+    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
+
+    /**
+     * Delete the state value for the key.
+     *
+     * @param key   name of the key
+     */
+    void deleteState(String key);
+
+    /**
+     * Delete the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key   name of the key
+     */
+    CompletableFuture<Void> deleteStateAsync(String key);
 
     /**
      * Retrieve the state value for the key.
@@ -147,6 +193,14 @@ public interface Context {
      * @return the state value for the key.
      */
     ByteBuffer getState(String key);
+
+    /**
+     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    CompletableFuture<ByteBuffer> getStateAsync(String key);
 
     /**
      * Get a map of all user-defined key/value configs for the function.
@@ -184,20 +238,19 @@ public interface Context {
      * Record a user defined metric.
      *
      * @param metricName The name of the metric
-     * @param value The value of the metric
+     * @param value      The value of the metric
      */
     void recordMetric(String metricName, double value);
 
     /**
-     * Publish an object using serDe for serializing to the topic.
+     * Publish an object using serDe or schema class for serializing to the topic.
      *
-     * @param topicName
-     *            The name of the topic for publishing
-     * @param object
-     *            The object that needs to be published
-     * @param schemaOrSerdeClassName
-     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
+     * @param topicName              The name of the topic for publishing
+     * @param object                 The object that needs to be published
+     * @param schemaOrSerdeClassName Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name
+     *                               of the custom schema class
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
 
@@ -205,9 +258,20 @@ public interface Context {
      * Publish an object to the topic using default schemas.
      *
      * @param topicName The name of the topic for publishing
-     * @param object The object that needs to be published
+     * @param object    The object that needs to be published
      * @return A future that completes when the framework is done publishing the message
+     * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
     <O> CompletableFuture<Void> publish(String topicName, O object);
 
+    /**
+     * New output message using schema for serializing to the topic
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
 }

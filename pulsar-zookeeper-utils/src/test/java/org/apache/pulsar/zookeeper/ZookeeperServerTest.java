@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.slf4j.Logger;
@@ -33,12 +32,10 @@ public class ZookeeperServerTest implements Closeable {
     private final File zkTmpDir;
     private ZooKeeperServer zks;
     private NIOServerCnxnFactory serverFactory;
-    private final int zkPort;
-    private final String hostPort;
+    private int zkPort;
+    private String hostPort;
 
     public ZookeeperServerTest(int zkPort) throws IOException {
-        this.zkPort = zkPort;
-        this.hostPort = "127.0.0.1:" + zkPort;
         this.zkTmpDir = File.createTempFile("zookeeper", "test");
         log.info("**** Start GZK on {} ****", zkTmpDir);
         if (!zkTmpDir.delete() || !zkTmpDir.mkdir()) {
@@ -50,6 +47,8 @@ public class ZookeeperServerTest implements Closeable {
         try {
             // Allow all commands on ZK control port
             System.setProperty("zookeeper.4lw.commands.whitelist", "*");
+            // disable the admin server as to not have any port conflicts
+            System.setProperty("zookeeper.admin.enableServer", "false");
             zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
             zks.setMaxSessionTimeout(20000);
             serverFactory = new NIOServerCnxnFactory();
@@ -58,6 +57,9 @@ public class ZookeeperServerTest implements Closeable {
         } catch (Exception e) {
             log.error("Exception while instantiating ZooKeeper", e);
         }
+
+        this.zkPort = serverFactory.getLocalPort();
+        this.hostPort = "127.0.0.1:" + zkPort;
 
         LocalBookkeeperEnsemble.waitForServerUp(hostPort, 30000);
         log.info("ZooKeeper started at {}", hostPort);
@@ -74,6 +76,10 @@ public class ZookeeperServerTest implements Closeable {
         zks.shutdown();
         serverFactory.shutdown();
         zkTmpDir.delete();
+    }
+
+    public int getZookeeperPort() {
+        return serverFactory.getLocalPort();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ZookeeperServerTest.class);

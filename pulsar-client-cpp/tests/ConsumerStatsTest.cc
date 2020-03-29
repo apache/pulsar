@@ -31,6 +31,7 @@
 #include <lib/TopicName.h>
 
 #include <functional>
+#include <thread>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
@@ -39,12 +40,16 @@ static std::string lookupUrl = "pulsar://localhost:6650";
 static std::string adminUrl = "http://localhost:8080/";
 
 void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog,
-                                 Latch& latch, int index) {
+                                 Latch& latch, int index, bool accurate) {
     ASSERT_EQ(result, ResultOk);
     PartitionedBrokerConsumerStatsImpl* statsPtr =
         (PartitionedBrokerConsumerStatsImpl*)(brokerConsumerStats.getImpl().get());
     LOG_DEBUG(statsPtr);
-    ASSERT_EQ(expectedBacklog, statsPtr->getBrokerConsumerStats(index).getMsgBacklog());
+    if (accurate) {
+        ASSERT_EQ(expectedBacklog, statsPtr->getBrokerConsumerStats(index).getMsgBacklog());
+    } else {
+        ASSERT_LE(expectedBacklog, statsPtr->getBrokerConsumerStats(index).getMsgBacklog());
+    }
     latch.countdown();
 }
 
@@ -101,7 +106,7 @@ TEST(ConsumerStatsTest, testBacklogInfo) {
         producer.send(msg);
     }
 
-    usleep(3.5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
     BrokerConsumerStats consumerStats;
     Result res = consumer.getBrokerConsumerStats(consumerStats);
     ASSERT_EQ(res, ResultOk);
@@ -212,7 +217,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Still Expecting cached results");
-    usleep(1 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     ASSERT_TRUE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
@@ -220,7 +225,7 @@ TEST(ConsumerStatsTest, testCachingMechanism) {
     ASSERT_EQ(consumerStats.getMsgBacklog(), numOfMessages);
 
     LOG_DEBUG("Now expecting new results");
-    usleep(3 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     ASSERT_FALSE(consumerStats.isValid());
     ASSERT_EQ(ResultOk, consumer.getBrokerConsumerStats(consumerStats));
 
@@ -282,8 +287,8 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
 
     // Expecting return from 4 callbacks
     Latch latch(4);
-    consumer.getBrokerConsumerStatsAsync(
-        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
+    consumer.getBrokerConsumerStatsAsync(std::bind(partitionedCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, 5, latch, 0, true));
 
     // Now we have 10 messages per partition
     for (int i = numOfMessages; i < (numOfMessages * 2); i++) {
@@ -293,13 +298,15 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting cached result
-    consumer.getBrokerConsumerStatsAsync(
-        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 5, latch, 0));
+    // Inaccurate judgment is used because it cannot guarantee that the above operations are completed within
+    // cache time.
+    consumer.getBrokerConsumerStatsAsync(std::bind(partitionedCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, 5, latch, 0, false));
 
-    usleep(4.5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(4500));
     // Expecting fresh results
-    consumer.getBrokerConsumerStatsAsync(
-        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 2));
+    consumer.getBrokerConsumerStatsAsync(std::bind(partitionedCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, 10, latch, 2, true));
 
     Message msg;
     while (consumer.receive(msg)) {
@@ -307,9 +314,9 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
     }
 
     // Expecting the backlog to be the same since we didn't acknowledge the messages
-    consumer.getBrokerConsumerStatsAsync(
-        std::bind(partitionedCallbackFunction, std::placeholders::_1, std::placeholders::_2, 10, latch, 3));
+    consumer.getBrokerConsumerStatsAsync(std::bind(partitionedCallbackFunction, std::placeholders::_1,
+                                                   std::placeholders::_2, 10, latch, 3, true));
 
     // Wait for ten seconds only
-    ASSERT_TRUE(latch.wait(std::chrono::seconds(10)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
 }

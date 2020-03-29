@@ -20,9 +20,12 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Range;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -30,6 +33,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
  * A ManangedCursor is a persisted cursor inside a ManagedLedger.
@@ -189,9 +193,10 @@ public interface ManagedCursor {
      *
      * <p/>This method has linear time complexity on the number of ledgers included in the managed ledger.
      *
+     * @param isPrecise set to true to get precise backlog count
      * @return the number of entries
      */
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean isPrecise);
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -467,7 +472,7 @@ public interface ManagedCursor {
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Read the specified set of positions from ManagedLedger.
+     * Read the specified set of positions from ManagedLedger without ordering.
      *
      * @param positions
      *            set of positions to read
@@ -480,6 +485,23 @@ public interface ManagedCursor {
      */
     Set<? extends Position> asyncReplayEntries(
         Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
+
+    /**
+     * Read the specified set of positions from ManagedLedger.
+     *
+     * @param positions
+     *            set of positions to read
+     * @param callback
+     *            callback object returning the list of entries
+     * @param ctx
+     *            opaque context
+     * @param sortEntries
+     *            callback with sorted entry list.
+     * @return skipped positions
+     *              set of positions which are already deleted/acknowledged and skipped while replaying them
+     */
+    Set<? extends Position> asyncReplayEntries(
+            Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries);
 
     /**
      * Close the cursor and releases the associated resources.
@@ -570,4 +592,21 @@ public interface ManagedCursor {
      */
     void setThrottleMarkDelete(double throttleMarkDelete);
 
+    /**
+     * Get {@link ManagedLedger} attached with cursor
+     * 
+     * @return ManagedLedger
+     */
+    ManagedLedger getManagedLedger();
+
+    /**
+     * Get last individual deleted range
+     * @return range
+     */
+    Range<PositionImpl> getLastIndividualDeletedRange();
+
+    /**
+     * Trim delete entries for the given entries
+     */
+    void trimDeletedEntries(List<Entry> entries);
 }

@@ -23,6 +23,11 @@ import io.netty.util.ReferenceCounted;
 
 import java.util.function.Consumer;
 
+/**
+ * Class representing a reference-counted object that requires explicit deallocation.
+ *
+ * @param <T> type of the object that requires explicit deallocation.
+ */
 public class ReferenceCountedObject<T> extends AbstractReferenceCounted {
 
     private final T object;

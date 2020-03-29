@@ -25,6 +25,9 @@ import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 
 import javax.net.ssl.SSLSession;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -69,8 +72,15 @@ public interface AuthenticationProvider extends Closeable {
     default AuthenticationState newAuthState(AuthData authData,
                                              SocketAddress remoteAddress,
                                              SSLSession sslSession)
-        throws AuthenticationException{
+        throws AuthenticationException {
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
     }
 
+    /**
+     * Set response, according to passed in request.
+     * and return whether we should do following chain.doFilter or not.
+     */
+    default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        throw new AuthenticationException("Not supported");
+    }
 }

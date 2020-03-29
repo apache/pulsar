@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,21 +26,33 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Integer`.
  */
-public class IntSchema implements Schema<Integer> {
+public class IntSchema extends AbstractSchema<Integer> {
+
+    private static final IntSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT32")
+            .setType(SchemaType.INT32)
+            .setSchema(new byte[0]);
+        INSTANCE = new IntSchema();
+    }
 
     public static IntSchema of() {
         return INSTANCE;
     }
 
-    private static final IntSchema INSTANCE = new IntSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT32")
-        .setType(SchemaType.INT32)
-        .setSchema(new byte[0]);
-
     @Override
     public void validate(byte[] message) {
         if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 4) {
             throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
         }
     }
@@ -70,6 +82,22 @@ public class IntSchema implements Schema<Integer> {
             value <<= 8;
             value |= b & 0xFF;
         }
+        return value;
+    }
+
+    @Override
+    public Integer decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        int value = 0;
+
+        for (int i = 0; i < 4; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
+        }
+
         return value;
     }
 

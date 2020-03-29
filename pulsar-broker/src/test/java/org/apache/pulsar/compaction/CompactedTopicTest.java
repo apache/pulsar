@@ -27,6 +27,7 @@ import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -60,7 +61,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("use",
-                new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+                new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
@@ -136,7 +137,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testEntryLookup() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null);
+                this.conf, null, Optional.empty(), null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
             = buildCompactedLedger(bk, 500);
@@ -192,7 +193,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null);
+                this.conf, null, Optional.empty(), null);
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -224,7 +225,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
             Assert.fail("Should have failed to open old ledger");
-        } catch (BKException.BKNoSuchLedgerExistsException e) {
+        } catch (BKException.BKNoSuchLedgerExistsException
+            | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
             // correct, expected behaviour
         }
         bk.openLedger(newCompactedLedger.getId(),

@@ -36,7 +36,7 @@ import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -127,7 +127,7 @@ public class RuntimeSpawner implements AutoCloseable {
     public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
         return this.getFunctionStatus(instanceId).thenApply(msg -> {
             try {
-                return Utils.printJson(msg);
+                return FunctionCommon.printJson(msg);
             } catch (IOException e) {
                 throw new RuntimeException(
                         instanceConfig.getFunctionDetails().getName() + " Exception parsing getStatus", e);

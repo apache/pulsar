@@ -77,7 +77,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
             URI filePath = URI.create(encodedAuthParamString);
             this.tokenSupplier = () -> {
                 try {
-                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
+                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8).trim();
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to read token from file", e);
                 }

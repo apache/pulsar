@@ -18,15 +18,41 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import org.apache.bookkeeper.test.PortManager;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -55,34 +81,11 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
-
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
-
+@Slf4j
 public class ModularLoadManagerImplTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -102,19 +105,7 @@ public class ModularLoadManagerImplTest {
     private ModularLoadManagerImpl primaryLoadManager;
     private ModularLoadManagerImpl secondaryLoadManager;
 
-    private ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-        new LinkedBlockingQueue<>());
-
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
-    private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImplTest.class);
-
-    static {
-        System.setProperty("test.basePort", "16100");
-    }
+    private ExecutorService executor;
 
     // Invoke non-overloaded method.
     private Object invokeSimpleMethod(final Object instance, final String methodName, final Object... args)
@@ -142,42 +133,47 @@ public class ModularLoadManagerImplTest {
 
     @BeforeMethod
     void setup() throws Exception {
+        executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
-        config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
-        config1.setAdvertisedAddress("localhost");
-        pulsar1 = new PulsarService(config1);
+        config1.setWebServicePort(Optional.of(0));
+        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
 
+        config1.setAdvertisedAddress("localhost");
+        config1.setBrokerServicePort(Optional.of(0));
+        config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
+        pulsar1 = new PulsarService(config1);
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
-        primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
-        url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
-        config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        config2.setWebServicePort(Optional.of(0));
+        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
+        config2.setBrokerServicePort(Optional.of(0));
+        config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
-        secondaryHost = String.format("%s:%d", "localhost",
-                SECONDARY_BROKER_WEBSERVICE_PORT);
-
+        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
 
-        url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
+        secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+        url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
@@ -457,7 +453,7 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
-        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + SECONDARY_BROKER_WEBSERVICE_PORT;
+        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + pulsar2.getListenPortHTTP().get();
         pulsar2.getLocalZkCache().getZooKeeper().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker,
                 -1);
         Thread.sleep(100);
@@ -597,15 +593,14 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
-        int brokerWebServicePort = PortManager.nextFreePort();
-        int brokerServicePort = PortManager.nextFreePort();
-        config.setWebServicePort(brokerWebServicePort);
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);
+        pulsar.setShutdownService(new NoOpShutdownService());
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
-                + brokerWebServicePort;
+                + config.getWebServicePort();
         ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), brokerZnode, "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.EPHEMERAL);
         try {
@@ -615,5 +610,14 @@ public class ModularLoadManagerImplTest {
         }
 
         pulsar.close();
+    }
+
+    @Test
+    public void testZnodeMissed() throws Exception {
+        String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get();
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
+        pulsar1.getLoadManager().get().writeLoadReportOnZookeeper();
+        // Delete it again to check the znode is create before write load balance data
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
     }
 }

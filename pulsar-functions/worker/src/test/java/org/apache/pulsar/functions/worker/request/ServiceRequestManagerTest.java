@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.request;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
-import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link ServiceRequestManager}.
  */
-@PrepareForTest(Utils.class)
+@PrepareForTest(WorkerUtils.class)
 public class ServiceRequestManagerTest {
 
     private final Producer producer;

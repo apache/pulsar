@@ -31,17 +31,25 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
@@ -52,6 +60,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
     private MessageListener<T> messageListener;
@@ -78,6 +88,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
 
+    @JsonIgnore
+    private MessageCrypto messageCrypto = null;
+
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     private SortedMap<String, String> properties = new TreeMap<>();
@@ -86,13 +99,22 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private int patternAutoDiscoveryPeriod = 1;
+    private int patternAutoDiscoveryPeriod = 60;
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     private DeadLetterPolicy deadLetterPolicy;
 
+    @JsonIgnore
+    private BatchReceivePolicy batchReceivePolicy;
+
     private boolean autoUpdatePartitions = true;
+
+    private boolean replicateSubscriptionState = false;
+
+    private boolean resetIncludeHead = false;
+
+    private KeySharedPolicy keySharedPolicy;
 
     @JsonIgnore
     public String getSingleTopic() {

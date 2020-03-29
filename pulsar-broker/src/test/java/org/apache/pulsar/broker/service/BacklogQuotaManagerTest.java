@@ -19,16 +19,21 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import com.google.common.collect.Sets;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ConfigHelper;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,23 +44,18 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 /**
  */
 public class BacklogQuotaManagerTest {
-    protected static int BROKER_SERVICE_PORT = PortManager.nextFreePort();
     PulsarService pulsar;
     ServiceConfiguration config;
 
@@ -64,34 +64,36 @@ public class BacklogQuotaManagerTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
     @BeforeMethod
     void setup() throws Exception {
         try {
+
+
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
             bkEnsemble.start();
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(BROKER_WEBSERVICE_PORT);
+            config.setWebServicePort(Optional.ofNullable(0));
             config.setClusterName("usc");
-            config.setBrokerServicePort(BROKER_SERVICE_PORT);
+            config.setBrokerServicePort(Optional.ofNullable(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.setAllowAutoTopicCreationType("non-partitioned");
 
             pulsar = new PulsarService(config);
+            pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
-            adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+            adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
@@ -105,7 +107,7 @@ public class BacklogQuotaManagerTest {
             admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"));
         } catch (Throwable t) {
             LOG.error("Error setting up broker test", t);
-            Assert.fail("Broker test setup failed");
+            fail("Broker test setup failed");
         }
     }
 
@@ -117,7 +119,7 @@ public class BacklogQuotaManagerTest {
             bkEnsemble.stop();
         } catch (Throwable t) {
             LOG.error("Error cleaning up broker test setup state", t);
-            Assert.fail("Broker test cleanup failed");
+            fail("Broker test cleanup failed");
         }
     }
 
@@ -153,7 +155,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        Assert.assertTrue(stats.storageSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
 
@@ -185,7 +187,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        Assert.assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
 
@@ -252,12 +254,12 @@ public class BacklogQuotaManagerTest {
 
         // test hangs without timeout since there is nothing to consume due to eviction
         counter.await(20, TimeUnit.SECONDS);
-        assertTrue(!gotException.get());
+        assertFalse(gotException.get());
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        Assert.assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
     }
@@ -323,7 +325,7 @@ public class BacklogQuotaManagerTest {
         producerThread.start();
         ConsumerThread.start();
         counter.await();
-        assertTrue(!gotException.get());
+        assertFalse(gotException.get());
         client.close();
         client2.close();
     }
@@ -426,12 +428,12 @@ public class BacklogQuotaManagerTest {
         ConsumerThread1.start();
         ConsumerThread2.start();
         counter.await(20, TimeUnit.SECONDS);
-        assertTrue(!gotException.get());
+        assertFalse(gotException.get());
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        Assert.assertTrue(stats.storageSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
         client3.close();
@@ -471,7 +473,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
         TopicStats stats = admin.topics().getStats(topic1);
-        Assert.assertEquals(stats.publishers.size(), 0,
+        assertEquals(stats.publishers.size(), 0,
                 "Number of producers on topic " + topic1 + " are [" + stats.publishers.size() + "]");
         client.close();
     }
@@ -502,12 +504,12 @@ public class BacklogQuotaManagerTest {
             // try to send over backlog quota and make sure it fails
             producer.send(content);
             producer.send(content);
-            Assert.fail("backlog quota did not exceed");
+            fail("backlog quota did not exceed");
         } catch (PulsarClientException.TimeoutException te) {
             gotException = true;
         }
 
-        Assert.assertTrue(gotException, "timeout did not occur");
+        assertTrue(gotException, "timeout did not occur");
         client.close();
     }
 
@@ -537,14 +539,14 @@ public class BacklogQuotaManagerTest {
             // try to send over backlog quota and make sure it fails
             producer.send(content);
             producer.send(content);
-            Assert.fail("backlog quota did not exceed");
+            fail("backlog quota did not exceed");
         } catch (PulsarClientException ce) {
-            Assert.assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
+            assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
                     || ce instanceof PulsarClientException.TimeoutException, ce.getMessage());
             gotException = true;
         }
 
-        Assert.assertTrue(gotException, "backlog exceeded exception did not occur");
+        assertTrue(gotException, "backlog exceeded exception did not occur");
         client.close();
     }
 
@@ -574,14 +576,14 @@ public class BacklogQuotaManagerTest {
             // try to send over backlog quota and make sure it fails
             producer.send(content);
             producer.send(content);
-            Assert.fail("backlog quota did not exceed");
+            fail("backlog quota did not exceed");
         } catch (PulsarClientException ce) {
-            Assert.assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
+            assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
                     || ce instanceof PulsarClientException.TimeoutException, ce.getMessage());
             gotException = true;
         }
 
-        Assert.assertTrue(gotException, "backlog exceeded exception did not occur");
+        assertTrue(gotException, "backlog exceeded exception did not occur");
         // now remove backlog and ensure that producer is unblockedrolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
@@ -603,7 +605,7 @@ public class BacklogQuotaManagerTest {
             gotException = true;
             sendException = e;
         }
-        Assert.assertFalse(gotException, "unable to publish due to " + sendException);
+        assertFalse(gotException, "unable to publish due to " + sendException);
         client.close();
     }
 

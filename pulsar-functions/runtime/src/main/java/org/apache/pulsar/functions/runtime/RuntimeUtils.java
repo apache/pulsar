@@ -19,30 +19,28 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.Map;
 
-import lombok.Builder;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -53,6 +51,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
+    public static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -87,7 +86,7 @@ public class RuntimeUtils {
     public static List<String> getArgsBeforeCmd(InstanceConfig instanceConfig, String extraDependenciesDir) {
 
         final List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             //no-op
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             // add `extraDependenciesDir` to python package searching path
@@ -99,58 +98,211 @@ public class RuntimeUtils {
         return args;
     }
 
-    public static List<String> getCmd(InstanceConfig instanceConfig,
-                                          String instanceFile,
-                                          String extraDependenciesDir, /* extra dependencies for running instances */
-                                           String logDirectory,
-                                          String originalCodeFileName,
-                                          String pulsarServiceUrl,
-                                          String stateStorageServiceUrl,
-                                          AuthenticationConfig authConfig,
-                                          String shardId,
-                                          Integer grpcPort,
-                                          Long expectedHealthCheckInterval,
-                                          String logConfigFile,
-                                          String secretsProviderClassName,
-                                          String secretsProviderConfig,
-                                          Boolean installUserCodeDependencies,
-                                          String pythonDependencyRepository,
-                                          String pythonExtraDependencyRepository,
-                                          int metricsPort) throws Exception {
+    /**
+     * Different from python and java function, Go function uploads a complete executable file(including:
+     * instance file + user code file). Its parameter list is provided to the broker in the form of a yaml file,
+     * the advantage of this approach is that backward compatibility is guaranteed.
+     *
+     * In Java and Python the instance is managed by broker (or function worker) so the changes in command line
+     * is under control; but in Go the instance is compiled with the user function, so pulsar doesn't have the
+     * control what instance is used in the function. Hence in order to support BC for go function, we can't
+     * dynamically add more commandline arguments. Using an instance config to pass the parameters from function
+     * worker to go instance is the best way for maintaining the BC.
+     * <p>
+     * When we run the go function, we only need to specify the location of the go-function file and the yaml file.
+     * The content of the yaml file will be automatically generated according to the content provided by instanceConfig.
+     */
+
+    public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                String originalCodeFileName,
+                                                String pulsarServiceUrl) throws IOException {
         final List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() ==  Function.FunctionDetails.Runtime.JAVA) {
+        GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
+
+        if (instanceConfig.getClusterName() != null) {
+            goInstanceConfig.setClusterName(instanceConfig.getClusterName());
+        }
+
+        if (instanceConfig.getInstanceId() != 0) {
+            goInstanceConfig.setInstanceID(instanceConfig.getInstanceId());
+        }
+
+        if (instanceConfig.getFunctionId() != null) {
+            goInstanceConfig.setFuncID(instanceConfig.getFunctionId());
+        }
+
+        if (instanceConfig.getFunctionVersion() != null) {
+            goInstanceConfig.setFuncVersion(instanceConfig.getFunctionVersion());
+        }
+
+        if (instanceConfig.getFunctionDetails().getAutoAck()) {
+            goInstanceConfig.setAutoAck(instanceConfig.getFunctionDetails().getAutoAck());
+        }
+
+        if (instanceConfig.getFunctionDetails().getTenant() != null) {
+            goInstanceConfig.setTenant(instanceConfig.getFunctionDetails().getTenant());
+        }
+
+        if (instanceConfig.getFunctionDetails().getNamespace() != null) {
+            goInstanceConfig.setNameSpace(instanceConfig.getFunctionDetails().getNamespace());
+        }
+
+        if (instanceConfig.getFunctionDetails().getName() != null) {
+            goInstanceConfig.setName(instanceConfig.getFunctionDetails().getName());
+        }
+
+        if (instanceConfig.getFunctionDetails().getLogTopic() != null) {
+            goInstanceConfig.setLogTopic(instanceConfig.getFunctionDetails().getLogTopic());
+        }
+        if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
+            goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+        }
+        if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
+            goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
+        }
+        if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
+            goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+        }
+
+        if (instanceConfig.getMaxBufferedTuples() != 0) {
+            goInstanceConfig.setMaxBufTuples(instanceConfig.getMaxBufferedTuples());
+        }
+
+        if (pulsarServiceUrl != null) {
+            goInstanceConfig.setPulsarServiceURL(pulsarServiceUrl);
+        }
+        if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
+            goInstanceConfig.setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+        }
+        if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
+            goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
+        }
+
+        if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
+            for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
+                goInstanceConfig.setSourceSpecsTopic(inputTopic);
+            }
+        }
+
+        if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {
+            goInstanceConfig.setTimeoutMs(instanceConfig.getFunctionDetails().getSource().getTimeoutMs());
+        }
+
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
+            goInstanceConfig.setSinkSpecsTopic(instanceConfig.getFunctionDetails().getSink().getTopic());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getCpu() != 0) {
+            goInstanceConfig.setCpu(instanceConfig.getFunctionDetails().getResources().getCpu());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getRam() != 0) {
+            goInstanceConfig.setRam(instanceConfig.getFunctionDetails().getResources().getRam());
+        }
+
+        if (instanceConfig.getFunctionDetails().getResources().getDisk() != 0) {
+            goInstanceConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
+        }
+
+        if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
+            goInstanceConfig.setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
+        }
+
+        if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
+            goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
+        }
+
+        goInstanceConfig.setKillAfterIdleMs(0);
+
+        // Parse the contents of goInstanceConfig into json form string
+        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        String configContent = objectMapper.writeValueAsString(goInstanceConfig);
+
+        // Nit: at present, the implementation of go function depends on pulsar-client-go,
+        // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
+        args.add(originalCodeFileName);
+        args.add("-instance-conf");
+        args.add(configContent);
+        return args;
+    }
+
+
+    public static List<String> getCmd(InstanceConfig instanceConfig,
+                                      String instanceFile,
+                                      String extraDependenciesDir, /* extra dependencies for running instances */
+                                      String logDirectory,
+                                      String originalCodeFileName,
+                                      String pulsarServiceUrl,
+                                      String stateStorageServiceUrl,
+                                      AuthenticationConfig authConfig,
+                                      String shardId,
+                                      Integer grpcPort,
+                                      Long expectedHealthCheckInterval,
+                                      String logConfigFile,
+                                      String secretsProviderClassName,
+                                      String secretsProviderConfig,
+                                      Boolean installUserCodeDependencies,
+                                      String pythonDependencyRepository,
+                                      String pythonExtraDependencyRepository,
+                                      int metricsPort) throws Exception {
+        final List<String> args = new LinkedList<>();
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl);
+        }
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
 
             String classpath = instanceFile;
+
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 classpath = classpath + ":" + extraDependenciesDir + "/*";
             }
             args.add(classpath);
 
-            // Keep the same env property pointing to the Java instance file so that it can be picked up
-            // by the child process and manually added to classpath
-            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
+
+            // add complete classpath for broker/worker so that the function instance can load
+            // the functions instance dependencies separately from user code dependencies
+            String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+            if (functionInstanceClasspath == null) {
+                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                functionInstanceClasspath = System.getProperty("java.class.path");
+            }
+            args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClasspath));
+
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                    args.add(runtimeFlagArg);
+                }
+            }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
             }
-            args.add(JavaInstanceMain.class.getName());
+            args.add("org.apache.pulsar.functions.instance.JavaInstanceMain");
+
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
+            if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                    args.add(runtimeFlagArg);
+                }
+            }
             args.add(instanceFile);
             args.add("--py");
             args.add(originalCodeFileName);
@@ -241,10 +393,10 @@ public class RuntimeUtils {
         return String.format(
                 "%s/%s",
                 logDirectory,
-                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
     }
 
-    public static String getPrometheusMetrics(int metricsPort) throws IOException{
+    public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -257,5 +409,16 @@ public class RuntimeUtils {
         rd.close();
         return result.toString();
     }
-  
+
+    /**
+     * Regex for splitting a string using space when not surrounded by single or double quotes
+     */
+    public static String[] splitRuntimeArgs(String input) {
+        return input.split("\\s(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+    }
+
+    public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
+        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
+    }
+
 }

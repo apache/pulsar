@@ -59,9 +59,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private long zooKeeperSessionTimeoutMillis = 30000;
 
     // Port to use to server HTTP request
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.of(8080);
     // Port to use to server HTTPS request
-    private Integer webServicePortTls;
+    private Optional<Integer> webServicePortTls = Optional.empty();
     // Hostname or IP address the service binds on, default is 0.0.0.0.
     private String bindAddress;
     // --- Authentication ---
@@ -93,7 +93,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
     // Number of threads to use in HTTP server
-    private int numHttpServerThreads = Math.max(4, Runtime.getRuntime().availableProcessors());
+    private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
@@ -199,18 +199,18 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
-    public void setWebServicePort(int webServicePort) {
+    public void setWebServicePort(Optional<Integer> webServicePort) {
         this.webServicePort = webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 
-    public void setWebServicePortTls(int webServicePortTls) {
+    public void setWebServicePortTls(Optional<Integer> webServicePortTls) {
         this.webServicePortTls = webServicePortTls;
     }
 

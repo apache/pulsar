@@ -63,8 +63,8 @@ public abstract class SslContextAutoRefreshBuilder<T> {
     }
 
     /**
-     * udpates and returns cached SSLContext.
-     * 
+     * updates and returns cached SSLContext.
+     *
      * @return
      * @throws GeneralSecurityException
      * @throws IOException
@@ -73,14 +73,14 @@ public abstract class SslContextAutoRefreshBuilder<T> {
 
     /**
      * Returns cached SSLContext.
-     * 
+     *
      * @return
      */
     protected abstract T getSslContext();
 
     /**
-     * It updates SSLContext at every configured refresh time and returns updated SSLContext
-     * 
+     * It updates SSLContext at every configured refresh time and returns updated SSLContext.
+     *
      * @return
      */
     public T get() {

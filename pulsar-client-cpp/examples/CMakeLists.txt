@@ -17,7 +17,9 @@
 # under the License.
 #
 
-set(CMAKE_C_FLAGS " -std=c99 ${CMAKE_C_FLAGS}")
+if (NOT MSVC)
+  set(CMAKE_C_FLAGS " -std=c99 ${CMAKE_C_FLAGS}")
+endif()
 
 set(SAMPLE_ASYNC_PRODUCER_SOURCES
   SampleAsyncProducer.cc

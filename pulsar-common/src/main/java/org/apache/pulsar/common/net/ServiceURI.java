@@ -28,6 +28,7 @@ import com.google.common.base.Strings;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -52,8 +53,8 @@ public class ServiceURI {
 
     private static final int BINARY_PORT = 6650;
     private static final int BINARY_TLS_PORT = 6651;
-    private static final int HTTP_PORT = 8080;
-    private static final int HTTPS_PORT = 8443;
+    private static final int HTTP_PORT = 80;
+    private static final int HTTPS_PORT = 443;
 
     /**
      * Create a service uri instance from a uri string.
@@ -134,21 +135,21 @@ public class ServiceURI {
     private static String validateHostName(String serviceName,
                                            String[] serviceInfos,
                                            String hostname) {
-        String[] parts = hostname.split(":");
-        if (parts.length >= 3) {
+        URI uri = null;
+        try {
+            uri = URI.create("dummyscheme://" + hostname);
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid hostname : " + hostname);
-        } else if (parts.length == 2) {
-            try {
-                Integer.parseUnsignedInt(parts[1]);
-            } catch (NumberFormatException nfe) {
-                throw new IllegalArgumentException("Invalid hostname : " + hostname);
-            }
-            return hostname;
-        } else if (parts.length == 1) {
-            return hostname + ":" + getServicePort(serviceName, serviceInfos);
-        } else {
-            return hostname;
         }
+        String host = uri.getHost();
+        if (host == null) {
+            throw new IllegalArgumentException("Invalid hostname : " + hostname);
+        }
+        int port = uri.getPort();
+        if (port == -1) {
+            port = getServicePort(serviceName, serviceInfos);
+        }
+        return host + ":" + port;
     }
 
     private final String serviceName;

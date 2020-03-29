@@ -22,6 +22,7 @@ import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.avro.generated.NasaMission
 import org.apache.flink.batch.connectors.pulsar.PulsarAvroOutputFormat
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled
 
 /**
   * Implements a batch Scala program on Pulsar topic by writing Flink DataSet as Avro.
@@ -59,7 +60,7 @@ object FlinkPulsarBatchAvroSinkScalaExample {
 
     // create PulsarCsvOutputFormat instance
     val pulsarAvroOutputFormat =
-      new PulsarAvroOutputFormat[NasaMission](serviceUrl, topic)
+      new PulsarAvroOutputFormat[NasaMission](serviceUrl, topic, new AuthenticationDisabled())
 
     // create DataSet
     val textDS = env.fromCollection(nasaMissions)

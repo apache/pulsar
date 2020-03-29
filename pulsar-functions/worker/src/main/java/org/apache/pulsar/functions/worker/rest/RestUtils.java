@@ -24,6 +24,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import javax.ws.rs.core.Response;
+
+import org.apache.pulsar.common.util.RestException;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RestUtils {
 
@@ -36,4 +40,8 @@ public final class RestUtils {
         return createBaseMessage(message).toString();
     }
 
+    public static void throwUnavailableException() {
+        throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+                "Function worker service is not done initializing. " + "Please try again in a little while.");
+    }
 }

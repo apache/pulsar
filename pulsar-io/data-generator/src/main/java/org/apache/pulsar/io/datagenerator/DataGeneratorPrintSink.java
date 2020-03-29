@@ -36,6 +36,7 @@ public class DataGeneratorPrintSink implements Sink<Person> {
     @Override
     public void write(Record<Person> record) throws Exception {
         log.info("RECV: {}", record.getValue());
+        record.ack();
     }
 
     @Override

@@ -69,6 +69,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     virtual Result pauseMessageListener();
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
     virtual int getNumOfPrefetchedMessages() const;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
@@ -79,6 +80,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     Future<Result, Consumer> subscribeOneTopicAsync(const std::string& topic);
     // not supported
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
     virtual void negativeAcknowledge(const MessageId& msgId);
 

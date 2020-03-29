@@ -25,16 +25,27 @@
 namespace pulsar {
 
 ExecutorService::ExecutorService()
-    : io_service_(), work_(new BackgroundWork(io_service_)), worker_([&]() { io_service_.run(); }) {}
+    : io_service_(new boost::asio::io_service()),
+      work_(new BackgroundWork(*io_service_)),
+      worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
 
-ExecutorService::~ExecutorService() { close(); }
+ExecutorService::~ExecutorService() {
+    close();
+    // If the worker_ is still not joinable at this point just detach
+    // the thread so its destructor does not terminate the app
+    if (worker_.joinable()) {
+        worker_.detach();
+    }
+}
+
+void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) { io_service_->run(); }
 
 /*
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
  *  @ returns shared_ptr to this socket
  */
 SocketPtr ExecutorService::createSocket() {
-    return std::make_shared<boost::asio::ip::tcp::socket>(std::ref(io_service_));
+    return SocketPtr(new boost::asio::ip::tcp::socket(*io_service_));
 }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
@@ -47,20 +58,25 @@ TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ss
  *  @returns shraed_ptr to resolver object
  */
 TcpResolverPtr ExecutorService::createTcpResolver() {
-    return std::make_shared<boost::asio::ip::tcp::resolver>(std::ref(io_service_));
+    return TcpResolverPtr(new boost::asio::ip::tcp::resolver(*io_service_));
 }
 
 DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
-    return std::make_shared<boost::asio::deadline_timer>(std::ref(io_service_));
+    return DeadlineTimerPtr(new boost::asio::deadline_timer(*io_service_));
 }
 
 void ExecutorService::close() {
-    io_service_.stop();
+    io_service_->stop();
     work_.reset();
-    worker_.join();
+    // If this thread is attempting to join itself, do not. The destructor's
+    // call to close will handle joining if it does not occur here. This also ensures
+    // join is not called twice since it is not re-entrant on windows
+    if (std::this_thread::get_id() != worker_.get_id() && worker_.joinable()) {
+        worker_.join();
+    }
 }
 
-void ExecutorService::postWork(std::function<void(void)> task) { io_service_.post(task); }
+void ExecutorService::postWork(std::function<void(void)> task) { io_service_->post(task); }
 
 /////////////////////
 

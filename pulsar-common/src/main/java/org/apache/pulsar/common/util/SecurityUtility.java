@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,7 +35,9 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
@@ -41,28 +47,88 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
-
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
+/**
+ * Helper class for the security domain.
+ */
+@Slf4j
 public class SecurityUtility {
 
-    static {
-        // Fixes loading PKCS8Key file: https://stackoverflow.com/a/18912362
-        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    public static final Provider BC_PROVIDER = getProvider();
+    public static final String BC_FIPS_PROVIDER_CLASS = "org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider";
+    public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+    // Security.getProvider("BC") / Security.getProvider("BCFIPS").
+    // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
+    public static final String BC_FIPS = "BCFIPS";
+    public static final String BC = "BC";
+
+    public static boolean isBCFIPS() {
+        return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);
     }
-    
+
+    /**
+     * Get Bouncy Castle provider, and call Security.addProvider(provider) if success.
+     *  1. try get from classpath.
+     *  2. try get from Nar.
+     */
+    public static Provider getProvider() {
+        boolean isProviderInstalled =
+                Security.getProvider(BC) != null || Security.getProvider(BC_FIPS) != null;
+
+        if (isProviderInstalled) {
+            Provider provider = Security.getProvider(BC) != null
+                    ? Security.getProvider(BC)
+                    : Security.getProvider(BC_FIPS);
+            log.info("Already instantiated Bouncy Castle provider {}", provider.getName());
+            return provider;
+        }
+
+        // Not installed, try load from class path
+        try {
+            return getBCProviderFromClassPath();
+        } catch (Exception e) {
+            log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
+        }
+
+        // failed to get from class path. try to get from Nar file.
+        try {
+            // User need set the bc nar path in java env.
+            return SearchBcNarUtils.getBcProvider(System.getProperty("BcPath"));
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+    }
+
+    /**
+     * Get Bouncy Castle provider from classpath, and call Security.addProvider.
+     * Throw Exception if failed.
+     */
+    public static Provider getBCProviderFromClassPath() throws Exception {
+        Class clazz;
+        try {
+            // prefer non FIPS, for backward compatibility concern.
+            clazz = Class.forName(BC_NON_FIPS_PROVIDER_CLASS);
+        } catch (ClassNotFoundException cnf) {
+            log.warn("Not able to get Bouncy Castle provider: {}, try to get FIPS provider {}",
+                    BC_NON_FIPS_PROVIDER_CLASS, BC_FIPS_PROVIDER_CLASS);
+            // attempt to use the FIPS provider.
+            clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
+        }
+
+        Provider provider = (Provider) clazz.newInstance();
+        Security.addProvider(provider);
+        log.info("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
+        return provider;
+    }
+
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
             throws GeneralSecurityException {
         return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
@@ -244,7 +310,8 @@ public class SecurityUtility {
         }
     }
 
-    private static void setupClientAuthentication(SslContextBuilder builder, boolean requireTrustedClientCertOnConnect) {
+    private static void setupClientAuthentication(SslContextBuilder builder,
+        boolean requireTrustedClientCertOnConnect) {
         if (requireTrustedClientCertOnConnect) {
             builder.clientAuth(ClientAuth.REQUIRE);
         } else {
@@ -259,11 +326,11 @@ public class SecurityUtility {
         SslContextFactory sslCtxFactory = null;
         if (autoRefresh) {
             sslCtxFactory = new SslContextFactoryWithAutoRefresh(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                    tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, 0);
+                tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, 0);
         } else {
             sslCtxFactory = new SslContextFactory();
             SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                    tlsCertificateFilePath, tlsKeyFilePath);
+                tlsCertificateFilePath, tlsKeyFilePath);
             sslCtxFactory.setSslContext(sslCtx);
         }
         if (tlsRequireTrustedClientCertOnConnect) {
@@ -274,10 +341,9 @@ public class SecurityUtility {
         sslCtxFactory.setTrustAll(true);
         return sslCtxFactory;
     }
-    
+
     /**
-     * {@link SslContextFactory} that auto-refresh SSLContext
-     *
+     * {@link SslContextFactory} that auto-refresh SSLContext.
      */
     static class SslContextFactoryWithAutoRefresh extends SslContextFactory {
 

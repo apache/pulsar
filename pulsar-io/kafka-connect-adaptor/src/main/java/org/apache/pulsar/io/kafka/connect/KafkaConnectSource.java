@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
+
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,6 +68,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private CompletableFuture<Void> flushFuture;
     private OffsetBackingStore offsetStore;
     private OffsetStorageReader offsetReader;
+    private String topicNamespace;
     @Getter
     private OffsetStorageWriter offsetWriter;
     // number of outstandingRecords that have been polled but not been acked
@@ -86,6 +89,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             .getDeclaredConstructor()
             .newInstance();
 
+        topicNamespace = stringConfig.get(TOPIC_NAMESPACE_CONFIG);
+
         // initialize the key and value converter
         keyConverter = ((Class<? extends Converter>)Class.forName(stringConfig.get(PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG)))
             .asSubclass(Converter.class)
@@ -100,7 +105,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         valueConverter.configure(config, false);
 
         offsetStore = new PulsarOffsetBackingStore();
-        offsetStore.configure(new PulsarKafkaWorkerConfig(stringConfig));
+        PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(stringConfig);
+        offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();
 
         offsetReader = new OffsetStorageReaderImpl(
@@ -116,7 +122,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             valueConverter
         );
 
-        sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader);
+        sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader, pulsarKafkaWorkerConfig);
 
         sourceTask.initialize(sourceTaskContext);
         sourceTask.start(stringConfig);
@@ -136,7 +142,13 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 currentBatch = recordList.iterator();
             }
             if (currentBatch.hasNext()) {
-                return processSourceRecord(currentBatch.next());
+                Record<KeyValue<byte[], byte[]>> processRecord = processSourceRecord(currentBatch.next());
+                if (processRecord.getValue().getValue() == null) {
+                    outstandingRecords.decrementAndGet();
+                    continue;
+                } else {
+                    return processRecord;
+                }
             } else {
                 // there is no records any more, then waiting for the batch to complete writing
                 // to sink and the offsets are committed as well, then do next round read.
@@ -181,9 +193,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             byte[] valueBytes = valueConverter.fromConnectData(
                 srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
-            if (keyBytes != null) {
-                this.key = Optional.of(Base64.getEncoder().encodeToString(keyBytes));
-            }
+            this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
             this.value = new KeyValue(keyBytes, valueBytes);
 
             this.topicName = Optional.of(srcRecord.topic());
@@ -193,7 +203,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 .stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
-            this.destinationTopic = Optional.of(srcRecord.topic());
+            this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
         }
 
         @Override

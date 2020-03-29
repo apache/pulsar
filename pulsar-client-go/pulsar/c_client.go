@@ -194,9 +194,9 @@ func (client *client) CreateProducer(options ProducerOptions) (Producer, error) 
 	c := make(chan struct {
 		Producer
 		error
-	})
+	}, 1)
 
-	client.CreateProducerAsync(options, func(producer Producer, err error) {
+	client.CreateProducerAsync(options, nil, func(producer Producer, err error) {
 		c <- struct {
 			Producer
 			error
@@ -208,17 +208,37 @@ func (client *client) CreateProducer(options ProducerOptions) (Producer, error) 
 	return res.Producer, res.error
 }
 
-func (client *client) CreateProducerAsync(options ProducerOptions, callback func(producer Producer, err error)) {
-	createProducerAsync(client, options, callback)
+func (client *client) CreateProducerWithSchema(options ProducerOptions, schema Schema) (Producer, error) {
+	// Create is implemented on async create with a channel to wait for
+	// completion without blocking the real thread
+	c := make(chan struct {
+		Producer
+		error
+	}, 1)
+
+	client.CreateProducerAsync(options, schema, func(producer Producer, err error) {
+		c <- struct {
+			Producer
+			error
+		}{producer, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.Producer, res.error
+}
+
+func (client *client) CreateProducerAsync(options ProducerOptions, schema Schema, callback func(producer Producer, err error)) {
+	createProducerAsync(client, schema, options, callback)
 }
 
 func (client *client) Subscribe(options ConsumerOptions) (Consumer, error) {
 	c := make(chan struct {
 		Consumer
 		error
-	})
+	}, 1)
 
-	client.SubscribeAsync(options, func(consumer Consumer, err error) {
+	client.SubscribeAsync(options, nil, func(consumer Consumer, err error) {
 		c <- struct {
 			Consumer
 			error
@@ -230,17 +250,53 @@ func (client *client) Subscribe(options ConsumerOptions) (Consumer, error) {
 	return res.Consumer, res.error
 }
 
-func (client *client) SubscribeAsync(options ConsumerOptions, callback func(Consumer, error)) {
-	subscribeAsync(client, options, callback)
+func (client *client) SubscribeWithSchema(options ConsumerOptions, schema Schema) (Consumer, error) {
+	c := make(chan struct {
+		Consumer
+		error
+	}, 1)
+
+	client.SubscribeAsync(options, schema, func(consumer Consumer, err error) {
+		c <- struct {
+			Consumer
+			error
+		}{consumer, err}
+		close(c)
+	})
+
+	res := <-c
+	return res.Consumer, res.error
+}
+
+func (client *client) SubscribeAsync(options ConsumerOptions, schema Schema, callback func(Consumer, error)) {
+	subscribeAsync(client, options, schema, callback)
 }
 
 func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
 	c := make(chan struct {
 		Reader
 		error
+	}, 1)
+
+	client.CreateReaderAsync(options, nil, func(reader Reader, err error) {
+		c <- struct {
+			Reader
+			error
+		}{reader, err}
+		close(c)
 	})
 
-	client.CreateReaderAsync(options, func(reader Reader, err error) {
+	res := <-c
+	return res.Reader, res.error
+}
+
+func (client *client) CreateReaderWithSchema(options ReaderOptions, schema Schema) (Reader, error) {
+	c := make(chan struct {
+		Reader
+		error
+	}, 1)
+
+	client.CreateReaderAsync(options, schema, func(reader Reader, err error) {
 		c <- struct {
 			Reader
 			error
@@ -271,15 +327,15 @@ func pulsarGetTopicPartitionsCallbackProxy(res C.pulsar_result, cPartitions *C.p
 	}
 }
 
-func (client *client) CreateReaderAsync(options ReaderOptions, callback func(Reader, error)) {
-	createReaderAsync(client, options, callback)
+func (client *client) CreateReaderAsync(options ReaderOptions, schema Schema, callback func(Reader, error)) {
+	createReaderAsync(client, schema, options, callback)
 }
 
 func (client *client) TopicPartitions(topic string) ([]string, error) {
 	c := make(chan struct {
 		partitions []string
 		err        error
-	})
+	}, 1)
 
 	topicPartitionsAsync(client, topic, func(partitions []string, err error) {
 		c <- struct {

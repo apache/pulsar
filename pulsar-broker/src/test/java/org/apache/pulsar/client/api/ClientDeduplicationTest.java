@@ -20,7 +20,10 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.annotations.AfterClass;
@@ -150,6 +153,111 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         // Repeat the messages and verify they're not received by consumer
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
+
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerDeduplicationWithDiscontinuousSequenceId() throws Exception {
+        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+
+        // Set infinite timeout
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("my-producer-name").enableBatching(true).batchingMaxMessages(10).sendTimeout(0, TimeUnit.SECONDS);
+        Producer<byte[]> producer = producerBuilder.create();
+
+        assertEquals(producer.getLastSequenceId(), -1L);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+                .subscribe();
+
+        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(3).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(5).sendAsync();
+
+        producer.flush();
+
+        // Repeat the messages and verify they're not received by consumer
+        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(4).sendAsync();
+        producer.newMessage().value("my-message-3".getBytes()).sequenceId(6).sendAsync();
+        producer.flush();
+
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> msg = consumer.receive();
+            assertEquals(new String(msg.getData()), "my-message-" + i);
+            consumer.acknowledge(msg);
+        }
+
+        // No other messages should be received
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        producer.close();
+        // Kill and restart broker
+        restartBroker();
+
+        producer = producerBuilder.create();
+        assertEquals(producer.getLastSequenceId(), 6L);
+
+        // Repeat the messages and verify they're not received by consumer
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
+        producer.flush();
+
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testProducerDeduplicationNonBatchAsync() throws Exception {
+        String topic = "persistent://my-property/my-ns/testProducerDeduplicationNonBatchAsync";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+
+        // Set infinite timeout
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("my-producer-name").enableBatching(false).sendTimeout(0, TimeUnit.SECONDS);
+        Producer<byte[]> producer = producerBuilder.create();
+
+        assertEquals(producer.getLastSequenceId(), -1L);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+                .subscribe();
+
+        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(3).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(5).sendAsync();
+
+        // Repeat the messages and verify they're not received by consumer
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
+        producer.close();
+
+        for (int i = 0; i < 3; i++) {
+            Message<byte[]> msg = consumer.receive();
+            assertEquals(new String(msg.getData()), "my-message-" + i);
+            consumer.acknowledge(msg);
+        }
+
+        // No other messages should be received
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        // Kill and restart broker
+        restartBroker();
+
+        producer = producerBuilder.create();
+        assertEquals(producer.getLastSequenceId(), 5L);
+
+        // Repeat the messages and verify they're not received by consumer
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
 
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);

@@ -29,9 +29,11 @@ import java.util.Optional;
 
 public class DataGeneratorSource implements Source<Person> {
 
+    private Fairy fairy;
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-
+       this.fairy = Fairy.create();
     }
 
     @Override
@@ -45,7 +47,7 @@ public class DataGeneratorSource implements Source<Person> {
 
             @Override
             public Person getValue() {
-                return new Person(Fairy.create().person());
+                return new Person(fairy.person());
             }
         };
     }

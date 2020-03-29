@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.batch.connectors.pulsar.PulsarOutputFormat;
 import org.apache.flink.util.Collector;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 /**
  * Implements a batch word-count program on Pulsar topic by writing Flink DataSet.
@@ -60,7 +61,7 @@ public class FlinkPulsarBatchSinkExample {
 
         // create PulsarOutputFormat instance
         final OutputFormat pulsarOutputFormat =
-                new PulsarOutputFormat(serviceUrl, topic, wordWithCount -> wordWithCount.toString().getBytes());
+                new PulsarOutputFormat(serviceUrl, topic, new AuthenticationDisabled(), wordWithCount -> wordWithCount.toString().getBytes());
 
         // create DataSet
         DataSet<String> textDS = env.fromElements(EINSTEIN_QUOTE);

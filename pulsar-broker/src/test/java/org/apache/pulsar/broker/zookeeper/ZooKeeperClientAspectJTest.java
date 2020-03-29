@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.zookeeper;
 
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
+import com.google.common.util.concurrent.AtomicDouble;
 
 import java.io.Closeable;
 import java.io.File;
@@ -33,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -46,6 +49,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
+import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -61,13 +65,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.util.concurrent.AtomicDouble;
-
 public class ZooKeeperClientAspectJTest {
 
     private ZookeeperServerTest localZkS;
     private ZooKeeper localZkc;
-    private final int LOCAL_ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final long ZOOKEEPER_SESSION_TIMEOUT_MILLIS = 2000;
     private final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
 
@@ -83,7 +84,8 @@ public class ZooKeeperClientAspectJTest {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         try {
             ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
-            CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
+            CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                    SessionType.ReadWrite,
                     (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
             localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
             assertTrue(localZkc.getState().isConnected());
@@ -97,9 +99,34 @@ public class ZooKeeperClientAspectJTest {
         }
     }
 
+    @Test
+    public void testInitZk() throws Exception {
+        try {
+            ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+            CompletableFuture<ZooKeeper> zkFuture = zkfactory.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                    SessionType.ReadWrite,
+                    (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
+            localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            assertTrue(localZkc.getState().isConnected());
+            assertNotEquals(localZkc.getState(), States.CONNECTEDREADONLY);
+
+            String connection = "127.0.0.1:" + localZkS.getZookeeperPort() + "/prefix";
+            ZooKeeper chrootZkc = PulsarClusterMetadataSetup.initZk(connection, (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
+            assertTrue(chrootZkc.getState().isConnected());
+            assertNotEquals(chrootZkc.getState(), States.CONNECTEDREADONLY);
+            chrootZkc.close();
+
+            assertNotNull(localZkc.exists("/prefix", false));
+        } finally {
+            if (localZkc != null) {
+                localZkc.close();
+            }
+        }
+    }
+
     @BeforeMethod
     void setup() throws Exception {
-        localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
+        localZkS = new ZookeeperServerTest(0);
         localZkS.start();
     }
 
@@ -117,7 +144,8 @@ public class ZooKeeperClientAspectJTest {
     void testZkClientAspectJTrigger() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
-        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
+        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
         try {
@@ -179,7 +207,8 @@ public class ZooKeeperClientAspectJTest {
     public void testZkOpStatsMetrics() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
-        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
+        CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + localZkS.getZookeeperPort(),
+                SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 
@@ -267,7 +296,7 @@ public class ZooKeeperClientAspectJTest {
         return null;
     }
 
-    class ZookeeperServerTest implements Closeable {
+    static class ZookeeperServerTest implements Closeable {
         private final File zkTmpDir;
         private ZooKeeperServer zks;
         private NIOServerCnxnFactory serverFactory;
@@ -310,6 +339,10 @@ public class ZooKeeperClientAspectJTest {
             zks.shutdown();
             serverFactory.shutdown();
             zkTmpDir.delete();
+        }
+
+        public int getZookeeperPort() {
+            return serverFactory.getLocalPort();
         }
 
         private final Logger log = LoggerFactory.getLogger(ZookeeperServerTest.class);

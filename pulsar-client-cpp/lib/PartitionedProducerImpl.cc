@@ -126,7 +126,7 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
         LOG_ERROR("Got Invalid Partition for message from Router Policy, Partition - " << partition);
         // change me: abort or notify failure in callback?
         //          change to appropriate error if callback
-        callback(ResultUnknownError, msg);
+        callback(ResultUnknownError, msg.getMessageId());
         return;
     }
     // find a producer for that partition, index should start from 0

@@ -21,7 +21,7 @@ package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
+import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.File;
@@ -31,10 +31,6 @@ import java.util.Map;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class JdbcSinkConfig implements Serializable {
 
@@ -43,12 +39,14 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "Username used to connect to the database specified by `jdbcUrl`"
     )
     private String userName;
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "Password used to connect to the database specified by `jdbcUrl`"
     )
     private String password;
@@ -64,7 +62,19 @@ public class JdbcSinkConfig implements Serializable {
         help = "The name of the table this connector writes messages to"
     )
     private String tableName;
-
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Fields used in update events. A comma-separated list."
+    )
+    private String nonKey;
+    // Optional
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Fields used in where condition of update and delete Events. A comma-separated list."
+    )
+    private String key;
     // Optional
     @FieldDoc(
         required = false,

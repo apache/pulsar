@@ -18,19 +18,26 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.security.Key;
 
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.api.AuthData;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -46,10 +53,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // The token's claim that corresponds to the "role" string
     final static String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
+    // When using public key's, the algorithm of the key
+    final static String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
+
     final static String TOKEN = "token";
 
     private Key validationKey;
     private String roleClaim;
+    private SignatureAlgorithm publicKeyAlg;
 
     @Override
     public void close() throws IOException {
@@ -57,7 +68,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+        // we need to fetch the algorithm before we fetch the key
+        this.publicKeyAlg = getPublicKeyAlgType(config);
         this.validationKey = getValidationKey(config);
         this.roleClaim = getTokenRoleClaim(config);
     }
@@ -73,13 +86,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         String token = getToken(authData);
 
         // Parse Token by validating
-        return parseToken(token);
+        return getPrincipal(authenticateToken(token));
     }
 
-    private String getToken(AuthenticationDataSource authData) throws AuthenticationException {
+    @Override
+    public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
+        return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
+    }
+
+    public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
-            return authData.getCommandData();
+            return validateToken(authData.getCommandData());
         } else if (authData.hasDataFromHttp()) {
             // Authentication HTTP request. The format here should be compliant to RFC-6750
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
@@ -96,7 +115,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String validateToken(final String token) throws AuthenticationException {
+    private static String validateToken(final String token) throws AuthenticationException {
         if (StringUtils.isNotBlank(token)) {
             return token;
         } else {
@@ -104,17 +123,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String parseToken(final String token) throws AuthenticationException {
+    @SuppressWarnings("unchecked")
+    private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            @SuppressWarnings("unchecked")
-            Jwt<?, Claims> jwt = Jwts.parser()
+            return Jwts.parser()
                     .setSigningKey(validationKey)
                     .parse(token);
-
-            return jwt.getBody().get(roleClaim, String.class);
         } catch (JwtException e) {
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
+    }
+
+    private String getPrincipal(Jwt<?, Claims> jwt) {
+        return jwt.getBody().get(roleClaim, String.class);
     }
 
     /**
@@ -130,7 +151,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
             final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
-            return AuthTokenUtils.decodePublicKey(validationKey);
+            return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
             throw new IOException("No secret key was provided for token authentication");
         }
@@ -142,6 +163,78 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return (String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM);
         } else {
             return Claims.SUBJECT;
+        }
+    }
+
+    private SignatureAlgorithm getPublicKeyAlgType(ServiceConfiguration conf) throws IllegalArgumentException {
+        if (conf.getProperty(CONF_TOKEN_PUBLIC_ALG) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG))) {
+            String alg = (String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG);
+            try {
+                return SignatureAlgorithm.forName(alg);
+            } catch (SignatureException ex) {
+                throw new IllegalArgumentException("invalid algorithm provided " + alg, ex);
+            }
+        } else {
+            return SignatureAlgorithm.RS256;
+        }
+    }
+
+    private static final class TokenAuthenticationState implements AuthenticationState {
+        private final AuthenticationProviderToken provider;
+        private AuthenticationDataSource authenticationDataSource;
+        private Jwt<?, Claims> jwt;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
+        private long expiration;
+
+        TokenAuthenticationState(
+                AuthenticationProviderToken provider,
+                AuthData authData,
+                SocketAddress remoteAddress,
+                SSLSession sslSession) throws AuthenticationException {
+            this.provider = provider;
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
+            this.authenticate(authData);
+        }
+
+        @Override
+        public String getAuthRole() throws AuthenticationException {
+            return provider.getPrincipal(jwt);
+        }
+
+        @Override
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
+            String token = new String(authData.getBytes(), UTF_8);
+
+            this.jwt = provider.authenticateToken(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            if (jwt.getBody().getExpiration() != null) {
+                this.expiration = jwt.getBody().getExpiration().getTime();
+            } else {
+                // Disable expiration
+                this.expiration = Long.MAX_VALUE;
+            }
+
+            // There's no additional auth stage required
+            return null;
+        }
+
+        @Override
+        public AuthenticationDataSource getAuthDataSource() {
+            return authenticationDataSource;
+        }
+
+        @Override
+        public boolean isComplete() {
+            // The authentication of tokens is always done in one single stage
+            return true;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return expiration < System.currentTimeMillis();
         }
     }
 }

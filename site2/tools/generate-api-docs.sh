@@ -18,7 +18,17 @@
 # under the License.
 #
 
+SCRIPT_DIR=`dirname "$0"`
+cd $SCRIPT_DIR
+
+ROOT_DIR=$(git rev-parse --show-toplevel)
+VERSION=`${ROOT_DIR}/src/get-project-version.py`
+
 set -x -e
+
+cd ${ROOT_DIR}
+mkdir -p site2/website/static/swagger/${VERSION}
+cp pulsar-broker/target/docs/*.json site2/website/static/swagger/${VERSION}/
 
 SCRIPT_DIR=`dirname "$0"`
 

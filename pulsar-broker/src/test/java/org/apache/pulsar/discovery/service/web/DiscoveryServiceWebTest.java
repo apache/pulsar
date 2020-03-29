@@ -21,7 +21,13 @@ package org.apache.pulsar.discovery.service.web;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 
@@ -34,7 +40,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.discovery.service.server.ServerManager;
@@ -46,11 +51,6 @@ import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 
 public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
@@ -78,9 +78,8 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
     @Test
     public void testRedirectUrlWithServerStarted() throws Exception {
         // 1. start server
-        int port = PortManager.nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
         Map<String, String> params = new TreeMap<>();

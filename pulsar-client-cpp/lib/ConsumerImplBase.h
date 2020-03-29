@@ -48,10 +48,12 @@ class ConsumerImplBase {
     virtual Result pauseMessageListener() = 0;
     virtual Result resumeMessageListener() = 0;
     virtual void redeliverUnacknowledgedMessages() = 0;
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) = 0;
     virtual const std::string& getName() const = 0;
     virtual int getNumOfPrefetchedMessages() const = 0;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback) = 0;
     virtual void negativeAcknowledge(const MessageId& msgId) = 0;
 };
 }  // namespace pulsar

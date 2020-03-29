@@ -19,18 +19,20 @@
 package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.avro.Conversions;
+import org.apache.avro.data.TimeConversions;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.impl.schema.reader.AvroReader;
+import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -38,72 +40,78 @@ import java.util.Map;
  */
 @Slf4j
 public class AvroSchema<T> extends StructSchema<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
 
-    private ReflectDatumWriter<T> datumWriter;
-    private ReflectDatumReader<T> reader;
-    private BinaryEncoder encoder;
-    private ByteArrayOutputStream byteArrayOutputStream;
+    // the aim to fix avro's bug
+    // https://issues.apache.org/jira/browse/AVRO-1891 bug address explain
+    // fix the avro logical type read and write
+    static {
+        ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
 
-    private static final ThreadLocal<BinaryDecoder> decoders =
-            new ThreadLocal<>();
+        reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
 
-    private AvroSchema(org.apache.avro.Schema schema,
-                       Map<String, String> properties) {
-        super(
-            SchemaType.AVRO,
-            schema,
-            properties);
+        ReflectData reflectDataNotAllowNull = ReflectData.get();
 
-        this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
-        this.datumWriter = new ReflectDatumWriter<>(this.schema);
-        this.reader = new ReflectDatumReader<>(this.schema);
+        reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+    }
+
+    private AvroSchema(SchemaInfo schemaInfo) {
+        super(schemaInfo);
+        setReader(new AvroReader<>(schema));
+        setWriter(new AvroWriter<>(schema));
     }
 
     @Override
-    public synchronized byte[] encode(T message) {
-        try {
-            datumWriter.write(message, this.encoder);
-            this.encoder.flush();
-            return this.byteArrayOutputStream.toByteArray();
-        } catch (Exception e) {
-            throw new SchemaSerializationException(e);
-        } finally {
-            this.byteArrayOutputStream.reset();
-        }
+    public boolean supportSchemaVersioning() {
+        return true;
     }
 
     @Override
-    public T decode(byte[] bytes) {
-        try {
-            BinaryDecoder decoderFromCache = decoders.get();
-            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
-            if (decoderFromCache == null) {
-                decoders.set(decoder);
-            }
-            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
-        } catch (IOException e) {
-            throw new SchemaSerializationException(e);
+    public Schema<T> clone() {
+        Schema<T> schema = new AvroSchema<>(schemaInfo);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
         }
+        return schema;
+    }
+
+    public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
-        return new AvroSchema<>(createAvroSchema(pojo), Collections.emptyMap());
+        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).build());
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        return new AvroSchema<>(createAvroSchema(pojo), properties);
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
     }
 
-    /**
-     * Create an Avro schema based on provided schema definition.
-     *
-     * @param schemaDefinition avro schema definition
-     * @param properties schema properties
-     * @return avro schema instance
-     */
-    public static <T> AvroSchema<T> of(String schemaDefinition, Map<String, String> properties) {
-        return new AvroSchema<>(parseAvroSchema(schemaDefinition), properties);
+    @Override
+    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
+        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
+        if (schemaInfo != null) {
+            log.info("Load schema reader for version({}), schema is : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
+                schemaInfo.getSchemaDefinition());
+            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
+        } else {
+            log.warn("No schema found for version({}), use latest schema : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
+                this.schemaInfo.getSchemaDefinition());
+            return reader;
+        }
     }
 
 }

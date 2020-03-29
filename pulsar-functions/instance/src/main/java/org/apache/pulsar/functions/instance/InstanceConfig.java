@@ -19,10 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
@@ -30,16 +27,13 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
  * passed to run functions.
  */
 @Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
+    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
 

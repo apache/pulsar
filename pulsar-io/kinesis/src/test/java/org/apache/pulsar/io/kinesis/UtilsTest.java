@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.kinesis;
 
 import static java.util.Base64.getDecoder;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import com.google.gson.Gson;
 
@@ -39,7 +41,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
@@ -82,17 +83,17 @@ public class UtilsTest {
 
         // deserialize from json and assert
         KinesisMessageResponse kinesisJsonResponse = deSerializeRecordFromJson(json);
-        Assert.assertEquals(data, getDecoder().decode(kinesisJsonResponse.getPayloadBase64()));
+        assertEquals(data, getDecoder().decode(kinesisJsonResponse.getPayloadBase64()));
         EncryptionCtx encryptionCtxDeser = kinesisJsonResponse.getEncryptionCtx();
-        Assert.assertEquals(key1Value.getBytes(),
+        assertEquals(key1Value.getBytes(),
                 getDecoder().decode(encryptionCtxDeser.getKeysMapBase64().get(keyNames[0])));
-        Assert.assertEquals(key2Value.getBytes(),
+        assertEquals(key2Value.getBytes(),
                 getDecoder().decode(encryptionCtxDeser.getKeysMapBase64().get(keyNames[1])));
-        Assert.assertEquals(param.getBytes(), getDecoder().decode(encryptionCtxDeser.getEncParamBase64()));
-        Assert.assertEquals(algo, encryptionCtxDeser.getAlgorithm());
-        Assert.assertEquals(metadata1, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[0]));
-        Assert.assertEquals(metadata2, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[1]));
-        Assert.assertEquals(properties, kinesisJsonResponse.getProperties());
+        assertEquals(param.getBytes(), getDecoder().decode(encryptionCtxDeser.getEncParamBase64()));
+        assertEquals(algo, encryptionCtxDeser.getAlgorithm());
+        assertEquals(metadata1, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[0]));
+        assertEquals(metadata2, encryptionCtxDeser.getKeysMetadataMap().get(keyNames[1]));
+        assertEquals(properties, kinesisJsonResponse.getProperties());
 
     }
 
@@ -126,7 +127,7 @@ public class UtilsTest {
             Message kinesisJsonResponse = Message.getRootAsMessage(flatBuffer);
             byte[] fbPayloadBytes = new byte[kinesisJsonResponse.payloadLength()];
             kinesisJsonResponse.payloadAsByteBuffer().get(fbPayloadBytes);
-            Assert.assertEquals(data, fbPayloadBytes);
+            assertEquals(data, fbPayloadBytes);
 
             if(isEncryption) {
                 org.apache.pulsar.io.kinesis.fbs.EncryptionCtx encryptionCtxDeser = kinesisJsonResponse.encryptionCtx();
@@ -153,17 +154,17 @@ public class UtilsTest {
                 byte[] paramBytes = new byte[encryptionCtxDeser.paramLength()];
                 encryptionCtxDeser.paramAsByteBuffer().get(paramBytes);
 
-                Assert.assertEquals(totalKeys, 2);
-                Assert.assertEquals(batchSize, fbBatchSize);
-                Assert.assertEquals(isBathcMessage, true);
-                Assert.assertEquals(compressionMsgSize, fbCompressionMsgSize);
-                Assert.assertEquals(keyValues[0], fbKeyValueResult.get(keyNames[0]));
-                Assert.assertEquals(keyValues[1], fbKeyValueResult.get(keyNames[1]));
-                Assert.assertEquals(metadata1, fbKeyMetadataResult.get(keyNames[0]));
-                Assert.assertEquals(metadata2, fbKeyMetadataResult.get(keyNames[1]));
-                Assert.assertEquals(compressionType, org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4);
-                Assert.assertEquals(param.getBytes(), paramBytes);
-                Assert.assertEquals(algo, encryptionCtxDeser.algo());
+                assertEquals(totalKeys, 2);
+                assertEquals(batchSize, fbBatchSize);
+                assertTrue(isBathcMessage);
+                assertEquals(compressionMsgSize, fbCompressionMsgSize);
+                assertEquals(keyValues[0], fbKeyValueResult.get(keyNames[0]));
+                assertEquals(keyValues[1], fbKeyValueResult.get(keyNames[1]));
+                assertEquals(metadata1, fbKeyMetadataResult.get(keyNames[0]));
+                assertEquals(metadata2, fbKeyMetadataResult.get(keyNames[1]));
+                assertEquals(compressionType, org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4);
+                assertEquals(param.getBytes(), paramBytes);
+                assertEquals(algo, encryptionCtxDeser.algo());
             }
 
             Map<String, String> fbproperties = Maps.newHashMap();
@@ -171,7 +172,7 @@ public class UtilsTest {
                 KeyValue property = kinesisJsonResponse.properties(i);
                 fbproperties.put(property.key(), property.value());
             }
-            Assert.assertEquals(properties, fbproperties);
+            assertEquals(properties, fbproperties);
 
         }
     }

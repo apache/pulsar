@@ -18,8 +18,13 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertNotSame;
+import static junit.framework.Assert.assertSame;
+import static junit.framework.Assert.assertTrue;
+
 import com.google.common.collect.Maps;
-import junit.framework.Assert;
+import java.util.Map;
 import org.apache.flume.Channel;
 import org.apache.flume.ChannelException;
 import org.apache.flume.Context;
@@ -35,8 +40,6 @@ import org.apache.flume.sink.AbstractSink;
 import org.apache.flume.source.AbstractSource;
 import org.junit.Test;
 
-import java.util.Map;
-
 public class TestAbstractConfigurationProvider {
 
     @Test
@@ -48,11 +51,11 @@ public class TestAbstractConfigurationProvider {
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
-        Assert.assertTrue(channel1 instanceof DisposableChannel);
+        assertTrue(channel1 instanceof DisposableChannel);
         MaterializedConfiguration config2 = provider.getConfiguration();
         Channel channel2 = config2.getChannels().values().iterator().next();
-        Assert.assertTrue(channel2 instanceof DisposableChannel);
-        Assert.assertNotSame(channel1, channel2);
+        assertTrue(channel2 instanceof DisposableChannel);
+        assertNotSame(channel1, channel2);
     }
 
     @Test
@@ -65,13 +68,13 @@ public class TestAbstractConfigurationProvider {
 
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
-        Assert.assertTrue(channel1 instanceof RecyclableChannel);
+        assertTrue(channel1 instanceof RecyclableChannel);
 
         MaterializedConfiguration config2 = provider.getConfiguration();
         Channel channel2 = config2.getChannels().values().iterator().next();
-        Assert.assertTrue(channel2 instanceof RecyclableChannel);
+        assertTrue(channel2 instanceof RecyclableChannel);
 
-        Assert.assertSame(channel1, channel2);
+        assertSame(channel1, channel2);
     }
 
     @Test
@@ -84,13 +87,13 @@ public class TestAbstractConfigurationProvider {
 
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
-        Assert.assertTrue(channel1 instanceof UnspecifiedChannel);
+        assertTrue(channel1 instanceof UnspecifiedChannel);
 
         MaterializedConfiguration config2 = provider.getConfiguration();
         Channel channel2 = config2.getChannels().values().iterator().next();
-        Assert.assertTrue(channel2 instanceof UnspecifiedChannel);
+        assertTrue(channel2 instanceof UnspecifiedChannel);
 
-        Assert.assertSame(channel1, channel2);
+        assertSame(channel1, channel2);
     }
 
     @Test
@@ -106,19 +109,19 @@ public class TestAbstractConfigurationProvider {
                 new MemoryConfigurationProvider(agentName, propertiesReusable);
         MaterializedConfiguration config1 = provider.getConfiguration();
         Channel channel1 = config1.getChannels().values().iterator().next();
-        Assert.assertTrue(channel1 instanceof RecyclableChannel);
+        assertTrue(channel1 instanceof RecyclableChannel);
 
         provider.setProperties(propertiesDispoable);
         MaterializedConfiguration config2 = provider.getConfiguration();
         Channel channel2 = config2.getChannels().values().iterator().next();
-        Assert.assertTrue(channel2 instanceof DisposableChannel);
+        assertTrue(channel2 instanceof DisposableChannel);
 
         provider.setProperties(propertiesReusable);
         MaterializedConfiguration config3 = provider.getConfiguration();
         Channel channel3 = config3.getChannels().values().iterator().next();
-        Assert.assertTrue(channel3 instanceof RecyclableChannel);
+        assertTrue(channel3 instanceof RecyclableChannel);
 
-        Assert.assertNotSame(channel1, channel3);
+        assertNotSame(channel1, channel3);
     }
 
     @Test
@@ -132,9 +135,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 0);
-        Assert.assertTrue(config.getChannels().size() == 1);
-        Assert.assertTrue(config.getSinkRunners().size() == 1);
+        assertEquals(0, config.getSourceRunners().size());
+        assertEquals(1, config.getChannels().size());
+        assertEquals(1, config.getSinkRunners().size());
     }
 
     @Test
@@ -148,9 +151,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 0);
-        Assert.assertTrue(config.getChannels().size() == 0);
-        Assert.assertTrue(config.getSinkRunners().size() == 0);
+        assertEquals(0, config.getSourceRunners().size());
+        assertEquals(0, config.getChannels().size());
+        assertEquals(0, config.getSinkRunners().size());
     }
 
     @Test
@@ -164,9 +167,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 1);
-        Assert.assertTrue(config.getChannels().size() == 1);
-        Assert.assertTrue(config.getSinkRunners().size() == 0);
+        assertEquals(1, config.getSourceRunners().size());
+        assertEquals(1, config.getChannels().size());
+        assertEquals(0, config.getSinkRunners().size());
     }
 
     @Test
@@ -181,9 +184,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 0);
-        Assert.assertTrue(config.getChannels().size() == 0);
-        Assert.assertTrue(config.getSinkRunners().size() == 0);
+        assertEquals(0, config.getSourceRunners().size());
+        assertEquals(0, config.getChannels().size());
+        assertEquals(0, config.getSinkRunners().size());
     }
 
     @Test
@@ -204,36 +207,36 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 1);
-        Assert.assertTrue(config.getChannels().size() == 1);
-        Assert.assertTrue(config.getSinkRunners().size() == 1);
+        assertEquals(1, config.getSourceRunners().size());
+        assertEquals(1, config.getChannels().size());
+        assertEquals(1, config.getSinkRunners().size());
 
         properties.put(agentName + ".sources.source1.batchSize", "1001");
         properties.put(agentName + ".sinks.sink1.batch-size", "1000");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 0);
-        Assert.assertTrue(config.getChannels().size() == 1);
-        Assert.assertTrue(config.getSinkRunners().size() == 1);
+        assertEquals(0, config.getSourceRunners().size());
+        assertEquals(1, config.getChannels().size());
+        assertEquals(1, config.getSinkRunners().size());
 
         properties.put(agentName + ".sources.source1.batchSize", "1000");
         properties.put(agentName + ".sinks.sink1.batch-size", "1001");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 1);
-        Assert.assertTrue(config.getChannels().size() == 1);
-        Assert.assertTrue(config.getSinkRunners().size() == 0);
+        assertEquals(1, config.getSourceRunners().size());
+        assertEquals(1, config.getChannels().size());
+        assertEquals(0, config.getSinkRunners().size());
 
         properties.put(agentName + ".sources.source1.batchSize", "1001");
         properties.put(agentName + ".sinks.sink1.batch-size", "1001");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        Assert.assertTrue(config.getSourceRunners().size() == 0);
-        Assert.assertTrue(config.getChannels().size() == 0);
-        Assert.assertTrue(config.getSinkRunners().size() == 0);
+        assertEquals(0, config.getSourceRunners().size());
+        assertEquals(0, config.getChannels().size());
+        assertEquals(0, config.getSinkRunners().size());
     }
 
     private Map<String, String> getProperties(String agentName,

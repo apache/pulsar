@@ -19,9 +19,20 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.testng.annotations.Test;
 
 public class BuildersTest {
@@ -31,11 +42,11 @@ public class BuildersTest {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().ioThreads(10)
                 .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
 
-        assertEquals(clientBuilder.conf.isUseTls(), false);
+        assertFalse(clientBuilder.conf.isUseTls());
         assertEquals(clientBuilder.conf.getServiceUrl(), "pulsar://service:6650");
 
         ClientBuilderImpl b2 = (ClientBuilderImpl) clientBuilder.clone();
-        assertTrue(b2 != clientBuilder);
+        assertNotSame(b2, clientBuilder);
 
         b2.serviceUrl("pulsar://other-broker:6650");
 
@@ -46,27 +57,69 @@ public class BuildersTest {
     @Test
     public void enableTlsTest() {
         ClientBuilderImpl builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650");
-        assertEquals(builder.conf.isUseTls(), false);
+        assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("http://service:6650");
-        assertEquals(builder.conf.isUseTls(), false);
+        assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "http://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650");
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("https://service:6650");
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "https://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650").enableTls(true);
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650").enableTls(false);
-        assertEquals(builder.conf.isUseTls(), false);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
+    }
+
+    @Test
+    public void readerBuilderLoadConfTest() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        String topicName = "test_src";
+        MessageId messageId = new MessageIdImpl(1, 2, 3);
+        Map<String, Object> config = new HashMap<>();
+        config.put("topicName", topicName);
+        config.put("receiverQueueSize", 2000);
+        ReaderBuilderImpl<byte[]> builder = (ReaderBuilderImpl<byte[]>) client.newReader()
+            .startMessageId(messageId)
+            .loadConf(config);
+
+        Class<?> clazz = builder.getClass();
+        Field conf = clazz.getDeclaredField("conf");
+        conf.setAccessible(true);
+        Object obj = conf.get(builder);
+        assertTrue(obj instanceof ReaderConfigurationData);
+        assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
+        assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
+        client.close();
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.earliest).startMessageFromRollbackDuration(10, TimeUnit.HOURS).create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
+    public void shouldSetOneStartOpt() throws Exception {
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        try (Reader reader = client.newReader().topic("abc").create()) {
+            // no-op
+        } finally {
+            client.close();
+        }
     }
 }

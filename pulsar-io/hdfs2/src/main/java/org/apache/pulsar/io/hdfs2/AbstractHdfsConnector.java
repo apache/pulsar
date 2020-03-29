@@ -163,12 +163,7 @@ public abstract class AbstractHdfsConnector {
 
     protected FileSystem getFileSystemAsUser(final Configuration config, UserGroupInformation ugi) throws IOException {
         try {
-            return ugi.doAs(new PrivilegedExceptionAction<FileSystem>() {
-                @Override
-                public FileSystem run() throws Exception {
-                    return FileSystem.get(config);
-                }
-            });
+            return ugi.doAs((PrivilegedExceptionAction<FileSystem>) () -> FileSystem.get(config));
         } catch (InterruptedException e) {
             throw new IOException("Unable to create file system: " + e.getMessage());
         }
@@ -242,7 +237,7 @@ public abstract class AbstractHdfsConnector {
             if (clazz == null) {
                 try {
                     clazz = Class.forName(name, true, classLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     return null;
                 }
                 // two putters can race here, but they'll put the same class

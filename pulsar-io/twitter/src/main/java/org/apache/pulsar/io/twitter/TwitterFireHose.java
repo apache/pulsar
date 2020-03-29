@@ -39,6 +39,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -71,7 +72,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
+        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
         hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);
@@ -108,7 +109,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
                             // TODO:- Figure out the metrics story for connectors
                             consume(new TwitterRecord(tweet, config.getGuestimateTweetTime()));
                         } catch (Exception e) {
-                            LOG.error("Exception thrown: {}", e);
+                            LOG.error("Exception thrown", e);
                         }
                         return true;
                     }

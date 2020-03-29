@@ -122,7 +122,9 @@ class Footer extends React.Component {
     const issuesUrl = 'https://github.com/apache/pulsar/issues'
     const resourcesUrl = this.pageUrl('resources', this.props.language)
     const teamUrl = this.pageUrl('team', this.props.language)
+    const poweredByUrl = this.pageUrl('powered-by', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)
+    const codingUrl = this.pageUrl('coding-guide', this.props.language)
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;
@@ -133,6 +135,7 @@ class Footer extends React.Component {
           '<ul id="community-dropdown-items">' +
             '<li><a href="${contactUrl}">Contact</a></li>' +
             '<li><a href="${contributingUrl}">Contributing</a></li>' +
+            '<li><a href="${codingUrl}">Coding guide</a></li>' +
             '<li><a href="${eventsUrl}">Events</a></li>' +
             '<li><a href="${twitterUrl}" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="${wikiUrl}" target="_blank">Wiki &#x2750</a></li>' +
@@ -140,6 +143,7 @@ class Footer extends React.Component {
             '<li>&nbsp;</li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +
+            '<li><a href="${poweredByUrl}">Powered By</a></li>' +
           '</ul>' +
         '</div>' +
         '</li>';
@@ -164,22 +168,6 @@ class Footer extends React.Component {
         <section className="copyright">{this.props.config.copyright}</section>
         <span>
         <script dangerouslySetInnerHTML={{__html: communityMenuJs }} />
-        </span>
-        <span>
-        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'} />
-        <script dangerouslySetInnerHTML={{__html: `window.navfoo = new Pjax({
-            areas: [
-              // try to use the first query.
-              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
-              // fallback
-              'body'
-            ],
-            link: '.docsNavContainer:not(.docsSliderActive) a',
-            update: {
-              script: false,
-            }
-          });
-        `}}></script>
         </span>
       </footer>
     );
