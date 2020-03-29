@@ -1233,6 +1233,7 @@ flexible messaging model and an intuitive client API.</description>
           <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
+          <forkedProcessExitTimeoutInSeconds>5</forkedProcessExitTimeoutInSeconds>
           <properties>
             <property>
               <name>testRealAWS</name>
