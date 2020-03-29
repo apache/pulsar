@@ -61,7 +61,7 @@ jobs:
 
       - name: run unit tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn install -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest,!BlobStoreManagedLedgerOffloaderTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
+        run: mvn test -DfailIfNoTests=false '-Dtest=!KafkaProducerSimpleConsumerTest,!PrimitiveSchemaTest,!BlobStoreManagedLedgerOffloaderTest' -pl '!pulsar-broker,!pulsar-proxy,!pulsar-broker-auth-sasl,!pulsar-io/kafka-connect-adaptor,!tests/pulsar-storm-test'
 
       - name: package surefire artifacts
         if: failure()
