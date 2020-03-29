@@ -1021,19 +1021,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
+
+            if (offloadPolicies == null) {
+                offloadPolicies = new OffloadPolicies();
+                offloadPolicies.setManagedLedgerOffloadDriver(pulsar.getConfiguration().getManagedLedgerOffloadDriver());
+                offloadPolicies.setManagedLedgerOffloadThresholdInBytes(
+                        pulsar.getConfiguration().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes()
+                );
+                offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(
+                        pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()
+                );
+            }
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
-            policies.ifPresent(p -> {
-                    long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
-                    if (p.offload_deletion_lag_ms != null) {
-                        lag = p.offload_deletion_lag_ms;
-                    }
-                    long bytes = serviceConfig.getManagedLedgerOffloadAutoTriggerSizeThresholdBytes();
-                    if (p.offload_threshold != -1L) {
-                        bytes = p.offload_threshold;
-                    }
-                    managedLedgerConfig.setOffloadLedgerDeletionLag(lag, TimeUnit.MILLISECONDS);
-                    managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(bytes);
-                });
 
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
@@ -1186,9 +1185,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void forEachTopic(Consumer<Topic> consumer) {
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
-            if (topic.isPresent()) {
-                consumer.accept(topic.get());
-            }
+            topic.ifPresent(consumer::accept);
         });
     }
 
@@ -1691,29 +1688,27 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
         }
-        if (configCache.isPresent()) {
-            configCache.get().forEach((key, value) -> {
-                // validate field
-                if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
-                    if (!dynamicConfigurationMap.get(key).validator.test(value)) {
-                        log.error("Failed to validate dynamic config {} with value {}", key, value);
-                        throw new IllegalArgumentException(
-                                String.format("Failed to validate dynamic-config %s/%s", key, value));
-                    }
+        configCache.ifPresent(stringStringMap -> stringStringMap.forEach((key, value) -> {
+            // validate field
+            if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
+                if (!dynamicConfigurationMap.get(key).validator.test(value)) {
+                    log.error("Failed to validate dynamic config {} with value {}", key, value);
+                    throw new IllegalArgumentException(
+                            String.format("Failed to validate dynamic-config %s/%s", key, value));
                 }
-                // update field value
-                try {
-                    Field field = ServiceConfiguration.class.getDeclaredField(key);
-                    if (field != null && field.isAnnotationPresent(FieldContext.class)) {
-                        field.setAccessible(true);
-                        field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
-                        log.info("Successfully updated {}/{}", key, value);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
+            }
+            // update field value
+            try {
+                Field field = ServiceConfiguration.class.getDeclaredField(key);
+                if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                    field.setAccessible(true);
+                    field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
+                    log.info("Successfully updated {}/{}", key, value);
                 }
-            });
-        }
+            } catch (Exception e) {
+                log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
+            }
+        }));
         // register a listener: it updates field value and triggers appropriate registered field-listener only if
         // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
         dynamicConfigurationCache.registerListener(new ZooKeeperCacheListener<Map<String, String>>() {

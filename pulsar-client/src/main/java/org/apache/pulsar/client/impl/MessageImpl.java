@@ -81,7 +81,7 @@ public class MessageImpl<T> implements Message<T> {
     // Constructor for incoming message
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
                 ByteBuf payload, ClientCnx cnx, Schema<T> schema) {
-        this(topic, messageId, msgMetadata, payload, null, cnx, schema);
+        this(topic, messageId, msgMetadata, payload, Optional.empty(), cnx, schema);
     }
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,

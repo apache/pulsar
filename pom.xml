@@ -120,6 +120,11 @@ flexible messaging model and an intuitive client API.</description>
     <!-- examples -->
     <module>examples</module>
 
+    <!-- Bouncy Castle Provider loaders-->
+    <module>bouncy-castle</module>
+
+    <module>pulsar-client-messagecrypto-bc</module>
+
     <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
     <module>docker</module>
@@ -161,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
+    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.10.1</jackson.version>
     <jackson.databind.version>2.10.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
@@ -936,18 +942,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.aspectj</groupId>
         <artifactId>aspectjweaver</artifactId>
         <version>${aspectj.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-ext-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
       </dependency>
 
       <dependency>
