@@ -81,7 +81,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
         params.put("zookeeperServers", "");
         params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
