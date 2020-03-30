@@ -58,9 +58,13 @@ jobs:
           docker rmi $(docker images -q) -f
           df -h
 
-      - name: run install by skip tests
+      - name: build pulsar docker image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests
+
+      - name: build pulsar-all docker image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker -DskipTests
 
       - name: build pulsar image
         if: steps.docs.outputs.changed_only == 'no'
