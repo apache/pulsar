@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.bookkeeper.common.util.OrderedScheduler;

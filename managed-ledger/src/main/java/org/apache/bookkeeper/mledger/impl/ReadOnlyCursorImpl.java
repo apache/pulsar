@@ -68,6 +68,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
         return this.ledger.getLedgersInfo().get(this.readPosition.getLedgerId());
     }
 
+    @Override
     public long getNumberOfEntries(Range<PositionImpl> range) {
         return this.ledger.getNumberOfEntries(range);
     }

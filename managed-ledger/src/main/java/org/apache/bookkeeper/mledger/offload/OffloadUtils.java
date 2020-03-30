@@ -123,7 +123,7 @@ public final class OffloadUtils {
         for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
             builder.addSegmentBuilder()
                     .setFirstEntryId(e.getKey())
-                    .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
+                    .addAllEnsembleMember(e.getValue().stream().map(BookieSocketAddress::toString).collect(Collectors.toList()));
         }
 
         return builder.build().toByteArray();
