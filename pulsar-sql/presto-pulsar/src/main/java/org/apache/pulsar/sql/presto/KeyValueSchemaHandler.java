@@ -57,7 +57,7 @@ public class KeyValueSchemaHandler implements SchemaHandler {
                 kvSchemaInfo.getValue(), columnHandles);
         keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
     }
-    
+
     @VisibleForTesting
     KeyValueSchemaHandler(SchemaHandler keySchemaHandler,
                           SchemaHandler valueSchemaHandler,
