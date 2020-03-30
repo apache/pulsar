@@ -57,6 +57,7 @@ public class KeyValueSchemaHandler implements SchemaHandler {
                 kvSchemaInfo.getValue(), columnHandles);
         keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
     }
+    
     @VisibleForTesting
     KeyValueSchemaHandler(SchemaHandler keySchemaHandler,
                           SchemaHandler valueSchemaHandler,
@@ -67,29 +68,9 @@ public class KeyValueSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(ByteBuf payload) {
-        return null;
-    }
-
-    @Override
-    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
-        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(keyPayload, dataPayload);
-        Object keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey());
-        Object valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue());
-        return new KeyValue<>(keyObj, valueObj);
-    }
-
-    @Override
     public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
-        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(keyPayload, dataPayload);
         Object keyObj;
         Object valueObj;
-        keyObj = keySchemaHandler.deserialize(byteBufKeyValue.getKey(), schemaVersion);
-        valueObj = valueSchemaHandler.deserialize(byteBufKeyValue.getValue(), schemaVersion);
-        return new KeyValue<>(keyObj, valueObj);
-    }
-
-    private KeyValue<ByteBuf, ByteBuf> getKeyValueByteBuf(ByteBuf keyPayload, ByteBuf dataPayload) {
         ByteBuf keyByteBuf;
         ByteBuf valueByteBuf;
         if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {
@@ -103,7 +84,10 @@ public class KeyValueSchemaHandler implements SchemaHandler {
             keyByteBuf = keyPayload;
             valueByteBuf = dataPayload;
         }
-        return new KeyValue<>(keyByteBuf, valueByteBuf);
+
+        keyObj = keySchemaHandler.deserialize(keyByteBuf, schemaVersion);
+        valueObj = valueSchemaHandler.deserialize(valueByteBuf, schemaVersion);
+        return new KeyValue<>(keyObj, valueObj);
     }
 
     @Override

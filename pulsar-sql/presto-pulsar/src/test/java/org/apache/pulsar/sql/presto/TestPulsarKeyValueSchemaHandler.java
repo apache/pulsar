@@ -116,7 +116,7 @@ public class TestPulsarKeyValueSchemaHandler {
         );
 
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema1);
-        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
+        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue(), null);
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object), keyData);
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object), valueData);
     }
@@ -153,7 +153,7 @@ public class TestPulsarKeyValueSchemaHandler {
                 new KeyValueSchemaHandler(null, null, schema2.getSchemaInfo(), columnHandleList);
 
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema2);
-        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
+        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue(), null);
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object), keyData);
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
                 foo.getValue(columnHandleList.get(1).getName()));
@@ -210,7 +210,8 @@ public class TestPulsarKeyValueSchemaHandler {
         );
 
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema3);
-        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
+        Integer a = 1;
+        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue(), null);
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object).toString(),
                 boo.getValue(columnHandleList.get(0).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
@@ -263,7 +264,7 @@ public class TestPulsarKeyValueSchemaHandler {
         );
 
         KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema4);
-        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue());
+        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue(), null);
         Assert.assertEquals(keyValueSchemaHandler.extractField(0, object).toString(),
                 boo.getValue(columnHandleList.get(0).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
