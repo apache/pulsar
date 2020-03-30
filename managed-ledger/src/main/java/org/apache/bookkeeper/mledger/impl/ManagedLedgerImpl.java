@@ -180,6 +180,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex offloadMutex = new CallbackMutex();
     private final static CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.latest);
+    private final CallbackMutex deleteOffloadedMutex = new CallbackMutex();
+    private final static CompletableFuture<PositionImpl> NULL_DELETE_OFFLOADED_PROMISE = CompletableFuture
+            .completedFuture(PositionImpl.latest);
     private volatile LedgerHandle currentLedger;
     private long currentLedgerEntries = 0;
     private long currentLedgerSize = 0;
@@ -1376,6 +1379,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         trimConsumedLedgersInBackground();
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+        maybeDeleteOffloadedInBackground(NULL_DELETE_OFFLOADED_PROMISE);
 
         if (!pendingAddEntries.isEmpty()) {
             // Need to create a new ledger to write pending entries
@@ -1906,6 +1910,65 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private void maybeDeleteOffloadedInBackground(CompletableFuture<PositionImpl>  promise) {
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
+                && config.getLedgerOffloader().getOffloadPolicies() != null) {
+            if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedDeletionThresholdInBytes() >= 0) {
+                executor.executeOrdered(name, safeRun(() -> maybeDeleteOffloaded(promise)));
+            }
+        }
+    }
+
+    private void maybeDeleteOffloaded(CompletableFuture<PositionImpl> finalPromise) {
+        if (!deleteOffloadedMutex.tryLock()) {
+            scheduledExecutor.schedule(safeRun(() -> maybeDeleteOffloadedInBackground(finalPromise)),
+                    100, TimeUnit.MILLISECONDS);
+        } else {
+            CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
+            unlockingPromise.whenComplete((res, ex) -> {
+                offloadMutex.unlock();
+                if (ex != null) {
+                    finalPromise.completeExceptionally(ex);
+                } else {
+                    finalPromise.complete(res);
+                }
+            });
+
+            long threshold = config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedDeletionThresholdInBytes();
+            long sizeSummed = 0;
+            long toDeleteSize = 0;
+
+            ConcurrentLinkedDeque<LedgerInfo> toDelete = new ConcurrentLinkedDeque();
+
+            // go through ledger list from newest to oldest and build a list to delete offloaded in oldest to newest order
+            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                boolean alreadyOffloaded = e.getValue().hasOffloadContext()
+                        && e.getValue().getOffloadContext().getComplete();
+                if (alreadyOffloaded) {
+                    long size = e.getValue().getSize();
+                    sizeSummed += size;
+                    if (toDeleteSize > threshold) {
+                        toDeleteSize += size;
+                        toDelete.addFirst(e.getValue());
+                    }
+                }
+            }
+
+            if (toDelete.size() > 0) {
+                log.info("[{}] Going to automatically delete offloaded ledgers {}"
+                                + ", total size = {}, to delete = {}",
+                        name, toDelete.stream().map(l -> l.getLedgerId()).collect(Collectors.toList()),
+                        sizeSummed, toDeleteSize);
+            } else {
+                // offloadLoop will complete immediately with an empty list to offload
+                log.debug("[{}] Nothing to delete, total size = {}, threshold = {}",
+                        name, sizeSummed, threshold);
+            }
+
+            deleteOffloadedLoop(unlockingPromise, toDelete, PositionImpl.latest, Optional.empty());
+        }
+    }
+
     private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
         if (config.getRetentionTimeMillis() < 0) {
             // Negative retention time equates to infinite retention
@@ -1914,6 +1977,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         long elapsedMs = clock.millis() - ledgerTimestamp;
         return elapsedMs > config.getRetentionTimeMillis();
+    }
+
+    private boolean hasLedgerTieredStorageRetentionExpired(long ledgerTimestamp) {
+        if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedDeletionInMillis() < 0) {
+            // Negative retention time equates to infinite retention
+            return false;
+        }
+
+        long elapsedMs = clock.millis() - ledgerTimestamp;
+        return elapsedMs > config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedDeletionInMillis();
     }
 
     private boolean isLedgerRetentionOverSizeQuota() {
@@ -1935,6 +2008,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private boolean isDeleteOffloadedNeeded(OffloadContext offload) {
+        long elapsedMs = clock.millis() - offload.getTimestamp();
+        return offload.getComplete() && offload.getBookkeeperDeleted()
+                && elapsedMs > config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadedDeletionInMillis();
+    }
+
     /**
      * Checks whether there are ledger that have been fully consumed and deletes them.
      *
@@ -1949,6 +2028,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         List<LedgerInfo> ledgersToDelete = Lists.newArrayList();
         List<LedgerInfo> offloadedLedgersToDelete = Lists.newArrayList();
+        List<LedgerInfo> offloadedLedgersToDeleteFromTieredStorage = Lists.newArrayList();
         synchronized (this) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -1985,6 +2065,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
+                boolean tieredStorageExpired = hasLedgerTieredStorageRetentionExpired(ls.getTimestamp());
                 boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
                 if (log.isDebugEnabled()) {
@@ -2001,6 +2082,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else if (expired) {
                     log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
                     ledgersToDelete.add(ls);
+                } else if (tieredStorageExpired) {
+                    log.debug("[{}] Ledger {} has its retention in tiered storage expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    offloadedLedgersToDeleteFromTieredStorage.add(ls);
                 } else if (overRetentionQuota) {
                     log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
                     ledgersToDelete.add(ls);
@@ -2017,7 +2101,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
 
-            if (ledgersToDelete.isEmpty() && offloadedLedgersToDelete.isEmpty()) {
+            if (ledgersToDelete.isEmpty() && offloadedLedgersToDelete.isEmpty()
+                    && offloadedLedgersToDeleteFromTieredStorage.isEmpty()) {
                 trimmerMutex.unlock();
                 promise.complete(null);
                 return;
@@ -2050,6 +2135,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
                 ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
             }
+            for (LedgerInfo ls : offloadedLedgersToDeleteFromTieredStorage) {
+                ledgerCache.remove(ls.getLedgerId());
+                ledgers.remove(ls.getLedgerId());
+                NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
+                TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
+
+                entryCache.invalidateAllEntries(ls.getLedgerId());
+            }
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Updating of ledgers list after trimming", name);
@@ -2072,6 +2165,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
                                 ls.getSize());
                         asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
+                    }
+                    for (LedgerInfo ls : offloadedLedgersToDeleteFromTieredStorage) {
+                        log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+
+                        LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
+                        newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
+                        String driverName = OffloadUtils.getOffloadDriverName(ls,
+                                config.getLedgerOffloader().getOffloadDriverName());
+                        Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
+                                config.getLedgerOffloader().getOffloadDriverMetadata());
+                        OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
+
+                        UUID uuid = UUID.randomUUID();
+                        config.getLedgerOffloader().deleteOffloaded(ls.getLedgerId(), uuid, driverMetadata);
                     }
                     promise.complete(null);
                 }
@@ -2435,6 +2542,68 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private void deleteOffloadedLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToDelete,
+                             PositionImpl firstOffloaded, Optional<Throwable> firstError) {
+        LedgerInfo info = ledgersToDelete.poll();
+        if (info == null) {
+            if (firstError.isPresent()) {
+                promise.completeExceptionally(firstError.get());
+            } else {
+                promise.complete(firstOffloaded);
+            }
+        } else {
+            long ledgerId = info.getLedgerId();
+            UUID uuid = UUID.randomUUID();
+            Map<String, String> extraMetadata = ImmutableMap.of("ManagedLedgerName", name);
+
+            String driverName = config.getLedgerOffloader().getOffloadDriverName();
+            Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
+
+            prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
+                    .thenCompose((ignore) -> getLedgerHandle(ledgerId))
+                    .thenCompose(readHandle -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, extraMetadata))
+                    .thenCompose((ignore) -> {
+                        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                                TimeUnit.SECONDS.toHours(1)).limit(10),
+                                FAIL_ON_CONFLICT,
+                                () -> completeLedgerInfoForDeleteOffloaded(ledgerId, uuid),
+                                scheduledExecutor, name)
+                                .whenComplete((ignore2, exception) -> {
+                                    if (exception != null) {
+                                        cleanupOffloaded(
+                                                ledgerId, uuid,
+                                                driverName, driverMetadata,
+                                                "Metastore failure");
+                                    }
+                                });
+                    })
+                    .whenComplete((ignore, exception) -> {
+                        if (exception != null) {
+                            log.warn("[{}] Exception occurred during offloaded deletion", name, exception);
+
+                            PositionImpl newFirstOffloaded = PositionImpl.get(ledgerId, 0);
+                            if (newFirstOffloaded.compareTo(firstOffloaded) > 0) {
+                                newFirstOffloaded = firstOffloaded;
+                            }
+                            Optional<Throwable> errorToReport = firstError;
+                            synchronized (ManagedLedgerImpl.this) {
+                                // if the ledger doesn't exist anymore, ignore the error
+                                if (ledgers.containsKey(ledgerId)) {
+                                    errorToReport = Optional.of(firstError.orElse(exception));
+                                }
+                            }
+
+                            deleteOffloadedLoop(promise, ledgersToDelete,
+                                    newFirstOffloaded,
+                                    errorToReport);
+                        } else {
+                            ledgerCache.remove(ledgerId);
+                            deleteOffloadedLoop(promise, ledgersToDelete, firstOffloaded, firstError);
+                        }
+                    });
+        }
+    }
+
     interface LedgerInfoTransformation {
         LedgerInfo transform(LedgerInfo oldInfo) throws ManagedLedgerException;
     }
@@ -2503,6 +2672,46 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         }
+    }
+
+    private CompletableFuture<Void> prepareLedgerInfoForDeleteOffloaded(long ledgerId, UUID uuid, String offloadDriverName,
+                                                                  Map<String, String> offloadDriverMetadata) {
+        log.info("[{}] Preparing metadata to delete offloaded ledger {} with uuid {}", name, ledgerId, uuid);
+        return transformLedgerInfo(ledgerId,
+                (oldInfo) -> {
+                    if (oldInfo.getOffloadContext().hasUidMsb()) {
+                        UUID oldUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
+                                oldInfo.getOffloadContext().getUidLsb());
+                        log.info("[{}] Found previous delete offloaded attempt for ledger {}, uuid {}"
+                                + ", cleaning up", name, ledgerId, uuid);
+                        cleanupOffloaded(
+                                ledgerId,
+                                oldUuid,
+                                OffloadUtils.getOffloadDriverName(oldInfo,
+                                        config.getLedgerOffloader().getOffloadDriverName()),
+                                OffloadUtils.getOffloadDriverMetadata(oldInfo,
+                                        config.getLedgerOffloader().getOffloadDriverMetadata()),
+                                "Previous failed delete offloaded");
+                    }
+                    LedgerInfo.Builder builder = oldInfo.toBuilder();
+                    builder.getOffloadContextBuilder()
+                            .setUidMsb(uuid.getMostSignificantBits())
+                            .setUidLsb(uuid.getLeastSignificantBits());
+                    OffloadUtils.setOffloadDriverMetadata(
+                            builder,
+                            offloadDriverName,
+                            offloadDriverMetadata
+                    );
+                    return builder.build();
+                })
+                .whenComplete((result, exception) -> {
+                    if (exception != null) {
+                        log.warn("[{}] Failed to prepare ledger {} for delete offloaded, uuid {}",
+                                name, ledgerId, uuid, exception);
+                    } else {
+                        log.info("[{}] Metadata prepared for delete offloaded of ledger {} with uuid {}", name, ledgerId, uuid);
+                    }
+                });
     }
 
     private CompletableFuture<Void> prepareLedgerInfoForOffloaded(long ledgerId, UUID uuid, String offloadDriverName,
@@ -2580,6 +2789,45 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     } else {
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
                                  name, ledgerId, uuid, exception);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> completeLedgerInfoForDeleteOffloaded(long ledgerId, UUID uuid) {
+        log.info("[{}] Completing metadata for delete offloaded of ledger {} with uuid {}", name, ledgerId, uuid);
+        return transformLedgerInfo(ledgerId,
+                (oldInfo) -> {
+                    UUID existingUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
+                            oldInfo.getOffloadContext().getUidLsb());
+                    if (existingUuid.equals(uuid)) {
+                        LedgerInfo.Builder builder = oldInfo.toBuilder();
+                        builder.getOffloadContextBuilder()
+                                .setTimestamp(clock.millis())
+                                .setComplete(true);
+
+                        String driverName = OffloadUtils.getOffloadDriverName(
+                                oldInfo, config.getLedgerOffloader().getOffloadDriverName());
+                        Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(
+                                oldInfo, config.getLedgerOffloader().getOffloadDriverMetadata());
+                        OffloadUtils.setOffloadDriverMetadata(
+                                builder,
+                                driverName,
+                                driverMetadata
+                        );
+                        return builder.build();
+                    } else {
+                        throw new OffloadConflict(
+                                "Existing UUID(" + existingUuid + ") in metadata for delete offloaded"
+                                        + " of ledgerId " + ledgerId + " does not match the UUID(" + uuid
+                                        + ") for the delete offloaded we are trying to complete");
+                    }
+                })
+                .whenComplete((result, exception) -> {
+                    if (exception == null) {
+                        log.info("[{}] End offloaded deletion. ledger={}, uuid={}", name, ledgerId, uuid);
+                    } else {
+                        log.warn("[{}] Failed to complete delete offloaded of ledger {}, uuid {}",
+                                name, ledgerId, uuid, exception);
                     }
                 });
     }

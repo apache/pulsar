@@ -1169,7 +1169,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES,
+                OffloadPolicies.DEFAUlT_OFFLOADED_DELETION_IN_MILLIS));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 -1);
@@ -1183,7 +1185,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES,
+                OffloadPolicies.DEFAUlT_OFFLOADED_DELETION_IN_MILLIS));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 100);
@@ -1196,7 +1200,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES,
+                OffloadPolicies.DEFAUlT_OFFLOADED_DELETION_IN_MILLIS));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 -2);
@@ -1209,7 +1215,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
                 OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()));
+                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                OffloadPolicies.DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES,
+                OffloadPolicies.DEFAUlT_OFFLOADED_DELETION_IN_MILLIS));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
                 -1);

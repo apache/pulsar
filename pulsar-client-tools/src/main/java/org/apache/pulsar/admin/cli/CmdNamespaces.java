@@ -1460,6 +1460,18 @@ public class CmdNamespaces extends CmdBase {
                 required = false)
         private String offloadAfterThresholdStr;
 
+        @Parameter(
+                names = {"--offloadedDeleteAfterElapsed", "-oae"},
+                description = "Delete offloaded after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)",
+                required = false)
+        private String offloadedDeleteAfterElapsedStr;
+
+        @Parameter(
+                names = {"--offloadedDeleteAfterThreshold", "-oat"},
+                description = "Delete offloaded after threshold size (eg: 1M, 5M)",
+                required = false)
+        private String offloadedDeleteAfterThresholdStr;
+
         private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
         public boolean driverSupported(String driver) {
@@ -1539,9 +1551,27 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
+            Long offloadedDeleteAfterElapsedInMillis = OffloadPolicies.DEFAUlT_OFFLOADED_DELETION_IN_MILLIS;
+            if (StringUtils.isNotEmpty(offloadedDeleteAfterElapsedStr)) {
+                Long offloadedDeleteAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                if (positiveCheck("OffloadedDeleteAfterElapsed", offloadedDeleteAfterElapsed)
+                        && maxValueCheck("OffloadedDeleteAfterElapsed", offloadedDeleteAfterElapsed, Long.MAX_VALUE)) {
+                    offloadAfterElapsedInMillis = new Long(offloadedDeleteAfterElapsed);
+                }
+            }
+
+            long offloadedDeleteAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotEmpty(offloadedDeleteAfterThresholdStr)) {
+                long offloadedDeleteAfterThreshold = validateSizeString(offloadedDeleteAfterThresholdStr);
+                if (positiveCheck("OffloadedDeleteAfterThreshold", offloadedDeleteAfterThreshold)
+                        && maxValueCheck("OffloadedDeleteAfterThreshold", offloadedDeleteAfterThreshold, Long.MAX_VALUE)) {
+                    offloadAfterThresholdInBytes = new Long(offloadedDeleteAfterThreshold);
+                }
+            }
+
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
-                    offloadAfterElapsedInMillis);
+                    offloadAfterElapsedInMillis, offloadedDeleteAfterThresholdInBytes, offloadedDeleteAfterElapsedInMillis);
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }

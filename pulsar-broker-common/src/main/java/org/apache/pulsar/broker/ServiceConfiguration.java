@@ -1056,6 +1056,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Delay between a ledger being successfully deleted from long term storage."
+    )
+    private long managedLedgerOffloadedDeletionLagMs = -1L;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes before triggering automatic offloaded deletion from long term storage"
+    )
+    private long managedLedgerOffloadedAutoTriggerSizeThresholdBytes = -1L;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )

@@ -41,6 +41,8 @@ public class OffloadPolicies {
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = -1;
     public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
+    public final static long DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES = -1;
+    public final static Long DEFAUlT_OFFLOADED_DELETION_IN_MILLIS = null;
 
     // common config
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
@@ -48,6 +50,8 @@ public class OffloadPolicies {
     private int managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
     private long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+    private long managedLedgerOffloadedDeletionThresholdInBytes = DEFAULT_OFFLOADED_DELETION_THRESHOLD_IN_BYTES;
+    private Long managedLedgerOffloadedDeletionInMillis = DEFAUlT_OFFLOADED_DELETION_IN_MILLIS;
 
     // s3 config, set by service configuration or cli
     private String s3ManagedLedgerOffloadRegion = null;
@@ -73,11 +77,14 @@ public class OffloadPolicies {
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
                                          int maxBlockSizeInBytes, int readBufferSizeInBytes,
-                                         long offloadThresholdInBytes, Long offloadDeletionLagInMillis) {
+                                         long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
+                                         long offloadedDeletionThresholdInBytes, Long offloadedDeletionInMillis) {
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadDriver(driver);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(offloadThresholdInBytes);
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis);
+        offloadPolicies.setManagedLedgerOffloadedDeletionThresholdInBytes(offloadedDeletionThresholdInBytes);
+        offloadPolicies.setManagedLedgerOffloadedDeletionInMillis(offloadedDeletionInMillis);
 
         if (driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1])) {
             offloadPolicies.setS3ManagedLedgerOffloadRegion(region);
@@ -163,6 +170,8 @@ public class OffloadPolicies {
                 managedLedgerOffloadMaxThreads,
                 managedLedgerOffloadThresholdInBytes,
                 managedLedgerOffloadDeletionLagInMillis,
+                managedLedgerOffloadedDeletionThresholdInBytes,
+                managedLedgerOffloadedDeletionInMillis,
                 s3ManagedLedgerOffloadRegion,
                 s3ManagedLedgerOffloadBucket,
                 s3ManagedLedgerOffloadServiceEndpoint,
@@ -194,6 +203,10 @@ public class OffloadPolicies {
                     other.getManagedLedgerOffloadThresholdInBytes())
                 && Objects.equals(managedLedgerOffloadDeletionLagInMillis,
                     other.getManagedLedgerOffloadDeletionLagInMillis())
+                && Objects.equals(managedLedgerOffloadedDeletionThresholdInBytes,
+                    other.getManagedLedgerOffloadedDeletionThresholdInBytes())
+                && Objects.equals(managedLedgerOffloadedDeletionInMillis,
+                    other.getManagedLedgerOffloadedDeletionInMillis())
                 && Objects.equals(s3ManagedLedgerOffloadRegion, other.getS3ManagedLedgerOffloadRegion())
                 && Objects.equals(s3ManagedLedgerOffloadBucket, other.getS3ManagedLedgerOffloadBucket())
                 && Objects.equals(s3ManagedLedgerOffloadServiceEndpoint,
@@ -224,6 +237,8 @@ public class OffloadPolicies {
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
                 .add("managedLedgerOffloadThresholdInBytes", managedLedgerOffloadThresholdInBytes)
                 .add("managedLedgerOffloadDeletionLagInMillis", managedLedgerOffloadDeletionLagInMillis)
+                .add("managedLedgerOffloadedDeletionThresholdInBytes", managedLedgerOffloadedDeletionThresholdInBytes)
+                .add("managedLedgerOffloadedDeletionInMillis", managedLedgerOffloadedDeletionInMillis)
                 .add("s3ManagedLedgerOffloadRegion", s3ManagedLedgerOffloadRegion)
                 .add("s3ManagedLedgerOffloadBucket", s3ManagedLedgerOffloadBucket)
                 .add("s3ManagedLedgerOffloadServiceEndpoint", s3ManagedLedgerOffloadServiceEndpoint)

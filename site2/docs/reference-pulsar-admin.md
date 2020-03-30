@@ -2348,3 +2348,5 @@ Options
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
 |`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
+|`-odat`, `--offloadedDeleteAfterThreshold`|Delete offloaded after threshold size (eg: 1M, 5M)||
+|`-odae`, `--offloadedDeleteAfterElapsed`|Delete offloaded after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||

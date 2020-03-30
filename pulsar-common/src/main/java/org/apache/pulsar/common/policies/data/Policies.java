@@ -89,6 +89,10 @@ public class Policies {
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+    @SuppressWarnings("checkstyle:MemberName")
+    public long offloaded_deletion_threshold = -1;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Long offloaded_deletion_lag_ms = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
@@ -120,8 +124,9 @@ public class Policies {
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
-                compaction_threshold, offload_threshold,
-                offload_deletion_lag_ms,
+                compaction_threshold,
+                offload_threshold, offload_deletion_lag_ms,
+                offloaded_deletion_threshold, offloaded_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
                 schema_compatibility_strategy,
@@ -161,6 +166,8 @@ public class Policies {
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
+                    && offloaded_deletion_threshold == other.offloaded_deletion_threshold
+                    && Objects.equals(offloaded_deletion_lag_ms, other.offloaded_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
@@ -215,6 +222,8 @@ public class Policies {
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
+                .add("offloaded_deletion_threshold", offloaded_deletion_threshold)
+                .add("offloaded_deletion_lag_ms", offloaded_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
