@@ -123,6 +123,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -2173,6 +2174,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return null;
         }
         log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        return null;
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return isAllowAutoSubscriptionCreation(topicName);
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final TopicName topicName) {
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = getAutoSubscriptionCreationOverride(topicName);
+        if (autoSubscriptionCreationOverride != null) {
+            return autoSubscriptionCreationOverride.allowAutoSubscriptionCreation;
+        } else {
+            return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+        }
+    }
+
+    private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
+        try {
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                return policies.get().autoSubscriptionCreationOverride;
+            }
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
+            return null;
+        }
+        log.warn("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
 }
