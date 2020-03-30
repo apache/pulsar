@@ -83,7 +83,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
     /**
      * Verifies: Discovery-service returns broker is round-robin manner
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -106,7 +106,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         assertEquals(m.partitions, 0);
 
         // Simulate ZK error
-        mockZookKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
         TopicName topic2 = TopicName.get("persistent://test/local/ns/my-topic-2");
         CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
                 .getPartitionedTopicMetadata(service, topic2, "role", null);
@@ -235,7 +235,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         for (int i = 0; i < number; i++) {
             LoadReport report = new LoadReport(null, null, "pulsar://broker-:15000" + i, null);
             String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-            ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + "broker-" + i,
+            ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + "broker-" + i,
                     reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         }
