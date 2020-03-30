@@ -168,7 +168,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+        this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats, 0, StatsPeriodSeconds, TimeUnit.SECONDS);
 
 
         this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
@@ -341,9 +341,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 }
             }, null);
             return future;
-        }).thenAccept(ml -> {
-            callback.openLedgerComplete(ml, ctx);
-        }).exceptionally(exception -> {
+        }).thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
             callback.openLedgerFailed((ManagedLedgerException) exception.getCause(), ctx);
             return null;
         });
@@ -392,9 +390,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 config.getBookKeeperEnsemblePlacementPolicyProperties())),
                 store, config, scheduledExecutor, orderedExecutor, managedLedgerName);
 
-        roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition).thenAccept(roCursor -> {
-            callback.openReadOnlyCursorComplete(roCursor, ctx);
-        }).exceptionally(ex -> {
+        roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition).thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx)).exceptionally(ex -> {
             Throwable t = ex;
             if (t instanceof CompletionException) {
                 t = ex.getCause();
@@ -640,7 +636,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
      * Factory to create Bookkeeper-client for a given ensemblePlacementPolicy
      *
      */
-    public static interface BookkeeperFactoryForCustomEnsemblePlacementPolicy {
+    public interface BookkeeperFactoryForCustomEnsemblePlacementPolicy {
         default BookKeeper get() {
             return get(null);
         }
