@@ -62,6 +62,10 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
 
+      - name: build pulsar docker image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests
+
       - name: build pulsar-all docker image
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker -DskipTests
