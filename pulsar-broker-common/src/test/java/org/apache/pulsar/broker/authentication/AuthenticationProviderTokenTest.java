@@ -230,6 +230,41 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test
+    public void testAuthSecretKeyFromValidFile() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-valid", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(subject, SUBJECT);
+        provider.close();
+    }
+
+    @Test
     public void testAuthSecretKeyFromDataBase64() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -508,6 +543,33 @@ public class AuthenticationProviderTokenTest {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
                 "file://" + "invalid_secret_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenSecretKeyIsValidPathOrBase64() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                "secret_key_file_not_exist");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testInitializeWhenSecretKeyFilePathIfNotExist() throws IOException {
+        File secretKeyFile = File.createTempFile("secret_key_file_not_exist", ".key");
+        assertTrue(secretKeyFile.delete());
+        assertFalse(secretKeyFile.exists());
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
