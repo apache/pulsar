@@ -132,7 +132,6 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type) {
-        System.out.println("clazz: " + clazz.getName() + ", type: " + type.getValue());
         switch (type) {
         case NONE:
             return (Schema<T>) Schema.BYTES;
@@ -145,7 +144,7 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build(), clazz);
+            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case JSON:
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());

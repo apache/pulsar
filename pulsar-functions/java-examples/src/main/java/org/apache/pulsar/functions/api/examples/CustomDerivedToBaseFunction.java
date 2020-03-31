@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
  * Example of function converting a derived object to a base object.
  */
-@Slf4j
 public class CustomDerivedToBaseFunction implements Function<CustomDerivedObject, CustomBaseObject> {
 
     @Override
     public CustomBaseObject process(CustomDerivedObject input, Context context) {
-        log.info("input - baseValue: {}", input.getBaseValue());
         return new CustomBaseObject(input.getBaseValue() + 101);
     }
 }

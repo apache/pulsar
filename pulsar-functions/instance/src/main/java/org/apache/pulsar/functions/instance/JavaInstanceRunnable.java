@@ -264,7 +264,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                log.info("javaInstance.handleMessage - value classLoader: {}", currentRecord.getValue().getClass().getClassLoader());
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
@@ -641,7 +640,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public void setupInput(ContextImpl contextImpl) throws Exception {
-        System.out.println("setupInput - functionClassLoader: " + functionClassLoader);
+
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
         // If source classname is not set, we default pulsar source
@@ -722,7 +721,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Source does not implement correct interface");
         }
         this.source = (Source<?>) object;
-        System.out.println("source class name: " + source.getClass().getName());
 
         if (!(this.source instanceof PulsarSource)) {
             Thread.currentThread().setContextClassLoader(this.functionClassLoader);
