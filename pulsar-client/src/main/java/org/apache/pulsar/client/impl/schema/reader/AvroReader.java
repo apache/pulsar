@@ -47,6 +47,12 @@ public class AvroReader<T> implements SchemaReader<T> {
     public AvroReader(Schema schema, ClassLoader classLoader) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
             this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
@@ -56,6 +62,12 @@ public class AvroReader<T> implements SchemaReader<T> {
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
