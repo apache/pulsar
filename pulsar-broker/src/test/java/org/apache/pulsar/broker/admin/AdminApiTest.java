@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.validation.constraints.AssertTrue;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
@@ -971,7 +972,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetPartitionedInternalInfo() throws Exception {
-        String partitionedTopic = "my-topic";
+        String partitionedTopic = "my-topic" + UUID.randomUUID().toString();
         assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
         admin.topics().createPartitionedTopic(partitionedTopicName, 2);
@@ -1018,6 +1019,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         String partitionTopic0 = partitionedTopicName + "-partition-0";
         String partitionTopic1 = partitionedTopicName + "-partition-1";
+
+        Thread.sleep(1000);
 
         PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0);
         assertEquals(internalStats0.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
