@@ -2163,6 +2163,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
         log.info("pulsar client init - input: {}, output: {}", inputTopic, outputTopic);
 
+        @Cleanup Producer<AvroTestObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(AvroTestObject.class))
+                .topic(inputTopic).create();
+        log.info("pulsar producer init - {}", inputTopic);
+
         @Cleanup Consumer<AvroTestObject> consumer = pulsarClient
                 .newConsumer(Schema.AVRO(AvroTestObject.class))
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2170,11 +2175,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .topic(outputTopic)
                 .subscribe();
         log.info("pulsar consumer init - {}", outputTopic);
-
-        @Cleanup Producer<AvroTestObject> producer = pulsarClient
-                .newProducer(Schema.AVRO(AvroTestObject.class))
-                .topic(inputTopic).create();
-        log.info("pulsar producer init - {}", inputTopic);
 
         CompletableFuture<Optional<SchemaInfo>> inputSchemaFuture =
                 ((PulsarClientImpl) pulsarClient).getSchema(inputTopic);
