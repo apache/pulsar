@@ -844,7 +844,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     public void testPythonFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.PYTHON);
     }
-    @Test(groups = "function")
+    @Test(enabled = false, groups = "function")
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
     }
