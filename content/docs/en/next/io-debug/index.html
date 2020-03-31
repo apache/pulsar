@@ -177,7 +177,7 @@ componentType: SINK
 08:21:56.326 [cluster-ClusterId{value=<span class="hljs-string">'5d6396a3c9e77c0569ff00eb'</span>, description=<span class="hljs-string">'null'</span>}-pulsar-mongo:27017] INFO  org.mongodb.driver.cluster - Monitor thread successfully connected to server with description ServerDescription{address=pulsar-mongo:27017, <span class="hljs-built_in">type</span>=STANDALONE, state=CONNECTED, ok=<span class="hljs-literal">true</span>, version=ServerVersion{versionList=[4, 2, 0]}, minWireVersion=0, maxWireVersion=8, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=89058800}
 </code></pre></li>
 <li>This piece of log information explains the configuration of consumers and clients, including the topic name, subscription name, subscription type, and so on.
-<pre><code class="hljs css language-bash">08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer perf with config: {
+<pre><code class="hljs css language-bash">08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer status recorder with config: {
 <span class="hljs-string">"topicNames"</span> : [ <span class="hljs-string">"test-mongo"</span> ],
 <span class="hljs-string">"topicsPattern"</span> : null,
 <span class="hljs-string">"subscriptionName"</span> : <span class="hljs-string">"public/default/pulsar-mongo-sink"</span>,
