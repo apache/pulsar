@@ -59,9 +59,6 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
-            System.out.println("function class: " + input.getClass().getName() +
-                    ", classLoader: " + (function == null ? "null" : function.getClass().getClassLoader()) +
-                    ", input: " + input.getClass().getName());
             if (function != null) {
                 output = function.process(input, context);
             } else {
