@@ -2189,6 +2189,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture =
                 ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
         outputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
             if (schemaInfo.isPresent()) {
                 log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
             } else {
@@ -2222,6 +2227,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         getFunctionStatus(functionName, numMessages, false);
         log.info("test-avro-schema producer send message finish");
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture2 =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture2.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
 
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
         for (int i = 0 ; i < numMessages ; i++) {
