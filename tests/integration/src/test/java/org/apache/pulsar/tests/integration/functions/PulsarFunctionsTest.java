@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -43,6 +44,7 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
@@ -71,7 +73,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -2171,6 +2175,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .newProducer(Schema.AVRO(AvroTestObject.class))
                 .topic(inputTopic).create();
         log.info("pulsar producer init - {}", inputTopic);
+
+        CompletableFuture<Optional<SchemaInfo>> inputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(inputTopic);
+        inputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (schemaInfo.isPresent()) {
+                log.info("inputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("input schema is not present!");
+            }
+        });
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
 
         submitFunction(
                 Runtime.JAVA,
