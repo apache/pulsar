@@ -45,15 +45,8 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     public AvroReader(Schema schema, ClassLoader classLoader) {
-        log.info("AvroRaeader2 - classLoader: {}", classLoader);
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
             this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
@@ -61,15 +54,8 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
-        log.info("AvroRaeader3 - classLoader: {}", classLoader);
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
@@ -79,7 +65,6 @@ public class AvroReader<T> implements SchemaReader<T> {
     @Override
     public T read(byte[] bytes, int offset, int length) {
         try {
-            log.info("AvroReader read bytes - classLoader: {}", reader.getSpecificData().getClassLoader());
             BinaryDecoder decoderFromCache = decoders.get();
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, decoderFromCache);
             if (decoderFromCache == null) {
@@ -94,7 +79,6 @@ public class AvroReader<T> implements SchemaReader<T> {
     @Override
     public T read(InputStream inputStream) {
         try {
-            log.info("AvroReader read inputStream - classLoader: {}", reader.getSpecificData().getClassLoader());
             BinaryDecoder decoderFromCache = decoders.get();
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(inputStream, decoderFromCache);
             if (decoderFromCache == null) {
