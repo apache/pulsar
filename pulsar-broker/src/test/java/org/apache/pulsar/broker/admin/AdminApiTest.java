@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1001,7 +1002,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetPartitionedStatsInternal() throws Exception {
-        String partitionedTopic = "my-topic";
+        String partitionedTopic = "my-topic" + UUID.randomUUID().toString();
         String subName = "my-sub";
         assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
