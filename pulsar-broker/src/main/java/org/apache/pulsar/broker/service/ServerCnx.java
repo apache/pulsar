@@ -1522,9 +1522,9 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
-        if (log.isInfoEnabled()) {
-            log.info("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
-                    remoteAddress, commandGetSchema.getSchemaVersion().toString(),
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                    remoteAddress, new String(commandGetSchema.getSchemaVersion().toByteArray()),
                     commandGetSchema.getTopic(), commandGetSchema.getRequestId());
         }
 
@@ -1545,13 +1545,9 @@ public class ServerCnx extends PulsarHandler {
 
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
-                log.info("schemaAndMetadata is null");
                 ctx.writeAndFlush(Commands.newGetSchemaResponseError(requestId, ServerError.TopicNotFound,
                         "Topic not found or no-schema"));
             } else {
-                log.info("schemaAndMetadata schemaInfo: {}, version: {}， requestId: {}",
-                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema),
-                        new String(schemaAndMetadata.version.bytes()), commandGetSchema.getRequestId());
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
@@ -1564,8 +1560,8 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
-        if (log.isInfoEnabled()) {
-            log.info("Received CommandGetOrCreateSchema call from {}", remoteAddress);
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetOrCreateSchema call from {}", remoteAddress);
         }
         long requestId = commandGetOrCreateSchema.getRequestId();
         String topicName = commandGetOrCreateSchema.getTopic();
