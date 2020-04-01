@@ -721,6 +721,7 @@ public class Commands {
     }
 
     private static Schema getSchema(SchemaInfo schemaInfo) {
+        log.info("Schema info converted to protobuf schema : " + schemaInfo);
         Schema.Builder builder = Schema.newBuilder()
             .setName(schemaInfo.getName())
             .setSchemaData(copyFrom(schemaInfo.getSchema()))

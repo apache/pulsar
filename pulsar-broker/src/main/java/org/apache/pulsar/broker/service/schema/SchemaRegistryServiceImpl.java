@@ -371,6 +371,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         }
 
         static SchemaData schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
+            log.info("SchemaInfo to shema : info type {}", info.getType());
             return SchemaData.builder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
