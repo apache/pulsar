@@ -1549,9 +1549,9 @@ public class ServerCnx extends PulsarHandler {
                 ctx.writeAndFlush(Commands.newGetSchemaResponseError(requestId, ServerError.TopicNotFound,
                         "Topic not found or no-schema"));
             } else {
-                log.info("schemaAndMetadata schemaInfo: {}, version: {}",
+                log.info("schemaAndMetadata schemaInfo: {}, version: {}， requestId: {}",
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema),
-                        new String(schemaAndMetadata.version.bytes()));
+                        new String(schemaAndMetadata.version.bytes()), commandGetSchema.getRequestId());
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
