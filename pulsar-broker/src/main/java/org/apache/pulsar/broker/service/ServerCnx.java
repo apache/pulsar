@@ -1523,7 +1523,9 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         if (log.isInfoEnabled()) {
-            log.info("Received CommandGetSchema call from {}", remoteAddress);
+            log.info("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                    remoteAddress, commandGetSchema.getSchemaVersion().toString(),
+                    commandGetSchema.getTopic(), commandGetSchema.getRequestId());
         }
 
         long requestId = commandGetSchema.getRequestId();
@@ -1543,9 +1545,13 @@ public class ServerCnx extends PulsarHandler {
 
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
+                log.info("schemaAndMetadata is null");
                 ctx.writeAndFlush(Commands.newGetSchemaResponseError(requestId, ServerError.TopicNotFound,
                         "Topic not found or no-schema"));
             } else {
+                log.info("schemaAndMetadata schemaInfo: {}, version: {}",
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema),
+                        new String(schemaAndMetadata.version.bytes()));
                 ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
             }
