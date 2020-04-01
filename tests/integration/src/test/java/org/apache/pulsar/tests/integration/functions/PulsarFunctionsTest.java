@@ -1091,7 +1091,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test(groups="function")
+    // Flaky-test: https://github.com/apache/pulsar/issues/6646
+    // @Test(groups="function")
     public void testSlidingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4",
@@ -1119,7 +1120,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testWindowFunction("sliding", EXPECTED_RESULTS);
     }
 
-    @Test(groups = "function")
+    // Flaky-test: https://github.com/apache/pulsar/issues/6646
+    // @Test(groups = "function")
     public void testTumblingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4,5,6,7,8,9",
@@ -2077,7 +2079,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "function")
     public void testAutoSchemaFunction() throws Exception {
-        log.info("testAutoSchemaFunction start ...");
         String inputTopicName = "test-autoschema-input-" + randomName(8);
         String outputTopicName = "test-autoshcema-output-" + randomName(8);
         String functionName = "test-autoschema-fn-" + randomName(8);

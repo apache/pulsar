@@ -38,7 +38,6 @@ public class SchemaInfoUtil {
         si.setSchema(data.getData());
         si.setType(data.getType());
         si.setProperties(data.getProps());
-        System.out.println("newSchemaInfo: schema name = " + name + ", type = " + data.getType() + ": " + si);
         return si;
     }
 
@@ -47,8 +46,6 @@ public class SchemaInfoUtil {
         si.setName(schema.getName());
         si.setSchema(schema.getSchemaData().toByteArray());
         si.setType(Commands.getSchemaType(schema.getType()));
-        System.out.println("Coverting schema '" + schema.getName()
-                + "' type from " + schema.getType() + " to " + si.getType());
         if (schema.getPropertiesCount() == 0) {
             si.setProperties(Collections.emptyMap());
         } else {

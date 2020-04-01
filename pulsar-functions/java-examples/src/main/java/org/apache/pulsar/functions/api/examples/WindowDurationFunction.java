@@ -19,18 +19,15 @@
 package org.apache.pulsar.functions.api.examples;
 
 import java.util.Collection;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * This functions collects the timestamp during the window operation.
  */
-@Slf4j
 public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
     @Override
     public String apply(Collection<String> integers) {
         long time = System.currentTimeMillis();
-        log.info("result: {}", String.format("%s:%s", String.join(",", integers), time));
         return String.format("%s:%s", String.join(",", integers), time);
     }
 }
