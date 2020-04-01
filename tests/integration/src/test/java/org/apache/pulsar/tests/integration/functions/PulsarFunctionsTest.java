@@ -1075,15 +1075,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 break;
             }
             String msgStr = new String(msg.getData());
-            log.info("i: {} RECV: {}", i, msgStr);
+            log.info("[testWindowFunction] i: {} RECV: {}", i, msgStr);
             String result = msgStr.split(":")[0];
             assertThat(result).contains(expectedResults[i]);
             i++;
         }
-        // in case last commit is not updated
-        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+
+        // in case last commit is not updated
+        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         deleteFunction(functionName);
 
@@ -2251,6 +2252,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             AvroTestObject outputObject = message.getValue();
             assertTrue(expectedSet.contains(outputObject));
             expectedSet.remove(outputObject);
+            consumer.acknowledge(message);
         }
         log.info("test-avro-schema consumer receive message finish");
 
