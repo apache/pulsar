@@ -158,7 +158,7 @@ public interface Producer<T> extends Closeable {
     void close() throws PulsarClientException;
 
     /**
-     * Close the producer and releases resources allocated.
+     * Close the producer immediately and releases resources allocated.
      *
      * <p>No more writes will be accepted from this producer. Waits until all pending write request are persisted.
      * In case of errors, pending writes will not be retried.
@@ -167,6 +167,16 @@ public interface Producer<T> extends Closeable {
      */
     CompletableFuture<Void> closeAsync();
 
+    /**
+     * Close the producer and releases resources allocated. If waitForPendingMessage flag is true then producer waits in
+     * flight messages to be acknowledged before closing the producer resources.
+     *
+     * <p>No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
+     * of errors, pending writes will not be retried.
+     *
+     * @return a future that can used to track when the producer has been closed
+     */
+    CompletableFuture<Void> closeAsync(boolean waitForPendingMessage);
     /**
      * @return Whether the producer is currently connected to the broker
      */
