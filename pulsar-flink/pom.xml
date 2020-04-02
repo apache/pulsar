@@ -31,7 +31,10 @@
   </parent>
 
   <artifactId>pulsar-flink</artifactId>
-  <name>Pulsar Flink Connectors</name>
+  <!-- This Pulsar Flink connector is superseded by a new version of `pulsar-flink` connector.
+       https://flink-packages.org/packages/pulsar-flink-connector
+       https://cwiki.apache.org/confluence/display/FLINK/FLIP-72%3A+Introduce+Pulsar+Connector -->
+  <name>Pulsar Flink Connectors (Deprecated)</name>
 
   <dependencies>
     <dependency>
