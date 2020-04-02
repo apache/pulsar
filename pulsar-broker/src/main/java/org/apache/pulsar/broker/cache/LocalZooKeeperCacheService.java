@@ -34,7 +34,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -54,7 +54,7 @@ public class LocalZooKeeperCacheService {
     private final ZooKeeperCache cache;
 
     private ZooKeeperDataCache<NamespaceEphemeralData> ownerInfoCache;
-    private ZooKeeperChildrenCache managedLedgerListCache;
+    private ZooKeeperManagedLedgerCache managedLedgerListCache;
     private ResourceQuotaCache resourceQuotaCache;
     private ZooKeeperDataCache<LocalPolicies> policiesCache;
 
@@ -118,7 +118,7 @@ public class LocalZooKeeperCacheService {
             }
         };
 
-        this.managedLedgerListCache = new ZooKeeperChildrenCache(cache, MANAGED_LEDGER_ROOT);
+        this.managedLedgerListCache = new ZooKeeperManagedLedgerCache(cache, MANAGED_LEDGER_ROOT);
         this.resourceQuotaCache = new ResourceQuotaCache(cache);
         this.resourceQuotaCache.initZK();
     }
@@ -244,7 +244,7 @@ public class LocalZooKeeperCacheService {
         return this.policiesCache;
     }
 
-    public ZooKeeperChildrenCache managedLedgerListCache() {
+    public ZooKeeperManagedLedgerCache managedLedgerListCache() {
         return this.managedLedgerListCache;
     }
 
