@@ -52,7 +52,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -123,6 +125,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             .newUpdater(ProducerImpl.class, "lastSequenceIdPushed");
     protected volatile long lastSequenceIdPushed;
     private volatile boolean isLastSequenceIdPotentialDuplicated;
+
+    private volatile boolean closingInProgress = false;
 
     private final MessageCrypto msgCrypto;
 
@@ -689,6 +693,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private boolean isValidProducerState(SendCallback callback, long sequenceId) {
+        if (closingInProgress) {
+            callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            return false;
+        }
         switch (getState()) {
         case Ready:
             // OK
@@ -784,6 +792,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> closeResult = new CompletableFuture<>();
+        closeAsync(closeResult);
+        return closeResult;
+    }
+
+    private void closeAsync(CompletableFuture<Void> closeFuture) {
+        if (!pendingMessages.isEmpty()) {
+            closingInProgress = true;
+            client.timer().newTimeout((timeout) -> {
+                closeAsync(closeFuture);
+            }, 10, TimeUnit.MILLISECONDS);
+            return;
+        }
+
         final State currentState = getAndUpdateState(state -> {
             if (state == State.Closed) {
                 return state;
@@ -792,7 +814,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         });
 
         if (currentState == State.Closed || currentState == State.Closing) {
-            return CompletableFuture.completedFuture(null);
+            closeFuture.complete(null);
+            return;
         }
 
         Timeout timeout = sendTimeout;
@@ -830,13 +853,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 pendingMessages.clear();
             }
 
-            return CompletableFuture.completedFuture(null);
+            closeFuture.complete(null);
+            return;
         }
 
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
 
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {
@@ -860,8 +883,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             return null;
         });
-
-        return closeFuture;
     }
 
     @Override
