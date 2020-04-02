@@ -1091,8 +1091,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    // Flaky-test: https://github.com/apache/pulsar/issues/6646
-    // @Test(groups="function")
+    @Test(groups="function")
     public void testSlidingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4",
@@ -1120,8 +1119,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testWindowFunction("sliding", EXPECTED_RESULTS);
     }
 
-    // Flaky-test: https://github.com/apache/pulsar/issues/6646
-    // @Test(groups = "function")
+    @Test(groups = "function")
     public void testTumblingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4,5,6,7,8,9",
