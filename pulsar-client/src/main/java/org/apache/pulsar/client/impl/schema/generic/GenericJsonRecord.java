@@ -55,6 +55,14 @@ class GenericJsonRecord extends VersionedGenericRecord {
             return new GenericJsonRecord(schemaVersion, fields, fn);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
+        } else if (fn.isFloatingPointNumber()) {
+            return fn.asDouble();
+        } else if (fn.isBigInteger()) {
+            if (fn.canConvertToLong()) {
+                return fn.asLong();
+            } else {
+                return fn.asText();
+            }
         } else if (fn.isNumber()) {
             return fn.numberValue();
         } else {
