@@ -23,7 +23,6 @@
 #include <mutex>
 
 namespace pulsar {
-
 class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
    public:
     ~UnAckedMessageTrackerEnabled();
@@ -41,7 +40,7 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     void timeoutHandlerHelper();
     bool isEmpty();
     long size();
-    std::map<MessageId, std::set<MessageId>> messageIdPartitionMap;
+    std::map<MessageId, std::set<MessageId>&> messageIdPartitionMap;
     std::deque<std::set<MessageId>> timePartitions;
     std::mutex lock_;
     DeadlineTimerPtr timer_;

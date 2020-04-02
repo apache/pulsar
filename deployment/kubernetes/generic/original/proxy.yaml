@@ -31,11 +31,15 @@ data:
 ##
 ## Proxy deployment definition
 ##
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
     name: proxy
 spec:
+    selector:
+      matchLabels:
+          app: pulsar
+          component: proxy
     replicas: 2
     template:
         metadata:

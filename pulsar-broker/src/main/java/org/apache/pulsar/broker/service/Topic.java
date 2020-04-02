@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
@@ -166,7 +167,9 @@ public interface Topic {
 
     PersistentTopicInternalStats getInternalStats();
 
-    Position getLastMessageId();
+    Position getLastPosition();
+
+    CompletableFuture<MessageId> getLastMessageId();
 
     /**
      * Whether a topic has had a schema defined for it.

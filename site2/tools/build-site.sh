@@ -48,6 +48,7 @@ cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-TW/version-2.5
 yarn build
 
 node ./scripts/replace.js
+node ./scripts/split-swagger-by-version.js
 
 # Generate document for command line tools.
 ${ROOT_DIR}/site2/tools/pulsar-admin-doc-gen.sh

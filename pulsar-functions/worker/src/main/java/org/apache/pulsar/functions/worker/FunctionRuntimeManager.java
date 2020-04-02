@@ -756,9 +756,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
         Map<String, Assignment> assignmentMap = this.workerIdToAssignments.get(assignment.getWorkerId());
         if (assignmentMap != null) {
-            if (assignmentMap.containsKey(fullyQualifiedInstanceId)) {
-                assignmentMap.remove(fullyQualifiedInstanceId);
-            }
+            assignmentMap.remove(fullyQualifiedInstanceId);
             if (assignmentMap.isEmpty()) {
                 this.workerIdToAssignments.remove(assignment.getWorkerId());
             }

@@ -108,7 +108,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
             log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
-            log.error("Failed to dump config info: {}", e);
+            log.error("Failed to dump config info", e);
         }
 
         stat = (timeout) -> {

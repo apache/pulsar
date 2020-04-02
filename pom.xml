@@ -74,6 +74,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <modules>
     <module>buildtools</module>
+    <module>testmocks</module>
     <module>managed-ledger</module>
     <module>tiered-storage</module>
     <module>pulsar-common</module>
@@ -119,6 +120,11 @@ flexible messaging model and an intuitive client API.</description>
     <!-- examples -->
     <module>examples</module>
 
+    <!-- Bouncy Castle Provider loaders-->
+    <module>bouncy-castle</module>
+
+    <module>pulsar-client-messagecrypto-bc</module>
+
     <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
     <module>docker</module>
@@ -160,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
+    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.10.1</jackson.version>
     <jackson.databind.version>2.10.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
@@ -938,18 +945,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-ext-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
@@ -1546,6 +1541,18 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${puppycrawl.checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <encoding>UTF-8</encoding>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
