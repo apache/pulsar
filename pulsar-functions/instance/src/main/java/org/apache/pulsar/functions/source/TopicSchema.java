@@ -97,7 +97,6 @@ public class TopicSchema {
         } else {
             Optional<SchemaInfo> schema = ((PulsarClientImpl) client).getSchema(topic).join();
             if (schema.isPresent()) {
-                System.out.println("[getSchemaTypeOrDefault] topic : " + topic + ": schema info : " + schema.get());
                 if (schema.get().getType() == SchemaType.NONE) {
                     return getDefaultSchemaType(clazz);
                 } else {
