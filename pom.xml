@@ -74,6 +74,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <modules>
     <module>buildtools</module>
+    <module>testmocks</module>
     <module>managed-ledger</module>
     <module>tiered-storage</module>
     <module>pulsar-common</module>
@@ -110,9 +111,6 @@ flexible messaging model and an intuitive client API.</description>
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
 
-    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
-    <module>jclouds-shaded</module>
-
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
 
@@ -121,6 +119,11 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- examples -->
     <module>examples</module>
+
+    <!-- Bouncy Castle Provider loaders-->
+    <module>bouncy-castle</module>
+
+    <module>pulsar-client-messagecrypto-bc</module>
 
     <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
@@ -150,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
-    <netty.version>4.1.43.Final</netty.version>
+    <netty.version>4.1.45.Final</netty.version>
     <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.20.v20190813</jetty.version>
@@ -163,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
+    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.10.1</jackson.version>
     <jackson.databind.version>2.10.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
@@ -185,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.1.1</jclouds.version>
+    <jclouds.version>2.2.0</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
@@ -941,18 +945,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-ext-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
@@ -1024,6 +1016,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.jclouds</groupId>
         <artifactId>jclouds-allblobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-blobstore</artifactId>
         <version>${jclouds.version}</version>
       </dependency>
 
@@ -1543,6 +1541,18 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${puppycrawl.checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <encoding>UTF-8</encoding>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>

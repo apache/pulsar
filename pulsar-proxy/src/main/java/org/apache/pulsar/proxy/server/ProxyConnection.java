@@ -59,6 +59,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
+import lombok.Getter;
 
 /**
  * Handles incoming discovery request from client and sends appropriate response back to client
@@ -74,6 +75,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private final SslContext sslCtx;
 
     private LookupProxyHandler lookupProxyHandler = null;
+    @Getter
     private DirectProxyHandler directProxyHandler = null;
     String clientAuthRole;
     AuthData clientAuthData;
@@ -138,6 +140,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         ProxyService.newConnections.inc();
+        service.getClientCnxs().add(this);
         LOG.info("[{}] New connection opened", remoteAddress);
     }
 
@@ -152,14 +155,14 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (client != null) {
             client.close();
         }
-
+        service.getClientCnxs().remove(this);
         LOG.info("[{}] Connection closed", remoteAddress);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         super.exceptionCaught(ctx, cause);
-        LOG.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+        LOG.warn("[{}] Got exception {} : {} {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
                 ClientCnx.isKnownException(cause) ? null : cause);
         ctx.close();
     }
@@ -179,7 +182,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // only if we can write on the connection
             ProxyService.opsCounter.inc();
             if (msg instanceof ByteBuf) {
-                ProxyService.bytesCounter.inc(((ByteBuf) msg).readableBytes());
+                int bytes = ((ByteBuf) msg).readableBytes();
+                directProxyHandler.getInboundChannelRequestsRate().recordEvent(bytes);
+                ProxyService.bytesCounter.inc(bytes);
             }
             directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
             break;
@@ -327,6 +332,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             }
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            authenticationData = authState.getAuthDataSource();
             doAuthentication(clientData);
         } catch (Exception e) {
             LOG.warn("[{}] Unable to authenticate: ", remoteAddress, e);

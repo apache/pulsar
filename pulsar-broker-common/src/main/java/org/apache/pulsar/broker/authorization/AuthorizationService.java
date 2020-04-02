@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,14 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> isSuperUser(String user) {
         if (provider != null) {
            return provider.isSuperUser(user, conf);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
+                                                    AuthenticationDataSource authenticationData) {
+        if (provider != null) {
+            return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }

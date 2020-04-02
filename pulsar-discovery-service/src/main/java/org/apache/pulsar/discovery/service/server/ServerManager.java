@@ -28,8 +28,8 @@ import java.util.TimeZone;
 
 import javax.servlet.Servlet;
 
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.discovery.service.web.RestException;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;

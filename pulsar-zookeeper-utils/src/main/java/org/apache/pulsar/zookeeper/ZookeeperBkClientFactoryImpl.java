@@ -55,6 +55,7 @@ public class ZookeeperBkClientFactoryImpl implements ZooKeeperClientFactory {
                         .build();
 
                 if (zk.getState() == States.CONNECTEDREADONLY && sessionType != SessionType.AllowReadOnly) {
+                    zk.close();
                     future.completeExceptionally(new IllegalStateException("Cannot use a read-only session"));
                 }
 

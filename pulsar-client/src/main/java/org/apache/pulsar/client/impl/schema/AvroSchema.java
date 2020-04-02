@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
@@ -73,6 +74,15 @@ public class AvroSchema<T> extends StructSchema<T> {
     @Override
     public boolean supportSchemaVersioning() {
         return true;
+    }
+
+    @Override
+    public Schema<T> clone() {
+        Schema<T> schema = new AvroSchema<>(schemaInfo);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {

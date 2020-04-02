@@ -254,11 +254,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                                                      AuthenticationDataSource authenticationDataSource) throws Exception {
 
         String secretId;
-        if (existingFunctionAuthData.isPresent()) {
-            secretId = new String(existingFunctionAuthData.get().getData());
-        } else {
-            secretId = RandomStringUtils.random(5, true, true).toLowerCase();
-        }
+        secretId = existingFunctionAuthData.map(functionAuthData -> new String(functionAuthData.getData())).orElseGet(() -> RandomStringUtils.random(5, true, true).toLowerCase());
 
         String token;
         try {

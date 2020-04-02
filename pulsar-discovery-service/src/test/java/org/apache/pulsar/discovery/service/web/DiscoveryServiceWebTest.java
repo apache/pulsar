@@ -56,6 +56,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -101,7 +102,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
             try {
                 LoadReport report = new LoadReport(broker, null, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
+                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
                         reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
@@ -117,7 +118,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
 
         // 2. Setup discovery-zkcache
         DiscoveryServiceServlet discovery = new DiscoveryServiceServlet();
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Field zkCacheField = DiscoveryServiceServlet.class.getDeclaredField("zkCache");
         zkCacheField.setAccessible(true);
         ZookeeperCacheLoader zkCache = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(),
@@ -137,7 +138,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
         params.put("zookeeperServers", "dummy-value");
         params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
@@ -151,7 +152,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
                 final String broker = b + ":15000";
                 LoadReport report = new LoadReport("http://" + broker, null, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
+                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + broker,
                         reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
@@ -194,7 +195,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
         params.put("zookeeperServers", "dummy-value");
         params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
@@ -211,7 +212,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
 
                 LoadReport report = new LoadReport("http://" + brokerUrl, "https://" + brokerUrlTls, null, null);
                 String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-                ZkUtils.createFullPathOptimistic(mockZookKeeper, LOADBALANCE_BROKERS_ROOT + "/" + brokerUrl,
+                ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + brokerUrl,
                         reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             } catch (KeeperException.NodeExistsException ne) {
@@ -247,12 +248,11 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
     @Test
     public void testException() {
         RestException exception1 = new RestException(BAD_GATEWAY, "test-msg");
-        assertTrue(exception1.getMessage().contains(BAD_GATEWAY.toString()));
+        assertTrue(exception1.getMessage().contains("test-msg"));
         RestException exception2 = new RestException(BAD_GATEWAY.getStatusCode(), "test-msg");
-        assertTrue(exception2.getMessage().contains(BAD_GATEWAY.toString()));
+        assertTrue(exception2.getMessage().contains("test-msg"));
         RestException exception3 = new RestException(exception2);
-        assertTrue(exception3.getMessage().contains(INTERNAL_SERVER_ERROR.toString()));
-        assertTrue(RestException.getExceptionData(exception2).contains(BAD_GATEWAY.toString()));
+        assertTrue(exception3.getMessage().contains(BAD_GATEWAY.toString()));
     }
 
     public List<String> validateRequest(List<String> brokers, String method, String url, BundlesData bundle) {

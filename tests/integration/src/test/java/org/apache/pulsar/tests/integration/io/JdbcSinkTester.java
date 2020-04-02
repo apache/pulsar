@@ -50,8 +50,6 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
      *
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         private String field1;
         private String field2;

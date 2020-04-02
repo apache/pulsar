@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.client.admin.Lookup;
@@ -39,37 +45,77 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
-        TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName());
-
         try {
-            return doTopicLookup(target);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return lookupTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
     @Override
-    public String getBundleRange(String topic) throws PulsarAdminException {
+    public CompletableFuture<String> lookupTopicAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
         String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
 
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<LookupData>() {
+                    @Override
+                    public void completed(LookupData lookupData) {
+                        if (useTls) {
+                            future.complete(lookupData.getBrokerUrlTls());
+                        } else {
+                            future.complete(lookupData.getBrokerUrl());
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public String getBundleRange(String topic) throws PulsarAdminException {
         try {
-            return request(target).get(String.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getBundleRangeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
-    private String doTopicLookup(WebTarget lookupResource) throws PulsarAdminException {
-        LookupData lookupData = request(lookupResource).get(LookupData.class);
-        if (useTls) {
-            return lookupData.getBrokerUrlTls();
-        } else {
-            return lookupData.getBrokerUrl();
-        }
+    @Override
+    public CompletableFuture<String> getBundleRangeAsync(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        String prefix = topicName.isV2() ? "/topic" : "/destination";
+        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<String>() {
+                    @Override
+                    public void completed(String bundleRange) {
+                        future.complete(bundleRange);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
 }

@@ -162,4 +162,7 @@ public class RawMessageImpl implements RawMessage {
         return msgMetadata.get().getPartitionKeyB64Encoded();
     }
 
+    public int getBatchSize() {
+        return msgMetadata.get().getNumMessagesInBatch();
+    }
 }

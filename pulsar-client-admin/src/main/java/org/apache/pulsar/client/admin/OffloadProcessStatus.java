@@ -30,7 +30,7 @@ public class OffloadProcessStatus extends LongRunningProcessStatus {
 
     public OffloadProcessStatus() {
         super(Status.NOT_RUN, "");
-        firstUnoffloadedMessage = (MessageIdImpl)MessageId.earliest;
+        firstUnoffloadedMessage = (MessageIdImpl) MessageId.earliest;
     }
 
     private OffloadProcessStatus(Status status, String lastError,
@@ -41,12 +41,12 @@ public class OffloadProcessStatus extends LongRunningProcessStatus {
     }
 
     public static OffloadProcessStatus forStatus(Status status) {
-        return new OffloadProcessStatus(status, "", (MessageIdImpl)MessageId.earliest);
+        return new OffloadProcessStatus(status, "", (MessageIdImpl) MessageId.earliest);
     }
 
     public static OffloadProcessStatus forError(String lastError) {
         return new OffloadProcessStatus(Status.ERROR, lastError,
-                                        (MessageIdImpl)MessageId.earliest);
+                                        (MessageIdImpl) MessageId.earliest);
     }
 
     public static OffloadProcessStatus forSuccess(MessageIdImpl messageId) {

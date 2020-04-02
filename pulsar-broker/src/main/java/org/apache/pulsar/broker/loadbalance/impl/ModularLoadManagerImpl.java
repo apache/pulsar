@@ -519,9 +519,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     }
 
                     // This is needed too in case a broker which was assigned a bundle dies and comes back up.
-                    if ( preallocatedBundleToBroker.containsKey(preallocatedBundleName) ) {
-                        preallocatedBundleToBroker.remove(preallocatedBundleName);
-                    }
+                    preallocatedBundleToBroker.remove(preallocatedBundleName);
                 }
             }
 
@@ -854,7 +852,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
         } catch (Exception e) {
-            log.warn("Error when attempting to update local broker data: {}", e);
+            log.warn("Error when attempting to update local broker data", e);
         }
         return localData;
     }
@@ -884,7 +882,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 lastData.update(localData);
             }
         } catch (Exception e) {
-            log.warn("Error writing broker data on ZooKeeper: {}", e);
+            log.warn("Error writing broker data on ZooKeeper", e);
         }
     }
 

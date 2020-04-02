@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -86,8 +87,11 @@ public class PerformanceConsumer {
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscriber name prefix")
+        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
@@ -257,6 +261,7 @@ public class PerformanceConsumer {
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType)
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
 
         if (arguments.encKeyName != null) {
@@ -320,9 +325,9 @@ public class PerformanceConsumer {
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    (long) reportHistogram.getValueAtPercentile(50), (long) reportHistogram.getValueAtPercentile(95),
-                    (long) reportHistogram.getValueAtPercentile(99), (long) reportHistogram.getValueAtPercentile(99.9),
-                    (long) reportHistogram.getValueAtPercentile(99.99), (long) reportHistogram.getMaxValue());
+                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -347,10 +352,10 @@ public class PerformanceConsumer {
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), (long) reportHistogram.getValueAtPercentile(50),
-                (long) reportHistogram.getValueAtPercentile(95), (long) reportHistogram.getValueAtPercentile(99),
-                (long) reportHistogram.getValueAtPercentile(99.9), (long) reportHistogram.getValueAtPercentile(99.99),
-                (long) reportHistogram.getValueAtPercentile(99.999), (long) reportHistogram.getMaxValue());
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

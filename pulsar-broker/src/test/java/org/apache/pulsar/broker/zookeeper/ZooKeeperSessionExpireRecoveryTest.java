@@ -54,7 +54,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
-        mockZookKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 

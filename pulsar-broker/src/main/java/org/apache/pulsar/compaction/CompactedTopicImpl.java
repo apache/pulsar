@@ -164,12 +164,19 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 if (rc != BKException.Code.OK) {
                                     promise.completeExceptionally(BKException.create(rc));
                                 } else {
-                                    try (RawMessage m = RawMessageImpl.deserializeFrom(
-                                                 seq.nextElement().getEntryBuffer())) {
-                                        promise.complete(m.getMessageIdData());
-                                    } catch (NoSuchElementException e) {
-                                        log.error("No such entry {} in ledger {}", entryId, lh.getId());
-                                        promise.completeExceptionally(e);
+                                    // Need to release buffers for all entries in the sequence
+                                    if (seq.hasMoreElements()) {
+                                        LedgerEntry entry = seq.nextElement();
+                                        try (RawMessage m = RawMessageImpl.deserializeFrom(entry.getEntryBuffer())) {
+                                            entry.getEntryBuffer().release();
+                                            while (seq.hasMoreElements()) {
+                                                seq.nextElement().getEntryBuffer().release();
+                                            }
+                                            promise.complete(m.getMessageIdData());
+                                        }
+                                    } else {
+                                        promise.completeExceptionally(new NoSuchElementException(
+                                                String.format("No such entry %d in ledger %d", entryId, lh.getId())));
                                     }
                                 }
                             }, null);
