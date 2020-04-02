@@ -206,7 +206,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return closeAsync(false);
     }
 
-    @Override
     public CompletableFuture<Void> closeAsync(boolean waitForPendingMessages) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
@@ -223,7 +222,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         for (Producer<T> producer : producers) {
             if (producer != null) {
-                producer.closeAsync(waitForPendingMessages).handle((closed, ex) -> {
+                producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
                         closeFail.compareAndSet(null, ex);
                     }

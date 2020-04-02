@@ -735,10 +735,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return closeAsync(false);
+        return closeAsync(true);
     }
 
-    @Override
     public CompletableFuture<Void> closeAsync(boolean waitForPendingMessage) {
         CompletableFuture<Void> closeResult = new CompletableFuture<>();
         closeAsync(waitForPendingMessage, closeResult);

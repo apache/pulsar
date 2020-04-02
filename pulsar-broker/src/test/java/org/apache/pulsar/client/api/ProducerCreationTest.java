@@ -132,7 +132,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             sendResults.add(producer.sendAsync("test".getBytes()));
         }
-        CompletableFuture<Void> closeFuture = producer.closeAsync(true);
+        CompletableFuture<Void> closeFuture = producer.closeAsync();
         startBroker();
         Thread.sleep(1000);
         try {
