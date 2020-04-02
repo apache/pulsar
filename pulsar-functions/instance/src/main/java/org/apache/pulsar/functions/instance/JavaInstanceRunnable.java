@@ -360,7 +360,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         // sure the table is created.
                     }
                 } catch (ClientException ce) {
-                    log.warn("Encountered issue on fetching state stable metadata, re-attempting in 100 milliseconds",
+                    log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
                         ce.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }

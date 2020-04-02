@@ -27,8 +27,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

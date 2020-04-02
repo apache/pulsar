@@ -35,8 +35,14 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.TimeoutHandler;
 import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -72,8 +78,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
 
-        doReturn(mockZookKeeper).when(persistentTopics).globalZk();
-        doReturn(mockZookKeeper).when(persistentTopics).localZk();
+        doReturn(mockZooKeeper).when(persistentTopics).globalZk();
+        doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(pulsar.getConfigurationCache().propertiesCache()).when(persistentTopics).tenantsCache();
         doReturn(pulsar.getConfigurationCache().policiesCache()).when(persistentTopics).policiesCache();
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -92,8 +98,84 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetLastMessageId() throws Exception {
+        final MessageId[] id = new MessageId[1];
+        id[0] = null;
+        MessageId messageId = null;
+        AsyncResponse asyncResponse = new AsyncResponse() {
+            @Override
+            public boolean resume(Object response) {
+                id[0] = (MessageId) response;
+                return false;
+            }
+
+            @Override
+            public boolean resume(Throwable response) {
+                return false;
+            }
+
+            @Override
+            public boolean cancel() {
+                return false;
+            }
+
+            @Override
+            public boolean cancel(int retryAfter) {
+                return false;
+            }
+
+            @Override
+            public boolean cancel(Date retryAfter) {
+                return false;
+            }
+
+            @Override
+            public boolean isSuspended() {
+                return false;
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return false;
+            }
+
+            @Override
+            public boolean isDone() {
+                return false;
+            }
+
+            @Override
+            public boolean setTimeout(long time, TimeUnit unit) {
+                return false;
+            }
+
+            @Override
+            public void setTimeoutHandler(TimeoutHandler handler) {
+
+            }
+
+            @Override
+            public Collection<Class<?>> register(Class<?> callback) {
+                return null;
+            }
+
+            @Override
+            public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
+                return null;
+            }
+
+            @Override
+            public Collection<Class<?>> register(Object callback) {
+                return null;
+            }
+
+            @Override
+            public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
+                return null;
+            }
+        };
         try {
-            persistentTopics.getLastMessageId(testTenant, testNamespace, "my-topic", true);
+            persistentTopics.getLastMessageId(asyncResponse, testTenant,
+                    testNamespace, "my-topic", true);
         } catch (Exception e) {
             //System.out.println(e.getMessage());
             Assert.assertEquals("Topic not found", e.getMessage());
@@ -116,21 +198,25 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
 
-        MessageId id = persistentTopics.getLastMessageId("prop", "ns-abc", "my-topic", true);
-        System.out.println(id.toString());
-        Assert.assertTrue(((MessageIdImpl)id).getLedgerId() >= 0);
-        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id).getEntryId());
+        persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
+        while (id[0] == null) {
+            Thread.sleep(1);
+        }
+        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
+        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
+        messageId = id[0];
+
 
         // send more numberOfMessages messages, the last message id should be numberOfMessages*2-1
         for (int i = 0; i < numberOfMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
         }
-        id = persistentTopics.getLastMessageId("prop", "ns-abc", "my-topic", true);
-        System.out.println(id.toString());
-        Assert.assertTrue(((MessageIdImpl)id).getLedgerId() > 0);
-        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id).getEntryId());
-
-        System.out.println(id.toString());
+        persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
+        while (id[0] == messageId) {
+            Thread.sleep(1);
+        }
+        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
+        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
     }
 }

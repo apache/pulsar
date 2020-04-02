@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
@@ -50,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -767,7 +769,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
@@ -824,7 +826,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
@@ -902,7 +904,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create a failure producer which will timeout creation after 100msec
@@ -973,7 +975,7 @@ public class ServerCnxTest {
 
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe
@@ -1046,7 +1048,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         CompletableFuture<Runnable> openTopicFail = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
@@ -1056,7 +1058,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe against failtopic which will fail after 100msec
@@ -1455,7 +1457,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -1470,7 +1472,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any());
+                any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {

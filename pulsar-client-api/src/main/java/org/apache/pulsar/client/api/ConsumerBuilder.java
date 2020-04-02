@@ -267,6 +267,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto
+     *            MessageCrypto object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+
+    /**
      * Sets the ConsumerCryptoFailureAction to the value specified.
      *
      * @param action

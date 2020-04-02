@@ -74,6 +74,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("info-internal", new GetInternalInfo());
 
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+        jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
 
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("clear-backlog", new ClearBacklog());
@@ -354,13 +355,17 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+            "--force" }, description = "Disconnect and close all consumers and delete subscription forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
         private String subName;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            topics.deleteSubscription(topic, subName);
+            topics.deleteSubscription(topic, subName, force);
         }
     }
 
@@ -424,6 +429,19 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the internal stats for the partitioned topic and its connected producers and consumers. \n"
+            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    private class GetPartitionedStatsInternal extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(topics.getPartitionedInternalStats(topic));
         }
     }
 

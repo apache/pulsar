@@ -137,8 +137,6 @@ public interface ManagedLedger {
      *
      * @param name
      *            the name associated with the ManagedCursor
-     * @param initializeOnLatest
-     *            the flag tell the method wthether it should intialize the cursor at latest position or not.
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -157,7 +155,7 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    public ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -175,7 +173,7 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    public ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
@@ -248,7 +246,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpenCursor(String name, InitialPosition initialPosition, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(String name, InitialPosition initialPosition, OpenCursorCallback callback, Object ctx);
 
     /**
      * Open a ManagedCursor asynchronously.
@@ -264,7 +262,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger

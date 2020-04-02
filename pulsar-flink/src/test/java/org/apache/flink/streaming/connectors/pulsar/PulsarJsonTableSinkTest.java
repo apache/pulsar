@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
+import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarPropertiesExtractor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.pulsar.client.api.Authentication;
@@ -103,13 +104,15 @@ public class PulsarJsonTableSinkTest {
                 Mockito.anyString(),
                 Mockito.any(Authentication.class),
                 Mockito.any(SerializationSchema.class),
-                Mockito.any(PulsarKeyExtractor.class)
+                Mockito.any(PulsarKeyExtractor.class),
+                Mockito.any(PulsarPropertiesExtractor.class)
         ).thenReturn(producer);
 
         FieldUtils.writeField(sink, "fieldNames", fieldNames, true);
         FieldUtils.writeField(sink, "fieldTypes", typeInformations, true);
         FieldUtils.writeField(sink, "serializationSchema", Mockito.mock(SerializationSchema.class), true);
         FieldUtils.writeField(sink, "keyExtractor", Mockito.mock(PulsarKeyExtractor.class), true);
+        FieldUtils.writeField(sink, "propertiesExtractor", Mockito.mock(PulsarPropertiesExtractor.class), true);
         return sink;
     }
 }

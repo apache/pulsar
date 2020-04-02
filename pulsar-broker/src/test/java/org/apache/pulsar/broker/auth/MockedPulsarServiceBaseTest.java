@@ -79,7 +79,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected URI lookupUrl;
 
-    protected MockZooKeeper mockZookKeeper;
+    protected MockZooKeeper mockZooKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
     protected final String configClusterName = "test";
@@ -101,7 +101,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
         this.conf.setConfigurationStoreServers("localhost:3181");
-        this.conf.setAllowAutoTopicCreationType("non-persistent");
+        this.conf.setAllowAutoTopicCreationType("non-partitioned");
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setWebServicePort(Optional.of(0));
@@ -143,8 +143,8 @@ public abstract class MockedPulsarServiceBaseTest {
                 .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
                 .build());
 
-        mockZookKeeper = createMockZooKeeper();
-        mockBookKeeper = createMockBookKeeper(mockZookKeeper, bkExecutor);
+        mockZooKeeper = createMockZooKeeper();
+        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
 
         startBroker();
     }
@@ -167,8 +167,8 @@ public abstract class MockedPulsarServiceBaseTest {
             if (mockBookKeeper != null) {
                 mockBookKeeper.reallyShutdown();
             }
-            if (mockZookKeeper != null) {
-                mockZookKeeper.shutdown();
+            if (mockZooKeeper != null) {
+                mockZooKeeper.shutdown();
             }
             if (sameThreadOrderedSafeExecutor != null) {
                 sameThreadOrderedSafeExecutor.shutdown();
@@ -292,7 +292,7 @@ public abstract class MockedPulsarServiceBaseTest {
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
             // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-            return CompletableFuture.completedFuture(mockZookKeeper);
+            return CompletableFuture.completedFuture(mockZooKeeper);
         }
     };
 

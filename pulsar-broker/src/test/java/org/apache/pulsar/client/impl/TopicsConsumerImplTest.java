@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -772,7 +771,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @Test(timeOut = testTimeout)
     public void testDefaultBacklogTTL() throws Exception {
 
-        int defaultTTLSec = 1;
+        int defaultTTLSec = 5;
         int totalMessages = 10;
         this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
 
@@ -799,12 +798,15 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(topic.isPresent());
         PersistentSubscription subscription = (PersistentSubscription) topic.get().getSubscription(subName);
 
-        Thread.sleep((defaultTTLSec + 5) * 1000);
-
+        Thread.sleep((defaultTTLSec - 1) * 1000);
         topic.get().checkMessageExpiry();
-
+        // Wait the message expire task done and make sure the message does not expire early.
+        Thread.sleep(1000);
+        assertEquals(subscription.getNumberOfEntriesInBacklog(false), 10);
+        Thread.sleep(2000);
+        topic.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message expired.
         retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
-
         assertEquals(subscription.getNumberOfEntriesInBacklog(false), 0);
     }
 

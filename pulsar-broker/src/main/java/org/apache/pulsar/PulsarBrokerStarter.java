@@ -331,8 +331,12 @@ public class PulsarBrokerStarter {
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
-            log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-            starter.shutdown();
+            if (starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
+                log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
+            } else {
+                log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+                starter.shutdown();
+            }
         });
 
         try {
