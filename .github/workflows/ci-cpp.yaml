@@ -50,6 +50,15 @@ jobs:
         with:
           java-version: 1.8
 
+      - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
       - name: build pacakge
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR package -DskipTests
