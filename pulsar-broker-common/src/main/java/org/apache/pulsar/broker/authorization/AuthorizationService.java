@@ -148,7 +148,7 @@ public class AuthorizationService {
                     providers.parallelStream().map(provider ->
                             provider.grantPermissionAsync(namespace, actions, role, authDataJson)
                     ).collect(Collectors.toList()),
-                    null
+                    e -> e == null
             );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
@@ -172,7 +172,7 @@ public class AuthorizationService {
                     providers.parallelStream().map(provider ->
                             provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson)
                     ).collect(Collectors.toList()),
-                    null
+                    e -> e == null
             );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
@@ -193,7 +193,7 @@ public class AuthorizationService {
                     providers.parallelStream().map(provider ->
                             provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson)
                     ).collect(Collectors.toList()),
-                    null
+                    e -> e == null
             );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
@@ -217,7 +217,7 @@ public class AuthorizationService {
                     providers.parallelStream().map(provider ->
                             provider.grantPermissionAsync(topicname, actions, role, authDataJson)
                     ).collect(Collectors.toList()),
-                    null
+                    e -> e == null
             );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
