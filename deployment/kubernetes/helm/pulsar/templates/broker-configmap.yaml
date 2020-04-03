@@ -44,4 +44,4 @@ data:
   PF_functionRuntimeFactoryConfigs_submittingInsidePod: "true"
   PF_functionRuntimeFactoryConfigs_jobNamespace: {{ .Values.namespace }}
   {{- end }}
-  {{ toYaml .Values.broker.configData | indent 2 }}
+{{ toYaml .Values.broker.configData | indent 2 }}
