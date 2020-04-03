@@ -90,21 +90,6 @@ public class AuthorizationService {
         }
     }
 
-    public static <T> CompletableFuture<List<T>> allAsList(List<? extends CompletionStage<? extends T>> stages) {
-        final CompletableFuture<? extends T>[] all = new CompletableFuture[stages.size()];
-        for (int i = 0; i < stages.size(); i++) {
-            all[i] = stages.get(i).toCompletableFuture();
-        }
-        return CompletableFuture.allOf(all)
-                .thenApply(ignored -> {
-                    final List<T> result = new ArrayList<>(all.length);
-                    for (int i = 0; i < all.length; i++) {
-                        result.add(all[i].join());
-                    }
-                    return result;
-                });
-    }
-
     private static <T> CompletableFuture<T> anyMatch(List<? extends CompletionStage<? extends T>> l,
                                                      Predicate<? super T> criteria) {
         CompletableFuture<T> result = new CompletableFuture<>();
