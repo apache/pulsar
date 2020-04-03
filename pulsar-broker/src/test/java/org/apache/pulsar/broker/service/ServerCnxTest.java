@@ -44,7 +44,9 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -512,10 +514,10 @@ public class ServerCnxTest {
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         svcConfig.setAuthorizationEnabled(true);
-        Field providerField = AuthorizationService.class.getDeclaredField("provider");
-        providerField.setAccessible(true);
+        Field providersField = AuthorizationService.class.getDeclaredField("providers");
+        providersField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
-        providerField.set(authorizationService, authorizationProvider);
+        providersField.set(authorizationService, Arrays.asList(authorizationProvider));
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any());
 
         // Test producer creation
@@ -540,10 +542,10 @@ public class ServerCnxTest {
     public void testClusterAccess() throws Exception {
         svcConfig.setAuthorizationEnabled(true);
         AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
-        Field providerField = AuthorizationService.class.getDeclaredField("provider");
-        providerField.setAccessible(true);
+        Field providersField = AuthorizationService.class.getDeclaredField("providers");
+        providersField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
-        providerField.set(authorizationService, authorizationProvider);
+        providersField.set(authorizationService, Arrays.asList(authorizationProvider));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
@@ -570,10 +572,10 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        Field providerField = AuthorizationService.class.getDeclaredField("provider");
-        providerField.setAccessible(true);
+        Field providersField = AuthorizationService.class.getDeclaredField("providers");
+        providersField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
-        providerField.set(authorizationService, authorizationProvider);
+        providersField.set(authorizationService, Arrays.asList(authorizationProvider));
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
 
         // Test producer creation

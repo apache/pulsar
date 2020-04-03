@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.discovery.service.server;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -72,8 +74,8 @@ public class ServiceConfig implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
-    // Authorization provider fully qualified class-name
-    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+    // Authorization provider fully qualified class-name list
+    private Set<String> authorizationProviders = new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName()));
 
     /***** --- TLS --- ****/
     @Deprecated
@@ -240,12 +242,12 @@ public class ServiceConfig implements PulsarConfiguration {
         this.authorizationEnabled = authorizationEnabled;
     }
 
-    public String getAuthorizationProvider() {
-        return authorizationProvider;
+    public Set<String> getAuthorizationProviders() {
+        return authorizationProviders;
     }
 
-    public void setAuthorizationProvider(String authorizationProvider) {
-        this.authorizationProvider = authorizationProvider;
+    public void setAuthorizationProviders(Set<String> authorizationProviders) {
+        this.authorizationProviders = authorizationProviders;
     }
 
     public Set<String> getSuperUserRoles() {

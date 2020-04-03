@@ -24,6 +24,7 @@ import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -104,7 +105,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
+        conf.setAuthorizationProviders(new HashSet<>(Arrays.asList(TestAuthorizationProvider.class.getName())));
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
@@ -164,7 +165,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        conf.setAuthorizationProviders(new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName())));
         setup();
 
         final String tenantRole = "tenant-role";
@@ -264,7 +265,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
+        conf.setAuthorizationProviders(new HashSet<>(Arrays.asList(TestAuthorizationProviderWithSubscriptionPrefix.class.getName())));
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
@@ -306,7 +307,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testGrantPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
+        conf.setAuthorizationProviders(new HashSet<>(Arrays.asList(TestAuthorizationProviderWithGrantPermission.class.getName())));
         setup();
 
         AuthorizationService authorizationService = new AuthorizationService(conf, null);
@@ -325,7 +326,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setAuthorizationProvider(TestAuthorizationProviderWithGrantPermission.class.getName());
+        conf.setAuthorizationProviders(new HashSet<>(Arrays.asList(TestAuthorizationProviderWithGrantPermission.class.getName())));
         setup();
 
         AuthorizationService authorizationService = new AuthorizationService(conf, null);

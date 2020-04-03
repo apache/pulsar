@@ -145,7 +145,7 @@ public class PulsarFunctionPublishTest {
         config.setAuthenticationProviders(providers);
 
         config.setAuthorizationEnabled(true);
-        config.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        config.setAuthorizationProviders(new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName())));
 
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

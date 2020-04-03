@@ -34,6 +34,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -142,7 +143,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(true);
-        config.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        config.setAuthorizationProviders(new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName())));
         config.setAnonymousUserRole(ANONYMOUS_ROLE);
         secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         Properties properties = new Properties();
@@ -251,7 +252,7 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(config.getAuthenticationProviders());
         workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
-        workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
+        workerConfig.setAuthorizationProviders(config.getAuthorizationProviders());
 
         return new WorkerService(workerConfig);
     }

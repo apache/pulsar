@@ -184,7 +184,7 @@ public class PulsarBrokerStarter {
                 workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
 
                 workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
-                workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
+                workerConfig.setAuthorizationProviders(brokerConfig.getAuthorizationProviders());
                 workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());

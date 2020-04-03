@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.broker.authorization;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -31,8 +35,18 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -43,7 +57,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class AuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
 
-    private AuthorizationProvider provider;
+    private final List<AuthorizationProvider> providers = Lists.newArrayList();
     private final ServiceConfiguration conf;
 
     public AuthorizationService(ServiceConfiguration conf, ConfigurationCacheService configCache)
@@ -52,12 +66,18 @@ public class AuthorizationService {
         this.conf = conf;
         if (this.conf.isAuthorizationEnabled()) {
             try {
-                final String providerClassname = conf.getAuthorizationProvider();
-                if (StringUtils.isNotBlank(providerClassname)) {
-                    provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
+                AuthorizationProvider provider;
+                for (String className : conf.getAuthorizationProviders()) {
+                    if (className.isEmpty()) {
+                        continue;
+                    }
+                    provider = (AuthorizationProvider) Class.forName(className).newInstance();
                     provider.initialize(conf, configCache);
-                    log.info("{} has been loaded.", providerClassname);
-                } else {
+                    providers.add(provider);
+                    log.info("{} has been loaded.", className);
+                }
+
+                if (providers.isEmpty()) {
                     throw new PulsarServerException("No authorization providers are present.");
                 }
             } catch (PulsarServerException e) {
@@ -70,17 +90,53 @@ public class AuthorizationService {
         }
     }
 
+    public static <T> CompletableFuture<List<T>> allAsList(List<? extends CompletionStage<? extends T>> stages) {
+        final CompletableFuture<? extends T>[] all = new CompletableFuture[stages.size()];
+        for (int i = 0; i < stages.size(); i++) {
+            all[i] = stages.get(i).toCompletableFuture();
+        }
+        return CompletableFuture.allOf(all)
+                .thenApply(ignored -> {
+                    final List<T> result = new ArrayList<>(all.length);
+                    for (int i = 0; i < all.length; i++) {
+                        result.add(all[i].join());
+                    }
+                    return result;
+                });
+    }
+
+    private static <T> CompletableFuture<T> anyMatch(List<? extends CompletionStage<? extends T>> l,
+                                                     Predicate<? super T> criteria) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        Consumer<T> whenMatching= v -> { if (criteria.test(v)) result.complete(v); };
+        CompletableFuture
+                .allOf(l.stream()
+                .map(f -> f.thenAccept(whenMatching)).toArray(CompletableFuture[]::new))
+                .whenComplete((ignored, t) -> result.completeExceptionally(t!=null? t: new NoSuchElementException()));
+        return result;
+    }
+
     public CompletableFuture<Boolean> isSuperUser(String user) {
-        if (provider != null) {
-           return provider.isSuperUser(user, conf);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.isSuperUser(user, conf)
+                    ).collect(Collectors.toList()),
+                    e -> e
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
     public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                     AuthenticationDataSource authenticationData) {
-        if (provider != null) {
-            return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData)
+                    ).collect(Collectors.toList()),
+                    e -> e
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -102,9 +158,13 @@ public class AuthorizationService {
      */
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
             String authDataJson) {
-
-        if (provider != null) {
-            return provider.grantPermissionAsync(namespace, actions, role, authDataJson);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.grantPermissionAsync(namespace, actions, role, authDataJson)
+                    ).collect(Collectors.toList()),
+                    null
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -122,8 +182,13 @@ public class AuthorizationService {
     public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
             Set<String> roles, String authDataJson) {
 
-        if (provider != null) {
-            return provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson)
+                    ).collect(Collectors.toList()),
+                    null
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -138,8 +203,13 @@ public class AuthorizationService {
      */
     public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
             String role, String authDataJson) {
-        if (provider != null) {
-            return provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson)
+                    ).collect(Collectors.toList()),
+                    null
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -157,9 +227,13 @@ public class AuthorizationService {
      */
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
             String authDataJson) {
-
-        if (provider != null) {
-            return provider.grantPermissionAsync(topicname, actions, role, authDataJson);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.grantPermissionAsync(topicname, actions, role, authDataJson)
+                    ).collect(Collectors.toList()),
+                    null
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
 
@@ -175,18 +249,23 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        if (provider != null) {
-            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
-                if (isSuperUser) {
-                    return CompletableFuture.completedFuture(true);
-                } else {
-                    return provider.canProduceAsync(topicName, role, authenticationData);
-                }
-            });
+
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                                if (isSuperUser) {
+                                    return CompletableFuture.completedFuture(true);
+                                } else {
+                                    return provider.canProduceAsync(topicName, role, authenticationData);
+                                }
+                            })
+                    ).collect(Collectors.toList()),
+                    e -> e
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -206,14 +285,20 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        if (provider != null) {
-            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
-                if (isSuperUser) {
-                    return CompletableFuture.completedFuture(true);
-                } else {
-                    return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
-                }
-            });
+
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                        provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                            if (isSuperUser) {
+                                return CompletableFuture.completedFuture(true);
+                            } else {
+                                return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+                            }
+                        })
+                    ).collect(Collectors.toList()),
+                    e -> e
+            );
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -316,6 +401,14 @@ public class AuthorizationService {
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                        AuthenticationDataSource authenticationData) {
-        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+        if (!providers.isEmpty()) {
+            return anyMatch(
+                    providers.parallelStream().map(provider ->
+                            provider.allowFunctionOpsAsync(namespaceName, role, authenticationData)
+                    ).collect(Collectors.toList()),
+                    e -> e
+            );
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 }

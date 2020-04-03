@@ -30,7 +30,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -313,9 +315,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean authorizationEnabled = false;
     @FieldContext(
             category = CATEGORY_WORKER_SECURITY,
-            doc = "Authorization provider fully qualified class-name"
+            doc = "Authorization provider fully qualified class-name list"
     )
-    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+    private Set<String> authorizationProviders = new HashSet<String>(Arrays.asList(PulsarAuthorizationProvider.class.getName()));
+
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"

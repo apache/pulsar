@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -162,7 +164,7 @@ public class PulsarFunctionLocalRunTest {
         config.setAuthenticationProviders(providers);
 
         config.setAuthorizationEnabled(true);
-        config.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        config.setAuthorizationProviders(new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName())));
 
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

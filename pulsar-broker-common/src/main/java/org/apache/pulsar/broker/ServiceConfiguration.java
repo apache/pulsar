@@ -25,6 +25,8 @@ import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -723,9 +725,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authorizationEnabled = false;
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
-        doc = "Authorization provider fully qualified class-name"
+        doc = "Authorization provider names list fully qualified class-name"
     )
-    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+    private Set<String> authorizationProviders = new HashSet<>(Arrays.asList(PulsarAuthorizationProvider.class.getName()));
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
