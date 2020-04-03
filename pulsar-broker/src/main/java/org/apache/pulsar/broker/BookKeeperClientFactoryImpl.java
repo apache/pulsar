@@ -106,8 +106,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
-        if (StringUtils.isNotBlank(conf.getBookkeeperServiceUri())) {
-            bkConf.setMetadataServiceUri(conf.getBookkeeperServiceUri());
+        if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
+            bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());
         } else {
             String metadataServiceUri = PulsarService.bookieMetadataServiceUri(conf);
             bkConf.setMetadataServiceUri(metadataServiceUri);

@@ -28,7 +28,7 @@ public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String configurationStoreServers;
-    private String metadataServiceUri;
+    private String bookkeeperMetadataServiceUri;
     private String stateStorageServiceUrl;
 
     public InternalConfigurationData() {
@@ -36,11 +36,11 @@ public class InternalConfigurationData {
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
-                                     String metadataServiceUri,
+                                     String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
-        this.metadataServiceUri = metadataServiceUri;
+        this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
 
@@ -52,8 +52,8 @@ public class InternalConfigurationData {
         return configurationStoreServers;
     }
 
-    public String getMetadataServiceUri() {
-        return metadataServiceUri;
+    public String getBookkeeperMetadataServiceUri() {
+        return bookkeeperMetadataServiceUri;
     }
 
     public String getStateStorageServiceUrl() {
@@ -68,13 +68,16 @@ public class InternalConfigurationData {
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(configurationStoreServers, other.configurationStoreServers)
-            && Objects.equals(metadataServiceUri, other.metadataServiceUri)
+            && Objects.equals(bookkeeperMetadataServiceUri, other.bookkeeperMetadataServiceUri)
             && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(zookeeperServers, configurationStoreServers, metadataServiceUri, stateStorageServiceUrl);
+        return Objects.hash(zookeeperServers,
+                configurationStoreServers,
+                bookkeeperMetadataServiceUri,
+                stateStorageServiceUrl);
     }
 
     @Override
@@ -82,7 +85,7 @@ public class InternalConfigurationData {
         return MoreObjects.toStringHelper(this)
             .add("zookeeperServers", zookeeperServers)
             .add("configurationStoreServers", configurationStoreServers)
-            .add("metadataServiceUri", metadataServiceUri)
+            .add("bookkeeperMetadataServiceUri", bookkeeperMetadataServiceUri)
             .add("stateStorageServiceUrl", stateStorageServiceUrl)
             .toString();
     }

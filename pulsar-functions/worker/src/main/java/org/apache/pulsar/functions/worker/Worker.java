@@ -146,7 +146,7 @@ public class Worker {
             return WorkerUtils.initializeDlogNamespace(internalConf);
         } catch (IOException ioe) {
             log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing function packages",
-                internalConf.getZookeeperServers(), internalConf.getMetadataServiceUri(), ioe);
+                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
     }

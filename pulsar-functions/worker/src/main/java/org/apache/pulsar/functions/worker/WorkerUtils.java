@@ -149,7 +149,7 @@ public final class WorkerUtils {
 
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
         String zookeeperServers = internalConf.getZookeeperServers();
-        URI metadataServiceUri = URI.create(internalConf.getMetadataServiceUri());
+        URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
         String ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
         String ledgersRootPath = metadataServiceUri.getPath();
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);

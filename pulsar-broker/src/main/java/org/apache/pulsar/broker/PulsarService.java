@@ -733,8 +733,8 @@ public class PulsarService implements AutoCloseable {
 
         String metadataServiceUri = getMetadataServiceUri();
 
-        if (StringUtils.isNotBlank(config.getBookkeeperServiceUri())) {
-            metadataServiceUri = this.getConfiguration().getBookkeeperServiceUri();
+        if (StringUtils.isNotBlank(config.getBookkeeperMetadataServiceUri())) {
+            metadataServiceUri = this.getConfiguration().getBookkeeperMetadataServiceUri();
         }
 
         return new InternalConfigurationData(
@@ -1205,7 +1205,7 @@ public class PulsarService implements AutoCloseable {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             } catch (IOException ioe) {
                 LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
-                    internalConf.getZookeeperServers(), internalConf.getMetadataServiceUri(), ioe);
+                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");
