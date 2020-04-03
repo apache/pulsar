@@ -88,10 +88,16 @@ public abstract class ZooKeeperCache implements Watcher {
     private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
     private final int zkOperationTimeoutSeconds;
+    private static final int CACHE_EXPIRY_SECONDS = 300; //5 minutes
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
     public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
+        this(cacheName, zkSession, zkOperationTimeoutSeconds, executor, CACHE_EXPIRY_SECONDS);
+    }
+    
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
+            OrderedExecutor executor, int cacheExpirySeconds) {
         checkNotNull(executor);
         this.zkOperationTimeoutSeconds = zkOperationTimeoutSeconds;
         this.executor = executor;
