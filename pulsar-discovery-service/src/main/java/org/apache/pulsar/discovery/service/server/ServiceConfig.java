@@ -45,6 +45,9 @@ public class ServiceConfig implements PulsarConfiguration {
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
 
+    // ZooKeeper cache expiry time in seconds
+    private int zooKeeperCacheExpirySeconds=300;
+
     // Port to use to server binary-proto request
     private Optional<Integer> servicePort = Optional.ofNullable(5000);
     // Port to use to server binary-proto-tls request
@@ -132,6 +135,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
         this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
+    }
+
+    public int getZooKeeperCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
     }
 
     public Optional<Integer> getServicePort() {

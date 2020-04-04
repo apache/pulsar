@@ -299,7 +299,7 @@ public class ZookeeperCacheTest {
         };
 
         GlobalZooKeeperCache zkCacheService = new GlobalZooKeeperCache(zkClientfactory, -1, 30, "", executor,
-                scheduledExecutor);
+                scheduledExecutor, 300);
         zkCacheService.start();
         zkClient = (MockZooKeeper) zkCacheService.getZooKeeper();
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
