@@ -151,7 +151,7 @@ jobs:
           !AdminApiTest,\
           !V1_AdminApiTest,\
           !CompactionTest,\
-          !BatchMessageTest'\
+          !BatchMessageTest,\
           !PartitionedTopicsSchemaTest'\
           -DfailIfNoTests=false -pl pulsar-broker
 
