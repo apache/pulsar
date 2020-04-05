@@ -17,19 +17,28 @@
 # under the License.
 #
 
-{{- if .Values.extra.bastion }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: "{{ template "pulsar.fullname" . }}-{{ .Values.bastion.component }}"
-  namespace: {{ .Values.namespace }}
-  labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-    component: {{ .Values.bastion.component }}
-    cluster: {{ template "pulsar.fullname" . }}
-data:
-{{ toYaml .Values.bastion.configData | indent 2 }}
-{{- end }}
+name: Precommit - Pulsar Helm Chart (ZK & BK TLS Only)
+on:
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - 'deployment/kubernetes/helm/**'
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Run chart-testing (lint)
+        id: lint
+        uses: helm/chart-testing-action@master
+        with:
+          command: lint
+
+      - name: Run chart-testing (install)
+        run: |
+          .ci/chart_test.sh .ci/clusters/values-zkbk-tls.yaml
+        # Only build a kind cluster if there are chart changes to test.
+        if: steps.lint.outputs.changed == 'true'
