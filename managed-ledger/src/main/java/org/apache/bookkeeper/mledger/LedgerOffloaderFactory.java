@@ -20,11 +20,11 @@ package org.apache.bookkeeper.mledger;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 /**
  * Factory to create {@link LedgerOffloader} to offload ledgers into long-term storage.
@@ -55,4 +55,21 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
              OrderedScheduler scheduler)
         throws IOException;
 
+    /**
+     * Create a ledger offloader with the provided configuration, user-metadata, schema storage and scheduler.
+     *
+     * @param offloadPolicies offload policies
+     * @param userMetadata user metadata
+     * @param schemaStorage used for schema lookup in offloader
+     * @param scheduler scheduler
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    default T create(OffloadPolicies offloadPolicies,
+             Map<String, String> userMetadata,
+             SchemaStorage schemaStorage,
+             OrderedScheduler scheduler)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, scheduler);
+    }
 }

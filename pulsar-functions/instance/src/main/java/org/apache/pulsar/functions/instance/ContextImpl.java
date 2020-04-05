@@ -235,8 +235,20 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Optional<Object> getUserConfigValue(String key) {
+        Object value = userConfigs.getOrDefault(key, null);
 
-        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
+        if (value instanceof String && ((String) value).startsWith("$")) {
+            // any string starts with '$' is considered as system env symbol and will be
+            // replaced with the actual env value
+            try {
+                String actualValue = System.getenv(((String) value).substring(1));
+                return Optional.ofNullable(actualValue);
+            } catch (SecurityException ex) {
+                throw new RuntimeException("Access to environment variable " + value + " is not allowed.", ex);
+            }
+        }  else {
+            return Optional.ofNullable(value);
+        }
     }
 
     @Override
@@ -469,7 +481,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                     .whenComplete((result, cause) -> {
                         if (null != cause) {
                             statsManager.incrSysExceptions(cause);
-                            logger.error("Failed to publish to topic with error {}", cause);
+                            logger.error("Failed to publish to topic with error", cause);
                         }
                     });
         }

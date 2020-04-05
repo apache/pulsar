@@ -45,7 +45,7 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
         try {
             runtime = sun.management.ManagementFactoryHelper.getHotspotRuntimeMBean();
         } catch (Exception e) {
-            log.warn("Failed to get Runtime bean", e.getMessage());
+            log.warn("Failed to get Runtime bean", e);
         }
     }
 

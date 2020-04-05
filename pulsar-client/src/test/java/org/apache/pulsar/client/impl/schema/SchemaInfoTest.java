@@ -246,7 +246,7 @@ public class SchemaInfoTest {
         + "}";
 
     @DataProvider(name = "schemas")
-    public Object[][] schemas() {
+    public static Object[][] schemas() {
         return new Object[][] {
             {
                 Schema.STRING.getSchemaInfo(), UTF8_SCHEMA_INFO

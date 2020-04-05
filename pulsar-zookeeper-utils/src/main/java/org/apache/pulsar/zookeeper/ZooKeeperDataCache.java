@@ -164,7 +164,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         }
     }
 
-    public <T> T getDataIfPresent(String path) {
+    public T getDataIfPresent(String path) {
         return (T) cache.getDataIfPresent(path);
     }
 

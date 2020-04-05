@@ -716,7 +716,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
 
         if (this.namespaceName != null) {
-            checkArgument(TopicName.get(topicName).getNamespace().toString().equals(this.namespaceName.toString()),
+            checkArgument(TopicName.get(topicName).getNamespace().equals(this.namespaceName.toString()),
                 "Topic " + topicName + " not in same namespace with Topics");
         }
 
@@ -871,7 +871,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .filter(consumer1 -> {
                             String consumerTopicName = consumer1.getTopic();
                             if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
-                                TopicName.get(topicName).getPartitionedTopicName().toString())) {
+                                    TopicName.get(topicName).getPartitionedTopicName())) {
                                 return true;
                             } else {
                                 return false;
@@ -1194,7 +1194,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture
             .allOf(messageIdFutures.entrySet().stream().map(Map.Entry::getValue).toArray(CompletableFuture<?>[]::new))
             .whenComplete((ignore, ex) -> {
-                Builder<String, MessageId> builder = ImmutableMap.<String, MessageId>builder();
+                Builder<String, MessageId> builder = ImmutableMap.builder();
                 messageIdFutures.forEach((key, future) -> {
                     MessageId messageId;
                     try {

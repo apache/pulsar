@@ -19,17 +19,20 @@
 package org.apache.pulsar.client.admin.internal;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 
-import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 @SuppressWarnings("deprecation")
@@ -44,49 +47,127 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     @Override
     public List<String> getTenants() throws PulsarAdminException {
         try {
-            return request(adminTenants).get(new GenericType<List<String>>() {
-            });
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getTenantsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getTenantsAsync() {
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(adminTenants,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> tenants) {
+                        future.complete(tenants);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public TenantInfo getTenantInfo(String tenant) throws PulsarAdminException {
         try {
-            return request(adminTenants.path(tenant)).get(TenantInfo.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getTenantInfoAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant) {
+        WebTarget path = adminTenants.path(tenant);
+        final CompletableFuture<TenantInfo> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TenantInfo>() {
+                    @Override
+                    public void completed(TenantInfo tenantInfo) {
+                        future.complete(tenantInfo);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public void createTenant(String tenant, TenantInfo config) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).put(Entity.entity(config, MediaType.APPLICATION_JSON),
-                    ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            createTenantAsync(tenant, config)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config) {
+        WebTarget path = adminTenants.path(tenant);
+        return asyncPutRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
     }
 
     @Override
     public void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).post(Entity.entity(config, MediaType.APPLICATION_JSON),
-                    ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            updateTenantAsync(tenant, config).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfo config) {
+        WebTarget path = adminTenants.path(tenant);
+        return asyncPostRequest(path, Entity.entity(config, MediaType.APPLICATION_JSON));
     }
 
     @Override
     public void deleteTenant(String tenant) throws PulsarAdminException {
         try {
-            request(adminTenants.path(tenant)).delete(ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            deleteTenantAsync(tenant).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteTenantAsync(String tenant) {
+        WebTarget path = adminTenants.path(tenant);
+        return asyncDeleteRequest(path);
     }
 
     // Compat method names

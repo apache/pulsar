@@ -365,7 +365,7 @@ public abstract class ComponentImpl {
             } catch (NamespaceNotFoundException | StreamNotFoundException e) {
                 // ignored if the state table doesn't exist
             } catch (Exception e) {
-                log.error("{}/{}/{} Failed to delete state table", e);
+                log.error("{}/{}/{} Failed to delete state table: {}", tenant, namespace, componentName, e.getMessage());
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }

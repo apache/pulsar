@@ -77,7 +77,7 @@ public class BrokerDiscoveryProvider implements Closeable {
                     config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler);
             globalZkCache.start();
         } catch (Exception e) {
-            LOG.error("Failed to start Zookkeeper {}", e.getMessage(), e);
+            LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
     }

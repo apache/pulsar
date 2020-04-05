@@ -244,7 +244,7 @@ public class SchedulerManager implements AutoCloseable {
             try {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
             } catch (PulsarAdminException e) {
-                log.error("Failed to trigger compaction {}", e);
+                log.error("Failed to trigger compaction", e);
                 executorService.schedule(() -> compactAssignmentTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
                         TimeUnit.SECONDS);
             }
