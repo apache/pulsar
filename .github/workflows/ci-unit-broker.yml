@@ -57,6 +57,7 @@ jobs:
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h
+          free -h
 
       - name: Set up Maven
         uses: apache/pulsar-test-infra/setup-maven@master
@@ -96,13 +97,42 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn test -DfailIfNoTests=false '-Dtest=ReplicatorRateLimiterTest' -pl pulsar-broker
 
+      - name: run unit tests pulsar broker persistent dispatcher failover consumer test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=PersistentDispatcherFailoverConsumerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker admin api test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=AdminApiTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker v1 admin api test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=V1_AdminApiTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker compaction test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=CompactionTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker batch message test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=BatchMessageTest' -pl pulsar-broker
+        
+      - name: run unit tests pulsar broker partitioned topics schema test
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=PartitionedTopicsSchemaTest' -pl pulsar-broker
+        
       - name: run unit test pulsar-broker
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest' -DfailIfNoTests=false -pl pulsar-broker
+        run: |
+          df -h
+          free -h
+          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest' -DfailIfNoTests=false -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
         run: |
+          df -h
+          free -h
           rm -rf artifacts
           mkdir artifacts
           find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
