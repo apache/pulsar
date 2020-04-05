@@ -125,15 +125,14 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public void testRetryTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/retry-topic-1";
         final String topic2 = "persistent://my-property/my-ns/retry-topic-2";
-        final String topic3 = "persistent://my-property/my-ns/retry-topic-3";
 
         final int maxRedeliveryCount = 2;
 
-        int sendMessages = 50;
+        int sendMessages = 100;
 
         // subscribe to the original topics before publish
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic1, topic2, topic3)
+                .topic(topic1, topic2)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
@@ -157,16 +156,12 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .topic(topic2)
                 .create();
 
-        Producer<byte[]> producer3 = pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic3)
-                .create();
         for (int i = 0; i < sendMessages; i++) {
             producer1.send(String.format("Hello Pulsar [%d]", i).getBytes());
             producer2.send(String.format("Hello Pulsar [%d]", i).getBytes());
-            producer3.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
 
-        sendMessages = sendMessages * 3;
+        sendMessages = sendMessages * 2;
 
         producer1.close();
         producer2.close();
@@ -190,7 +185,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         consumer.close();
 
         Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic1, topic2, topic3)
+                .topic(topic1, topic2)
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
