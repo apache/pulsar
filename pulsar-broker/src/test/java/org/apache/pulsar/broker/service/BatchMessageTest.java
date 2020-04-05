@@ -782,7 +782,6 @@ public class BatchMessageTest extends BrokerTestBase {
         receivedMessageIndex = 0;
         for (int i = 0; i < 30; i++) {
             Message<byte[]> received = consumer.receive();
-            System.out.println(new String(received.getOrderingKey()) + "----->" + new String(received.getValue()));
             if (!new String(received.getOrderingKey()).equals(receivedKey)) {
                 receivedKey = new String(received.getOrderingKey());
                 receivedMessageIndex = 0;
