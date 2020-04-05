@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.api.examples.pojo;
 
-import java.util.Collection;
+import lombok.Data;
 
 
 /**
- * This functions collects the timestamp during the window operation.
+ * Avro test object.
  */
-public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
-    @Override
-    public String apply(Collection<String> integers) {
-        long time = System.currentTimeMillis();
-        return String.format("%s:%s", String.join(",", integers), time);
-    }
+@Data
+public class AvroTestObject {
+
+    private int baseValue;
+
 }
