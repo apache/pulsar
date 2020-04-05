@@ -122,7 +122,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
-    public void testDeadLetterTopicWithMultiTopic() throws Exception {
+    public void testRetryTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/retry-topic-1";
         final String topic2 = "persistent://my-property/my-ns/retry-topic-2";
         final String topic3 = "persistent://my-property/my-ns/retry-topic-3";
@@ -206,7 +206,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testDeadLetterTopicByCustomTopicName() throws Exception {
+    public void testRetryTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
         final int maxRedeliveryCount = 2;
         final int sendMessages = 100;
