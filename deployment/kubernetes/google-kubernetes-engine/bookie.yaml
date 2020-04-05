@@ -46,11 +46,11 @@ metadata:
 data:
   PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
   PULSAR_GC: "\" -XX:+UseG1GC \""
-  PULSAR_PREFIX_dbStorage_writeCacheMaxSizeMb: "1024"
-  PULSAR_PREFIX_dbStorage_readAheadCacheMaxSizeMb: "1024"
-  PULSAR_PREFIX_zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-  PULSAR_PREFIX_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
-  PULSAR_PREFIX_useHostNameAsBookieID: "true"
+  dbStorage_writeCacheMaxSizeMb: "1024"
+  dbStorage_readAheadCacheMaxSizeMb: "1024"
+  zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+  statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+  useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
