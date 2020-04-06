@@ -53,6 +53,7 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
         assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
+        assertEquals(Boolean.parseBoolean("false"), config.isPassive());
     }
 
     @Test
@@ -72,6 +73,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "true");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         assertNotNull(config);
@@ -89,6 +91,8 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
         assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
+        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
+        assertEquals(Boolean.parseBoolean("true"), config.isPassive());
     }
 
     @Test
@@ -108,6 +112,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();
@@ -130,6 +135,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();
@@ -153,6 +159,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "-100");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();

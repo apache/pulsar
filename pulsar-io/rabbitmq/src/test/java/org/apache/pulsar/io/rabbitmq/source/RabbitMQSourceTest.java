@@ -59,6 +59,7 @@ public class RabbitMQSourceTest {
         configs.put("requestedHeartbeat", "60");
         configs.put("prefetchCount", "0");
         configs.put("prefetchGlobal", "false");
+        configs.put("passive", "false");
 
         RabbitMQSource source = new RabbitMQSource();
 

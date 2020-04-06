@@ -29,6 +29,7 @@ The configuration of the RabbitMQ source connector has the following properties.
 | `requestedHeartbeat` | int|false | 60 | The requested heartbeat timeout in seconds. |
 | `prefetchCount` | int|false | 0 | The maximum number of messages that the server delivers.<br><br> 0 means unlimited. |
 | `prefetchGlobal` | boolean|false | false |Whether the setting should be applied to the entire channel rather than each consumer. |
+| `passive` | boolean|false | false | Whether the rabbitmq consumer should create its own queue or bind to an existing one. |
 
 ### Example
 
@@ -51,7 +52,8 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         "handshakeTimeout": "10000",
         "requestedHeartbeat": "60",
         "prefetchCount": "0",
-        "prefetchGlobal": "false"
+        "prefetchGlobal": "false",
+        "passive": "false"
     }
     ```
 
@@ -73,5 +75,6 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         requestedHeartbeat: 60
         prefetchCount: 0
         prefetchGlobal: "false"
+        passive: "false"
     ```
 
