@@ -19,7 +19,7 @@
 #
 
 BINDIR=`dirname "$0"`
-CHARTS_HOME=`cd ${BINDIR}/..;pwd`
+CHARTS_HOME=`cd ${BINDIR}/../deployment/kubernetes/helm/;pwd`
 OUTPUT_BIN=${CHARTS_HOME}/output/bin
 HELM=${OUTPUT_BIN}/helm
 KUBECTL=${OUTPUT_BIN}/kubectl
