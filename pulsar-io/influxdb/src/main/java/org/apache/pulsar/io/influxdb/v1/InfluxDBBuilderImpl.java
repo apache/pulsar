@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.influxdb;
+package org.apache.pulsar.io.influxdb.v1;
 
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
