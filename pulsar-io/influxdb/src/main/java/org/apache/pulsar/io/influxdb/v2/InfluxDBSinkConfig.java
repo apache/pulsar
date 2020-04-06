@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.influxdb;
+package org.apache.pulsar.io.influxdb.v2;
+
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -31,7 +32,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Configuration class for the InfluxDB Sink Connector.
+ * Configuration class for the InfluxDB2 Sink Connector.
  */
 @Data
 @Accessors(chain = true)
@@ -40,69 +41,62 @@ public class InfluxDBSinkConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The url of the InfluxDB instance to connect to"
+            required = true,
+            defaultValue = "",
+            help = "The url of the InfluxDB instance to connect to"
     )
     private String influxdbUrl;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The username used to authenticate to InfluxDB"
+            required = true,
+            defaultValue = "",
+            sensitive = true,
+            help = "The authentication token used to authenticate to InfluxDB"
     )
-    private String username;
+    private String token;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "",
-        sensitive = true,
-        help = "The password used to authenticate to InfluxDB"
+            required = true,
+            defaultValue = "",
+            help = "The InfluxDB organization to write to"
     )
-    private String password;
+    private String organization;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The InfluxDB database to write to"
+            required = true,
+            defaultValue = "",
+            help = "The InfluxDB bucket to write to"
     )
-    private String database;
+    private String bucket;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "ONE",
-        help = "The consistency level for writing data to InfluxDB. Possible values [ALL, ANY, ONE, QUORUM]")
-    private String consistencyLevel = "ONE";
+            required = false,
+            defaultValue = "ONE",
+            help = "The timestamp precision for writing data to InfluxDB. Possible values [ns, us, ms, s]")
+    private String precision = "ns";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "NONE",
-        help = "The log level for InfluxDB request and response. Possible values [NONE, BASIC, HEADERS, FULL]")
+            required = false,
+            defaultValue = "NONE",
+            help = "The log level for InfluxDB request and response. Possible values [NONE, BASIC, HEADERS, FULL]")
     private String logLevel = "NONE";
 
     @FieldDoc(
-        required = false,
-        defaultValue = "autogen",
-        help = "The retention policy for the InfluxDB database")
-    private String retentionPolicy = "autogen";
-
-    @FieldDoc(
-        required = false,
-        defaultValue = "false",
-        help = "Flag to determine if gzip should be enabled")
+            required = false,
+            defaultValue = "false",
+            help = "Flag to determine if gzip should be enabled")
     private boolean gzipEnable = false;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "1000L",
-        help = "The InfluxDB operation time in milliseconds")
-    private long batchTimeMs = 1000L;
+            required = false,
+            defaultValue = "1000L",
+            help = "The InfluxDB operation time in milliseconds")
+    private long batchTimeMs = 1000;
 
     @FieldDoc(
-        required = false,
-        defaultValue = "200",
-        help = "The batch size of write to InfluxDB database"
+            required = false,
+            defaultValue = "200",
+            help = "The batch size of write to InfluxDB database"
     )
     private int batchSize = 200;
 
@@ -118,8 +112,12 @@ public class InfluxDBSinkConfig implements Serializable {
 
     public void validate() {
         Preconditions.checkNotNull(influxdbUrl, "influxdbUrl property not set.");
-        Preconditions.checkNotNull(database, "database property not set.");
+        Preconditions.checkNotNull(token, "token property not set.");
+        Preconditions.checkNotNull(organization, "organization property not set.");
+        Preconditions.checkNotNull(bucket, "bucket property not set.");
+
         Preconditions.checkArgument(batchSize > 0, "batchSize must be a positive integer.");
         Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
     }
 }
+

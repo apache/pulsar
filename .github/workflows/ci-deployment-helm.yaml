@@ -17,10 +17,25 @@
 # under the License.
 #
 
-[program:bookie]
-autostart=false
-redirect_stderr=true
-stdout_logfile=/var/log/pulsar/bookie.log
-directory=/pulsar
-environment=PULSAR_MEM="-Xmx128M -XX:MaxDirectMemorySize=512M",PULSAR_GC="-XX:+UseG1GC",dbStorage_writeCacheMaxSizeMb="16",dbStorage_readAheadCacheMaxSizeMb="16"
-command=/pulsar/bin/pulsar bookie
+name: CI - Deployment - Helm
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  helm:
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Lint the Helm chart
+        run: helm lint deployment/kubernetes/helm/pulsar
