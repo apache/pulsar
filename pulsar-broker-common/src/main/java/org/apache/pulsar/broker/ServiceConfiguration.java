@@ -1281,6 +1281,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Replicator producer queue size"
     )
     private int replicationProducerQueueSize = 1000;
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            doc = "Duration to check replication policy to avoid replicator "
+                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
+        )
+    private int replicatioPolicyCheckDurationSeconds = 600;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,
