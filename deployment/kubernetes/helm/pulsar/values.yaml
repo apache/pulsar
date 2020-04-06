@@ -49,7 +49,7 @@ metadataPrefix: ""
 ## you can set the `volume.persistence` setting to `false` for
 ## that component.
 ##
-## Deprecated in favor of using `volumes.persistence` 
+## Deprecated in favor of using `volumes.persistence`
 persistence: true
 ## Volume settings
 volumes:
@@ -859,7 +859,7 @@ grafana:
     tls: []
 
     ## Optional. Leave it blank if your Ingress Controller can provide a default certificate.
-    #- secretName: ""
+    ## - secretName: ""
 
     ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
     extraPaths: []
@@ -892,8 +892,8 @@ pulsar_manager:
     URL: jdbc:postgresql://127.0.0.1:5432/pulsar_manager
     LOG_LEVEL: DEBUG
     ## If you enabled authentication support
-    #JWT_TOKEN: <token>
-    #SECRET_KEY: data:base64,<secret key>
+    ## JWT_TOKEN: <token>
+    ## SECRET_KEY: data:base64,<secret key>
   ## Pulsar manager service
   ## templates/pulsar-manager-service.yaml
   ##
