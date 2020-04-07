@@ -69,6 +69,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String pulsarDockerImageName;
     private String imagePullPolicy;
     private String pulsarRootDir;
+    private String configAdminCLI;
     private String pulsarAdminUrl;
     private String pulsarServiceUrl;
     private String pythonDependencyRepository;
@@ -150,6 +151,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.pulsarRootDir = factoryConfig.getPulsarRootDir();
         } else {
             this.pulsarRootDir = "/pulsar";
+        }
+        if (!isEmpty(factoryConfig.getConfigAdminCLI())) {
+            this.configAdminCLI = factoryConfig.getConfigAdminCLI();
+        } else {
+            this.configAdminCLI = "/bin/pulsar-admin";
         }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
@@ -270,6 +276,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             instanceFile,
             extraDependenciesDir,
             logDirectory,
+            configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
             pulsarServiceUrl,
