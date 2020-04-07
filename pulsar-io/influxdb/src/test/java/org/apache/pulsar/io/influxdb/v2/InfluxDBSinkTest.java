@@ -106,8 +106,8 @@ public class InfluxDBSinkTest {
 
         assertEquals("cpu", record.getField("measurement"));
 
-        // FIXME: GenericJsonRecord will parse long to string or int, depends on whether the value is greater than max Integer. We should modify the behavior of GenericJsonSchema
-        assertEquals(timestamp+"", record.getField("timestamp"));
+        // compare the String type
+        assertEquals(timestamp + "", record.getField("timestamp").toString());
 
         assertEquals("server-1", ((GenericRecord)record.getField("tags")).getField("host"));
         assertEquals(10, ((GenericRecord)record.getField("fields")).getField("value"));
