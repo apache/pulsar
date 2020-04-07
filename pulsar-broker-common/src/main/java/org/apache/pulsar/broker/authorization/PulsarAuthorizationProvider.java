@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
@@ -508,13 +507,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 log.debug("Broker is allowed to make read-write operations");
             }
         }
-    }
-
-    @Override
-    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, String originalRole, String role,
-                                                            ClusterOperation operation,
-                                                            AuthenticationDataSource authData) {
-        return isSuperUser(role, conf);
     }
 
     @Override

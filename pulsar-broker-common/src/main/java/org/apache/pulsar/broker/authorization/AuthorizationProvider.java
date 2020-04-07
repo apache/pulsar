@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -192,36 +191,6 @@ public interface AuthorizationProvider extends Closeable {
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
-
-    /**
-     * Grant authorization-action permission on a cluster to the given client
-     * @param clusterName
-     * @param originalRole
-     * @param role
-     * @param operation
-     * @param authData
-     * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when topic not found<br/>
-     *                IllegalStateException when failed to grant permission
-     */
-    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, String originalRole, String role,
-                                                             ClusterOperation operation,
-                                                             AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-                new IllegalStateException("ClusterOperation is not supported by the Authorization provider you are using."));
-    }
-
-    default Boolean allowClusterOperation(String clusterName, String originalRole, String role, ClusterOperation operation,
-                                       AuthenticationDataSource authData) {
-        try {
-            return allowClusterOperationAsync(clusterName, originalRole, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
 
     /**
      * Grant authorization-action permission on a tenant to the given client

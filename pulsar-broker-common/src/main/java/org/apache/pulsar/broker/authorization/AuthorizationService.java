@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -325,48 +324,6 @@ public class AuthorizationService {
     }
 
     /**
-     * Grant authorization-action permission on a cluster to the given client
-     *
-     * @param clusterName
-     * @param operation
-     * @param originalRole
-     * @param role
-     * @param authData
-     *            additional authdata in json for targeted authorization provider
-     * @return IllegalArgumentException when tenant not found
-     * @throws IllegalStateException
-     *             when failed to grant permission
-     */
-    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, ClusterOperation operation,
-                                                                 String originalRole, String role,
-                                                                 AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
-        }
-
-        if (provider != null) {
-            return provider.allowClusterOperationAsync(clusterName, originalRole, role, operation, authData);
-        }
-
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
-                "allowClusterOperationAsync"));
-    }
-
-    public Boolean allowClusterOperation(String clusterName, ClusterOperation operation,
-                                                                 String orignalRole, String role,
-                                                                 AuthenticationDataSource authData) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return true;
-        }
-
-        if (provider != null) {
-            return provider.allowClusterOperation(clusterName, orignalRole, role, operation, authData);
-        }
-
-        throw new IllegalStateException("No authorization provider configured for allowClusterOperation");
-    }
-
-    /**
      * Grant authorization-action permission on a tenant to the given client
      *
      * @param tenantName
@@ -404,7 +361,7 @@ public class AuthorizationService {
             return provider.allowTenantOperation(tenantName, orignalRole, role, operation, authData);
         }
 
-        throw new IllegalStateException("No authorization provider configured for allowClusterOperation");
+        throw new IllegalStateException("No authorization provider configured for allowTenantOperation");
     }
 
     /**

@@ -61,7 +61,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -774,22 +773,6 @@ public abstract class PulsarWebResource {
 
     // Non-Usual HTTP error codes
     protected static final int NOT_IMPLEMENTED = 501;
-
-    public void validateClusterOperation(String cluster, ClusterOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
-            }
-
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowClusterOperation(cluster, operation, originalPrincipal(), clientAppId(), clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateClusterOperation for" +
-                        " operation [%s] on cluster [%s]", operation.toString(), cluster));
-            }
-        }
-    }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
