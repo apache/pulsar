@@ -25,9 +25,9 @@ metadata:
 data:
     PULSAR_MEM: "\" -Xms8g -Xmx8g -XX:MaxDirectMemorySize=4g\""
     PULSAR_GC: "\" -XX:+UseG1GC \""
-    PULSAR_PREFIX_zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    PULSAR_PREFIX_configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    PULSAR_PREFIX_clusterName: pulsar-gke
+    zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+    configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+    clusterName: pulsar-gke
 ---
 ##
 ## Broker deployment definition

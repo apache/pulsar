@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.influxdb;
+package org.apache.pulsar.io.influxdb.v2;
 
-import org.influxdb.InfluxDB;
 
-public interface InfluxDBBuilder {
-    InfluxDB build(InfluxDBSinkConfig config);
+import com.influxdb.client.InfluxDBClient;
+
+public interface InfluxDBClientBuilder {
+    InfluxDBClient build(InfluxDBSinkConfig config);
 }

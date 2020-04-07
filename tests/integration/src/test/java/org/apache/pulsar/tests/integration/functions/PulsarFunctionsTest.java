@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -43,7 +44,10 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -56,6 +60,7 @@ import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
@@ -68,7 +73,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -1068,15 +1075,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 break;
             }
             String msgStr = new String(msg.getData());
-            log.info("i: {} RECV: {}", i, msgStr);
+            log.info("[testWindowFunction] i: {} RECV: {}", i, msgStr);
             String result = msgStr.split(":")[0];
             assertThat(result).contains(expectedResults[i]);
             i++;
         }
-        // in case last commit is not updated
-        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+
+        // in case last commit is not updated
+        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         deleteFunction(functionName);
 
@@ -2135,6 +2143,123 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             Message<String> msg = consumer.receive();
             assertEquals("value-" + i, msg.getValue());
         }
+    }
+
+    @Test(groups = "function")
+    public void testAvroSchemaFunction() throws Exception {
+        log.info("testAvroSchemaFunction start ...");
+        final String inputTopic = "test-avroschema-input-" + randomName(8);
+        final String outputTopic = "test-avroschema-output-" + randomName(8);
+        final String functionName = "test-avroschema-fn-202003241756";
+        final int numMessages = 10;
+
+        if (pulsarCluster == null) {
+            log.info("pulsarClient is null");
+            this.setupCluster();
+            this.setupFunctionWorkers();
+        }
+
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        log.info("pulsar client init - input: {}, output: {}", inputTopic, outputTopic);
+
+        @Cleanup Producer<AvroTestObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(AvroTestObject.class))
+                .topic(inputTopic).create();
+        log.info("pulsar producer init - {}", inputTopic);
+
+        @Cleanup Consumer<AvroTestObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(AvroTestObject.class))
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-avro-schema")
+                .topic(outputTopic)
+                .subscribe();
+        log.info("pulsar consumer init - {}", outputTopic);
+
+        CompletableFuture<Optional<SchemaInfo>> inputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(inputTopic);
+        inputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (schemaInfo.isPresent()) {
+                log.info("inputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("input schema is not present!");
+            }
+        });
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
+
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                AvroSchemaTestFunction.class.getName(),
+                Schema.AVRO(AvroTestObject.class));
+        log.info("pulsar submitFunction");
+
+        getFunctionInfoSuccess(functionName);
+
+        AvroSchemaTestFunction function = new AvroSchemaTestFunction();
+        Set<Object> expectedSet = new HashSet<>();
+
+        log.info("test-avro-schema producer connected: " + producer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            AvroTestObject inputObject = new AvroTestObject();
+            inputObject.setBaseValue(i);
+            MessageId messageId = producer.send(inputObject);
+            log.info("test-avro-schema messageId: {}", messageId.toString());
+            expectedSet.add(function.process(inputObject, null));
+            log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
+        }
+        getFunctionStatus(functionName, numMessages, false);
+        log.info("test-avro-schema producer send message finish");
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture2 =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture2.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
+
+        log.info("test-avro-schema consumer connected: " + consumer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            log.info("test-avro-schema consumer receive [{}] start", i);
+            Message<AvroTestObject> message = consumer.receive();
+            log.info("test-avro-schema consumer receive [{}] over", i);
+            AvroTestObject outputObject = message.getValue();
+            assertTrue(expectedSet.contains(outputObject));
+            expectedSet.remove(outputObject);
+            consumer.acknowledge(message);
+        }
+        log.info("test-avro-schema consumer receive message finish");
+
+        assertEquals(expectedSet.size(), 0);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
     }
 
     private  void testDebeziumMySqlConnect()
