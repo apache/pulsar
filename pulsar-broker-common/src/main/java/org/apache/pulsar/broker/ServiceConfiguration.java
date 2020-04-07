@@ -638,7 +638,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
-    private int consumedLedgersCheckIntervalInSeconds = 120;
+    private int retentionCheckIntervalInSeconds = 120;
 
     /**** --- Messaging Protocols --- ****/
 

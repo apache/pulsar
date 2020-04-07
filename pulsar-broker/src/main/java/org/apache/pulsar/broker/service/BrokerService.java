@@ -468,7 +468,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     protected void startConsumedLedgersMonitor() {
-        int interval = pulsar().getConfiguration().getConsumedLedgersCheckIntervalInSeconds();
+        int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
         if (interval > 0) {
             consumedLedgersMonitor.scheduleAtFixedRate(safeRun(this::checkConsumedLedgers),
                                                             interval, interval, TimeUnit.SECONDS);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -43,21 +44,21 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
     @Test
     public void TestConsumedLedgersTrim() throws Exception {
-        conf.setConsumedLedgersCheckIntervalInSeconds(2);
+        conf.setRetentionCheckIntervalInSeconds(2);
         super.baseSetup();
-        Thread.sleep(4);
         final String topicName = "persistent://prop/ns-abc/TestConsumedLedgersTrim";
         final String subscriptionName = "my-subscriber-name";
+
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .producerName("producer-name")
                 .create();
-
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topicName).get();
         Assert.assertNotNull(topicRef);
-
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
@@ -68,7 +69,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
         int msgNum = 10;
         for (int i = 0; i < msgNum; i++) {
-            producer.sendAsync(new byte[1024 * 1024]).get(2, TimeUnit.SECONDS);
+            producer.send(new byte[1024 * 1024]);
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
