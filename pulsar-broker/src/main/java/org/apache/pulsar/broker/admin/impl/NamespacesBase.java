@@ -572,23 +572,28 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    (rc, path1, ctx, stat) -> {
+                                        if (rc == KeeperException.Code.OK.intValue()) {
+                                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                        } else {
+                                            String errorMsg = String.format(
+                                                    "[%s] Failed to modify autoTopicCreation status for namespace %s",
+                                                    clientAppId(), namespaceName);
+                                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                                log.warn("{} : does not exist", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                                log.warn("{} : concurrent modification", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                            } else {
+                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                            }
+                                        }
+                                    }, null);
+                            String autoOverride = autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled";
+                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
                             asyncResponse.resume(Response.noContent().build());
-                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
-                                    autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled", namespaceName);
-                            return null;
-                        } catch (KeeperException.NoNodeException e) {
-                            log.error("[{}] Failed to modify autoTopicCreation status for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                            return null;
-                        } catch (KeeperException.BadVersionException e) {
-                            log.error(
-                                    "[{}] Failed to modify autoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
-                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -620,22 +625,27 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                            asyncResponse.resume(Response.noContent().build());
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    (rc, path1, ctx, stat) -> {
+                                        if (rc == KeeperException.Code.OK.intValue()) {
+                                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                        } else {
+                                            String errorMsg = String.format(
+                                                    "[%s] Failed to modify autoTopicCreation status for namespace %s",
+                                                    clientAppId(), namespaceName);
+                                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                                log.warn("{} : does not exist", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                                log.warn("{} : concurrent modification", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                            } else {
+                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                            }
+                                        }
+                                    }, null);
                             log.info("[{}] Successfully removed autoTopicCreation override on namespace {}", clientAppId(), namespaceName);
-                            return null;
-                        } catch (KeeperException.NoNodeException e) {
-                            log.error("[{}] Failed to modify autoTopicCreation status for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                            return null;
-                        } catch (KeeperException.BadVersionException e) {
-                            log.error(
-                                    "[{}] Failed to modify autoTopicCreation status on namespace {} expected policy node version={} : concurrent modification",
-                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -667,23 +677,28 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                            asyncResponse.resume(Response.noContent().build());
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    (rc, path1, ctx, stat) -> {
+                                        if (rc == KeeperException.Code.OK.intValue()) {
+                                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                        } else {
+                                            String errorMsg = String.format(
+                                                    "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
+                                                    clientAppId(), namespaceName);
+                                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                                log.warn("{} : does not exist", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                                log.warn("{} : concurrent modification", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                            } else {
+                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                            }
+                                        }
+                                    }, null);
                             String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled" : "disabled";
                             log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
-                            return null;
-                        } catch (KeeperException.NoNodeException e) {
-                            log.error("[{}] Failed to modify autoSubscriptionCreation status for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                            return null;
-                        } catch (KeeperException.BadVersionException e) {
-                            log.error(
-                                    "[{}] Failed to modify autoSubscriptionCreation status on namespace {} expected policy node version={} : concurrent modification",
-                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -715,22 +730,27 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                            asyncResponse.resume(Response.noContent().build());
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    (rc, path1, ctx, stat) -> {
+                                        if (rc == KeeperException.Code.OK.intValue()) {
+                                            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                        } else {
+                                            String errorMsg = String.format(
+                                                    "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
+                                                    clientAppId(), namespaceName);
+                                            if (rc == KeeperException.Code.NONODE.intValue()) {
+                                                log.warn("{} : does not exist", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                            } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
+                                                log.warn("{} : concurrent modification", errorMsg);
+                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                            } else {
+                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                            }
+                                        }
+                                    }, null);
                             log.info("[{}] Successfully removed autoSubscriptionCreation override on namespace {}", clientAppId(), namespaceName);
-                            return null;
-                        } catch (KeeperException.NoNodeException e) {
-                            log.error("[{}] Failed to modify autoSubscriptionCreation status for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                            return null;
-                        } catch (KeeperException.BadVersionException e) {
-                            log.error(
-                                    "[{}] Failed to modify autoSubscriptionCreation status on namespace {} expected policy node version={} : concurrent modification",
-                                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
-
-                            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
