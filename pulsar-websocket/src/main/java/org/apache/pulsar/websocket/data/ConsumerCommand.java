@@ -21,5 +21,6 @@ package org.apache.pulsar.websocket.data;
 public class ConsumerCommand {
     public String type;
     public String messageId;
+    public String ackType;
     public Integer permitMessages;
 }

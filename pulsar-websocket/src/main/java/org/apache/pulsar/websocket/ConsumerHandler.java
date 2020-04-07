@@ -37,6 +37,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
@@ -240,7 +241,13 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 // We should have received an ack
                 MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
                         topic.toString());
-                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+                if ("cumulative".equals(command.ackType)) {
+                    ConsumerStats cStats = consumer.getStats();
+                    long ackDiff = cStats.getTotalMsgsReceived() - cStats.getTotalAcksSent();
+                    consumer.acknowledgeCumulativeAsync(msgId).thenAccept(consumer -> numMsgsAcked.add(ackDiff));
+                } else {
+                    consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+                }
                 if (!this.pullMode) {
                     int pending = pendingMessages.getAndDecrement();
                     if (pending >= maxPendingMessages) {
