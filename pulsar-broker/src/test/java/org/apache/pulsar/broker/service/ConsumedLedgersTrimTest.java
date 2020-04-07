@@ -44,7 +44,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
     @Test
     public void TestConsumedLedgersTrim() throws Exception {
-        conf.setRetentionCheckIntervalInSeconds(2);
+        conf.setRetentionCheckIntervalInSeconds(1);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/TestConsumedLedgersTrim";
         final String subscriptionName = "my-subscriber-name";
@@ -76,7 +76,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
         //no traffic, unconsumed ledger will be retained
-        Thread.sleep(5000);
+        Thread.sleep(1200);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
         for (int i = 0; i < msgNum; i++) {
@@ -87,7 +87,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
         //no traffic, but consumed ledger will be cleaned
-        Thread.sleep(5000);
+        Thread.sleep(1500);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
     }
 }
