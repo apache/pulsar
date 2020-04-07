@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -52,11 +53,14 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+    public CompletableFuture<JavaExecutionResult> handleMessage(Record<?> record, Object input) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
+
+        final CompletableFuture<JavaExecutionResult> future = new CompletableFuture<>();
         JavaExecutionResult executionResult = new JavaExecutionResult();
+
         try {
             Object output;
             if (function != null) {
@@ -64,11 +68,34 @@ public class JavaInstance implements AutoCloseable {
             } else {
                 output = javaUtilFunction.apply(input);
             }
-            executionResult.setResult(output);
+
+            if (output instanceof CompletableFuture) {
+                // Function is in format: Function<I, CompletableFuture<O>>
+                ((CompletableFuture) output).whenComplete((obj, throwable) -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+                    }
+
+                    if (throwable != null) {
+                        executionResult.setUserException(new Exception((Throwable)throwable));
+                        future.complete(executionResult);
+                        return;
+                    }
+                    executionResult.setResult(obj);
+                    future.complete(executionResult);
+                });
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Got result: object: {}", output);
+                }
+                executionResult.setResult(output);
+                future.complete(executionResult);
+            }
         } catch (Exception ex) {
             executionResult.setUserException(ex);
+            future.complete(executionResult);
         }
-        return executionResult;
+        return future;
     }
 
     @Override

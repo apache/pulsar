@@ -22,10 +22,13 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
+import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class JavaInstanceTest {
 
     /**
@@ -33,14 +36,14 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testLambda() {
+    public void testLambda() throws Exception {
         JavaInstance instance = new JavaInstance(
             mock(ContextImpl.class),
             (Function<String, String>) (input, context) -> input + "-lambda");
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNotNull(result.getResult());
-        assertEquals(new String(testString + "-lambda"), result.getResult());
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNotNull(result.get().getResult());
+        assertEquals(new String(testString + "-lambda"), result.get().getResult());
         instance.close();
     }
 }
