@@ -1523,7 +1523,9 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         if (log.isDebugEnabled()) {
-            log.debug("Received CommandGetSchema call from {}", remoteAddress);
+            log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                    remoteAddress, new String(commandGetSchema.getSchemaVersion().toByteArray()),
+                    commandGetSchema.getTopic(), commandGetSchema.getRequestId());
         }
 
         long requestId = commandGetSchema.getRequestId();
