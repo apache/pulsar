@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.client.util;
 
-import java.util.Collection;
+public class RetryMessageUtil {
 
-
-/**
- * This functions collects the timestamp during the window operation.
- */
-public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
-    @Override
-    public String apply(Collection<String> integers) {
-        long time = System.currentTimeMillis();
-        return String.format("%s:%s", String.join(",", integers), time);
-    }
+    public final static String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
+    public final static String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
+    public final static String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
+    public final static String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
+    public final static String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";
+    
+    public final static int MAX_RECONSUMETIMES = 16;
+    public final static String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
+    public final static String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
 }

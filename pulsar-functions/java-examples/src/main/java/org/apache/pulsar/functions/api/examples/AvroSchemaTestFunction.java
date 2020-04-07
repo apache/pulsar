@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import java.util.Collection;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 
 
-/**
- * This functions collects the timestamp during the window operation.
- */
-public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
+@Slf4j
+public class AvroSchemaTestFunction implements Function<AvroTestObject, AvroTestObject> {
+
     @Override
-    public String apply(Collection<String> integers) {
-        long time = System.currentTimeMillis();
-        return String.format("%s:%s", String.join(",", integers), time);
+    public AvroTestObject process(AvroTestObject input, Context context) throws Exception {
+        log.info("AvroTestObject - baseValue: {}", input.getBaseValue());
+        input.setBaseValue(input.getBaseValue() + 10);
+        return input;
     }
 }

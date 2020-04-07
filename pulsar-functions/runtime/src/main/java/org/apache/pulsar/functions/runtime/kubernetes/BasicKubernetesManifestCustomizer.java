@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import com.google.gson.Gson;
+import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import com.google.gson.Gson;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer;
 
 import java.util.List;
 import java.util.Map;
@@ -42,6 +41,10 @@ import java.util.Map;
  */
 public class BasicKubernetesManifestCustomizer implements KubernetesManifestCustomizer {
 
+    private static final String RESOURCE_CPU = "cpu";
+    private static final String RESOURCE_MEMORY = "memory";
+    private static final String[] RESOURCES = {RESOURCE_CPU, RESOURCE_MEMORY};
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -50,6 +53,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         private Map<String, String> extraLabels;
         private Map<String, String> extraAnnotations;
         private Map<String, String> nodeSelectorLabels;
+        private V1ResourceRequirements resourceRequirements;
         private List<V1Toleration> tolerations;
     }
 
@@ -87,7 +91,25 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (opts.getTolerations() != null && opts.getTolerations().size() > 0) {
             opts.getTolerations().forEach(ps::addTolerationsItem);
         }
+        ps.getContainers().forEach(container -> updateContainerResources(container, opts));
         return statefulSet;
+    }
+
+    private void updateContainerResources(V1Container container, RuntimeOpts opts) {
+        if (opts.getResourceRequirements() != null) {
+            V1ResourceRequirements resourceRequirements = opts.getResourceRequirements();
+            V1ResourceRequirements containerResources = container.getResources();
+            Map<String, Quantity> limits = resourceRequirements.getLimits();
+            Map<String, Quantity> requests = resourceRequirements.getRequests();
+            for (String resource : RESOURCES) {
+                if (limits.containsKey(resource)) {
+                    containerResources.putLimitsItem(resource, limits.get(resource));
+                }
+                if (requests.containsKey(resource)) {
+                    containerResources.putRequestsItem(resource, requests.get(resource));
+                }
+            }
+        }
     }
 
     private RuntimeOpts getOptsFromDetails(Function.FunctionDetails funcDetails) {

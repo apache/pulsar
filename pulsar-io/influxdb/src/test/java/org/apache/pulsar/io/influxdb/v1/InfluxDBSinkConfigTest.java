@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.influxdb;
+package org.apache.pulsar.io.influxdb.v1;
 
 import org.influxdb.InfluxDB;
 import org.testng.annotations.Test;
@@ -35,7 +35,7 @@ import static org.testng.Assert.assertNotNull;
 public class InfluxDBSinkConfigTest {
     @Test
     public final void loadFromYamlFileTest() throws IOException {
-        File yamlFile = getFile("sinkConfig.yaml");
+        File yamlFile = getFile("sinkConfig-v1.yaml");
         String path = yamlFile.getAbsolutePath();
         InfluxDBSinkConfig config = InfluxDBSinkConfig.load(path);
         assertNotNull(config);

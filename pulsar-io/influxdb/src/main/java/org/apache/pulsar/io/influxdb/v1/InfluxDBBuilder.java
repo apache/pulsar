@@ -16,18 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.io.influxdb.v1;
 
-import java.util.Collection;
+import org.influxdb.InfluxDB;
 
-
-/**
- * This functions collects the timestamp during the window operation.
- */
-public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
-    @Override
-    public String apply(Collection<String> integers) {
-        long time = System.currentTimeMillis();
-        return String.format("%s:%s", String.join(",", integers), time);
-    }
+public interface InfluxDBBuilder {
+    InfluxDB build(InfluxDBSinkConfig config);
 }

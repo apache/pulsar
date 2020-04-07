@@ -18,97 +18,58 @@
  */
 package org.apache.pulsar.io.influxdb;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.Field;
+import lombok.val;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-import org.influxdb.dto.BatchPoints;
-import org.influxdb.dto.Point;
+import org.apache.pulsar.io.influxdb.v2.InfluxDBSink;
+import org.apache.pulsar.io.influxdb.v2.InfluxDBSinkConfig;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
- * A Simple InfluxDB sink, which interprets input Record in generic record.
- * In order to successfully parse and write points to InfluxDB, points must be in InfluxDB’s Line Protocol format.
- * This class expects records from Pulsar to have a field named 'measurement', a field named 'tags' if necessary.
+ * Delegate for InfluxDB sinks, one for InfluxDB v1, the other for InfluxDB v2
  */
 @Connector(
-    name = "influxdb",
-    type = IOType.SINK,
-    help = "The InfluxDBGenericRecordSink is used for moving messages from Pulsar to InfluxDB.",
-    configClass = InfluxDBSinkConfig.class
+        name = "influxdb",
+        type = IOType.SINK,
+        help = "The InfluxDBGenericRecordSink is used for moving messages from Pulsar to InfluxDB.",
+        configClass = InfluxDBSinkConfig.class
 )
 @Slf4j
-public class InfluxDBGenericRecordSink extends InfluxDBAbstractSink<GenericRecord> {
-
-    private final Set<String> FIELDS_TO_SKIP = ImmutableSet.of("measurement", "tags");
+public class InfluxDBGenericRecordSink implements Sink<GenericRecord> {
+    protected Sink<GenericRecord> sink;
 
     @Override
-    public void buildBatch(Record<GenericRecord> message, BatchPoints.Builder batchBuilder) throws Exception {
-        Map<String, String> tags;
-        Map<String, Object> fields = Maps.newHashMap();
-
-        GenericRecord record = message.getValue();
-
-        Field measurementField = getFiled(record, "measurement");
-        if (null == measurementField) {
-            throw new SchemaSerializationException("measurement is a required field.");
-        }
-
-        String measurement = record.getField(measurementField).toString();
-
-        // Looking for tags
-        Field tagsField = getFiled(record, "tags");
-        if (null == tagsField) {
-            tags = ImmutableMap.of();
-        } else if (Map.class.isAssignableFrom(record.getField(tagsField).getClass())) {
-            tags = ((Map<Object, Object>) record.getField(tagsField)).entrySet()
-                .stream().collect(Collectors.toMap(
-                    entry -> entry.getKey().toString(),
-                    entry -> entry.getValue().toString())
-                );
-        } else {
-            // Field 'tags' that is not of Map type will be ignored
-            tags = ImmutableMap.of();
-        }
-
-        // Just insert the current time millis
-        long timestamp = System.currentTimeMillis();
-
-        for (Field field : record.getFields()) {
-            String fieldName = field.getName();
-            if (FIELDS_TO_SKIP.contains(fieldName)) {
-                continue;
-            }
-            Object fieldValue = record.getField(field);
-            if (null != fieldValue) {
-                fields.put(fieldName, fieldValue);
+    public void open(Map<String, Object> map, SinkContext sinkContext) throws Exception {
+        try {
+            val configV2 = InfluxDBSinkConfig.load(map);
+            configV2.validate();
+            sink = new InfluxDBSink();
+        } catch (Exception e) {
+            try {
+                val configV1 = org.apache.pulsar.io.influxdb.v1.InfluxDBSinkConfig.load(map);
+                configV1.validate();
+                sink = new org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink();
+            } catch (Exception e1) {
+                throw new Exception("For InfluxDB V2: \n" + e.toString() + "\n"
+                + "For InfluxDB V1: \n" + e1.toString());
             }
         }
-
-        Point.Builder builder = Point.measurement(measurement)
-            .time(timestamp, TimeUnit.MILLISECONDS)
-            .tag(tags)
-            .fields(fields);
-        Point point = builder.build();
-        batchBuilder.point(point);
+       sink.open(map, sinkContext);
     }
 
-    private Field getFiled(GenericRecord record, String fieldName) {
-        List<Field> fields = record.getFields();
-        return fields.stream()
-            .filter(field -> fieldName.equals(field.getName()))
-            .findAny()
-            .orElse(null);
+    @Override
+    public void write(Record<GenericRecord> record) throws Exception {
+        sink.write(record);
+    }
+
+    @Override
+    public void close() throws Exception {
+        sink.close();
     }
 }
