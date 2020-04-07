@@ -16,33 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.io.influxdb.v1;
 
-import lombok.Builder;
-import lombok.Data;
+import org.influxdb.InfluxDB;
 
-/**
- * Configuration for the "dead letter queue" feature in consumer.
- *
- * @see ConsumerBuilder#deadLetterPolicy(DeadLetterPolicy)
- */
-@Builder
-@Data
-public class DeadLetterPolicy {
-
-    /**
-     * Maximum number of times that a message will be redelivered before being sent to the dead letter queue.
-     */
-    private int maxRedeliverCount;
-
-    /**
-     * Name of the retry topic where the failing messages will be sent.
-     */
-    private String retryLetterTopic;
-
-    /**
-     * Name of the dead topic where the failing messages will be sent.
-     */
-    private String deadLetterTopic;
-
+public interface InfluxDBBuilder {
+    InfluxDB build(InfluxDBSinkConfig config);
 }

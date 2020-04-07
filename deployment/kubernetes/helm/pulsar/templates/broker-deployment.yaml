@@ -17,7 +17,7 @@
 # under the License.
 #
 
-{{- $ensembleSize := .Values.broker.configData.PULSAR_PREFIX_managedLedgerDefaultEnsembleSize }}
+{{- $ensembleSize := .Values.broker.configData.managedLedgerDefaultEnsembleSize }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
