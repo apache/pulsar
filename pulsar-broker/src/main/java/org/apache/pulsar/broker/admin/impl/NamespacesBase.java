@@ -77,7 +77,6 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -821,10 +820,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalUnloadNamespace(AsyncResponse asyncResponse) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.UNLOAD_NAMESPACE);
-        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
-
         validateSuperUserAccess();
+        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
 
         if (namespaceName.isGlobal()) {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -869,7 +866,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_BOOKIE_AFFINITY_GROUP);
+        validateSuperUserAccess();
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
                 this.namespaceName);
 
@@ -925,7 +922,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.GET_BOOKIE_AFFINITY_GROUP);
+        validateSuperUserAccess();
 
         if (namespaceName.isGlobal()) {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -959,7 +956,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     public void internalUnloadNamespaceBundle(String bundleRange, boolean authoritative) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.UNLOAD_NAMESPACE);
+        validateSuperUserAccess();
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -1007,7 +1004,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload, String splitAlgorithmName) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SPLIT_NAMESPACE_BUNDLE);
+        validateSuperUserAccess();
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -1060,7 +1057,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_PUBLISH_RATE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1111,7 +1108,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalSetTopicDispatchRate(DispatchRate dispatchRate) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_TOPIC_DISPATCH_RATE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1166,7 +1163,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_SUBSCRIPTION_DISPATCH_RATE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1216,7 +1213,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_SUBSCRIBE_RATE);
+        validateSuperUserAccess();
 
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
 
@@ -1266,7 +1263,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_REPLICATOR_DISPATCH_RATE);
+        validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1750,8 +1747,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
-        validateClusterOperation(namespaceName.getCluster(), ClusterOperation.SET_DELAYED_DELIVERY);
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
