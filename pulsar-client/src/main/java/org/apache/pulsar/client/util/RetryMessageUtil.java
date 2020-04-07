@@ -16,33 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.util;
 
-import lombok.Builder;
-import lombok.Data;
+public class RetryMessageUtil {
 
-/**
- * Configuration for the "dead letter queue" feature in consumer.
- *
- * @see ConsumerBuilder#deadLetterPolicy(DeadLetterPolicy)
- */
-@Builder
-@Data
-public class DeadLetterPolicy {
-
-    /**
-     * Maximum number of times that a message will be redelivered before being sent to the dead letter queue.
-     */
-    private int maxRedeliverCount;
-
-    /**
-     * Name of the retry topic where the failing messages will be sent.
-     */
-    private String retryLetterTopic;
-
-    /**
-     * Name of the dead topic where the failing messages will be sent.
-     */
-    private String deadLetterTopic;
-
+    public final static String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
+    public final static String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
+    public final static String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
+    public final static String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
+    public final static String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";
+    
+    public final static int MAX_RECONSUMETIMES = 16;
+    public final static String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
+    public final static String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
 }
