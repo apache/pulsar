@@ -599,4 +599,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * </pre>
      */
     ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
+
+    /**
+     * If enabled, the consumer will auto retry message.
+     * default unabled.
+     *
+     * @param retryEnable
+     *            whether to auto retry message
+     */
+    ConsumerBuilder<T> enableRetry(boolean retryEnable);
+
 }

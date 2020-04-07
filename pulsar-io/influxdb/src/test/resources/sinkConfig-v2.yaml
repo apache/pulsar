@@ -17,10 +17,14 @@
 # under the License.
 #
 
-[program:bookie]
-autostart=false
-redirect_stderr=true
-stdout_logfile=/var/log/pulsar/bookie.log
-directory=/pulsar
-environment=PULSAR_MEM="-Xmx128M -XX:MaxDirectMemorySize=512M",PULSAR_GC="-XX:+UseG1GC",dbStorage_writeCacheMaxSizeMb="16",dbStorage_readAheadCacheMaxSizeMb="16"
-command=/pulsar/bin/pulsar bookie
+{
+  "influxdbUrl": "http://localhost:9999",
+  "organization": "example-org",
+  "bucket": "example-bucket",
+  "token": "xxxx",
+  "precision": "ns",
+  "logLevel": "NONE",
+  "gzipEnable": false,
+  "batchTimeMs": 1000,
+  "batchSize": 5000
+}
