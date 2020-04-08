@@ -282,7 +282,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
                     log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
                         topicName.getPartition(partition));
-                    result.completeExceptionally(KeeperException.create(KeeperException.Code.NODEEXISTS));
+                    result.complete(null);
                 } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
                     log.warn("[{}] Fail to create topic partition {} with concurrent modification, retry now.",
                             clientAppId(), topicName.getPartition(partition));
