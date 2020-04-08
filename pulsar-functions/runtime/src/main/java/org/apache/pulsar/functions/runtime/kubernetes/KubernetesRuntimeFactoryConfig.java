@@ -53,6 +53,12 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected String pulsarRootDir;
     @FieldContext(
+            doc = "The config admin CLI allows users to customize the configuration of the admin cli tool, such as:"
+                    + " `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
+                    + " you need to set this setting accordingly"
+    )
+    protected String configAdminCLI;
+    @FieldContext(
         doc = "This setting only takes effects if `k8Uri` is set to null. If your function worker is"
             + " also running as a k8s pod, set this to `true` is let function worker to submit functions to"
             + " the same k8s cluster as function worker is running. Set this to `false` if your function worker"
