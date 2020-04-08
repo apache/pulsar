@@ -404,6 +404,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startMessagePublishBufferMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
+        this.startCheckReplicationPolicies();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -444,6 +445,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         int interval = pulsar().getConfiguration().getMessageExpiryCheckIntervalInMinutes();
         messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkMessageExpiry), interval, interval,
                 TimeUnit.MINUTES);
+    }
+
+    protected void startCheckReplicationPolicies() {
+        int interval = pulsar.getConfig().getReplicatioPolicyCheckDurationSeconds();
+        if (interval > 0) {
+            messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkReplicationPolicies), interval, interval,
+                    TimeUnit.SECONDS);
+        }
     }
 
     protected void startCompactionMonitor() {
@@ -1141,6 +1150,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageExpiry() {
         forEachTopic(Topic::checkMessageExpiry);
+    }
+
+    public void checkReplicationPolicies() {
+        forEachTopic(Topic::checkReplication);
     }
 
     public void checkCompaction() {
