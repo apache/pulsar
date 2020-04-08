@@ -318,7 +318,6 @@ zookeeper:
       -Djute.maxbuffer=10485760
       -XX:+ParallelRefProcEnabled
       -XX:+UnlockExperimentalVMOptions
-      -XX:+AggressiveOpts
       -XX:+DoEscapeAnalysis
       -XX:+DisableExplicitGC
       -XX:+PerfDisableSharedMem
@@ -454,7 +453,6 @@ bookkeeper:
       -XX:MaxGCPauseMillis=10
       -XX:+ParallelRefProcEnabled
       -XX:+UnlockExperimentalVMOptions
-      -XX:+AggressiveOpts
       -XX:+DoEscapeAnalysis
       -XX:ParallelGCThreads=4
       -XX:ConcGCThreads=4
@@ -587,7 +585,6 @@ broker:
       -Dio.netty.recycler.linkCapacity=1024
       -XX:+ParallelRefProcEnabled
       -XX:+UnlockExperimentalVMOptions
-      -XX:+AggressiveOpts
       -XX:+DoEscapeAnalysis
       -XX:ParallelGCThreads=4
       -XX:ConcGCThreads=4
@@ -669,7 +666,6 @@ proxy:
       -Dio.netty.recycler.linkCapacity=1024
       -XX:+ParallelRefProcEnabled
       -XX:+UnlockExperimentalVMOptions
-      -XX:+AggressiveOpts
       -XX:+DoEscapeAnalysis
       -XX:ParallelGCThreads=4
       -XX:ConcGCThreads=4

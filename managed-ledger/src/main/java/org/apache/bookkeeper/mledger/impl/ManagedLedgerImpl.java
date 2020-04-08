@@ -1834,7 +1834,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
 
-    private void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
+    @Override
+    public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
         executor.executeOrdered(name, safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 

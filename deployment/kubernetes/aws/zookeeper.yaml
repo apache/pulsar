@@ -23,7 +23,7 @@ kind: ConfigMap
 metadata:
     name: zookeeper-config
 data:
-    PULSAR_MEM: "\" -Dcom.sun.management.jmxremote -Djute.maxbuffer=10485760 -Xms18g -Xmx18g  -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem  -Dzookeeper.forceSync=no \""
+    PULSAR_MEM: "\" -Dcom.sun.management.jmxremote -Djute.maxbuffer=10485760 -Xms18g -Xmx18g  -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem  -Dzookeeper.forceSync=no \""
     PULSAR_GC: "\" -XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
 ---
 
