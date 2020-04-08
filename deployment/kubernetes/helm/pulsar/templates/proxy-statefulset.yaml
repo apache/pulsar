@@ -1,0 +1,234 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if or .Values.components.proxy .Values.extra.proxy }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+    component: {{ .Values.proxy.component }}
+spec:
+  serviceName: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
+  replicas: {{ .Values.proxy.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pulsar.matchLabels" . | nindent 6 }}
+      component: {{ .Values.proxy.component }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        {{- include "pulsar.template.labels" . | nindent 8 }}
+        component: {{ .Values.proxy.component }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.proxy.ports.http }}"
+{{- with .Values.proxy.annotations }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+    spec:
+    {{- if .Values.proxy.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.proxy.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if .Values.proxy.tolerations }}
+      tolerations:
+{{ toYaml .Values.proxy.tolerations | indent 8 }}
+    {{- end }}
+      affinity:
+        {{- if and .Values.affinity.anti_affinity .Values.proxy.affinity.anti_affinity}}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app"
+                operator: In
+                values:
+                - "{{ template "pulsar.name" . }}-{{ .Values.proxy.component }}"
+              - key: "release"
+                operator: In
+                values:
+                - {{ .Release.Name }}
+              - key: "component"
+                operator: In
+                values:
+                - {{ .Values.proxy.component }}
+            topologyKey: "kubernetes.io/hostname"
+        {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.proxy.gracePeriod }}
+      initContainers:
+      # This init container will wait for zookeeper to be ready before
+      # deploying the bookies
+      - name: wait-zookeeper-ready
+        image: "{{ .Values.images.proxy.repository }}:{{ .Values.images.proxy.tag }}"
+        imagePullPolicy: {{ .Values.images.proxy.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} get {{ .Values.metadataPrefix }}/admin/clusters/{{ template "pulsar.fullname" . }}; do
+              sleep 3;
+            done;
+      # This init container will wait for at least one broker to be ready before
+      # deploying the proxy
+      - name: wait-broker-ready
+        image: "{{ .Values.images.proxy.repository }}:{{ .Values.images.proxy.tag }}"
+        imagePullPolicy: {{ .Values.images.proxy.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+          - >-
+            set -e;
+            brokerServiceNumber="$(nslookup -timeout=10 {{ template "pulsar.fullname" . }}-{{ .Values.broker.component }} | grep Name | wc -l)";
+            until [ ${brokerServiceNumber} -ge 1 ]; do
+              echo "pulsar cluster {{ template "pulsar.fullname" . }} isn't initialized yet ... check in 10 seconds ...";
+              sleep 10;
+              brokerServiceNumber="$(nslookup -timeout=10 {{ template "pulsar.fullname" . }}-{{ .Values.broker.component }} | grep Name | wc -l)";
+            done;
+      containers:
+      - name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
+        image: "{{ .Values.images.proxy.repository }}:{{ .Values.images.proxy.tag }}"
+        imagePullPolicy: {{ .Values.images.proxy.pullPolicy }}
+        {{- if .Values.proxy.probe.liveness.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /status.html
+            port: {{ .Values.proxy.ports.http }}
+          initialDelaySeconds: {{ .Values.proxy.probe.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.proxy.probe.liveness.periodSeconds }}
+          failureThreshold: {{ .Values.proxy.probe.liveness.failureThreshold }}
+        {{- end }}
+        {{- if .Values.proxy.probe.readiness.enabled }}
+        readinessProbe:
+          httpGet:
+            path: /status.html
+            port: {{ .Values.proxy.ports.http }}
+          initialDelaySeconds: {{ .Values.proxy.probe.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.proxy.probe.readiness.periodSeconds }}
+          failureThreshold: {{ .Values.proxy.probe.readiness.failureThreshold }}
+        {{- end }}
+        {{- if .Values.proxy.probe.startup.enabled }}
+        startupProbe:
+          httpGet:
+            path: /status.html
+            port: {{ .Values.proxy.ports.http }}
+          initialDelaySeconds: {{ .Values.proxy.probe.startup.initialDelaySeconds }}
+          periodSeconds: {{ .Values.proxy.probe.startup.periodSeconds }}
+          failureThreshold: {{ .Values.proxy.probe.startup.failureThreshold }}
+        {{- end }}
+      {{- if .Values.proxy.resources }}
+        resources:
+{{ toYaml .Values.proxy.resources | indent 10 }}
+      {{- end }}
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/proxy.conf &&
+          bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          echo "OK" > status &&
+          bin/pulsar proxy
+        ports:
+        # prometheus needs to access /metrics endpoint
+        - name: http
+          containerPort: {{ .Values.proxy.ports.http }}
+        {{- if or (not .Values.tls.enabled) (not .Values.tls.proxy.enabled) }}
+        - name: pulsar
+          containerPort: {{ .Values.proxy.ports.pulsar }}
+        {{- end }}
+        {{- if and (.Values.tls.enabled) (.Values.tls.proxy.enabled) }}
+        - name: https
+          containerPort: {{ .Values.proxy.ports.https }}
+        - name: pulsarssl
+          containerPort: {{ .Values.proxy.ports.pulsarssl }}
+        {{- end }}
+        envFrom:
+        - configMapRef:
+            name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
+        {{- if or .Values.auth.authentication.enabled (and .Values.tls.enabled (or .Values.tls.proxy.enabled .Values.tls.broker.enabled)) }}
+        volumeMounts:
+          {{- if .Values.auth.authentication.enabled }}
+          {{- if eq .Values.auth.authentication.provider "jwt" }}
+          - mountPath: "/pulsar/keys"
+            name: token-keys
+            readOnly: true
+          - mountPath: "/pulsar/tokens"
+            name: proxy-token
+            readOnly: true
+          {{- end }}
+          {{- end }}
+          {{- if .Values.tls.proxy.enabled }}
+          - mountPath: "/pulsar/certs/proxy"
+            name: proxy-certs
+            readOnly: true
+          {{- end}}
+          {{- if .Values.tls.enabled }}
+          - mountPath: "/pulsar/certs/ca"
+            name: ca
+            readOnly: true
+          {{- end}}
+      {{- end}}
+      {{- if or .Values.auth.authentication.enabled (and .Values.tls.enabled .Values.tls.proxy.enabled) }}
+      volumes:
+        {{- if .Values.auth.authentication.enabled }}
+        {{- if eq .Values.auth.authentication.provider "jwt" }}
+        - name: token-keys
+          secret:
+            {{- if not .Values.auth.authentication.jwt.usingSecretKey }}
+            secretName: "{{ .Release.Name }}-token-asymmetric-key"
+            {{- end}}
+            {{- if .Values.auth.authentication.jwt.usingSecretKey }}
+            secretName: "{{ .Release.Name }}-token-symmetric-key"
+            {{- end}}
+            items:
+              {{- if .Values.auth.authentication.jwt.usingSecretKey }}
+              - key: SECRETKEY
+                path: token/secret.key
+              {{- else }}
+              - key: PUBLICKEY
+                path: token/public.key
+              {{- end}}
+        - name: proxy-token
+          secret:
+            secretName: "{{ .Release.Name }}-token-{{ .Values.auth.superUsers.proxy }}"
+            items:
+              - key: TOKEN
+                path: proxy/token
+        {{- end}}
+        {{- end}}
+        {{- if .Values.tls.proxy.enabled }}
+        - name: ca
+          secret:
+            secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: proxy-certs
+          secret:
+            secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.proxy.cert_name }}"
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+        {{- end}}
+      {{- end}}
+{{- end }}

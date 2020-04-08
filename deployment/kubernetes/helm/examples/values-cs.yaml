@@ -17,25 +17,29 @@
 # under the License.
 #
 
-name: CI - Deployment - Helm
-on:
-  pull_request:
-    branches:
-      - master
+metadataPrefix: "/configuration-store"
 
-jobs:
+## start
+components:
+  # zookeeper
+  zookeeper: true
+  # bookkeeper
+  bookkeeper: false
+  # bookkeeper - autorecovery
+  autorecovery: false
+  # broker
+  broker: false
+  # proxy
+  proxy: false
+  # toolset
+  toolset: false
+  # pulsar manager
+  pulsar_manager: false
 
-  helm:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Lint the Helm chart
-        run: helm lint deployment/kubernetes/helm/pulsar
+monitoring:
+  # monitoring - prometheus
+  prometheus: false
+  # monitoring - grafana
+  grafana: false
+  # monitoring - node_exporter
+  node_exporter: false
