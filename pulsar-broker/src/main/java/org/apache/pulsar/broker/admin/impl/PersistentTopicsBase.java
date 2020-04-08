@@ -533,6 +533,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
         try {
+            tryCreatePartitionsAsync(numPartitions).get();
             updatePartitionedTopic(topicName, numPartitions).get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {

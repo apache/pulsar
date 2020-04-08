@@ -325,7 +325,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testNotAllowSubscriptionTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        String topicName = "persistent://prop/ns-abc/non-partitioned-topic";
+        String topicName = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
         String subscriptionName = "non-partitioned-topic-sub";
 
         try {
