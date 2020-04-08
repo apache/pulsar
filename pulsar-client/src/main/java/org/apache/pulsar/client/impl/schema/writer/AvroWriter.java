@@ -47,6 +47,11 @@ public class AvroWriter<T> implements SchemaWriter<T> {
         } catch (Exception e) {
             throw new SchemaSerializationException(e);
         } finally {
+            try {
+                this.encoder.flush();
+            } catch (IOException e) {
+                throw new SchemaSerializationException(e);
+            }
             this.byteArrayOutputStream.reset();
         }
     }
