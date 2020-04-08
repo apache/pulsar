@@ -355,7 +355,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
 
         try {
-            String partitionTopic = "persistent://prop/ns-abc/partitioned-topic";
+            String partitionTopic = "persistent://prop/ns-abc/partitioned-topic" + System.currentTimeMillis();
             admin.topics().createPartitionedTopic(partitionTopic, 1);
             admin.topics().createSubscription(partitionTopic + "-partition-0", subscriptionName, MessageId.earliest);
         } catch (Exception e) {
