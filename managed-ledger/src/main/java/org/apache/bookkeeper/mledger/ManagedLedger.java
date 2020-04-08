@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -449,4 +450,10 @@ public interface ManagedLedger {
      * Signaling managed ledger that we can resume after BK write failure
      */
     void readyToCreateNewLedger();
+
+    /**
+     * Trim consumed ledgers in background
+     * @param promise
+     */
+    void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 }

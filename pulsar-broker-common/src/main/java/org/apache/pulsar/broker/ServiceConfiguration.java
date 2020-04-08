@@ -621,6 +621,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Check between intervals to see if consumed ledgers need to be trimmed"
+    )
+    private int retentionCheckIntervalInSeconds = 120;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
