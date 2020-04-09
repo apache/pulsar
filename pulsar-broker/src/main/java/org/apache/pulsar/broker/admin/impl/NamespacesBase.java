@@ -84,6 +84,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
@@ -283,7 +285,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.DELETE_BUNDLE);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.BUNDLE);
         validatePoliciesReadOnlyAccess();
 
         // ensure that non-global namespace is directed to the correct cluster
@@ -354,7 +356,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSIONS);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -385,7 +387,7 @@ public abstract class NamespacesBase extends AdminResource {
 
 
     protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_SUBSCRIPTION_PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -415,7 +417,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRevokePermissionsOnNamespace(String role) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSIONS);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -445,7 +447,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRevokePermissionsOnSubscription(String subscriptionName, String role) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_SUBSCRIPTION_PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
         validatePoliciesReadOnlyAccess();
 
         AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -458,7 +460,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected Set<String> internalGetNamespaceReplicationClusters() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_REPLICATION_CLUSTERS);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ);
 
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -470,7 +472,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetNamespaceReplicationClusters(List<String> clusterIds) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_REPLICATION_CLUSTERS);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
@@ -528,7 +530,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetNamespaceMessageTTL(int messageTTL) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MESSAGE_TTL);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.TTL, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (messageTTL < 0) {
@@ -784,7 +786,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalModifyDeduplication(boolean enableDeduplication) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_DEDUPLICATION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1094,7 +1096,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected PublishRate internalGetPublishRate() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_PUBLISH_RATE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
@@ -1147,7 +1149,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected DispatchRate internalGetTopicDispatchRate() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_DISPATCH_RATE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
@@ -1200,7 +1202,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected DispatchRate internalGetSubscriptionDispatchRate() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_DISPATCH_RATE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
@@ -1251,7 +1253,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected SubscribeRate internalGetSubscribeRate() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_SUBSCRIBE_RATE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         SubscribeRate subscribeRate = policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
         if (subscribeRate != null) {
@@ -1300,7 +1302,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected DispatchRate internalGetReplicatorDispatchRate() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_REPLICATOR_DISPATCH_RATE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
@@ -1313,7 +1315,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_BACKLOG_QUOTA);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (backlogQuotaType == null) {
@@ -1360,7 +1362,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRemoveBacklogQuota(BacklogQuotaType backlogQuotaType) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_BACKLOG_QUOTA);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (backlogQuotaType == null) {
@@ -1393,7 +1395,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_RETENTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -1431,7 +1433,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetPersistence(PersistencePolicies persistence) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_PERSISTENCE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
@@ -1462,7 +1464,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected PersistencePolicies internalGetPersistence() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_PERSISTENCE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.persistence == null) {
@@ -1474,7 +1476,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1516,7 +1518,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklog(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1537,7 +1539,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
             boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1580,7 +1582,7 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklogForSubscription(String subscription, String bundleRange,
             boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1663,7 +1665,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionAuthMode(SubscriptionAuthMode subscriptionAuthMode) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_SUBSCRIPTION_AUTH_MODE);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.AUTH_MODE);
         validatePoliciesReadOnlyAccess();
 
         if (subscriptionAuthMode == null) {
@@ -1699,7 +1701,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_ENCRYPTION_REQUIRED);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         Entry<Policies, Stat> policiesNode = null;
@@ -1735,7 +1737,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_DELAYED_DELIVERY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.delayed_delivery_policies == null) {
@@ -1780,7 +1782,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_ANTI_AFFINITY_GROUP);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         log.info("[{}] Setting anti-affinity group {} for {}", clientAppId(), antiAffinityGroup, namespaceName);
@@ -1821,12 +1823,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected String internalGetNamespaceAntiAffinityGroup() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_ANTI_AFFINITY_GROUP);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).antiAffinityGroup;
     }
 
     protected void internalRemoveNamespaceAntiAffinityGroup() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_ANTI_AFFINITY_GROUP);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         log.info("[{}] Deleting anti-affinity group for {}", clientAppId(), namespaceName);
@@ -1857,7 +1859,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
             String tenant) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_ANTI_AFFINITY_GROUP);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
 
         log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup, cluster);
 
@@ -1909,7 +1911,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected RetentionPolicies internalGetRetention() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_RETENTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.retention_policies == null) {
@@ -2102,12 +2104,12 @@ public abstract class NamespacesBase extends AdminResource {
 
 
     protected int internalGetMaxProducersPerTopic() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_MAX_PRODUCERS_PER_TOPIC);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_producers_per_topic;
     }
 
     protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MAX_PRODUCERS_PER_TOPIC);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2143,12 +2145,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected int internalGetMaxConsumersPerTopic() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_MAX_CONSUMERS_PER_TOPIC);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
     protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MAX_CONSUMERS_PER_TOPIC);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2184,12 +2186,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected int internalGetMaxConsumersPerSubscription() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_MAX_CONSUMERS_PER_SUBSCRIPTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
     }
 
     protected void internalSetMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MAX_CONSUMERS_PER_SUBSCRIPTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2225,12 +2227,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected int internalGetMaxUnackedMessagesPerConsumer() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_MAX_UNACKED_MESSAGES_PER_CONSUMER);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
     }
 
     protected void internalSetMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MAX_UNACKED_MESSAGES_PER_CONSUMER);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2266,12 +2268,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected int internalGetMaxUnackedMessagesPerSubscription() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_MAX_UNACKED_MESSAGES_PER_SUBSCRIPTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
     }
 
     protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_MAX_UNACKED_MESSAGES_PER_SUBSCRIPTION);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2307,12 +2309,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected long internalGetCompactionThreshold() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_COMPACTION_THRESHOLD);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).compaction_threshold;
     }
 
     protected void internalSetCompactionThreshold(long newThreshold) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_COMPACTION_THRESHOLD);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2348,7 +2350,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected long internalGetOffloadThreshold() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_OFFLOAD_THRESHOLD);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.offload_policies == null) {
             return policies.offload_threshold;
@@ -2358,7 +2360,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetOffloadThreshold(long newThreshold) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_OFFLOAD_THRESHOLD);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2395,7 +2397,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected Long internalGetOffloadDeletionLag() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_OFFLOAD_DELETION_LAG);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.offload_policies == null) {
             return policies.offload_deletion_lag_ms;
@@ -2405,7 +2407,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetOffloadDeletionLag(Long newDeletionLagMs) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_OFFLOAD_DELETION_LAG);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -2443,12 +2445,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     @Deprecated
     protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_SCHEMA_AUTOUPDATE_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
     }
 
     protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED){
@@ -2460,7 +2462,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @Deprecated
     protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_SCHEMA_AUTOUPDATE_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2471,7 +2473,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2482,12 +2484,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected boolean internalGetSchemaValidationEnforced() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_SCHEMA_VALIDATION_ENFORCED);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_validation_enforced;
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_SCHEMA_VALIDATION_ENFORCED);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2498,12 +2500,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected boolean internalGetIsAllowAutoUpdateSchema() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_SCHEMA_AUTOUPDATE_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_SCHEMA_AUTOUPDATE_STRATEGY);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2546,7 +2548,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPolicies offloadPolicies) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.SET_OFFLOAD_POLICIES);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validateOffloadPolicies(offloadPolicies);
 
@@ -2623,7 +2625,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected OffloadPolicies internalGetOffloadPolicies() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_OFFLOAD_POLICIES);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.offload_policies;

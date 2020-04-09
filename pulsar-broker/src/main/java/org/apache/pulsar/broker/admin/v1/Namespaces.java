@@ -39,6 +39,8 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
@@ -147,7 +149,7 @@ public class Namespaces extends NamespacesBase {
     public Policies getPolicies(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_POLICIES);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.ALL, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName);
     }
 
@@ -230,7 +232,7 @@ public class Namespaces extends NamespacesBase {
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSIONS);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -296,7 +298,7 @@ public class Namespaces extends NamespacesBase {
     public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_REPLICATION_CLUSTERS);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.REPLICATION, PolicyOperation.READ);
 
         return internalGetNamespaceReplicationClusters();
     }
@@ -322,7 +324,7 @@ public class Namespaces extends NamespacesBase {
     public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_MESSAGE_TTL);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.TTL, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.message_ttl_in_seconds;
@@ -481,7 +483,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BUNDLES);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.BUNDLE);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -613,7 +615,7 @@ public class Namespaces extends NamespacesBase {
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BACKLOG_QUOTAS);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.BACKLOG, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.backlog_quota_map;

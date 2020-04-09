@@ -58,6 +58,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -116,7 +118,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public Policies getPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_POLICIES);
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.ALL, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName);
     }
 
@@ -180,7 +182,7 @@ public class Namespaces extends NamespacesBase {
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSIONS);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -246,8 +248,7 @@ public class Namespaces extends NamespacesBase {
     public Set<String> getNamespaceReplicationClusters(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_REPLICATION_CLUSTERS);
-
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.REPLICATION, PolicyOperation.READ);
         return internalGetNamespaceReplicationClusters();
     }
 
@@ -272,7 +273,7 @@ public class Namespaces extends NamespacesBase {
     public int getNamespaceMessageTTL(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_MESSAGE_TTL);
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.TTL, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.message_ttl_in_seconds;
@@ -386,7 +387,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLES);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.BUNDLE);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -559,8 +560,7 @@ public class Namespaces extends NamespacesBase {
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BACKLOG_QUOTAS);
-
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.BACKLOG, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.backlog_quota_map;
     }

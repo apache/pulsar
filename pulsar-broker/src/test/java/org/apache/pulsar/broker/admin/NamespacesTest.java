@@ -85,6 +85,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -172,12 +174,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .validateTenantOperation(this.testOtherTenant, null);
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespaceOperation(
-                        NamespaceName.get("other-tenant/use/test-namespace-1"), NamespaceOperation.SET_PERSISTENCE);
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                        PolicyName.PERSISTENCE, PolicyOperation.WRITE);
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespaceOperation(
-                        NamespaceName.get("other-tenant/use/test-namespace-1"), NamespaceOperation.SET_RETENTION);
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                        PolicyName.REPLICATION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();
     }
