@@ -713,7 +713,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
         byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
         dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-        mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        mockZooKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
     }
 
     static class TimestampEntryCount {

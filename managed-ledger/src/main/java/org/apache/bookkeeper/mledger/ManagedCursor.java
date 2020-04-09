@@ -311,7 +311,7 @@ public interface ManagedCursor {
      * The deletion of the messages is not persisted into the durable storage and cannot be recovered upon the reopening
      * of the ManagedLedger
      *
-     * @param positions
+     * @param position
      *            the positions of the messages to be deleted
      * @param callback
      *            callback object

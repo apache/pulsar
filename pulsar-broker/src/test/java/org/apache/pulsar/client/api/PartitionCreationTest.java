@@ -104,7 +104,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testCreateConsumerForPartitionedTopicUpdateWhenDisableTopicAutoCreation() throws PulsarClientException, PulsarAdminException {
+    public void testCreateConsumerForPartitionedTopicUpdateWhenDisableTopicAutoCreation() throws Exception {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateConsumerForPartitionedTopicUpdateWhenDisableTopicAutoCreation-" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);

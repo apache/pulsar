@@ -226,7 +226,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // grant subscription access to specific different role and only that role can access the subscription
         String otherPrincipal = "Principal-1-to-access-sub";
-        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
 
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription

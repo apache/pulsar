@@ -34,11 +34,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -58,6 +61,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
@@ -66,9 +70,12 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -151,6 +158,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
+    private volatile Producer<T> retryLetterProducer;
+    private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
+    
     protected volatile boolean paused;
 
     private final boolean createTopicIfDoesNotExist;
@@ -223,7 +233,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Create msgCrypto if not created already
         if (conf.getCryptoKeyReader() != null) {
-            this.msgCrypto = new MessageCrypto(String.format("[%s] [%s]", topic, subscription), false);
+            if (conf.getMessageCrypto() != null) {
+                this.msgCrypto = conf.getMessageCrypto();
+            } else {
+                // default to use MessageCryptoBc;
+                MessageCrypto msgCryptoBc;
+                try {
+                    msgCryptoBc = new MessageCryptoBc(
+                            String.format("[%s] [%s]", topic, subscription),
+                            false);
+                } catch (Exception e) {
+                    log.error("MessageCryptoBc may not included in the jar. e:", e);
+                    msgCryptoBc = null;
+                }
+                this.msgCrypto = msgCryptoBc;
+            }
         } else {
             this.msgCrypto = null;
         }
@@ -261,9 +285,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription))
+                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX, topic, subscription))
                         .build();
             }
+
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
+            } else {
+                this.deadLetterPolicy.setRetryLetterTopic(String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
+                        topic, subscription));
+            }
+
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -495,6 +527,129 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return sendAcknowledge(messageId, ackType, properties, txnImpl);
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
+                                                       Map<String,Long> properties, 
+                                                       long delayTime,
+                                                       TimeUnit unit) {
+        MessageId messageId = message.getMessageId();
+        if(messageId instanceof TopicMessageIdImpl) {
+            messageId = ((TopicMessageIdImpl)messageId).getInnerMessageId();
+        }
+        checkArgument(messageId instanceof MessageIdImpl);
+        if (getState() != State.Ready && getState() != State.Connecting) {
+            stats.incrementNumAcksFailed();
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            if (AckType.Individual.equals(ackType)) {
+                onAcknowledge(messageId, exception);
+            } else if (AckType.Cumulative.equals(ackType)) {
+                onAcknowledgeCumulative(messageId, exception);
+            }
+            return FutureUtil.failedFuture(exception);
+        }
+        if (delayTime < 0) {
+            delayTime = 0;
+        }
+        if (retryLetterProducer == null) {
+            try {
+                createProducerLock.writeLock().lock();
+                if (retryLetterProducer == null) {
+                    retryLetterProducer = client.newProducer(schema)
+                            .topic(this.deadLetterPolicy.getRetryLetterTopic())
+                            .enableBatching(false)
+                            .blockIfQueueFull(false)
+                            .create();
+                }
+            } catch (Exception e) {
+                log.error("Create retry letter producer exception with topic: {}", deadLetterPolicy.getRetryLetterTopic(), e);
+            } finally {
+                createProducerLock.writeLock().unlock();
+            }
+        }
+        if (retryLetterProducer != null) {
+            try {
+                MessageImpl<T> retryMessage = null;
+                String originMessageIdStr = null;
+                String originTopicNameStr = null;
+                if (message instanceof TopicMessageImpl) {
+                    retryMessage = (MessageImpl<T>) ((TopicMessageImpl<T>) message).getMessage();
+                    originMessageIdStr = ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId().toString();
+                    originTopicNameStr = ((TopicMessageIdImpl) message.getMessageId()).getTopicName();
+                } else if (message instanceof MessageImpl) {
+                    retryMessage = (MessageImpl<T>) message;
+                    originMessageIdStr = ((MessageImpl<T>) message).getMessageId().toString();
+                    originTopicNameStr =  ((MessageImpl<T>) message).getTopicName();
+                }
+                SortedMap<String, String> propertiesMap = new TreeMap<>();
+                int reconsumetimes = 1;
+                if (message.getProperties() != null) {
+                    propertiesMap.putAll(message.getProperties());
+                }
+
+                if (propertiesMap.containsKey(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
+                    reconsumetimes = Integer.valueOf(propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
+                    reconsumetimes = reconsumetimes + 1;
+                   
+                } else {
+                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+                }
+
+                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
+                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
+                
+               if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount()) {
+                   processPossibleToDLQ((MessageIdImpl)messageId);
+                    if (deadLetterProducer == null) {
+                        try {
+                            if (deadLetterProducer == null) {
+                                createProducerLock.writeLock().lock();
+                                deadLetterProducer = client.newProducer(schema)
+                                        .topic(this.deadLetterPolicy
+                                        .getDeadLetterTopic())
+                                        .blockIfQueueFull(false)
+                                        .create();
+                            }
+                        } catch (Exception e) {
+                           log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+                       } finally {
+                           createProducerLock.writeLock().unlock();
+                       }
+                   }
+                   if (deadLetterProducer != null) {
+                       propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+                       propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+                       TypedMessageBuilder<T> typedMessageBuilderNew = deadLetterProducer.newMessage()
+                               .value(retryMessage.getValue())
+                               .properties(propertiesMap);
+                       typedMessageBuilderNew.send();
+                       return doAcknowledge(messageId, ackType, properties, null);
+                   }
+                } else {
+                    TypedMessageBuilder<T> typedMessageBuilderNew = retryLetterProducer.newMessage()
+                            .value(retryMessage.getValue())
+                            .properties(propertiesMap);
+                    if (delayTime > 0) {
+                        typedMessageBuilderNew.deliverAfter(delayTime, unit);
+                    }
+                    if (message.hasKey()) {
+                        typedMessageBuilderNew.key(message.getKey());
+                    }
+                    typedMessageBuilderNew.send();
+                    return doAcknowledge(messageId, ackType, properties, null);
+                }
+            } catch (Exception e) {
+                log.error("Send to retry letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                Set<MessageId> messageIds = new HashSet<>();
+                messageIds.add(messageId);
+                unAckedMessageTracker.remove(messageId);
+                redeliverUnacknowledgedMessages(messageIds);
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     // TODO: handle transactional acknowledgements.
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties,
@@ -570,7 +725,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             builder.setLedgerId(startMessageId.getLedgerId());
             builder.setEntryId(startMessageId.getEntryId());
             if (startMessageId instanceof BatchMessageIdImpl) {
-                builder.setBatchIndex(((BatchMessageIdImpl) startMessageId).getBatchIndex());
+                builder.setBatchIndex(startMessageId.getBatchIndex());
             }
 
             startMessageIdData = builder.build();
@@ -628,7 +783,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
 
             if (e.getCause() instanceof PulsarClientException
-                    && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
+                    && PulsarClientException.isRetriableError(e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
             } else if (!subscribeFuture.isDone()) {
@@ -719,9 +874,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
+        boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
+        boolean timeout = System.currentTimeMillis() > subscribeTimeout;
+        if ((nonRetriableError || timeout) && subscribeFuture.completeExceptionally(exception)) {
             setState(State.Failed);
-            log.info("[{}] Consumer creation failed for consumer {}", topic, consumerId);
+            if (nonRetriableError) {
+                log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}", topic, consumerId, exception);
+            } else {
+                log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
+            }
             client.cleanupConsumer(this);
         }
     }
@@ -1210,7 +1371,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         }
 
-        ByteBuf decryptedData = this.msgCrypto.decrypt(msgMetadata, payload, conf.getCryptoKeyReader());
+        ByteBuf decryptedData = this.msgCrypto.decrypt(() -> msgMetadata, payload, conf.getCryptoKeyReader());
         if (decryptedData != null) {
             return decryptedData;
         }
@@ -1754,7 +1915,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                     ? e.getMetadataList().stream().collect(
                                                             Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
                                                     : null)));
-            byte[] encParam = new byte[MessageCrypto.ivLen];
+            byte[] encParam = new byte[MessageCrypto.IV_LEN];
             msgMetadata.getEncryptionParam().copyTo(encParam, 0);
             Optional<Integer> batchSize = Optional
                     .ofNullable(msgMetadata.hasNumMessagesInBatch() ? msgMetadata.getNumMessagesInBatch() : null);

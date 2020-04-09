@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -52,7 +51,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-public abstract class ConsumerBase<T> extends HandlerState implements TimerTask, Consumer<T> {
+public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -101,7 +100,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
         if (batchReceivePolicy.getTimeoutMs() > 0) {
-            batchReceiveTimeout = client.timer().newTimeout(this, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -200,6 +199,32 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     }
 
     @Override
+    public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+        if (conf.isRetryEnable() == false) {
+            throw new PulsarClientException("reconsumeLater method not support!");
+        }
+        try {
+            reconsumeLaterAsync(message, delayTime, unit).get();
+        } catch (Exception e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        }
+    }
+
+    @Override
+    public void reconsumeLater(Messages<?> messages, long delayTime, TimeUnit unit) throws PulsarClientException {
+        try {
+            reconsumeLaterAsync(messages, delayTime, unit).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
         try {
             acknowledgeCumulative(message.getMessageId());
@@ -212,6 +237,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     public void acknowledgeCumulative(MessageId messageId) throws PulsarClientException {
         try {
             acknowledgeCumulativeAsync(messageId).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+        try {
+            reconsumeLaterCumulativeAsync(message, delayTime, unit).get();
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -237,12 +271,46 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     }
 
     @Override
+    public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        if (conf.isRetryEnable() == false) {
+            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+        }
+        try {
+            return doReconsumeLater(message, AckType.Individual, Collections.emptyMap(), delayTime, unit);
+        } catch (NullPointerException npe) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit) {
+        try {
+            messages.forEach(message -> reconsumeLaterAsync(message,delayTime, unit));
+            return CompletableFuture.completedFuture(null);
+        } catch (NullPointerException npe) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         try {
             return acknowledgeCumulativeAsync(message.getMessageId());
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        if (conf.isRetryEnable() == false) {
+            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+        }
+        if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+                    "Cannot use cumulative acks on a non-exclusive subscription"));
+        }
+        return doReconsumeLater(message, AckType.Cumulative, Collections.emptyMap(), delayTime, unit);
     }
 
     @Override
@@ -307,6 +375,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String,Long> properties,
                                                              TransactionImpl txn);
+
+    protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
+                                                                Map<String,Long> properties, 
+                                                                long delayTime,
+                                                                TimeUnit unit);
+
     @Override
     public void negativeAcknowledge(Messages<?> messages) {
         messages.forEach(this::negativeAcknowledge);
@@ -545,8 +619,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
 
     protected abstract void messageProcessed(Message<?> msg);
 
-    @Override
-    public void run(Timeout timeout) throws Exception {
+
+    private void pendingBatchReceiveTask(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
@@ -581,7 +655,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
                     break;
                 }
             }
-            batchReceiveTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
     }
 

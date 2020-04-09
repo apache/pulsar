@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -320,7 +321,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             for (int i = lastIndex; i >= 0; i--) {
                 if (list.get(i).schema.isDeleted()) {
                     if (i == lastIndex) { // if the latest schema is a delete, there's no schemas to compare
-                        return Collections.<SchemaAndMetadata>emptyList();
+                        return Collections.emptyList();
                     } else {
                         return list.subList(i + 1, list.size());
                     }

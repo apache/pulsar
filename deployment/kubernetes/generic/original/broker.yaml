@@ -26,25 +26,29 @@ data:
     # Tune for available memory. Increase the heap up to 24G to have
     # better GC behavior at high throughput
     PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
-    PULSAR_PREFIX_zookeeperServers: zookeeper
-    PULSAR_PREFIX_configurationStoreServers: zookeeper
-    PULSAR_PREFIX_clusterName: local
+    zookeeperServers: zookeeper
+    configurationStoreServers: zookeeper
+    clusterName: local
     # change the managed ledger settings if you have more bookies
-    PULSAR_PREFIX_managedLedgerDefaultEnsembleSize: "1"
-    PULSAR_PREFIX_managedLedgerDefaultWriteQuorum: "1"
-    PULSAR_PREFIX_managedLedgerDefaultAckQuorum: "1"
+    managedLedgerDefaultEnsembleSize: "1"
+    managedLedgerDefaultWriteQuorum: "1"
+    managedLedgerDefaultAckQuorum: "1"
     # enable pulsar functions
-    PULSAR_PREFIX_functionsWorkerEnabled: "true"
+    functionsWorkerEnabled: "true"
     PF_pulsarFunctionsCluster: local
 ---
 ##
 ## Broker deployment definition
 ##
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
     name: broker
 spec:
+    selector:
+      matchLabels:
+          app: pulsar
+          component: broker
     replicas: 3
     template:
         metadata:

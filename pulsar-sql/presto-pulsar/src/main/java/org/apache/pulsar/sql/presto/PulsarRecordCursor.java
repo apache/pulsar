@@ -372,7 +372,7 @@ public class PulsarRecordCursor implements RecordCursor {
             //set read latency stats for failed
             metricsTracker.register_READ_LATENCY_PER_BATCH_FAIL(System.nanoTime() - (long) ctx);
             //stats for number of entries read failed
-            metricsTracker.incr_NUM_ENTRIES_PER_BATCH_FAIL((long) maxBatchSize);
+            metricsTracker.incr_NUM_ENTRIES_PER_BATCH_FAIL(maxBatchSize);
         }
     }
 

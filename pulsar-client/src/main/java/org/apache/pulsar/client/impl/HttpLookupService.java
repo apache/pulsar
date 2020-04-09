@@ -130,7 +130,7 @@ public class HttpLookupService implements LookupService {
                 });
                 future.complete(result);})
             .exceptionally(ex -> {
-                log.warn("Failed to getTopicsUnderNamespace namespace: {}.", namespace, ex.getMessage());
+                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
                 future.completeExceptionally(ex);
                 return null;
             });

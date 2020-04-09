@@ -48,7 +48,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(300000));
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
@@ -109,8 +109,8 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(5, TimeUnit.MINUTES);
-        config.setOffloadLedgerDeletionLag(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(600000));
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
@@ -157,7 +157,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
-        config.setOffloadLedgerDeletionLag(5, TimeUnit.MINUTES);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(300000));
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 

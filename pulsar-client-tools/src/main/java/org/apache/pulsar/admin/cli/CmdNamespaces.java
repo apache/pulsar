@@ -37,6 +37,7 @@ import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
@@ -375,6 +377,60 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
             admin.namespaces().setDeduplicationStatus(namespace, enable);
+        }
+    }
+
+    @Parameters(commandDescription = "Enable or disable autoTopicCreation for a namespace, overriding broker settings")
+    private class SetAutoTopicCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoTopicCreation on namespace")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable allowAutoTopicCreation on namespace")
+        private boolean disable = false;
+
+        @Parameter(names = { "--type", "-t" }, description = "Type of topic to be auto-created. " +
+                "Possible values: (partitioned, non-partitioned). Default value: non-partitioned")
+        private String type = "non-partitioned";
+
+        @Parameter(names = { "--num-partitions", "-n" }, description = "Default number of partitions of topic to be auto-created," +
+                " applicable to partitioned topics only", required = false)
+        private Integer defaultNumPartitions = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            type = type.toLowerCase().trim();
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            if (enable) {
+                if (!TopicType.isValidTopicType(type)) {
+                    throw new ParameterException("Must specify type of topic to be created. " +
+                            "Possible values: (partitioned, non-partitioned)");
+                }
+
+                if (TopicType.PARTITIONED.toString().equals(type) && !(defaultNumPartitions > 0)) {
+                    throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
+                }
+            }
+            admin.namespaces().setAutoTopicCreation(namespace, new AutoTopicCreationOverride(enable, type, defaultNumPartitions));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of autoTopicCreation for a namespace")
+    private class RemoveAutoTopicCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            admin.namespaces().removeAutoTopicCreation(namespace);
         }
     }
 
@@ -1392,6 +1448,18 @@ public class CmdNamespaces extends CmdBase {
                 required = false)
         private String readBufferSizeStr;
 
+        @Parameter(
+                names = {"--offloadAfterElapsed", "-oae"},
+                description = "Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                required = false)
+        private String offloadAfterElapsedStr;
+
+        @Parameter(
+                names = {"--offloadAfterThreshold", "-oat"},
+                description = "Offload after threshold size (eg: 1M, 5M)",
+                required = false)
+        private String offloadAfterThresholdStr;
+
         private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
         public boolean driverSupported(String driver) {
@@ -1453,8 +1521,27 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
+            Long offloadAfterElapsedInMillis = OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+            if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
+                Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
+                        && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
+                    offloadAfterElapsedInMillis = new Long(offloadAfterElapsed);
+                }
+            }
+
+            long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
+                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
+                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                    offloadAfterThresholdInBytes = new Long(offloadAfterThreshold);
+                }
+            }
+
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
-                    maxBlockSizeInBytes, readBufferSizeInBytes);
+                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
+                    offloadAfterElapsedInMillis);
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }
@@ -1508,6 +1595,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
+
+        jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
+        jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());

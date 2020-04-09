@@ -35,6 +35,7 @@ import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -212,6 +213,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Time to wait for broker graceful shutdown. After this time elapses, the process will be killed"
     )
     private long brokerShutdownTimeoutMs = 60000;
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Flag to skip broker shutdown when broker handles Out of memory error"
+    )
+    private boolean skipBrokerShutdownOnOOM = false;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -274,6 +281,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Max pending publish requests per connection to avoid keeping large number of pending "
+                + "requests in memory. Default: 1000"
+    )
+    private int maxPendingPublishdRequestsPerConnection = 1000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -620,6 +633,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Interval between checks to see if message publish buffer size is exceed the max message publish buffer size"
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Check between intervals to see if consumed ledgers need to be trimmed"
+    )
+    private int retentionCheckIntervalInSeconds = 120;
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1268,6 +1287,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Replicator producer queue size"
     )
     private int replicationProducerQueueSize = 1000;
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            doc = "Duration to check replication policy to avoid replicator "
+                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
+        )
+    private int replicatioPolicyCheckDurationSeconds = 600;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -1530,20 +1555,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return brokerDeleteInactiveTopicsFrequencySeconds;
         } else {
             return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
-        }
-    }
-
-    enum TopicType {
-        PARTITIONED("partitioned"),
-        NON_PARTITIONED("non-partitioned");
-        private String type;
-
-        TopicType(String type) {
-            this.type = type;
-        }
-
-        public String toString() {
-            return type;
         }
     }
 }
