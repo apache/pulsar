@@ -22,3 +22,10 @@ appVersion: "1.0"
 description: Apache Pulsar Helm chart for Kubernetes
 name: pulsar
 version: 1.0.0
+home: https://pulsar.apache.org
+sources:
+- https://github.com/apache/pulsar
+icon: http://pulsar.apache.org/img/pulsar.svg
+maintainers:
+- name: The Apache Pulsar Team
+  email: dev@pulsar.apache.org
