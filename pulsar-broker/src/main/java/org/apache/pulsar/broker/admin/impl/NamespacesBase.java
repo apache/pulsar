@@ -576,6 +576,9 @@ public abstract class NamespacesBase extends AdminResource {
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                            String autoOverride = autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled";
+                                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
+                                            asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
                                                     "[%s] Failed to modify autoTopicCreation status for namespace %s",
@@ -591,9 +594,6 @@ public abstract class NamespacesBase extends AdminResource {
                                             }
                                         }
                                     }, null);
-                            String autoOverride = autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled";
-                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -629,6 +629,8 @@ public abstract class NamespacesBase extends AdminResource {
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                            log.info("[{}] Successfully removed autoTopicCreation override on namespace {}", clientAppId(), namespaceName);
+                                            asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
                                                     "[%s] Failed to modify autoTopicCreation status for namespace %s",
@@ -644,8 +646,6 @@ public abstract class NamespacesBase extends AdminResource {
                                             }
                                         }
                                     }, null);
-                            log.info("[{}] Successfully removed autoTopicCreation override on namespace {}", clientAppId(), namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -681,6 +681,9 @@ public abstract class NamespacesBase extends AdminResource {
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                            String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled" : "disabled";
+                                            log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
+                                            asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
                                                     "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
@@ -696,9 +699,6 @@ public abstract class NamespacesBase extends AdminResource {
                                             }
                                         }
                                     }, null);
-                            String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled" : "disabled";
-                            log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
@@ -734,6 +734,8 @@ public abstract class NamespacesBase extends AdminResource {
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                                            log.info("[{}] Successfully removed autoSubscriptionCreation override on namespace {}", clientAppId(), namespaceName);
+                                            asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
                                                     "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
@@ -749,8 +751,6 @@ public abstract class NamespacesBase extends AdminResource {
                                             }
                                         }
                                     }, null);
-                            log.info("[{}] Successfully removed autoSubscriptionCreation override on namespace {}", clientAppId(), namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
                             return null;
                         } catch (Exception e) {
                             log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
