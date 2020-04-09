@@ -2424,4 +2424,30 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
     }
+
+    @Test
+    public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 33; i++) {
+            producer.send(new byte[1024 * i * 5]);
+        }
+
+        for (int i = 0; i < 33; i++) {
+            consumer.acknowledgeCumulative(consumer.receive());
+        }
+
+        // Wait ack send
+        Thread.sleep(1000);
+
+        TopicStats topicStats = admin.topics().getStats(topic);
+        System.out.println(topicStats.backlogSize);
+    }
 }
