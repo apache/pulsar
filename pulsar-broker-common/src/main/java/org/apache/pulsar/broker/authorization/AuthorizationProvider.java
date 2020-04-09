@@ -195,11 +195,11 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a tenant to the given client
      * @param tenantName
-     * @param originalRole
-     * @param role
+     * @param originalRole role not overriden by proxy role if request do pass through proxy
+     * @param role originalRole | proxyRole if the request didn't pass through proxy
      * @param operation
      * @param authData
-     * @return
+     * @return CompletableFuture<Boolean>
      */
     default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                             TenantOperation operation,
@@ -224,14 +224,11 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a namespace to the given client
      * @param namespaceName
-     * @param originalRole
-     * @param role
+     * @param originalRole role not overriden by proxy role if request do pass through proxy
+     * @param role originalRole | proxyRole if the request didn't pass through proxy
      * @param operation
      * @param authData
-     * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @return CompletableFuture<Boolean>
      */
     default CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole,
                                                                  String role, NamespaceOperation operation,
@@ -254,14 +251,11 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Grant authorization-action permission on a topic to the given client
      * @param topic
-     * @param originalRole
-     * @param role
+     * @param originalRole role not overriden by proxy role if request do pass through proxy
+     * @param role originalRole | proxyRole if the request didn't pass through proxy
      * @param operation
      * @param authData
-     * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when topic not found<br/>
-     *                IllegalStateException when failed to grant permission
+     * @return CompletableFuture<Boolean>
      */
     default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role,
                                                              TopicOperation operation,
