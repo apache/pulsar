@@ -149,6 +149,22 @@ class PULSAR_PUBLIC ClientConfiguration {
      */
     const unsigned int& getStatsIntervalInSeconds() const;
 
+    /**
+     * Set partitions update interval in seconds.
+     * If a partitioned topic is produced or subscribed and `intervalInSeconds` is not 0, every
+     * `intervalInSeconds` seconds the partition number will be retrieved by sending lookup requests. If
+     * partition number has been increased, more producer/consumer of increased partitions will be created.
+     * Default is 60 seconds.
+     *
+     * @param intervalInSeconds the seconds between two lookup request for partitioned topic's metadata
+     */
+    ClientConfiguration& setPartititionsUpdateInterval(unsigned int intervalInSeconds);
+
+    /**
+     * Get partitions update interval in seconds.
+     */
+    unsigned int getPartitionsUpdateInterval() const;
+
     friend class ClientImpl;
     friend class PulsarWrapper;
 

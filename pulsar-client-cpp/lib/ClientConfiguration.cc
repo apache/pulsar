@@ -119,4 +119,13 @@ ClientConfiguration& ClientConfiguration::setStatsIntervalInSeconds(
 const unsigned int& ClientConfiguration::getStatsIntervalInSeconds() const {
     return impl_->statsIntervalInSeconds;
 }
+
+ClientConfiguration& ClientConfiguration::setPartititionsUpdateInterval(unsigned int intervalInSeconds) {
+    impl_->partitionsUpdateInterval = intervalInSeconds;
+    return *this;
+}
+
+unsigned int ClientConfiguration::getPartitionsUpdateInterval() const {
+    return impl_->partitionsUpdateInterval;
+}
 }  // namespace pulsar
