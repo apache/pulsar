@@ -63,6 +63,8 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -804,6 +806,22 @@ public abstract class PulsarWebResource {
             if (!isAuthorized) {
                 throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespaceOperation for" +
                         " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
+            }
+        }
+    }
+
+    public void validateNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespacePolicyOperation(namespaceName, policy, operation, originalPrincipal(), clientAppId(), clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespacePolicyOperation for" +
+                        " operation [%s] on namespace [%s] on policy [%s]", operation.toString(), namespaceName, policy.toString()));
             }
         }
     }
