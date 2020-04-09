@@ -30,6 +30,8 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -247,6 +249,34 @@ public interface AuthorizationProvider extends Closeable {
             throw new RestException(e.getCause());
         }
     }
+
+    /**
+     * Grant authorization-action permission on a namespace to the given client
+     * @param namespaceName
+     * @param originalRole role not overriden by proxy role if request do pass through proxy
+     * @param role originalRole | proxyRole if the request didn't pass through proxy
+     * @param operation
+     * @param authData
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
+                                                                          PolicyOperation operation, String originalRole,
+                                                                          String role, AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("NamespacePolicyOperation is not supported by the Authorization provider you are using."));
+    }
+
+    default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation,
+                                                  String originalRole, String role, AuthenticationDataSource authData) {
+        try {
+            return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, originalRole, role, authData).get();
+        } catch (InterruptedException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            throw new RestException(e.getCause());
+        }
+    }
+
 
     /**
      * Grant authorization-action permission on a topic to the given client

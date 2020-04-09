@@ -41,6 +41,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -520,6 +522,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole,
                                                               String role, NamespaceOperation operation,
                                                               AuthenticationDataSource authData) {
+        return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
+                                                                         PolicyOperation operation, String originalRole,
+                                                                         String role, AuthenticationDataSource authData) {
         return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
     }
 

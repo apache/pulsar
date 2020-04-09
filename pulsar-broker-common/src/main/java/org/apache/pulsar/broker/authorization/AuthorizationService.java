@@ -22,11 +22,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
@@ -394,16 +397,58 @@ public class AuthorizationService {
     }
 
     public Boolean allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
-                                           String orignalRole, String role, AuthenticationDataSource authData) {
+                                           String originalPrincipal, String role, AuthenticationDataSource authData) {
         if (!this.conf.isAuthorizationEnabled()) {
             return true;
         }
 
         if (provider != null) {
-            return provider.allowNamespaceOperation(namespaceName, orignalRole, role, operation, authData);
+            return provider.allowNamespaceOperation(namespaceName, originalPrincipal, role, operation, authData);
         }
 
         throw new IllegalStateException("No authorization provider configured for allowNamespaceOperation");
+    }
+
+    /**
+     * Grant authorization-action permission on a namespace to the given client
+     *
+     * @param namespaceName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
+                                                                         PolicyOperation operation, String originalRole,
+                                                                         String role, AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, originalRole, role, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowNamespacePolicyOperationAsync"));
+    }
+
+    public Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy,
+                                                 PolicyOperation operation, String originalPrincipal, String role,
+                                                 AuthenticationDataHttps authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowNamespacePolicyOperation(namespaceName, policy, operation, originalPrincipal, role, authData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowNamespacePolicyOperation");
     }
 
     /**
