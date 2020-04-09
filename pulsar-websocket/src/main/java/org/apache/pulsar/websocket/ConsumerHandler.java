@@ -29,6 +29,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntBinaryOperator;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -245,14 +246,23 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     ConsumerStats cStats = consumer.getStats();
                     long ackDiff = cStats.getTotalMsgsReceived() - cStats.getTotalAcksSent();
                     consumer.acknowledgeCumulativeAsync(msgId).thenAccept(consumer -> numMsgsAcked.add(ackDiff));
+                    if (!this.pullMode) {
+                        int acked = (int) ackDiff;
+                        IntBinaryOperator decrementFunction = (x, y) -> x - y;
+                        int pending = pendingMessages.accumulateAndGet(acked, decrementFunction);
+                        if (pending >= maxPendingMessages) {
+                            // Resume delivery
+                            receiveMessage();
+                        }
+                    }
                 } else {
                     consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-                }
-                if (!this.pullMode) {
-                    int pending = pendingMessages.getAndDecrement();
-                    if (pending >= maxPendingMessages) {
-                        // Resume delivery
-                        receiveMessage();
+                    if (!this.pullMode) {
+                        int pending = pendingMessages.getAndDecrement();
+                        if (pending >= maxPendingMessages) {
+                            // Resume delivery
+                            receiveMessage();
+                        }
                     }
                 }
             }
