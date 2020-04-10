@@ -320,4 +320,48 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
+
+
+    @Test
+    public void testNotAllowSubscriptionTopicCreation() throws Exception{
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        String topicName = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
+        String subscriptionName = "non-partitioned-topic-sub";
+
+        try {
+            admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+            fail("should fail to create subscription once not allowAutoTopicCreation");
+        } catch (Exception e) {
+            // expected
+        }
+
+        try {
+            admin.topics().createSubscription(topicName + "-partition-0",
+                    subscriptionName, MessageId.earliest);
+            fail("should fail to create subscription once not allowAutoTopicCreation");
+        } catch (Exception e) {
+            // expected
+        }
+
+        assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
+        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicName));
+
+        try {
+            admin.topics().createNonPartitionedTopic(topicName);
+            admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        } catch (Exception e) {
+            // expected
+            fail("should success to create subscription once topic created");
+        }
+
+        try {
+            String partitionTopic = "persistent://prop/ns-abc/partitioned-topic" + System.currentTimeMillis();
+            admin.topics().createPartitionedTopic(partitionTopic, 1);
+            admin.topics().createSubscription(partitionTopic + "-partition-0", subscriptionName, MessageId.earliest);
+        } catch (Exception e) {
+            // expected
+            fail("should success to create subscription once topic created");
+        }
+
+    }
 }
