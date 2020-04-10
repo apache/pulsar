@@ -52,6 +52,13 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
+    public void prepare() throws Exception {
+       if (null != context && null != function) {
+         if (function instanceof Function) {
+             function.prepare(context);
+       }
+    }
+    
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         if (context != null) {
             context.setCurrentMessageContext(record);
