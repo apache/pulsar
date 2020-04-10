@@ -86,58 +86,30 @@ const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
 
-struct chrono_milliseconds_from_python_delta
-{
-    chrono_milliseconds_from_python_delta()
-    {
-        boost::python::converter::registry::push_back(
-        &convertible,
-        &construct,
-        boost::python::type_id<std::chrono::milliseconds>());
-    }
+void deliverAfter(MessageBuilder* const builder, py::object obj_delta) {
+    PyDateTime_Delta const* pydelta = reinterpret_cast<PyDateTime_Delta*>(&obj_delta);
+    long days = pydelta->days;
+    bool is_negative = (days < 0);
+    if (is_negative)
+        days = -days;
 
-    static void* convertible(PyObject* obj_ptr)
-    {
-        if (!PyString_Check(obj_ptr)) return 0;
-        return obj_ptr;
-    }
+    // Create chrono duration object
+    std::chrono::milliseconds
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::hours(24)*days
+                + std::chrono::seconds(pydelta->seconds)
+                + std::chrono::microseconds(pydelta->microseconds)
+                );
+    if (is_negative)
+        duration = duration * -1;
 
-    static void construct(
-        PyObject* obj_ptr,
-        boost::python::converter::rvalue_from_python_stage1_data* data)
-    {
-        PyDateTime_Delta const* pydelta
-            = reinterpret_cast<PyDateTime_Delta*>(obj_ptr);
-
-        long days = pydelta->days;
-        bool is_negative = (days < 0);
-        if (is_negative)
-            days = -days;
-
-        // Create chrono duration object
-        std::chrono::milliseconds
-            duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::hours(24)*days
-                    + std::chrono::seconds(pydelta->seconds)
-                    + std::chrono::microseconds(pydelta->microseconds)
-            );
-        if (is_negative)
-            duration = duration * -1;
-
-        void* storage = (
-                (boost::python::converter::rvalue_from_python_storage<std::chrono::milliseconds>*)
-                data)->storage.bytes;
-        new (storage)
-        std::chrono::milliseconds(duration);
-        data->convertible = storage;
-    }
-};
+    builder->setDeliverAfter(duration);
+}
 
 void export_message() {
     using namespace boost::python;
 
     PyDateTime_IMPORT;
-    chrono_milliseconds_from_python_delta();
 
     MessageBuilder& (MessageBuilder::*MessageBuilderSetContentString)(const std::string&) = &MessageBuilder::setContent;
 
@@ -146,7 +118,7 @@ void export_message() {
             .def("property", &MessageBuilder::setProperty, return_self<>())
             .def("properties", &MessageBuilder::setProperties, return_self<>())
             .def("sequence_id", &MessageBuilder::setSequenceId, return_self<>())
-            .def("deliver_after", &MessageBuilder::setDeliverAfter, return_self<>())
+            .def("deliver_after", &deliverAfter, return_self<>())
             .def("deliver_at", &MessageBuilder::setDeliverAt, return_self<>())
             .def("partition_key", &MessageBuilder::setPartitionKey, return_self<>())
             .def("event_timestamp", &MessageBuilder::setEventTimestamp, return_self<>())
