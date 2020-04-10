@@ -25,6 +25,10 @@ import org.apache.pulsar.functions.api.Function;
  * Example of function converting a derived object to a base object.
  */
 public class CustomDerivedToBaseFunction implements Function<CustomDerivedObject, CustomBaseObject> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public CustomBaseObject process(CustomDerivedObject input, Context context) {
