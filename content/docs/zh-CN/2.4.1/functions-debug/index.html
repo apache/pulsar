@@ -278,8 +278,8 @@ public class LoggingFunction implements Function<String, Void> {
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
-<tr><td><code>--instance-id</code></td><td>Pulsar 函数</td></tr>
-<tr><td>的实例ID。如果未指定 <code>--instance-id</code> 则获取所有实例的 ID。</td></tr>
+<tr><td><code>--instance-id</code></td><td>如果没有指定 Pulsar Function 实例的 ID</td></tr>
+<tr><td><code>--instance-id</code>，则获取所有实例的 ID。</td></tr>
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
@@ -326,8 +326,8 @@ public class LoggingFunction implements Function<String, Void> {
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
-<tr><td><code>--instance-id</code></td><td>Pulsar Function 的实例 ID。 Pulsar 函数</td></tr>
-<tr><td>的实例ID。如果未指定 <code>--instance-id</code> 则获取所有实例的 ID。</td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 实例的 ID。</td></tr>
+<tr><td>如果没有指定 <code>--instance-id</code>，则获取所有实例的 ID。</td></tr>
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
@@ -415,8 +415,8 @@ ExclamationFunctio3
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
-<tr><td><code>--topic</code></td><td>Pulsar Function 消耗的主题名称。</td></tr>
-<tr><td><code>--trigger-file</code></td><td>用于触发 Pulsar Function 的文件路径。</td></tr>
+<tr><td><code>--topic</code></td><td>Pulsar Function consume 的消息所在 topic 的名称。</td></tr>
+<tr><td><code>--trigger-file</code></td><td>包含触发 Pulsar Function 数据的文件路径。</td></tr>
 <tr><td><code>--trigger-value</code></td><td>触发 Pulsar Function 的值。</td></tr>
 </tbody>
 </table>

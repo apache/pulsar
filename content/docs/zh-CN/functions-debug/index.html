@@ -83,8 +83,8 @@
 <li><a href="/docs/zh-CN/functions-debug#use-functions-cli">Use Functions CLI</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="抓取的-stderr"></a><a href="#抓取的-stderr" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>抓取的 stderr</h2>
-<p>Function 启动信息和抓取的 stderr 输出被写入 <code>日志/函数/&lt;tenant&gt;/&lt;namespace&gt;/&lt;function&gt;/&lt;function&gt;-&lt;instance&gt;.log</code></p>
-<p>这对于调试 Function 为什么无法启动非常有用。</p>
+<p>将 Function 启动信息和抓取的 stderr 输出写入 <code>logs/functions/&lt;tenant&gt;/&lt;namespace&gt;/&lt;function&gt;/&lt;function&gt;-&lt;instance&gt;.log</code>。</p>
+<p>这对于调试 Function 无法启动非常有用。</p>
 <h2><a class="anchor" aria-hidden="true" id="use-unit-test"></a><a href="#use-unit-test" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use unit test</h2>
 <p>A Pulsar Function is a function with inputs and outputs, you can test a Pulsar Function in a similar way as you test any function.</p>
 <p>For example, if you have the following Pulsar Function:</p>
@@ -280,7 +280,7 @@ localRunner.start(<span class="hljs-keyword">true</span>);
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
-<tr><td><code>--instance-id</code></td><td>Pulsar 函数 <br>的实例ID。如果未指定 <code>--instance-id</code> 则获取所有实例的 ID。<br></td></tr>
+<tr><td><code>--instance-id</code></td><td>如果没有指定 Pulsar Function 实例的 ID <br> <code>--instance-id</code>，则获取所有实例的 ID。 <br></td></tr>
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
@@ -327,7 +327,7 @@ localRunner.start(<span class="hljs-keyword">true</span>);
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
-<tr><td><code>--instance-id</code></td><td>Pulsar Function 的实例 ID。 Pulsar 函数 <br>的实例ID。如果未指定 <code>--instance-id</code> 则获取所有实例的 ID。<br></td></tr>
+<tr><td><code>--instance-id</code></td><td>Pulsar Function 实例的 ID。 <br>如果没有指定 <code>--instance-id</code>，则获取所有实例的 ID。<br></td></tr>
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
@@ -415,8 +415,8 @@ ExclamationFunctio3
 <tr><td><code>--name</code></td><td>Pulsar Function 的名称。</td></tr>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
-<tr><td><code>--topic</code></td><td>Pulsar Function 消耗的主题名称。</td></tr>
-<tr><td><code>--trigger-file</code></td><td>用于触发 Pulsar Function 的文件路径。</td></tr>
+<tr><td><code>--topic</code></td><td>Pulsar Function consume 的消息所在 topic 的名称。</td></tr>
+<tr><td><code>--trigger-file</code></td><td>包含触发 Pulsar Function 数据的文件路径。</td></tr>
 <tr><td><code>--trigger-value</code></td><td>触发 Pulsar Function 的值。</td></tr>
 </tbody>
 </table>
