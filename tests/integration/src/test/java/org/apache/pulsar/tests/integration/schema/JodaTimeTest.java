@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 @Slf4j
-public class JodaTImeTest extends PulsarTestSuite {
+public class JodaTimeTest extends PulsarTestSuite {
 
     private PulsarClient client;
     private PulsarAdmin admin;

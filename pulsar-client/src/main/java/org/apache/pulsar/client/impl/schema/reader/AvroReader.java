@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
-import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
-import org.apache.avro.data.JodaTimeConversions;
-import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
@@ -29,6 +26,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,40 +43,25 @@ public class AvroReader<T> implements SchemaReader<T> {
         this.reader = new ReflectDatumReader<>(schema);
     }
 
-    public AvroReader(Schema schema, ClassLoader classLoader) {
+    public AvroReader(Schema schema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            addLogicalTypeConversions(reflectData);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
             this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
         }
     }
 
-    public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
+    public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
+        boolean jsr310ConversionEnabled) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            addLogicalTypeConversions(reflectData);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
         }
-    }
-
-    private void addLogicalTypeConversions(ReflectData reflectData) {
-        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.DateConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.LossyTimeMicrosConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.LossyTimestampMicrosConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeMicrosConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
-        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampMicrosConversion());
     }
 
     @Override
