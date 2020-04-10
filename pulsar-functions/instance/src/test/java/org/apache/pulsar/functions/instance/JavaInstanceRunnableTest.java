@@ -78,6 +78,11 @@ public class JavaInstanceRunnableTest {
 
     private class ComplexTypeHandler implements Function<String, ComplexUserDefinedType> {
         @Override
+        public void prepare(Context context) throws Exception {
+
+        }
+
+        @Override
         public ComplexUserDefinedType process(String input, Context context) throws Exception {
             return new ComplexUserDefinedType();
         }
