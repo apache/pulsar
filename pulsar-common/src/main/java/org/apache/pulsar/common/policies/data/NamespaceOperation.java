@@ -23,10 +23,20 @@ package org.apache.pulsar.common.policies.data;
  * Namespace authorization operations.
  */
 public enum NamespaceOperation {
-    AUTH_MODE,
-    BACKLOG,
-    BUNDLE,
-    LIST_TOPICS,
-    PERMISSION,
+    CREATE_TOPIC,
+    GET_TOPIC,
+    DELETE_TOPIC,
+
+    CLEAR_BACKLOG,
+    ADD_BUNDLE,
+    DELETE_BUNDLE,
+
+    GET_BUNDLE,
+    GET_TOPICS,
+    GET_PERMISSION,
+
+    GRANT_PERMISSION,
+    REVOKE_PERMISSION,
+
     UNSUBSCRIBE,
 }

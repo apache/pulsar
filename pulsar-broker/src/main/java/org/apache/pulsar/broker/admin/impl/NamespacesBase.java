@@ -285,7 +285,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.BUNDLE);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.DELETE_BUNDLE);
         validatePoliciesReadOnlyAccess();
 
         // ensure that non-global namespace is directed to the correct cluster
@@ -356,7 +356,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -387,7 +387,7 @@ public abstract class NamespacesBase extends AdminResource {
 
 
     protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -417,7 +417,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRevokePermissionsOnNamespace(String role) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -447,7 +447,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalRevokePermissionsOnSubscription(String subscriptionName, String role) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         validatePoliciesReadOnlyAccess();
 
         AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -1476,7 +1476,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1518,7 +1518,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklog(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1539,7 +1539,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
             boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1582,7 +1582,7 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklogForSubscription(String subscription, String bundleRange,
             boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.BACKLOG);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1665,7 +1665,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSubscriptionAuthMode(SubscriptionAuthMode subscriptionAuthMode) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.AUTH_MODE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         if (subscriptionAuthMode == null) {
@@ -1737,7 +1737,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         if (policies.delayed_delivery_policies == null) {
@@ -2445,12 +2445,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     @Deprecated
     protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
     }
 
     protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED){
@@ -2462,7 +2462,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @Deprecated
     protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2473,7 +2473,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2484,12 +2484,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected boolean internalGetSchemaValidationEnforced() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_validation_enforced;
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2500,12 +2500,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected boolean internalGetIsAllowAutoUpdateSchema() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {

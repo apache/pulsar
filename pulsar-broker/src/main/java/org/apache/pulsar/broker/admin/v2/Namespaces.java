@@ -97,7 +97,7 @@ public class Namespaces extends NamespacesBase {
                                   @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
                                   @Suspended AsyncResponse asyncResponse) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.LIST_TOPICS);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
@@ -182,7 +182,7 @@ public class Namespaces extends NamespacesBase {
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -387,7 +387,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.BUNDLE);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLE);
 
         Policies policies = getNamespacePolicies(namespaceName);
 

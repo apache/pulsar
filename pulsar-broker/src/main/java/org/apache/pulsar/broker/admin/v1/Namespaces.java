@@ -127,7 +127,7 @@ public class Namespaces extends NamespacesBase {
                                   @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
                                   @Suspended AsyncResponse asyncResponse) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.LIST_TOPICS);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
@@ -232,7 +232,7 @@ public class Namespaces extends NamespacesBase {
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.PERMISSION);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -483,7 +483,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.BUNDLE);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BUNDLE);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
