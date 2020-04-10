@@ -41,7 +41,6 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
-import org.junit.Test;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
