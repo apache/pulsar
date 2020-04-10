@@ -28,6 +28,10 @@ import org.apache.pulsar.functions.api.Function;
  * end up in that specified pulsar topic.
  */
 public class LoggingFunction implements Function<String, String> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public String process(String input, Context context) {
