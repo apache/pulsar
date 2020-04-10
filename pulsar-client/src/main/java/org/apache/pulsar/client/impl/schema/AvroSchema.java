@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversions;
+import org.apache.avro.data.JodaTimeConversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
@@ -54,6 +55,13 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
         reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
         reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.DateConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.LossyTimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.LossyTimestampMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimeConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimeMicrosConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+        reflectDataAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimestampMicrosConversion());
 
         ReflectData reflectDataNotAllowNull = ReflectData.get();
 
@@ -63,6 +71,13 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
         reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.DateConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.LossyTimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.LossyTimestampMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimeConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimeMicrosConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+        reflectDataNotAllowNull.addLogicalTypeConversion(new JodaTimeConversions.TimestampMicrosConversion());
     }
 
     private ClassLoader pojoClassLoader;

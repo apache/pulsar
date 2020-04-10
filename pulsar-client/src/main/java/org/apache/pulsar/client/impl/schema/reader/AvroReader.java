@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.reader;
 
 import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
+import org.apache.avro.data.JodaTimeConversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
@@ -47,12 +48,7 @@ public class AvroReader<T> implements SchemaReader<T> {
     public AvroReader(Schema schema, ClassLoader classLoader) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            addLogicalTypeConversions(reflectData);
             this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(schema);
@@ -62,16 +58,27 @@ public class AvroReader<T> implements SchemaReader<T> {
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader) {
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
-            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            addLogicalTypeConversions(reflectData);
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
         } else {
             this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
         }
+    }
+
+    private void addLogicalTypeConversions(ReflectData reflectData) {
+        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.DateConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.LossyTimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.LossyTimestampMicrosConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+        reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampMicrosConversion());
     }
 
     @Override
