@@ -23,6 +23,7 @@ from unittest import TestCase, main
 import time
 import os
 import uuid
+from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
@@ -161,6 +162,54 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         self.assertEqual(3, redelivery_count)
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_deliver_at(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-deliver-at',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-deliver-at')
+        # Delay message in 500ms
+        producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 500)
+
+        # Message should not be available before 500 ms delay
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # Message should be published in the next 400ms
+        msg = consumer.receive(500)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_deliver_after(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-deliver-after',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-deliver-after')
+        # Delay message in 500ms
+        producer.send(b'hello', deliver_after=timedelta(milliseconds=500))
+
+        # Message should not be available before 500 ms delay
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # Message should be published in the next 400ms
+        msg = consumer.receive(500)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
         consumer.unsubscribe()
         producer.close()
         client.close()
@@ -587,6 +636,8 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: producer.send(content, replication_clusters=5))
         self._check_value_error(lambda: producer.send(content, disable_replication='test'))
         self._check_value_error(lambda: producer.send(content, event_timestamp='test'))
+        self._check_value_error(lambda: producer.send(content, deliver_at='test'))
+        self._check_value_error(lambda: producer.send(content, deliver_after='test'))
         client.close()
 
     def test_client_argument_errors(self):
