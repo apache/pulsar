@@ -25,6 +25,10 @@ import org.apache.pulsar.functions.api.Function;
  * Function that appends to an integer input value and outputs the new value.
  */
 public class IntegerAdditionFunction implements Function<Integer, Integer> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public Integer process(Integer input, Context context) {
