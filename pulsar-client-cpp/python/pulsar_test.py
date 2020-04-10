@@ -172,18 +172,18 @@ class PulsarTest(TestCase):
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
         producer = client.create_producer('my-python-topic-deliver-at')
-        # Delay message in 500ms
-        producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 500)
+        # Delay message in 1.1s
+        producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 1100)
 
-        # Message should not be available before 500 ms delay
+        # Message should not be available in the next second
         try:
-            msg = consumer.receive(100)
+            msg = consumer.receive(1000)
             self.assertTrue(False)  # Should not reach this point
         except:
             pass  # Exception is expected
 
-        # Message should be published in the next 400ms
-        msg = consumer.receive(500)
+        # Message should be published now
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         consumer.unsubscribe()
@@ -197,16 +197,16 @@ class PulsarTest(TestCase):
                                     consumer_type=ConsumerType.Shared)
         producer = client.create_producer('my-python-topic-deliver-after')
         # Delay message in 500ms
-        producer.send(b'hello', deliver_after=timedelta(milliseconds=500))
+        producer.send(b'hello', deliver_after=timedelta(milliseconds=1100))
 
-        # Message should not be available before 500 ms delay
+        # Message should not be available in the next second
         try:
-            msg = consumer.receive(100)
+            msg = consumer.receive(1000)
             self.assertTrue(False)  # Should not reach this point
         except:
             pass  # Exception is expected
 
-        # Message should be published in the next 400ms
+        # Message should be published in the next 500ms
         msg = consumer.receive(500)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
