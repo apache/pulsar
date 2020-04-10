@@ -105,6 +105,10 @@ public class FunctionApiV3ResourceTest {
     }
 
     private static final class TestFunction implements Function<String, String> {
+        @Override
+        public void prepare(Context context) throws Exception {
+
+        }
 
         @Override
         public String process(String input, Context context) {
