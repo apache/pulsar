@@ -28,6 +28,10 @@ import java.net.UnknownHostException;
  * Function that appends the host name to the payload message.
  */
 public class HostAppenderFunction implements Function<String, String> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public String process(String input, Context context) {
