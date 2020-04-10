@@ -29,6 +29,10 @@ import org.apache.pulsar.functions.api.Function;
  * An example demonstrate publishing messages through Context.
  */
 public class UserPublishFunction implements Function<String, Void> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public Void process(String input, Context context) {
