@@ -2436,11 +2436,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        for (int i = 0; i < 33; i++) {
+        final int messages = 33;
+        for (int i = 0; i < messages; i++) {
             producer.send(new byte[1024 * i * 5]);
         }
 
-        for (int i = 0; i < 33; i++) {
+        for (int i = 0; i < messages; i++) {
             consumer.acknowledgeCumulative(consumer.receive());
         }
 
@@ -2448,6 +2449,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000);
 
         TopicStats topicStats = admin.topics().getStats(topic);
-        System.out.println(topicStats.backlogSize);
+        assertEquals(topicStats.backlogSize, 0);
     }
 }
