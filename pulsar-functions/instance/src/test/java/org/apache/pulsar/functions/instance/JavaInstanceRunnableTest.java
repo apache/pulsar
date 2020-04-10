@@ -102,12 +102,22 @@ public class JavaInstanceRunnableTest {
 
     private class VoidInputHandler implements Function<Void, String> {
         @Override
+        public void prepare(Context context) throws Exception {
+
+        }
+
+        @Override
         public String process(Void input, Context context) throws Exception {
             return new String("Interesting");
         }
     }
 
     private class VoidOutputHandler implements Function<String, Void> {
+        @Override
+        public void prepare(Context context) throws Exception {
+
+        }
+
         @Override
         public Void process(String input, Context context) throws Exception {
             return null;
