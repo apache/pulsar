@@ -25,6 +25,10 @@ import org.apache.pulsar.functions.api.Function;
  * Example of function doing a type object conversion between input ann output type.
  */
 public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, CustomDerivedObject> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public CustomDerivedObject process(CustomBaseObject input, Context context) {
