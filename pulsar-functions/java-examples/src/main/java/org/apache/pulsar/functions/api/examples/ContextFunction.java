@@ -26,6 +26,11 @@ import java.util.stream.Collectors;
 
 public class ContextFunction implements Function<String, Void> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public Void process(String input, Context context) {
         Logger LOG = context.getLogger();
         String inputTopics = context.getInputTopics().stream().collect(Collectors.joining(", "));
