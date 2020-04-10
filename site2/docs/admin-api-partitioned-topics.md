@@ -254,6 +254,7 @@ The following stats are available:
 |subscriptions|The list of all local subscriptions to the topic|
 |my-subscription|The name of this subscription (client defined)|
 |msgBacklog|The count of messages in backlog for this subscription|
+|msgBacklogNoDelayed|The count of messages in backlog without delayed messages for this subscription|
 |type|This subscription type|
 |msgRateExpired|The rate at which messages were discarded instead of dispatched from this subscription due to TTL|
 |consumers|The list of connected consumers for this subscription|
@@ -274,7 +275,7 @@ The stats for the partitioned topic and its connected producers and consumers ca
 ```shell
 $ pulsar-admin topics partitioned-stats \
   persistent://test-tenant/namespace/topic \
-  --per-partition        
+  --per-partition
 ```
 
 #### REST API
@@ -284,7 +285,7 @@ $ pulsar-admin topics partitioned-stats \
 #### Java
 
 ```java
-admin.persistentTopics().getStats(persistentTopic);
+admin.topics().getPartitionedStats(persistentTopic, true /* per partition */, false /* is precise backlog */);
 ```
 
 ### Internal stats

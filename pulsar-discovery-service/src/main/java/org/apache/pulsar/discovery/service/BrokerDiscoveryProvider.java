@@ -77,7 +77,7 @@ public class BrokerDiscoveryProvider implements Closeable {
                     config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler);
             globalZkCache.start();
         } catch (Exception e) {
-            LOG.error("Failed to start Zookkeeper {}", e.getMessage(), e);
+            LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
     }
@@ -155,7 +155,7 @@ public class BrokerDiscoveryProvider implements Closeable {
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
                         topicName.getTenant(), e.getMessage()));
             }
-            if (!tenantInfo.getAdminRoles().contains(role)) {
+            if (!service.getAuthorizationService().isTenantAdmin(topicName.getTenant(), role, tenantInfo, authenticationData).get()) {
                 throw new IllegalAccessException("Don't have permission to administrate resources on this property");
             }
         }

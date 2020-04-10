@@ -36,7 +36,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
-import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -50,7 +49,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
@@ -124,7 +122,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // Next add should succeed
         ledger.addEntry("entry-2".getBytes());
 
-        assertEquals(3, cursor.getNumberOfEntriesInBacklog());
+        assertEquals(3, cursor.getNumberOfEntriesInBacklog(false));
 
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(1, entries.size());
@@ -357,13 +355,13 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ledger.addEntry("entry-2".getBytes());
 
         assertEquals(2, c1.getNumberOfEntries());
-        assertEquals(2, c1.getNumberOfEntriesInBacklog());
+        assertEquals(2, c1.getNumberOfEntriesInBacklog(false));
 
         PositionImpl p3 = (PositionImpl) ledger.addEntry("entry-3".getBytes());
 
         // Now entry-2 should have been written before entry-3
         assertEquals(3, c1.getNumberOfEntries());
-        assertEquals(3, c1.getNumberOfEntriesInBacklog());
+        assertEquals(3, c1.getNumberOfEntriesInBacklog(false));
         assertTrue(p1.getLedgerId() != p3.getLedgerId());
         factory.shutdown();
     }
@@ -402,7 +400,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             // Ok
         }
 
-        assertEquals(2, c2.getNumberOfEntriesInBacklog());
+        assertEquals(2, c2.getNumberOfEntriesInBacklog(false));
         factory1.shutdown();
         factory2.shutdown();
     }
@@ -459,12 +457,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         assertEquals(cursor.getMarkDeletedPosition(), p3);
         assertEquals(cursor.getReadPosition(), p4);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
 
         cursor.resetCursor(p2);
         assertEquals(cursor.getMarkDeletedPosition(), p1);
         assertEquals(cursor.getReadPosition(), p2);
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 3);
 
         factory2.shutdown();
         factory.shutdown();
@@ -531,7 +529,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ledger.addEntry("entry-3".getBytes());
 
         assertEquals(c1.getNumberOfEntries(), 4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
 
         List<Entry> entries = c1.readEntries(4);
         assertEquals(entries.size(), 4);

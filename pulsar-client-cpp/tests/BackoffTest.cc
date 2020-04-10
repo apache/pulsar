@@ -59,7 +59,7 @@ TEST(BackoffTest, firstBackoffTimerTest) {
     backoff.reset();
     ASSERT_EQ(backoff.next().total_milliseconds(), 100);
     diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
-    ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < milliseconds(310));
+    ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < seconds(1));
 }
 
 TEST(BackoffTest, basicTest) {

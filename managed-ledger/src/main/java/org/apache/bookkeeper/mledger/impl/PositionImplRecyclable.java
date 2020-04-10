@@ -28,6 +28,7 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
     private final Handle<PositionImplRecyclable> recyclerHandle;
     
     private static final Recycler<PositionImplRecyclable> RECYCLER = new Recycler<PositionImplRecyclable>() {
+        @Override
         protected PositionImplRecyclable newObject(Recycler.Handle<PositionImplRecyclable> recyclerHandle) {
             return new PositionImplRecyclable(recyclerHandle);
         }
@@ -39,8 +40,7 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
     }
 
     public static PositionImplRecyclable create() {
-        PositionImplRecyclable position = RECYCLER.get();
-        return position;
+        return RECYCLER.get();
     }
 
     public void recycle() {

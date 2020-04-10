@@ -100,4 +100,29 @@ public class CachedPulsarClientTest {
 
         assertEquals(map2.values().iterator().next(), client1);
     }
+
+    @Test
+    public void getClientFromCacheShouldAlwaysReturnAnOpenedInstance() throws Exception {
+        PulsarClientImpl impl1 = Mockito.mock(PulsarClientImpl.class);
+
+        ClientConfigurationData conf1 = new ClientConfigurationData();
+        conf1.setServiceUrl(SERVICE_URL);
+
+        PowerMockito.whenNew(PulsarClientImpl.class)
+                .withArguments(conf1).thenReturn(impl1);
+
+        PulsarClientImpl client1 = CachedPulsarClient.getOrCreate(conf1);
+
+        ConcurrentMap<ClientConfigurationData, PulsarClientImpl> map1 = CachedPulsarClient.getAsMap();
+        assertEquals(map1.size(), 1);
+
+        client1.getState().set(PulsarClientImpl.State.Closed);
+
+        PulsarClientImpl client2 = CachedPulsarClient.getOrCreate(conf1);
+
+        assertNotEquals(client1, client2);
+
+        ConcurrentMap<ClientConfigurationData, PulsarClientImpl> map2 = CachedPulsarClient.getAsMap();
+        assertEquals(map2.size(), 1);
+    }
 }

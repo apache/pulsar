@@ -41,15 +41,19 @@ import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -114,7 +118,26 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-
+        if(conf.isRetryEnable() == true && conf.getTopicNames().size() > 0 ) {
+            TopicName topicFisrt = TopicName.get(conf.getTopicNames().iterator().next());
+            String retryLetterTopic = topicFisrt.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String deadLetterTopic = topicFisrt.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            if(conf.getDeadLetterPolicy() == null) {
+                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                                        .retryLetterTopic(retryLetterTopic)
+                                        .deadLetterTopic(deadLetterTopic)
+                                        .build());
+            } else {
+                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                    conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
+                }
+                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                    conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
+                }
+            }
+            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+        }
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
                 client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
@@ -192,6 +215,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> subscriptionMode(@NonNull SubscriptionMode subscriptionMode) {
+        conf.setSubscriptionMode(subscriptionMode);
+        return this;
+    }
+
+
+    @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
         return this;
@@ -206,6 +236,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto messageCrypto) {
+        conf.setMessageCrypto(messageCrypto);
         return this;
     }
 
@@ -278,7 +314,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
         checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
-        conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
+        patternAutoDiscoveryPeriod(periodInMinutes, TimeUnit.MINUTES);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit) {
+        checkArgument(interval >= 0, "interval needs to be >= 0");
+        int intervalSeconds = (int) unit.toSeconds(interval);
+        conf.setPatternAutoDiscoveryPeriod(intervalSeconds);
         return this;
     }
 
@@ -352,4 +396,11 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setKeySharedPolicy(keySharedPolicy);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> enableRetry(boolean retryEnable) {
+        conf.setRetryEnable(retryEnable);
+        return this;
+    }
+
 }

@@ -20,18 +20,12 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
-import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemConfigurationData;
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,12 +33,12 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -52,8 +46,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
 
 public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
@@ -69,6 +63,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
+    private OffloadPolicies offloadPolicies;
+
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
     }
@@ -77,11 +73,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return driverName;
     }
 
-    public static FileSystemManagedLedgerOffloader create(FileSystemConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+    public static FileSystemManagedLedgerOffloader create(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
         return new FileSystemManagedLedgerOffloader(conf, scheduler);
     }
 
-    private FileSystemManagedLedgerOffloader(FileSystemConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+    private FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
+        this.offloadPolicies = conf;
         this.configuration = new Configuration();
         if (conf.getFileSystemProfilePath() != null) {
             String[] paths = conf.getFileSystemProfilePath().split(",");
@@ -110,7 +107,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 .name("offload-assignment").build();
     }
     @VisibleForTesting
-    public FileSystemManagedLedgerOffloader(FileSystemConfigurationData conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
+    public FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
+        this.offloadPolicies = conf;
         this.configuration = new Configuration();
         this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         this.configuration.set("fs.defaultFS", testHDFSPath);
@@ -185,7 +183,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 //store the ledgerMetadata in -1 index
                 key.set(METADATA_KEY_INDEX);
                 byte[] ledgerMetadata = buildLedgerMetadataFormat(readHandle.getLedgerMetadata());
-                value.set(buildLedgerMetadataFormat(readHandle.getLedgerMetadata()), 0, ledgerMetadata.length);
+                value.set(ledgerMetadata, 0, ledgerMetadata.length);
                 dataWriter.append(key, value);
                 AtomicLong haveOffloadEntryNumber = new AtomicLong(0);
                 long needToOffloadFirstEntryNumber = 0;
@@ -303,29 +301,19 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return promise;
     }
 
-    private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
-        DataFormats.LedgerMetadataFormat.Builder builder = DataFormats.LedgerMetadataFormat.newBuilder();
-        builder.setQuorumSize(metadata.getWriteQuorumSize())
-                .setAckQuorumSize(metadata.getAckQuorumSize())
-                .setEnsembleSize(metadata.getEnsembleSize())
-                .setLength(metadata.getLength())
-                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED : DataFormats.LedgerMetadataFormat.State.OPEN)
-                .setLastEntryId(metadata.getLastEntryId())
-                .setCtime(metadata.getCtime())
-                .setDigestType(BookKeeper.DigestType.toProtoDigestType(
-                        BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
+    @Override
+    public OffloadPolicies getOffloadPolicies() {
+        return offloadPolicies;
+    }
 
-        for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
-            builder.addCustomMetadataBuilder()
-                    .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
+    @Override
+    public void close() {
+        if (fileSystem != null) {
+            try {
+                fileSystem.close();
+            } catch (Exception e) {
+                log.error("FileSystemManagedLedgerOffloader close failed!", e);
+            }
         }
-
-        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
-            builder.addSegmentBuilder()
-                    .setFirstEntryId(e.getKey())
-                    .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
-        }
-
-        return builder.build().toByteArray();
     }
 }

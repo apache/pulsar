@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.Collection;
 
+
 /**
  * This functions collects the timestamp during the window operation.
  */

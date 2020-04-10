@@ -49,7 +49,7 @@ Learn more about Pulsar at https://pulsar.apache.org
 ## Build Pulsar
 
 Requirements:
- * Java JDK 1.8
+ * Java JDK 1.8 or Java JDK 11
  * Maven 3.3.9+
 
 Compile and install:
@@ -78,7 +78,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
-
+ 
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with

@@ -27,6 +27,8 @@ if(CCACHE_PROGRAM)
     MESSAGE(STATUS "Using CCache")
 endif(CCACHE_PROGRAM)
 
+MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
@@ -49,12 +51,16 @@ set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
-if (NOT MSVC)
-    add_compile_options(-msse4.2 -mpclmul -Werror=switch -Wno-deprecated-declarations)
-else()
+if (MSVC)
+    # Visual Studio compiler flags
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOGDI -D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS)
     add_compile_options(/wd4244 /wd4267 /wd4018 /wd4715 /wd4251 /wd4275)
-endif(NOT MSVC)
+else()
+    add_compile_options(-Werror=switch -Wno-deprecated-declarations)
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        add_compile_options(-msse4.2 -mpclmul)
+    endif()
+endif(MSVC)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -67,7 +73,35 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
+### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
+### After find the libs, will unset related cache, and will not affact another same call to find_package.
+if (APPLE)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+endif ()
+
+set(OPENSSL_ROOT_DIR /usr/lib64/)
+set(OPENSSL_USE_STATIC_LIBS FALSE)
+find_package(OpenSSL REQUIRED)
+set(RECORD_OPENSSL_SSL_LIBRARY ${OPENSSL_SSL_LIBRARY})
+set(RECORD_OPENSSL_CRYPTO_LIBRARY ${OPENSSL_CRYPTO_LIBRARY})
+
+unset(OPENSSL_FOUND CACHE)
+unset(OPENSSL_INCLUDE_DIR CACHE)
+unset(OPENSSL_CRYPTO_LIBRARY CACHE)
+unset(OPENSSL_CRYPTO_LIBRARIES CACHE)
+unset(OPENSSL_SSL_LIBRARY CACHE)
+unset(OPENSSL_SSL_LIBRARIES CACHE)
+unset(OPENSSL_LIBRARIES CACHE)
+unset(OPENSSL_VERSION CACHE)
+
 if (LINK_STATIC)
+    find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
+    find_library(Protobuf_LITE_LIBRARIES NAMES libprotobuf-lite.a libprotobuf-lite)
+    find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
+    find_library(LIB_ZSTD NAMES libzstd.a)
+    find_library(LIB_SNAPPY NAMES libsnappy.a)
+
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
             find_library(LOG4CXX_LIBRARY_PATH log4cxx)
@@ -98,6 +132,20 @@ if (LINK_STATIC)
     SET(OPENSSL_USE_STATIC_LIBS TRUE)
 else()
     # Link to shared libraries
+    find_package(ZLIB REQUIRED)
+    set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
+    if (NOT PROTOBUF_LIBRARIES)
+        find_package(ProtoBuf QUIET)
+        if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARIES)
+            find_library(Protobuf_LITE_LIBRARIES protobuf-lite libprotobuf-lite)
+            find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
+        endif()
+    endif (NOT PROTOBUF_LIBRARIES)
+
+    find_library(LIB_ZSTD zstd)
+    find_library(LIB_SNAPPY NAMES snappy libsnappy)
+    find_library(CURL_LIBRARIES NAMES curl libcurl)
+
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
         find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
@@ -109,24 +157,6 @@ if (MSVC)
 else()
   find_package(Boost REQUIRED COMPONENTS program_options regex system)
 endif()
-
-find_package(ZLIB REQUIRED)
-
-find_package(Protobuf QUIET)
-if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARIES)
-    find_library(Protobuf_LITE_LIBRARIES protobuf-lite libprotobuf-lite)
-    find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
-endif()
-
-find_package(CURL QUIET)
-if (NOT CURL_FOUND)
-    find_library(CURL_LIBRARIES NAMES curl libcurl_a)
-    find_path(CURL_INCLUDE_DIRS curl/curl.h)
-endif()
-
-find_library(LIB_ZSTD zstd libzstd)
-
-find_library(LIB_SNAPPY snappy libsnappy)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)

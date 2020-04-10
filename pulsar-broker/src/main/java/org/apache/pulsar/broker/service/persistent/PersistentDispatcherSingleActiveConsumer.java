@@ -253,9 +253,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                                     topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessages, totalBytes);
                                 }
 
-                                if (dispatchRateLimiter.isPresent()) {
-                                    dispatchRateLimiter.get().tryDispatchPermit(totalMessages, totalBytes);
-                                }
+                                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(totalMessages, totalBytes));
                             }
 
                             // Schedule a new read batch operation only after the previous batch has been written to the
@@ -470,7 +468,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         long waitTimeMillis = readFailureBackoff.next();
 
         if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog() == 0) {
+            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 consumers.forEach(Consumer::reachedEndOfTopic);
@@ -541,9 +539,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        if (dispatchRateLimiter.isPresent()) {
-            dispatchRateLimiter.get().close();
-        }
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
         return disconnectAllConsumers();
     }
 

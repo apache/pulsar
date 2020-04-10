@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -232,7 +233,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
 
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            zk.exists(path, watcher, (StatCallback) (rc, path1, ctx, stat) -> {
+            zk.exists(path, watcher, (rc, path1, ctx, stat) -> {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
@@ -422,7 +423,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     return;
                 }
 
-                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                zk.getChildren(path, watcher, (rc, path1, ctx, children) -> {
                     if (rc == Code.OK.intValue()) {
                         future.complete(Sets.newTreeSet(children));
                     } else if (rc == Code.NONODE.intValue()) {
@@ -458,7 +459,12 @@ public abstract class ZooKeeperCache implements Watcher {
 
     @SuppressWarnings("unchecked")
     public <T> T getDataIfPresent(String path) {
-        return (T) dataCache.getIfPresent(path);
+        CompletableFuture<Map.Entry<Object, Stat>> f = dataCache.getIfPresent(path);
+        if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
+            return (T) f.join().getKey();
+        } else {
+            return null;
+        }
     }
 
     public Set<String> getChildrenIfPresent(String path) {

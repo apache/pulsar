@@ -36,6 +36,8 @@ import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
@@ -147,6 +149,9 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
             sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
+        }
+        if (functionConfig.getForwardSourceMessageProperty() != null) {
+            sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
 
         if (typeArgs != null) {
@@ -310,6 +315,7 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         if (functionDetails.hasRetryDetails()) {
@@ -407,7 +413,8 @@ public class FunctionConfigUtils {
             Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
 
             if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
-                    && !java.util.function.Function.class.isAssignableFrom(functionClass)) {
+                    && !java.util.function.Function.class.isAssignableFrom(functionClass)
+                    && !org.apache.pulsar.functions.api.WindowFunction.class.isAssignableFrom(functionClass)) {
                 throw new IllegalArgumentException(
                         String.format("Function class %s does not implement the correct interface",
                                 functionClass.getName()));

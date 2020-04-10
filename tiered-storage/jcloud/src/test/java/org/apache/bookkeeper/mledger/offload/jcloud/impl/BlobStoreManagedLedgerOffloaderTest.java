@@ -28,10 +28,10 @@ import static org.mockito.Mockito.mock;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
+import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,9 +53,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
-import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
+import org.apache.bookkeeper.mledger.offload.jcloud.CredentialsUtil;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
@@ -64,13 +64,14 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.domain.Credentials;
 import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
+public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
 
     private static MockZooKeeper createMockZooKeeper() throws Exception {
@@ -90,7 +91,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     final OrderedScheduler scheduler;
     final PulsarMockBookKeeper bk;
 
-    BlobStoreManagedLedgerOffloaderTest() throws Exception {
+    public BlobStoreManagedLedgerOffloaderTest() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
         bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
     }
@@ -154,7 +155,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testNoRegionConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
 
@@ -168,7 +169,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testNoBucketConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
 
@@ -182,7 +183,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testSmallBlockSizeConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
@@ -198,7 +199,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testGcsNoKeyPath() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         conf.setGcsManagedLedgerOffloadBucket(BUCKET);
 
@@ -213,7 +214,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testGcsNoBucketConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
@@ -229,7 +230,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testGcsSmallBlockSizeConfigured() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
         conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
@@ -247,37 +248,35 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testS3DriverConfiguredWell() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData() {
+        PowerMockito.mockStatic(CredentialsUtil.class);
+        PowerMockito.when(CredentialsUtil.getAWSCredentialProvider(any())).thenReturn(new AWSCredentialsProvider() {
             @Override
-            public AWSCredentialsProvider getAWSCredentialProvider() {
-                return new AWSCredentialsProvider() {
+            public AWSCredentials getCredentials() {
+                return new AWSSessionCredentials() {
                     @Override
-                    public AWSCredentials getCredentials() {
-                        return new AWSSessionCredentials() {
-                            @Override
-                            public String getSessionToken() {
-                                return "token";
-                            }
-
-                            @Override
-                            public String getAWSAccessKeyId() {
-                                return "access";
-                            }
-
-                            @Override
-                            public String getAWSSecretKey() {
-                                return "secret";
-                            }
-                        };
+                    public String getSessionToken() {
+                        return "token";
                     }
 
                     @Override
-                    public void refresh() {
+                    public String getAWSAccessKeyId() {
+                        return "access";
+                    }
 
+                    @Override
+                    public String getAWSSecretKey() {
+                        return "secret";
                     }
                 };
             }
-        };
+
+            @Override
+            public void refresh() {
+
+            }
+        });
+
+        OffloadPolicies conf = new OffloadPolicies();
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
         conf.setS3ManagedLedgerOffloadServiceEndpoint("http://fake.s3.end.point");
@@ -644,8 +643,8 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testSessionCredentialSupplier() throws Exception {
-        TieredStorageConfigurationData mock = mock(TieredStorageConfigurationData.class);
-        Mockito.when(mock.getAWSCredentialProvider()).thenReturn(new AWSCredentialsProvider() {
+        PowerMockito.mockStatic(CredentialsUtil.class);
+        PowerMockito.when(CredentialsUtil.getAWSCredentialProvider(any())).thenReturn(new AWSCredentialsProvider() {
             @Override
             public AWSCredentials getCredentials() {
                 return new AWSSessionCredentials() {
@@ -672,7 +671,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             }
         });
 
-        Supplier<Credentials> creds = BlobStoreManagedLedgerOffloader.getCredentials("aws-s3", mock);
+        Supplier<Credentials> creds = BlobStoreManagedLedgerOffloader.getCredentials("aws-s3", any());
 
         Assert.assertTrue(creds.get() instanceof SessionCredentials);
         SessionCredentials sessCreds = (SessionCredentials) creds.get();

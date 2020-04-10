@@ -125,7 +125,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private BrokerHostUsage brokerHostUsage;
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evely across brokers.
+    // Used to distribute bundles within a namespace evenly across brokers.
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
@@ -138,7 +138,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private ServiceConfiguration conf;
 
     // The default bundle stats which are used to initialize historic data.
-    // This data is overriden after the bundle receives its first sample.
+    // This data is overridden after the bundle receives its first sample.
     private final NamespaceBundleStats defaultStats;
 
     // Used to filter brokers from being selected for assignment.
@@ -519,9 +519,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     }
 
                     // This is needed too in case a broker which was assigned a bundle dies and comes back up.
-                    if ( preallocatedBundleToBroker.containsKey(preallocatedBundleName) ) {
-                        preallocatedBundleToBroker.remove(preallocatedBundleName);
-                    }
+                    preallocatedBundleToBroker.remove(preallocatedBundleName);
                 }
             }
 
@@ -648,7 +646,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     }
                     log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                            unloadSplitBundles);
+                        unloadSplitBundles, null);
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
@@ -854,7 +852,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
         } catch (Exception e) {
-            log.warn("Error when attempting to update local broker data: {}", e);
+            log.warn("Error when attempting to update local broker data", e);
         }
         return localData;
     }
@@ -884,7 +882,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 lastData.update(localData);
             }
         } catch (Exception e) {
-            log.warn("Error writing broker data on ZooKeeper: {}", e);
+            log.warn("Error writing broker data on ZooKeeper", e);
         }
     }
 

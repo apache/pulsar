@@ -52,6 +52,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Abstract base class for all admin resources.
+ */
 public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
@@ -87,7 +90,7 @@ public abstract class BaseResource {
             // auth complete, return a new Builder
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to perform http request at authn stage: {}",
+                    log.warn("[{}] Failed to perform http request at auth stage: {}", target.getUri(),
                         ex.getMessage());
                     builderFuture.completeExceptionally(new PulsarClientException(ex));
                     return;
@@ -191,7 +194,9 @@ public abstract class BaseResource {
     }
 
     public PulsarAdminException getApiException(Throwable e) {
-        if (e instanceof ServiceUnavailableException) {
+        if (e instanceof PulsarAdminException) {
+            return (PulsarAdminException) e;
+        } else if (e instanceof ServiceUnavailableException) {
             if (e.getCause() instanceof java.net.ConnectException) {
                 return new ConnectException(e.getCause());
             } else {
@@ -229,16 +234,20 @@ public abstract class BaseResource {
         }
     }
 
-    public WebApplicationException getApiException(Response response) {
+    public PulsarAdminException getApiException(Response response) {
         if (response.getStatusInfo().equals(Response.Status.OK)) {
             return null;
         }
-        if (response.getStatus() >= 500) {
-            throw new ServerErrorException(response);
-        } else if (response.getStatus() >= 400) {
-            throw new ClientErrorException(response);
-        } else {
-            throw new WebApplicationException(response);
+        try {
+            if (response.getStatus() >= 500) {
+                throw new ServerErrorException(response);
+            } else if (response.getStatus() >= 400) {
+                throw new ClientErrorException(response);
+            } else {
+                throw new WebApplicationException(response);
+            }
+        } catch (Exception e) {
+            return getApiException(e);
         }
     }
 }

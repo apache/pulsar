@@ -53,10 +53,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.protocol.schema.LatestVersion;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -319,8 +317,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     Collections.emptyList());
         }
 
-        log.info("Initialize function class loader for function {} at function cache manager",
-                instanceConfig.getFunctionDetails().getName());
+        log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
+                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(instanceConfig.getFunctionId()));
 
         fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
@@ -362,7 +360,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         // sure the table is created.
                     }
                 } catch (ClientException ce) {
-                    log.warn("Encountered issue on fetching state stable metadata, re-attempting in 100 milliseconds",
+                    log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
                         ce.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
@@ -756,6 +754,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                         this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
+                pulsarSinkConfig.setForwardSourceMessageProperty(
+                        this.instanceConfig.getFunctionDetails().getSink().getForwardSourceMessageProperty());
 
                 if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
                     pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());

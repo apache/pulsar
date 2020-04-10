@@ -172,6 +172,8 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 > #### Tip
 > 
+> * Before starting the Pulsar standalone, you may need to config the advertisedAddress to avoid startup errors. Actually, you can modify the default value of advertisedAddress in "conf/standalone.conf" or use command "bin/pulsar standalone -a 127.0.0.1" to assign the advertisedAddress.
+>
 > * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 

@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -30,6 +31,13 @@ import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -146,9 +154,15 @@ public class WebService implements AutoCloseable {
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
+        if (pulsar.getConfig().getHttpMaxRequestSize() > 0) {
+            context.addFilter(new FilterHolder(
+                    new MaxRequestSizeFilter(
+                            pulsar.getConfig().getHttpMaxRequestSize())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-
         handlers.add(context);
     }
 
@@ -191,7 +205,6 @@ public class WebService implements AutoCloseable {
             handlers.add(stats);
 
             server.setHandler(stats);
-
             server.start();
 
             if (httpConnector != null) {

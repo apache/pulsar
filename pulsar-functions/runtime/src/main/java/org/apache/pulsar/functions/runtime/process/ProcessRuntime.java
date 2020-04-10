@@ -50,6 +50,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A function container implemented using java thread.
@@ -134,7 +137,7 @@ class ProcessRuntime implements Runtime {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function.
+     * The core logic that initialize the process container and executes the function.
      */
     @Override
     public void start() {
