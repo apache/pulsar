@@ -25,6 +25,10 @@ import org.apache.pulsar.functions.api.Function;
  * Function that appends the instance id to the payload message.
  */
 public class InstanceIdAppenderFunction implements Function<String, String> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public String process(String input, Context context) {
