@@ -25,6 +25,10 @@ import org.apache.pulsar.functions.api.Function;
  * Example of 2nd order conversion from a base object for composition pipelines.
  */
 public class CustomDerivedToDerivedFunction implements Function<CustomDerivedObject, CustomDerivedObject> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public CustomDerivedObject process(CustomDerivedObject input, Context context) {
