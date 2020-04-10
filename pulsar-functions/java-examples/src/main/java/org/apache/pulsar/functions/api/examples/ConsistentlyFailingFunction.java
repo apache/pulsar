@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
  */
 public class ConsistentlyFailingFunction implements Function<String, String> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public String process(String input, Context context) {
         if (input.equals("FAIL")) {
             throw new RuntimeException("Failed");
