@@ -242,7 +242,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
-        totalAvailablePermits += additionalNumberOfMessages;
+        int avgMessgesPerEntry = consumer.getAvgMessagesPerEntry();
+        totalAvailablePermits += (int) Math.ceil(additionalNumberOfMessages * 1.0 / avgMessgesPerEntry);
+
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {}", name, consumer,
                     totalAvailablePermits);

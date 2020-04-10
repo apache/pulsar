@@ -112,6 +112,17 @@ public class Consumer {
 
     private final PulsarApi.KeySharedMeta keySharedMeta;
 
+    /**
+     * It starts keep tracking the average messages per entry.
+     * The initial value is 1000, when new value comes, it will update with
+     * avgMessagesPerEntry = avgMessagePerEntry * avgPercent + (1 - avgPercent) * new Value.
+     */
+    private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
+            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
+    private volatile int avgMessagesPerEntry = 1000;
+
+    private static final double avgPercent = 0.9;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
@@ -139,6 +150,7 @@ public class Consumer {
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
+        AVG_MESSAGES_PER_ENTRY.set(this, 1000);
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
@@ -222,6 +234,12 @@ public class Consumer {
                 }
             }
         }
+
+        // calculate avg message per entry
+        int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
+        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
+                (1 - avgPercent) * totalMessages / entries.size());
+        AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
@@ -432,6 +450,10 @@ public class Consumer {
         return MESSAGE_PERMITS_UPDATER.get(this);
     }
 
+    public int getAvgMessagesPerEntry() {
+        return AVG_MESSAGES_PER_ENTRY.get(this);
+    }
+
     public boolean isBlocked() {
         return blockedConsumerOnUnackedMsgs;
     }
@@ -471,6 +493,7 @@ public class Consumer {
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
+        stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
         return stats;
     }
 

@@ -372,7 +372,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 availablePermits = 1;
             }
 
-            int messagesToRead = Math.min(availablePermits, readBatchSize);
+            int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
+            int messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
 
             // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
