@@ -26,6 +26,10 @@ import org.apache.pulsar.functions.api.examples.serde.CustomObject;
  * Function that deals with custom objects.
  */
 public class CustomObjectFunction implements Function<CustomObject, CustomObject> {
+    @Override
+    public void prepare(Context context) throws Exception {
+
+    }
 
     @Override
     public CustomObject process(CustomObject input, Context context) {
