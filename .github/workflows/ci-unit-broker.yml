@@ -49,21 +49,20 @@ jobs:
         with:
           java-version: 1.8
 
-      - name: clean disk
-        if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
-          free -h
-
       - name: Set up Maven
         uses: apache/pulsar-test-infra/setup-maven@master
         if: steps.docs.outputs.changed_only == 'no'
         with:
           maven-version: 3.6.1
+
+      - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
+        run: |
+          sudo swapoff /swapfile
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
 
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
