@@ -43,6 +43,13 @@ public interface SchemaDefinition<T> {
     boolean getAlwaysAllowNull();
 
     /**
+     * Get JSR310 conversion enabled.
+     *
+     * @return return true if enable JSR310 conversion. false means use Joda time conversion.
+     */
+    boolean isJsr310ConversionEnabled();
+
+    /**
      * Get schema class.
      *
      * @return schema class

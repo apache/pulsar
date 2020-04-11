@@ -17,25 +17,35 @@
 # under the License.
 #
 
+{{- if .Values.components.broker }}
 apiVersion: v1
 kind: Service
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.broker.component }}
-    cluster: {{ template "pulsar.fullname" . }}
   annotations:
 {{ toYaml .Values.broker.service.annotations | indent 4 }}
 spec:
   ports:
-{{ toYaml .Values.broker.service.ports | indent 2 }}
+  # prometheus needs to access /metrics endpoint
+  - name: http
+    port: {{ .Values.broker.ports.http }}
+  {{- if or (not .Values.tls.enabled) (not .Values.tls.broker.enabled) }}
+  - name: pulsar
+    port: {{ .Values.broker.ports.pulsar }}
+  {{- end }}
+  {{- if and .Values.tls.enabled .Values.tls.broker.enabled }}
+  - name: https
+    port: {{ .Values.broker.ports.https }}
+  - name: pulsarssl
+    port: {{ .Values.broker.ports.pulsarssl }}
+  {{- end }}
   clusterIP: None
   selector:
     app: {{ template "pulsar.name" . }}
     release: {{ .Release.Name }}
     component: {{ .Values.broker.component }}
+{{- end }}

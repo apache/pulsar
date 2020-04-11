@@ -1,0 +1,108 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if .Values.components.toolset }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.toolset.component }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+    component: {{ .Values.toolset.component }}
+spec:
+  serviceName: "{{ template "pulsar.fullname" . }}-{{ .Values.toolset.component }}"
+  replicas: {{ .Values.toolset.replicaCount }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "pulsar.matchLabels" . | nindent 6 }}
+      component: {{ .Values.toolset.component }}
+  template:
+    metadata:
+      labels:
+        {{- include "pulsar.template.labels" . | nindent 8 }}
+        component: {{ .Values.toolset.component }}
+      annotations:
+{{ toYaml .Values.toolset.annotations | indent 8 }}
+    spec:
+    {{- if .Values.toolset.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.toolset.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if .Values.toolset.tolerations }}
+      tolerations:
+{{ toYaml .Values.toolset.tolerations | indent 8 }}
+    {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.toolset.gracePeriod }}
+      containers:
+      - name: "{{ template "pulsar.fullname" . }}-{{ .Values.toolset.component }}"
+        image: "{{ .Values.images.broker.repository }}:{{ .Values.images.broker.tag }}"
+        imagePullPolicy: {{ .Values.images.broker.pullPolicy }}
+      {{- if .Values.toolset.resources }}
+        resources:
+{{ toYaml .Values.toolset.resources | indent 10 }}
+      {{- end }}
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/client.conf;
+          bin/apply-config-from-env.py conf/bookkeeper.conf;
+          {{- include "pulsar.toolset.zookeeper.tls.settings" . | nindent 10 }}
+          sleep 10000000000
+        envFrom:
+        - configMapRef:
+            name: "{{ template "pulsar.fullname" . }}-{{ .Values.toolset.component }}"
+        volumeMounts:
+        {{- if .Values.auth.authentication.enabled }}
+        {{- if eq .Values.auth.authentication.provider "jwt" }}
+        - mountPath: "/pulsar/tokens"
+          name: client-token
+          readOnly: true
+        {{- end }}
+        {{- end }}
+        {{- if and .Values.tls.enabled (or .Values.tls.broker.enabled .Values.tls.proxy.enabled) }}
+        - mountPath: "/pulsar/certs/proxy-ca"
+          name: proxy-ca
+          readOnly: true
+        {{- end}}
+        {{- include "pulsar.toolset.certs.volumeMounts" . | nindent 8 }}
+      volumes:
+      {{- if .Values.auth.authentication.enabled }}
+      {{- if eq .Values.auth.authentication.provider "jwt" }}
+      - name: client-token
+        secret:
+          secretName: "{{ .Release.Name }}-token-{{ .Values.auth.superUsers.client }}"
+          items:
+            - key: TOKEN
+              path: client/token
+      {{- end}}
+      {{- end}}
+      {{- if and .Values.tls.enabled (or .Values.tls.broker.enabled .Values.tls.proxy.enabled) }}
+      - name: proxy-ca
+        secret:
+          secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+          items:
+            - key: ca.crt
+              path: ca.crt
+      {{- end}}
+      {{- include "pulsar.toolset.certs.volumes" . | nindent 6 }}
+{{- end }}

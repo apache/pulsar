@@ -1,0 +1,102 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if .Values.components.broker }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_metadata.component }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+    component: {{ .Values.pulsar_metadata.component }}
+spec:
+  template:
+    spec:
+      initContainers:
+      {{- if .Values.pulsar_metadata.configurationStore }}
+      - name: wait-cs-ready
+        image: "{{ .Values.pulsar_metadata.image.repository }}:{{ .Values.pulsar_metadata.image.tag }}"
+        imagePullPolicy: {{ .Values.pulsar_metadata.image.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until nslookup {{ .Values.pulsar_metadata.configurationStore}}; do
+              sleep 3;
+            done;
+
+      {{- end }}
+      - name: wait-zookeeper-ready
+        image: "{{ .Values.pulsar_metadata.image.repository }}:{{ .Values.pulsar_metadata.image.tag }}"
+        imagePullPolicy: {{ .Values.pulsar_metadata.image.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+          - >-
+            until nslookup {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ add (.Values.zookeeper.replicaCount | int) -1 }}.{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}.{{ .Values.namespace }}; do
+              sleep 3;
+            done;
+      # This initContainer will wait for bookkeeper initnewcluster to complete
+      # before initializing pulsar metadata
+      - name: pulsar-bookkeeper-verify-clusterid
+        image: "{{ .Values.pulsar_metadata.image.repository }}:{{ .Values.pulsar_metadata.image.tag }}"
+        imagePullPolicy: {{ .Values.pulsar_metadata.image.pullPolicy }}
+        command: ["sh", "-c"]
+        args:
+        - >
+          bin/apply-config-from-env.py conf/bookkeeper.conf;
+          {{- include "pulsar.toolset.zookeeper.tls.settings" . | nindent 10 }}
+          until bin/bookkeeper shell whatisinstanceid; do
+            sleep 3;
+          done;
+        envFrom:
+        - configMapRef:
+            name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
+        volumeMounts:
+        {{- include "pulsar.toolset.certs.volumeMounts" . | nindent 8 }}
+      containers:
+      - name: "{{ template "pulsar.fullname" . }}-{{ .Values.pulsar_metadata.component }}"
+        image: "{{ .Values.pulsar_metadata.image.repository }}:{{ .Values.pulsar_metadata.image.tag }}"
+        imagePullPolicy: {{ .Values.pulsar_metadata.image.pullPolicy }}
+      {{- if .Values.pulsar_metadata.resources }}
+        resources:
+{{ toYaml .Values.pulsar_metadata.resources | indent 10 }}
+      {{- end }}
+        command: ["sh", "-c"]
+        args:
+          - >
+            {{- include "pulsar.toolset.zookeeper.tls.settings" . | nindent 12 }}
+            bin/pulsar initialize-cluster-metadata \
+              --cluster {{ template "pulsar.fullname" . }} \
+              --zookeeper {{ template "pulsar.zookeeper.connect" . }}{{ .Values.metadataPrefix }} \
+              {{- if .Values.pulsar_metadata.configurationStore }}
+              --configuration-store {{ .Values.pulsar_metadata.configurationStore }}{{ .Values.pulsar_metadata.configurationStoreMetadataPrefix }} \
+              {{- end }}
+              {{- if not .Values.pulsar_metadata.configurationStore }}
+              --configuration-store {{ template "pulsar.zookeeper.connect" . }}{{ .Values.metadataPrefix }} \
+              {{- end }}
+              --web-service-url http://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}.{{ .Values.namespace }}.svc.cluster.local:8080/ \
+              --web-service-url-tls https://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}.{{ .Values.namespace }}.svc.cluster.local:8443/ \
+              --broker-service-url pulsar://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}.{{ .Values.namespace }}.svc.cluster.local:6650/ \
+              --broker-service-url-tls pulsar+ssl://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}.{{ .Values.namespace }}.svc.cluster.local:6651/ || true;
+        volumeMounts:
+        {{- include "pulsar.toolset.certs.volumeMounts" . | nindent 8 }}
+      volumes:
+      {{- include "pulsar.toolset.certs.volumes" . | nindent 6 }}
+      restartPolicy: Never
+{{- end }}
