@@ -122,7 +122,12 @@ public class AvroSchema<T> extends StructSchema<T> {
         if (jsr310ConversionEnabled) {
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
         } else {
-            reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+            try {
+                Class.forName("org.joda.time.DateTime");
+                reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+            } catch (ClassNotFoundException e) {
+                // Skip if have not provide joda-time dependency.
+            }
         }
     }
 
