@@ -115,18 +115,14 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
         reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
-            reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         } else {
-            reflectData.addLogicalTypeConversion(new JodaTimeConversions.DateConversion());
-            reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeConversion());
-            reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimeMicrosConversion());
             reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
-            reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampMicrosConversion());
         }
     }
 

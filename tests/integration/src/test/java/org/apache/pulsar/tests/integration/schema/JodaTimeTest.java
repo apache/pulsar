@@ -33,11 +33,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
-import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.testng.Assert.assertEquals;
 
 @Slf4j
 public class JodaTimeTest extends PulsarTestSuite {
@@ -58,9 +62,23 @@ public class JodaTimeTest extends PulsarTestSuite {
     @Data
     private static class JodaSchema {
 
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
+        BigDecimal decimal;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
+        LocalDate date;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
         DateTime timestampMillis;
-
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
+        LocalTime timeMillis;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
+        long timestampMicros;
+        @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"time-micros\"}")
+        long timeMicros;
     }
 
     @Test
@@ -80,8 +98,13 @@ public class JodaTimeTest extends PulsarTestSuite {
                 Sets.newHashSet(pulsarCluster.getClusterName())
         );
 
-        JodaSchema data = new JodaSchema();
-        data.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
+        JodaSchema forSend = new JodaSchema();
+        forSend.setDecimal(new BigDecimal("12.34"));
+        forSend.setTimeMicros(System.currentTimeMillis() * 1000);
+        forSend.setTimestampMillis(new DateTime("2019-03-26T04:39:58.469Z", ISOChronology.getInstanceUTC()));
+        forSend.setTimeMillis(LocalTime.now());
+        forSend.setTimeMicros(System.currentTimeMillis() * 1000);
+        forSend.setDate(LocalDate.now());
 
         Producer<JodaSchema> producer = client
                 .newProducer(Schema.AVRO(JodaSchema.class))
@@ -94,8 +117,13 @@ public class JodaTimeTest extends PulsarTestSuite {
                 .subscriptionName("test")
                 .subscribe();
 
-        producer.send(data);
+        producer.send(forSend);
         JodaSchema received = consumer.receive().getValue();
-        Assert.assertEquals(received.getTimestampMillis().toString(), data.getTimestampMillis().toString());
+        assertEquals(received, forSend);
+
+        producer.close();
+        consumer.close();
+
+        log.info("Successfully Joda time logical type message : {}", received);
     }
 }
