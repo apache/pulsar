@@ -17,25 +17,32 @@
 # under the License.
 #
 
+# deploy zookeeper only when `components.zookeeper` is true
+{{- if .Values.components.zookeeper }}
 apiVersion: v1
 kind: Service
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.zookeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
   annotations:
 {{ toYaml .Values.zookeeper.service.annotations | indent 4 }}
 spec:
   ports:
-{{ toYaml .Values.zookeeper.service.ports | indent 2 }}
+    - name: follower
+      port: {{ .Values.zookeeper.ports.follower }}
+    - name: leader-election
+      port: {{ .Values.zookeeper.ports.leaderElection }}
+    - name: client
+      port: {{ .Values.zookeeper.ports.client }}
+    {{- if and .Values.tls.enabled .Values.tls.zookeeper.enabled }}
+    - name: client-tls
+      port: {{ .Values.zookeeper.ports.clientTls }}
+    {{- end }}
   clusterIP: None
   selector:
-    app: {{ template "pulsar.name" . }}
-    release: {{ .Release.Name }}
+    {{- include "pulsar.matchLabels" . | nindent 4 }}
     component: {{ .Values.zookeeper.component }}
+{{- end }}

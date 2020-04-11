@@ -17,26 +17,67 @@
 # under the License.
 #
 
-{{- if .Values.extra.proxy }}
+{{- if or .Values.components.proxy .Values.extra.proxy }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.proxy.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 data:
-  zookeeperServers:
-    {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
-  configurationStoreServers:
-    {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
   clusterName: {{ template "pulsar.fullname" . }}
+  httpNumThreads: "8"
+  statusFilePath: "{{ template "pulsar.home" . }}/status"
+  # prometheus needs to access /metrics endpoint
+  webServicePort: "{{ .Values.proxy.ports.http }}"
+  {{- if or (not .Values.tls.enabled) (not .Values.tls.proxy.enabled) }}
+  servicePort: "{{ .Values.proxy.ports.pulsar }}"
+  brokerServiceURL: pulsar://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.pulsar }}
+  brokerWebServiceURL: http://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.http }}
+  {{- end }}
+  {{- if and .Values.tls.enabled .Values.tls.proxy.enabled }}
+  tlsEnabledInProxy: "true"
+  servicePortTls: "{{ .Values.proxy.ports.pulsarssl }}"
+  webServicePortTls: "{{ .Values.proxy.ports.https }}"
+  tlsCertificateFilePath: "/pulsar/certs/proxy/tls.crt"
+  tlsKeyFilePath: "/pulsar/certs/proxy/tls.key"
+  tlsTrustCertsFilePath: "/pulsar/certs/ca/ca.crt"
+  {{- if and .Values.tls.enabled .Values.tls.broker.enabled }}
+  # if broker enables TLS, configure proxy to talk to broker using TLS
+  brokerServiceURLTLS: pulsar+ssl://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.pulsarssl }}
+  brokerWebServiceURLTLS: https://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.https }}
+  tlsEnabledWithBroker: "true"
+  tlsCertRefreshCheckDurationSec: "300"
+  brokerClientTrustCertsFilePath: "/pulsar/certs/ca/ca.crt"
+  {{- end }}
+  {{- if not (and .Values.tls.enabled .Values.tls.broker.enabled) }}
+  brokerServiceURL: pulsar://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.pulsar }}
+  brokerWebServiceURL: http://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.http }}
+  {{- end }}
+  {{- end }}
+
+  # Authentication Settings
+  {{- if .Values.auth.authentication.enabled }}
+  authenticationEnabled: "true"
+  {{- if .Values.auth.authorization.enabled }}
+  # disable authorization on proxy and forward authorization credentials to broker
+  authorizationEnabled: "false"
+  forwardAuthorizationCredentials: "true"
+  superUserRoles: {{ .Values.auth.superUsers.broker }},{{ .Values.auth.superUsers.proxy }},{{ .Values.auth.superUsers.client }}
+  {{- end }}
+  {{- if eq .Values.auth.authentication.provider "jwt" }}
+  # token authentication configuration
+  authenticationProviders: "org.apache.pulsar.broker.authentication.AuthenticationProviderToken"
+  brokerClientAuthenticationParameters: "file:///pulsar/tokens/proxy/token"
+  brokerClientAuthenticationPlugin: "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+  {{- if .Values.auth.authentication.jwt.usingSecretKey }}
+  tokenSecretKey: "file:///pulsar/keys/token/secret.key"
+  {{- else }}
+  tokenPublicKey: "file:///pulsar/keys/token/public.key"
+  {{- end }}
+  {{- end }}
+  {{- end }}
 {{ toYaml .Values.proxy.configData | indent 2 }}
 {{- end }}
