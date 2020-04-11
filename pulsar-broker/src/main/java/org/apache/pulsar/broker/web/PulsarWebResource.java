@@ -52,7 +52,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.Constants;
@@ -187,11 +186,11 @@ public abstract class PulsarWebResource {
                 try {
                     proxyAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(appId);
+                            .isSuperUser(appId, clientAuthData());
 
                     originalPrincipalAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(originalPrincipal);
+                            .isSuperUser(originalPrincipal, clientAuthData());
 
                     if (!proxyAuthorizedFuture.get() || !originalPrincipalAuthorizedFuture.get()) {
                         throw new RestException(Status.UNAUTHORIZED,
@@ -206,7 +205,7 @@ public abstract class PulsarWebResource {
             } else {
                 if (config().isAuthorizationEnabled() && !pulsar.getBrokerService()
                         .getAuthorizationService()
-                        .isSuperUser(appId)
+                        .isSuperUser(appId, clientAuthData())
                         .join()) {
                     throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
                 }
@@ -266,9 +265,9 @@ public abstract class PulsarWebResource {
                 CompletableFuture<Boolean> isOriginalPrincipalSuperUserFuture;
                 try {
                     AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
-                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId);
+                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId, authenticationData);
 
-                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal);
+                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal, authenticationData);
 
                     boolean proxyAuthorized = isProxySuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get();
                     boolean originalPrincipalAuthorized
@@ -286,7 +285,7 @@ public abstract class PulsarWebResource {
             } else {
                 if (!pulsar.getBrokerService()
                         .getAuthorizationService()
-                        .isSuperUser(clientAppId)
+                        .isSuperUser(clientAppId, authenticationData)
                         .join()) {
                     if (!pulsar.getBrokerService().getAuthorizationService().isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get()) {
                         throw new RestException(Status.UNAUTHORIZED,
