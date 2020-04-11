@@ -18,32 +18,13 @@
  */
 package org.apache.pulsar.websocket;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
-
-import java.io.IOException;
-import java.util.Base64;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -54,6 +35,19 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Base64;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.websocket.data.CommandTypeEnum.*;
 
 /**
  *
@@ -225,34 +219,48 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         try {
             ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
-            if ("permit".equals(command.type)) {
-                if (command.permitMessages == null) {
-                    throw new IOException("Missing required permitMessages field for 'permit' command");
-                }
-                if (this.pullMode) {
-                    int pending = pendingMessages.getAndAdd(-command.permitMessages);
-                    if (pending >= 0) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+            if (PERMIT.type.equals(command.type)) {
+                handlerPermit(command);
+            } else if(UNSUBSCRIBE.type.equals(command.type)){
+                handlerUnsubscribe();
             } else {
                 // We should have received an ack
-                MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                        topic.toString());
-                consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
-                if (!this.pullMode) {
-                    int pending = pendingMessages.getAndDecrement();
-                    if (pending >= maxPendingMessages) {
-                        // Resume delivery
-                        receiveMessage();
-                    }
-                }
+                handlerAck(command);
             }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
         }
+    }
+
+    private void handlerAck(ConsumerCommand command) throws IOException {
+        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
+                topic.toString());
+        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        if (!this.pullMode) {
+            int pending = pendingMessages.getAndDecrement();
+            if (pending >= maxPendingMessages) {
+                // Resume delivery
+                receiveMessage();
+            }
+        }
+    }
+
+    private void handlerPermit(ConsumerCommand command) throws IOException {
+        if (command.permitMessages == null) {
+            throw new IOException("Missing required permitMessages field for 'permit' command");
+        }
+        if (this.pullMode) {
+            int pending = pendingMessages.getAndAdd(-command.permitMessages);
+            if (pending >= 0) {
+                // Resume delivery
+                receiveMessage();
+            }
+        }
+    }
+
+    private void handlerUnsubscribe() throws PulsarClientException {
+        consumer.unsubscribe();
     }
 
     @Override

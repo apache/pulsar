@@ -25,33 +25,9 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -65,6 +41,16 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * pulsar-client consume command implementation.
@@ -101,6 +87,9 @@ public class CmdConsume {
 
     @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
+
+    @Parameter(names = { "--unsubscribe" }, description = "Unsubscribe at the end of execution.")
+    private boolean unsubscribe = false;
 
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -214,6 +203,9 @@ public class CmdConsume {
                     consumer.acknowledge(msg);
                 }
             }
+            if (unsubscribe) {
+                consumer.unsubscribe();
+            }
             client.close();
         } catch (Exception e) {
             LOG.error("Error while consuming messages");
@@ -295,6 +287,9 @@ public class CmdConsume {
                     numMessagesConsumed += 1;
                 }
             }
+            if (unsubscribe) {
+                consumerSocket.unsubscribe();
+            }
             consumerSocket.awaitClose(2, TimeUnit.SECONDS);
         } catch (Exception e) {
             LOG.error("Error while consuming messages");
@@ -352,6 +347,12 @@ public class CmdConsume {
 
         public String receive(long timeout, TimeUnit unit) throws Exception {
             return incomingMessages.poll(timeout, unit);
+        }
+
+        public void unsubscribe() throws IOException {
+            JsonObject unsubscribeMessage = new JsonObject();
+            unsubscribeMessage.add("type", new JsonPrimitive("unsubscribe"));
+            getRemote().sendString(unsubscribeMessage.toString());
         }
 
         public RemoteEndpoint getRemote() {
