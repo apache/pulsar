@@ -271,6 +271,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     try {
                         value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
                         dataWriter.append(key, value);
+                        entry.close();
                     } catch (IOException e) {
                         ledgerReader.fileSystemWriteException = e;
                         break;
@@ -279,7 +280,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 }
             }
             countDownLatch.countDown();
-            ledgerEntriesOnce.close();
             this.recycle();
         }
     }
