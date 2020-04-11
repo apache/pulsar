@@ -200,7 +200,7 @@ flexible messaging model and an intuitive client API.</description>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>1.0.0.Final</debezium.version>
-    <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
+    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
     <snappy.version>1.1.1.3</snappy.version>
