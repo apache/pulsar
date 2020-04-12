@@ -43,7 +43,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -65,7 +64,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private final FileSystem fileSystem;
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
-    private static final int PREFETCH_ROUNDS = 100;
     private OrderedScheduler assignmentScheduler;
     private OffloadPolicies offloadPolicies;
 
@@ -195,7 +193,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 long needToOffloadFirstEntryNumber = 0;
                 CountDownLatch countDownLatch;
                 //avoid prefetch too much data into memory
-                Semaphore semaphore = new Semaphore(PREFETCH_ROUNDS);
+                Semaphore semaphore = new Semaphore(1);
                 do {
                     long end = Math.min(needToOffloadFirstEntryNumber + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
                     log.debug("read ledger entries. start: {}, end: {}", needToOffloadFirstEntryNumber, end);
