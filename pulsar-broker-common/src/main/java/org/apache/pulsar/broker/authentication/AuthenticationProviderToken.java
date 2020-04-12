@@ -166,7 +166,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     }
                 } else {
                     // should not reach here.
-                    throw new AuthenticationException("Audiences in token is not in String format: " + object);
+                    throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
             }
 
