@@ -136,8 +136,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     /*
-     * ledgerMetadata stored in an index of -1
-     * */
+    * ledgerMetadata stored in an index of -1
+    * */
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
