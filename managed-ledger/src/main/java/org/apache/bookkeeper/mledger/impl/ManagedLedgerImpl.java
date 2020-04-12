@@ -989,8 +989,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (ledgerEntries <= 0) {
             return 0;
         }
-        long averageSize = ledgerSize / ledgerEntries;
-        return consumedEntries >= 0 ? (consumedEntries + 1) * averageSize : 0;
+        if (ledgerEntries == (consumedEntries + 1)) {
+            return ledgerSize;
+        } else {
+            long averageSize = ledgerSize / ledgerEntries;
+            return consumedEntries >= 0 ? (consumedEntries + 1) * averageSize : 0;
+        }
     }
 
     @Override
