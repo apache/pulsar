@@ -40,6 +40,7 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -345,6 +346,11 @@ public class ConnectionPool implements Closeable {
         if (map != null) {
             map.remove(connectionKey, connectionFuture);
         }
+    }
+
+    @VisibleForTesting
+    int getPoolSize() {
+        return pool.values().stream().mapToInt(Map::size).sum();
     }
 
     public static int signSafeMod(long dividend, int divisor) {
