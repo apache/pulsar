@@ -76,14 +76,14 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Develop Pulsar Functions</h1></header><article><div><span><p>本教程详细解释了如何开发 Pulsar Functions。</p>
 <h2><a class="anchor" aria-hidden="true" id="可用的apis"></a><a href="#可用的apis" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>可用的APIs</h2>
-<p>在 Java 和 Python 中，有两种方式来编写 Pulsar Functions。 在 Go 中，可以使用 Pulsar Functions SDK。</p>
+<p>在 Java 和 Python 中，编写 Pulsar Functions 的方式有两种。 在 Go 中，可以使用 Pulsar Functions SDK。</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Interface</th><th style="text-align:left">Description</th><th style="text-align:left">使用场景</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">语言原生接口</td><td style="text-align:left">不需要特定于 Pulsar 的库或特殊依赖(仅需要 Java/Python 的核心库)。</td><td style="text-align:left">不需要访问 <a href="#context">context</a> 函数的 functions。</td></tr>
-<tr><td style="text-align:left">适用于 Java/Python/Go 的 Pulsar Function SDK</td><td style="text-align:left">特定于 Pulsar 的库，提供“本地”接口未提供的一系列函数。</td><td style="text-align:left">需要访问 <a href="#context">context</a> 函数的 functions。</td></tr>
+<tr><td style="text-align:left">语言原生接口</td><td style="text-align:left">不需要特定于 Pulsar 的库或特殊依赖（仅需要 Java/Python 的核心库）。</td><td style="text-align:left">不需要访问 <a href="#context">context</a> 的 functions。</td></tr>
+<tr><td style="text-align:left">适用于 Java/Python/Go 的 Pulsar Function SDK</td><td style="text-align:left">特定于 Pulsar 的库，提供“本地”接口未提供的一系列功能。</td><td style="text-align:left">需要访问 <a href="#context">context</a> 函数的 functions。</td></tr>
 </tbody>
 </table>
 <p>Language-native function 没有外部依赖关系，该 function 为所有传入的字符串添加感叹号，并将结果发布到主题。 Language-native function示例如下。</p>

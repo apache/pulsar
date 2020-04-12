@@ -9761,28 +9761,28 @@
           "type" : "number",
           "format" : "double"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "underLoaded" : {
           "type" : "boolean"
         },
         "overLoaded" : {
           "type" : "boolean"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "loadReportType" : {
+          "type" : "string"
         },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "directMemory" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -10901,11 +10901,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
