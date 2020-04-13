@@ -35,8 +35,8 @@ function ci::create_cluster() {
 }
 
 function ci::delete_cluster() {
-    echo "Deleteing a kind cluster ..."
-    ${KIND_BIN} delete cluster --name=pulsar-ci-${CLUSTER_ID}
+    echo "Deleting a kind cluster ..."
+    kind delete cluster --name=pulsar-ci-${CLUSTER_ID}
     echo "Successfully delete a kind cluster."
 }
 

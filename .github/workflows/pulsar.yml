@@ -43,7 +43,6 @@ jobs:
       - name: Lint chart
         id: lint
         uses: helm/chart-testing-action@master
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           command: lint
 
