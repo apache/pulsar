@@ -105,7 +105,8 @@ public class WebSocketService implements Closeable {
             this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                     (int) config.getZooKeeperSessionTimeoutMillis(),
                     (int) TimeUnit.MILLISECONDS.toSeconds(config.getZooKeeperSessionTimeoutMillis()),
-                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor);
+                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor,
+                    config.getZooKeeperCacheExpirySeconds());
             try {
                 this.globalZkCache.start();
             } catch (IOException e) {
