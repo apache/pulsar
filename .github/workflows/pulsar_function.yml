@@ -46,4 +46,4 @@ jobs:
         env:
           FUNCTION: "true"
         # Only build a kind cluster if there are chart changes to test.
-        if: steps.lint.outputs.changed == 'true' && steps.docs.outputs.changed_only == 'no'
+        if: steps.docs.outputs.changed_only == 'no'
