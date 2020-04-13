@@ -4,6 +4,7 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
+      "kubernetes-helm",
       "client-libraries"
     ],
     "Concepts and Architecture": [
@@ -47,6 +48,14 @@
       "sql-getting-started",
       "sql-deployment-configurations",
       "sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "helm-overview",
+      "helm-prepare",
+      "helm-install",
+      "helm-deploy",
+      "helm-upgrade",
+      "helm-tools"
     ],
     "Deployment": [
       "deploy-aws",
