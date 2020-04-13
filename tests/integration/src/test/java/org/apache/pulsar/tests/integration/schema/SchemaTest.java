@@ -193,7 +193,8 @@ public class SchemaTest extends PulsarTestSuite {
                 .build();
 
         Producer<AvroLogicalType> producer = client
-                .newProducer(Schema.AVRO(AvroLogicalType.class))
+                .newProducer(Schema.AVRO(SchemaDefinition.<AvroLogicalType>builder().withPojo(AvroLogicalType.class)
+                        .withJSR310ConversionEnabled(true).build()))
                 .topic(fqtn)
                 .create();
 
@@ -207,12 +208,7 @@ public class SchemaTest extends PulsarTestSuite {
         log.info("Successfully published avro logical type message : {}", messageForSend);
 
         AvroLogicalType received = consumer.receive().getValue();
-        assertEquals(messageForSend.getDecimal(), received.getDecimal());
-        assertEquals(messageForSend.getTimeMicros(), received.getTimeMicros());
-        assertEquals(messageForSend.getTimeMillis(), received.getTimeMillis());
-        assertEquals(messageForSend.getTimestampMicros(), received.getTimestampMicros());
-        assertEquals(messageForSend.getTimestampMillis(), received.getTimestampMillis());
-        assertEquals(messageForSend.getDate(), received.getDate());
+        assertEquals(received, messageForSend);
 
         producer.close();
         consumer.close();

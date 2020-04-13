@@ -2441,4 +2441,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(ns, 32);
         admin.namespaces().deleteNamespace(ns);
     }
+
+    @Test
+    public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        final int messages = 33;
+        for (int i = 0; i < messages; i++) {
+            producer.send(new byte[1024 * i * 5]);
+        }
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledgeCumulative(consumer.receive());
+        }
+
+        // Wait ack send
+        Thread.sleep(1000);
+
+        TopicStats topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.backlogSize, 0);
+    }
 }
