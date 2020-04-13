@@ -50,9 +50,7 @@ public class ConsumerStats {
     /** Number of unacknowledged messages for the consumer. */
     public int unackedMessages;
 
-    /**
-     * Number of average messages per entry for the consumer consumed.
-     */
+    /** Number of average messages per entry for the consumer consumed. */
     public int avgMessagesPerEntry;
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
