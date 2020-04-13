@@ -30,7 +30,9 @@ static int makeRequest(const std::string& method, const std::string& url, const 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+    if (!body.empty()) {
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+    }
     int res = curl_easy_perform(curl);
     curl_slist_free_all(list); /* free the list again */
 
@@ -49,3 +51,5 @@ int makePutRequest(const std::string& url, const std::string& body) { return mak
 int makePostRequest(const std::string& url, const std::string& body) {
     return makeRequest("POST", url, body);
 }
+
+int makeDeleteRequest(const std::string& url) { return makeRequest("DELETE", url, ""); }
