@@ -52,3 +52,6 @@ if [[ "x${FUNCTION}" == "xtrue" ]]; then
     # install cert manager
     ci::test_pulsar_function
 fi
+
+# delete the cluster
+ci::delete_cluster
