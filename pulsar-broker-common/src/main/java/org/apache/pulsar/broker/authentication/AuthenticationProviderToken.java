@@ -84,6 +84,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
+
+        if (audienceClaim != null && audience == null ) {
+            throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
+                                               + "] configured, but Audience stands for this broker not.");
+        }
     }
 
     @Override
@@ -142,11 +147,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     .parse(token);
 
             if (audienceClaim != null) {
-                if (audience == null){
-                    throw new JwtException("Token Audience Claim [" + audienceClaim
-                                           + "] configured, but Audience stands for this broker not.");
-                }
-
                 Object object = jwt.getBody().get(audienceClaim);
                 if (object == null) {
                     throw new JwtException("Found null Audience in token, for claimed field: " + audienceClaim);
