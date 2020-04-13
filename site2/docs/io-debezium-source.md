@@ -1,6 +1,6 @@
 ---
 id: io-debezium-source
-title: Debezium source onnector
+title: Debezium source connector
 sidebar_label: Debezium source connector
 ---
 
