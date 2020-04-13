@@ -125,6 +125,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
