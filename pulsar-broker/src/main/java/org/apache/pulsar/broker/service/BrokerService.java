@@ -2116,7 +2116,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    private void checkMessagePublishBuffer() {
+    @VisibleForTesting
+    void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
         foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
         if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
