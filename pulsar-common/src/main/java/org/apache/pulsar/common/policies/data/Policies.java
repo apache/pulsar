@@ -51,6 +51,8 @@ public class Policies {
     public Boolean deduplicationEnabled = null;
     // If set, it will override the broker settings for allowing auto topic creation
     public AutoTopicCreationOverride autoTopicCreationOverride = null;
+    // If set, it will override the broker settings for allowing auto subscription creation
+    public AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = null;
     public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
     @SuppressWarnings("checkstyle:MemberName")
@@ -112,7 +114,8 @@ public class Policies {
         return Objects.hash(auth_policies, replication_clusters,
                 backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
-                clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride, persistence,
+                clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
+                autoSubscriptionCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
                 encryption_required, delayed_delivery_policies,
@@ -144,6 +147,7 @@ public class Policies {
                     && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
+                    && Objects.equals(autoSubscriptionCreationOverride, other.autoSubscriptionCreationOverride)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,
@@ -194,6 +198,7 @@ public class Policies {
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("autoTopicCreationOverride", autoTopicCreationOverride)
+                .add("autoSubscriptionCreationOverride", autoSubscriptionCreationOverride)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
