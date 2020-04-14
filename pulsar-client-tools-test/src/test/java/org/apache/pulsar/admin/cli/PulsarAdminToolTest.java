@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -355,6 +357,13 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
 
+        namespaces.run(split("set-auto-topic-creation myprop/clust/ns1 -e -t non-partitioned"));
+        verify(mockNamespaces).setAutoTopicCreation("myprop/clust/ns1",
+                new AutoTopicCreationOverride(true, TopicType.NON_PARTITIONED.toString(), null));
+
+        namespaces.run(split("remove-auto-topic-creation myprop/clust/ns1"));
+        verify(mockNamespaces).removeAutoTopicCreation("myprop/clust/ns1");
+
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
 
@@ -501,10 +510,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("clear-offload-deletion-lag myprop/clust/ns1"));
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
-        namespaces.run(split("set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M"));
+        namespaces.run(split("set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
-                        "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024));
+                        "http://test.endpoint", 32 * 1024 * 1024, 5 * 1024 * 1024,
+                        10 * 1024 * 1024, 10000L));
 
         namespaces.run(split("get-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).getOffloadPolicies("myprop/clust/ns1");
@@ -653,6 +663,9 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false);
 
+        cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
 
@@ -738,6 +751,9 @@ public class PulsarAdminToolTest {
 
         topics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
+
+        topics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("skip-all persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");

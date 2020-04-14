@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.io.IOException;
-import java.security.Security;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.Authentication;
@@ -44,14 +43,9 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     private String certFilePath;
     private String keyFilePath;
 
-    // Load Bouncy Castle
-    static {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-    
     public AuthenticationTls() {
     }
-    
+
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;
@@ -105,7 +99,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         certFilePath = authParams.get("tlsCertFile");
         keyFilePath = authParams.get("tlsKeyFile");
     }
-    
+
     @VisibleForTesting
     public String getCertFilePath() {
         return certFilePath;

@@ -48,6 +48,19 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @param authenticationData authentication data related to the role
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isSuperUser(String role,
+                                                   AuthenticationDataSource authenticationData,
+                                                   ServiceConfiguration serviceConfiguration) {
+        return isSuperUser(role, serviceConfiguration);
+    }
+
+    /**
      * Check if specified role is an admin of the tenant
      * @param tenant the tenant to check
      * @param role the role to check
@@ -137,7 +150,7 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Grant permission to roles that can access subscription-admin api
-     * 
+     *
      * @param namespace
      * @param subscriptionName
      * @param roles
@@ -147,7 +160,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
             String authDataJson);
-    
+
     /**
      * Revoke subscription admin-api access for a role
      * @param namespace
@@ -157,7 +170,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
             String role, String authDataJson);
-    
+
     /**
      * Grant authorization-action permission on a topic to the given client
      *

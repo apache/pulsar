@@ -814,7 +814,7 @@ public class ClientCnx extends PulsarHandler {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send GetSchema request to broker: {}", ctx.channel(),
                         writeFuture.cause().getMessage());
-                pendingGetLastMessageIdRequests.remove(requestId);
+                pendingGetSchemaRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });

@@ -227,7 +227,7 @@ public class DirectProxyHandler {
                 outboundChannel.writeAndFlush(request);
                 outboundChannel.read();
             } catch (Exception e) {
-                log.error("Error mutual verify: {}", e);
+                log.error("Error mutual verify", e);
                 return;
             }
         }

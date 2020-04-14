@@ -185,7 +185,7 @@ public class LeaderElectionService {
             try {
                 pulsar.getLocalZkCache().getZooKeeper().delete(ELECTION_ROOT, -1);
             } catch (Throwable t) {
-                log.warn("Failed to cleanup election root znode: {}", t);
+                log.warn("Failed to cleanup election root znode", t);
             }
         }
         stopped = true;

@@ -33,11 +33,13 @@ import java.util.Map;
 public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T> {
 
     public static final String ALWAYS_ALLOW_NULL = "__alwaysAllowNull";
+    public static final String JSR310_CONVERSION_ENABLED = "__jsr310ConversionEnabled";
 
     /**
      * the schema definition class
      */
     private  Class<T> clazz;
+
     /**
      * The flag of schema type always allow null
      *
@@ -47,6 +49,13 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      *
      */
     private boolean alwaysAllowNull = true;
+
+    /**
+     * The flag of use JSR310 conversion or Joda time conversion.
+     *
+     * If value is true, use JSR310 conversion in the Avro schema. Otherwise, use Joda time conversion.
+     */
+    private boolean jsr310ConversionEnabled = false;
 
     /**
      * The schema info properties
@@ -66,6 +75,12 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull) {
         this.alwaysAllowNull = alwaysAllowNull;
+        return this;
+    }
+
+    @Override
+    public SchemaDefinitionBuilder<T> withJSR310ConversionEnabled(boolean jsr310ConversionEnabled) {
+        this.jsr310ConversionEnabled = jsr310ConversionEnabled;
         return this;
     }
 
@@ -107,8 +122,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         checkArgument(!(StringUtils.isNotBlank(jsonDef) && clazz != null),
                 "Not allowed to set pojo and jsonDef both for the schema definition.");
 
-        properties.put(ALWAYS_ALLOW_NULL, this.alwaysAllowNull ? "true" : "false");
-        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning);
+        properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
+        properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
+        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning,
+                jsr310ConversionEnabled);
 
     }
 }

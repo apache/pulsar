@@ -136,7 +136,7 @@ public final class FieldParser {
             if (properties.containsKey(f.getName())) {
                 try {
                     f.setAccessible(true);
-                    String v = (String) properties.get(f.getName());
+                    String v = properties.get(f.getName());
                     if (!StringUtils.isBlank(v)) {
                         f.set(obj, value(v, f));
                     } else {

@@ -81,7 +81,7 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuLimit() {
-        return (double) (100 * Runtime.getRuntime().availableProcessors());
+        return 100 * Runtime.getRuntime().availableProcessors();
     }
 
     private double getTotalCpuUsage() {

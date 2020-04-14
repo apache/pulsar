@@ -55,7 +55,7 @@ public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> im
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("ProtobufReader close inputStream close error", e.getMessage());
+                log.error("ProtobufReader close inputStream close error", e);
             }
         }
     }

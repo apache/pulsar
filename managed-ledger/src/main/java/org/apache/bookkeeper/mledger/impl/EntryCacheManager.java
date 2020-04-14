@@ -25,15 +25,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -154,7 +151,7 @@ public class EntryCacheManager {
     }
 
     public void clear() {
-        caches.values().forEach(cache -> cache.clear());
+        caches.values().forEach(EntryCache::clear);
     }
 
     protected class EntryCacheDisabled implements EntryCache {

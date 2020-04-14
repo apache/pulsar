@@ -753,16 +753,17 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
+        String receivedKey = "";
+        int receivedMessageIndex = 0;
         for (int i = 0; i < 30; i++) {
             Message<byte[]> received = consumer.receive();
-            if (i < 10) {
-                assertEquals(received.getKey(), "key-1");
-            } else if (i < 20) {
-                assertEquals(received.getKey(), "key-2");
-            } else {
-                assertEquals(received.getKey(), "key-3");
+            if (!received.getKey().equals(receivedKey)) {
+                receivedKey = received.getKey();
+                receivedMessageIndex = 0;
             }
+            assertEquals(new String(received.getValue()), "my-message-" + receivedMessageIndex % 10);
             consumer.acknowledge(received);
+            receivedMessageIndex++;
         }
 
         for (int i = 0; i < 10; i++) {
@@ -777,16 +778,17 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
+        receivedKey = "";
+        receivedMessageIndex = 0;
         for (int i = 0; i < 30; i++) {
             Message<byte[]> received = consumer.receive();
-            if (i < 10) {
-                assertEquals(new String(received.getOrderingKey()), "key-1");
-            } else if (i < 20) {
-                assertEquals(new String(received.getOrderingKey()), "key-2");
-            } else {
-                assertEquals(new String(received.getOrderingKey()), "key-3");
+            if (!new String(received.getOrderingKey()).equals(receivedKey)) {
+                receivedKey = new String(received.getOrderingKey());
+                receivedMessageIndex = 0;
             }
+            assertEquals(new String(received.getValue()), "my-message-" + receivedMessageIndex % 10);
             consumer.acknowledge(received);
+            receivedMessageIndex++;
         }
 
         consumer.close();

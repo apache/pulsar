@@ -1108,9 +1108,7 @@ public class Commands {
         CommandGetSchema.Builder schema = CommandGetSchema.newBuilder()
             .setRequestId(requestId);
         schema.setTopic(topic);
-        if (version.isPresent()) {
-            schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
-        }
+        version.ifPresent(schemaVersion -> schema.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes())));
 
         CommandGetSchema getSchema = schema.build();
 
@@ -1702,7 +1700,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+        return ByteBufPair.get(headers, metadataAndPayload);
     }
 
     public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,

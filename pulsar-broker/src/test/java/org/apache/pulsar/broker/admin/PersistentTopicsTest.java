@@ -97,8 +97,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        doReturn(mockZookKeeper).when(persistentTopics).globalZk();
-        doReturn(mockZookKeeper).when(persistentTopics).localZk();
+        doReturn(mockZooKeeper).when(persistentTopics).globalZk();
+        doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(pulsar.getConfigurationCache().propertiesCache()).when(persistentTopics).tenantsCache();
         doReturn(pulsar.getConfigurationCache().policiesCache()).when(persistentTopics).policiesCache();
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -111,8 +111,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic = spy(new NonPersistentTopics());
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
-        doReturn(mockZookKeeper).when(nonPersistentTopic).globalZk();
-        doReturn(mockZookKeeper).when(nonPersistentTopic).localZk();
+        doReturn(mockZooKeeper).when(nonPersistentTopic).globalZk();
+        doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();
         doReturn(pulsar.getConfigurationCache().propertiesCache()).when(nonPersistentTopic).tenantsCache();
         doReturn(pulsar.getConfigurationCache().policiesCache()).when(nonPersistentTopic).policiesCache();
         doReturn(false).when(nonPersistentTopic).isRequestHttps();

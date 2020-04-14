@@ -1692,8 +1692,8 @@ Subcommands
 * `create`
 * `get-partitioned-topic-metadata`
 * `update-partitioned-topic`
+* `list-partitioned-topics`
 * `list`
-* `list-in-bundle`
 * `terminate`
 * `permissions`
 * `grant-permission`
@@ -1702,18 +1702,21 @@ Subcommands
 * `bundle-range`
 * `delete`
 * `unload`
+* `create-subscription`
 * `subscriptions`
 * `unsubscribe`
 * `stats`
 * `stats-internal`
 * `info-internal`
 * `partitioned-stats`
+* `partitioned-stats-internal`
 * `skip`
 * `clear-backlog`
 * `expire-messages`
 * `expire-messages-all-subscriptions`
 * `peek-messages`
 * `reset-cursor`
+* `last-message-id`
 
 
 ### `compact`
@@ -1845,6 +1848,14 @@ Options
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
 
+### `list-partitioned-topics`
+Get the list of partitioned topics under a namespace.
+
+Usage
+```bash
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
+```
+
 ### `list`
 Get the list of topics under a namespace
 
@@ -1852,20 +1863,6 @@ Usage
 ```
 $ pulsar-admin topics list tenant/cluster/namespace
 ```
-
-### `list-in-bundle`
-Get a list of non-persistent topics present under a namespace bundle
-
-Usage
-```
-$ pulsar-admin topics list-in-bundle tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`-b`, `--bundle`|The bundle range||
-
 
 ### `terminate`
 Terminate a topic (disallow further messages from being published on the topic)
@@ -1938,6 +1935,20 @@ Usage
 $ pulsar-admin topics unload topic
 ```
 
+### `create-subscription`
+Create a new subscription on a topic.
+
+Usage
+```bash
+$ pulsar-admin topics create-subscription [options] persistent://tenant/namespace/topic
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-m`, `--messageId`|messageId where to create the subscription. It can be either 'latest', 'earliest' or (ledgerId:entryId)|latest|
+|`-s`, `--subscription`|Subscription to reset position on||
+
 ### `subscriptions`
 Get the list of subscriptions on the topic
 
@@ -2000,6 +2011,14 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--per-partition`|Get per-partition stats|false|
+
+### `partitioned-stats-internal`
+Get the internal stats for the partitioned topic and its connected producers and consumers. All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
+
+Usage
+```bash
+$ pulsar-admin topics partitioned-stats-internal topic
+```
 
 
 ### `skip`
@@ -2091,6 +2110,13 @@ Options
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
 |`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
+### `last-message-id`
+Get the last commit message id of topic.
+
+Usage
+```bash
+$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
+```
 
 
 ## `tenants`
@@ -2320,3 +2346,5 @@ Options
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
+|`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
+|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
