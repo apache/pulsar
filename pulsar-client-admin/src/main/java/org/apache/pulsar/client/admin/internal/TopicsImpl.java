@@ -1011,11 +1011,11 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                              Map<String, String> properties) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
+        ByteBuf buf = Unpooled.wrappedBuffer(data);
         for (int i = 0; i < batchSize; i++) {
             String batchMsgId = msgId + ":" + i;
             PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                     .newBuilder();
-            ByteBuf buf = Unpooled.wrappedBuffer(data);
             try {
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i,
                         batchSize);
@@ -1029,9 +1029,9 @@ public class TopicsImpl extends BaseResource implements Topics {
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
-            buf.release();
             singleMessageMetadataBuilder.recycle();
         }
+        buf.release();
         return ret;
     }
 
