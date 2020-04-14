@@ -106,7 +106,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             doCumulativeAck(msgId);
         } else {
             // Individual ack
-            pendingIndividualAcks.add(msgId);
+            if (msgId instanceof BatchMessageIdImpl) {
+                pendingIndividualAcks.add(new MessageIdImpl(msgId.getLedgerId(),
+                        msgId.getEntryId(), msgId.getPartitionIndex()));
+            } else {
+                pendingIndividualAcks.add(msgId);
+            }
             if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
                 flush();
             }

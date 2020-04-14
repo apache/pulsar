@@ -41,7 +41,7 @@ public class BaseDiscoveryTestSetup {
 
     protected ServiceConfig config;
     protected DiscoveryService service;
-    protected MockZooKeeper mockZookKeeper;
+    protected MockZooKeeper mockZooKeeper;
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
@@ -54,7 +54,7 @@ public class BaseDiscoveryTestSetup {
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
-        mockZookKeeper = createMockZooKeeper();
+        mockZooKeeper = createMockZooKeeper();
         service = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();
@@ -62,7 +62,7 @@ public class BaseDiscoveryTestSetup {
     }
 
     protected void cleanup() throws Exception {
-        mockZookKeeper.shutdown();
+        mockZooKeeper.shutdown();
         service.close();
     }
 
@@ -81,7 +81,7 @@ public class BaseDiscoveryTestSetup {
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
             // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-            return CompletableFuture.completedFuture(mockZookKeeper);
+            return CompletableFuture.completedFuture(mockZooKeeper);
         }
     };
 

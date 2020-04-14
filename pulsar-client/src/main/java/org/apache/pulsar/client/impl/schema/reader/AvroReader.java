@@ -21,10 +21,12 @@ package org.apache.pulsar.client.impl.schema.reader;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +43,25 @@ public class AvroReader<T> implements SchemaReader<T> {
         this.reader = new ReflectDatumReader<>(schema);
     }
 
-    public AvroReader(Schema writerSchema, Schema readerSchema) {
-        this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
+    public AvroReader(Schema schema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
+        if (classLoader != null) {
+            ReflectData reflectData = new ReflectData(classLoader);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+            this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
+        } else {
+            this.reader = new ReflectDatumReader<>(schema);
+        }
+    }
+
+    public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
+        boolean jsr310ConversionEnabled) {
+        if (classLoader != null) {
+            ReflectData reflectData = new ReflectData(classLoader);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
+        } else {
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
+        }
     }
 
     @Override
@@ -74,7 +93,7 @@ public class AvroReader<T> implements SchemaReader<T> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("AvroReader close inputStream close error", e.getMessage());
+                log.error("AvroReader close inputStream close error", e);
             }
         }
     }

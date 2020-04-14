@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.google.common.collect.Maps;
 
 import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.CollectorRegistry;
@@ -125,8 +124,6 @@ public class ProxyServiceStarter {
                 || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         }
-
-        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(config));

@@ -47,11 +47,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.validation.constraints.AssertTrue;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
@@ -112,6 +114,7 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -518,14 +521,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final int newValue = 10;
         stopBroker();
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
         // start broker: it should have set watch even if with failure of deserialization
         startBroker();
         Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
@@ -969,7 +972,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetPartitionedInternalInfo() throws Exception {
-        String partitionedTopic = "my-topic";
+        String partitionedTopic = "my-topic" + UUID.randomUUID().toString();
         assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
         admin.topics().createPartitionedTopic(partitionedTopicName, 2);
@@ -996,6 +999,48 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         JsonObject partitionTopicInfo = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(gson.toJson(partitionTopicInfo), expectedResult);
+    }
+
+    @Test
+    public void testGetPartitionedStatsInternal() throws Exception {
+        String partitionedTopic = "my-topic" + UUID.randomUUID().toString();
+        String subName = "my-sub";
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList());
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + partitionedTopic;
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2);
+        assertEquals(admin.topics().getPartitionedTopicList("prop-xyz/ns1"), Lists.newArrayList(partitionedTopicName));
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
+
+        // create consumer and subscription
+        pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName(subName).subscribe();
+
+        // publish several messages
+        publishMessagesOnPersistentTopic(partitionedTopicName, 10);
+
+        String partitionTopic0 = partitionedTopicName + "-partition-0";
+        String partitionTopic1 = partitionedTopicName + "-partition-1";
+
+        Thread.sleep(1000);
+
+        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0);
+        assertEquals(internalStats0.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
+
+        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1);
+        assertEquals(internalStats1.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList(Codec.encode(subName))));
+
+        // expected internal stats
+        PartitionedTopicMetadata partitionedTopicMetadata = new PartitionedTopicMetadata(2);
+        PartitionedTopicInternalStats expectedInternalStats = new PartitionedTopicInternalStats(partitionedTopicMetadata);
+        expectedInternalStats.partitions.put(partitionTopic0, internalStats0);
+        expectedInternalStats.partitions.put(partitionTopic1, internalStats1);
+
+        // partitioned internal stats
+        PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
+
+        String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
+        String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
+
+        assertEquals(result, expectedResult);
     }
 
     @Test(dataProvider = "numBundles")
@@ -2378,5 +2423,32 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(60000);
 
         Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+    }
+
+    @Test
+    public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        final int messages = 33;
+        for (int i = 0; i < messages; i++) {
+            producer.send(new byte[1024 * i * 5]);
+        }
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledgeCumulative(consumer.receive());
+        }
+
+        // Wait ack send
+        Thread.sleep(1000);
+
+        TopicStats topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.backlogSize, 0);
     }
 }

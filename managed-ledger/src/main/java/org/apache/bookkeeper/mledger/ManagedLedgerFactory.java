@@ -103,7 +103,7 @@ public interface ManagedLedgerFactory {
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
      *
-     * @param name
+     * @param managedLedgerName
      * @param startPosition
      *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
      *            positioned on the first available entry.

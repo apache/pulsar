@@ -23,6 +23,7 @@
     <test name="pulsar-schema-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.schema.SchemaTest" />
+            <class name="org.apache.pulsar.tests.integration.schema.JodaTimeTest" />
         </classes>
     </test>
 </suite>

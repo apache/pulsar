@@ -1,0 +1,66 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if .Values.components.broker }}
+## TODO create our own cluster role with less privledges than admin
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}-clusterrolebinding"
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}-clusterrole"
+subjects:
+- kind: ServiceAccount
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}-acct"
+  namespace: {{ .Values.namespace }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}-clusterrole"
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources:
+  - configmap
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["", "extensions", "apps"]
+  resources:
+    - pods
+    - services
+    - deployments
+    - secrets
+    - statefulsets
+  verbs:
+    - list
+    - watch
+    - get
+    - update
+    - create
+    - delete
+    - patch
+---
+
+{{- end }}

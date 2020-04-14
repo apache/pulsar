@@ -17,6 +17,8 @@
 # under the License.
 #
 
+# deploy zookeeper only when `components.zookeeper` is true
+{{- if .Values.components.zookeeper }}
 {{- if .Values.zookeeper.pdb.usePolicy }}
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
@@ -24,17 +26,13 @@ metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.zookeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 spec:
   selector:
     matchLabels:
-      app: {{ template "pulsar.name" . }}
-      release: {{ .Release.Name }}
+      {{- include "pulsar.matchLabels" . | nindent 6 }}
       component: {{ .Values.zookeeper.component }}
   maxUnavailable: {{ .Values.zookeeper.pdb.maxUnavailable }}
+{{- end }}
 {{- end }}

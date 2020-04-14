@@ -17,17 +17,24 @@
 # under the License.
 #
 
+# deploy zookeeper only when `components.zookeeper` is true
+{{- if .Values.components.zookeeper }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.zookeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 data:
+  dataDir: /pulsar/data/zookeeper
+  PULSAR_PREFIX_serverCnxnFactory: org.apache.zookeeper.server.NettyServerCnxnFactory
+  serverCnxnFactory: org.apache.zookeeper.server.NettyServerCnxnFactory
+  # enable zookeeper tls
+  {{- if and .Values.tls.enabled .Values.tls.zookeeper.enabled }}
+  secureClientPort: "{{ .Values.zookeeper.ports.clientTls }}"
+  PULSAR_PREFIX_secureClientPort: "{{ .Values.zookeeper.ports.clientTls }}"
+  {{- end }}
 {{ toYaml .Values.zookeeper.configData | indent 2 }}
+{{- end }}

@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
@@ -735,6 +736,51 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "deduplication");
         return asyncPostRequest(path, Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setAutoTopicCreation(String namespace,
+                                     AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
+        try {
+            setAutoTopicCreationAsync(namespace, autoTopicCreationOverride)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setAutoTopicCreationAsync(
+            String namespace, AutoTopicCreationOverride autoTopicCreationOverride) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoTopicCreation");
+        return asyncPostRequest(path, Entity.entity(autoTopicCreationOverride, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeAutoTopicCreation(String namespace) throws PulsarAdminException {
+        try {
+            removeAutoTopicCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAutoTopicCreationAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoTopicCreation");
+        return asyncDeleteRequest(path);
     }
 
     @Override

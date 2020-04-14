@@ -568,12 +568,6 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.2.jar
 
-Bouncy Castle License
- * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk15on-1.60.jar
-    - org.bouncycastle-bcprov-jdk15on-1.60.jar
-    - org.bouncycastle-bcprov-ext-jdk15on-1.60.jar
-
 Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt
     - net.jcip-jcip-annotations-1.0.jar

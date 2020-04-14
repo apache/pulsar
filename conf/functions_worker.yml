@@ -160,6 +160,9 @@ functionRuntimeFactoryConfigs:
 #   ram: 1073741824
 #   disk: 10737418240
 
+## Config admin CLI
+#configAdminCLI:
+
 ############################################
 # security settings for worker service
 ############################################

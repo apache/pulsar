@@ -1,4 +1,12 @@
 {{/* vim: set filetype=mustache: */}}
+
+{{/*
+pulsar home
+*/}}
+{{- define "pulsar.home" -}}
+{{- print "/pulsar" -}}
+{{- end -}}
+
 {{/*
 Expand the name of the chart.
 */}}
@@ -30,3 +38,31 @@ Create chart name and version as used by the chart label.
 {{- define "pulsar.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Create the common labels.
+*/}}
+{{- define "pulsar.standardLabels" -}}
+app: {{ template "pulsar.name" . }}
+chart: {{ template "pulsar.chart" . }}
+release: {{ .Release.Name }}
+heritage: {{ .Release.Service }}
+cluster: {{ template "pulsar.fullname" . }}
+{{- end }}
+
+{{/*
+Create the template labels.
+*/}}
+{{- define "pulsar.template.labels" -}}
+app: {{ template "pulsar.name" . }}
+release: {{ .Release.Name }}
+cluster: {{ template "pulsar.fullname" . }}
+{{- end }}
+
+{{/*
+Create the match labels.
+*/}}
+{{- define "pulsar.matchLabels" -}}
+app: {{ template "pulsar.name" . }}
+release: {{ .Release.Name }}
+{{- end }}

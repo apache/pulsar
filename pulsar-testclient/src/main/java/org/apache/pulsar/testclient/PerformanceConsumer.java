@@ -325,9 +325,9 @@ public class PerformanceConsumer {
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    (long) reportHistogram.getValueAtPercentile(50), (long) reportHistogram.getValueAtPercentile(95),
-                    (long) reportHistogram.getValueAtPercentile(99), (long) reportHistogram.getValueAtPercentile(99.9),
-                    (long) reportHistogram.getValueAtPercentile(99.99), (long) reportHistogram.getMaxValue());
+                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -352,10 +352,10 @@ public class PerformanceConsumer {
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), (long) reportHistogram.getValueAtPercentile(50),
-                (long) reportHistogram.getValueAtPercentile(95), (long) reportHistogram.getValueAtPercentile(99),
-                (long) reportHistogram.getValueAtPercentile(99.9), (long) reportHistogram.getValueAtPercentile(99.99),
-                (long) reportHistogram.getValueAtPercentile(99.999), (long) reportHistogram.getMaxValue());
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
