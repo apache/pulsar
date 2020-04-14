@@ -38,6 +38,8 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.BufferedBinaryEncoder;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.avro.SchemaValidationException;
@@ -51,12 +53,14 @@ import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.avro.generated.NasaMission;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -366,7 +370,26 @@ public class AvroSchemaTest {
         Foo object1 = avroSchema.decode(byteBuf);
         Assert.assertTrue(bytes1.length > 0);
         assertEquals(object1, foo1);
+    }
 
+    @Test
+    public void discardBufferIfBadAvroData() {
+        AvroWriter<NasaMission> avroWriter = new AvroWriter<>(
+                ReflectData.AllowNull.get().getSchema(NasaMission.class));
+
+        NasaMission badNasaMissionData = new NasaMission();
+        badNasaMissionData.setId(1);
+        // set null in the non-null field. The java set will accept it but going ahead, the avro encode will crash.
+        badNasaMissionData.setName(null);
+
+        // Because data does not conform to schema expect a crash
+        Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
+
+        // Get the buffered data using powermock
+        BinaryEncoder encoder = Whitebox.getInternalState(avroWriter, "encoder");
+
+        // Assert that the buffer position is reset to zero
+        Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
     }
 
 }
