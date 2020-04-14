@@ -141,7 +141,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).submit(new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration, assignmentScheduler));
+        scheduler.chooseThread(readHandle.getId()).submit(new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration, assignmentScheduler, offloadPolicies.getManagedLedgerOffloadPrefetchRounds()));
         return promise;
     }
 
@@ -155,9 +155,10 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private final Configuration configuration;
         volatile Exception fileSystemWriteException = null;
         private OrderedScheduler assignmentScheduler;
+        private int managedLedgerOffloadPrefetchRounds = 1;
 
         private LedgerReader(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata, CompletableFuture<Void> promise,
-                             String storageBasePath, Configuration configuration, OrderedScheduler assignmentScheduler) {
+                             String storageBasePath, Configuration configuration, OrderedScheduler assignmentScheduler, int managedLedgerOffloadPrefetchRounds) {
             this.readHandle = readHandle;
             this.uuid = uuid;
             this.extraMetadata = extraMetadata;
@@ -165,6 +166,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             this.storageBasePath = storageBasePath;
             this.configuration = configuration;
             this.assignmentScheduler = assignmentScheduler;
+            this.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
         }
 
         @Override
@@ -193,7 +195,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 long needToOffloadFirstEntryNumber = 0;
                 CountDownLatch countDownLatch;
                 //avoid prefetch too much data into memory
-                Semaphore semaphore = new Semaphore(1);
+                Semaphore semaphore = new Semaphore(managedLedgerOffloadPrefetchRounds);
                 do {
                     long end = Math.min(needToOffloadFirstEntryNumber + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
                     log.debug("read ledger entries. start: {}, end: {}", needToOffloadFirstEntryNumber, end);
