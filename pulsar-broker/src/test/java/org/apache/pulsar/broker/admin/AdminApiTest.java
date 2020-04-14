@@ -2253,6 +2253,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCreateAndDeleteNamespaceWithBundles() throws Exception {
+        admin.clusters().createCluster("usw", new ClusterData());
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
+                Sets.newHashSet("test", "usw"));
+        admin.tenants().updateTenant("prop-xyz", tenantInfo);
+
+        String ns = "prop-xyz/ns-" + System.nanoTime();
+
+        admin.namespaces().createNamespace(ns, 24);
+        admin.namespaces().deleteNamespace(ns);
+
+        // Re-create and re-delete
+        admin.namespaces().createNamespace(ns, 32);
+        admin.namespaces().deleteNamespace(ns);
+    }
+
+    @Test
     public void testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages() throws Exception {
         final String topic = "persistent://prop-xyz/ns1/testBacklogSizeShouldBeZeroWhenConsumerAckedAllMessages";
         Consumer<byte[]> consumer = pulsarClient.newConsumer()

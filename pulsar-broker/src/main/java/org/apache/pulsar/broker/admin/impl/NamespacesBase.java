@@ -90,6 +90,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
 
 import org.slf4j.Logger;
@@ -257,7 +258,13 @@ public abstract class NamespacesBase extends AdminResource {
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
                 final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 globalZk().delete(globalZkPolicyPath, -1);
-                localZk().delete(lcaolZkPolicyPath, -1);
+
+                try {
+                    localZk().delete(lcaolZkPolicyPath, -1);
+                } catch (NoNodeException nne) {
+                    // If the z-node with the modified information is not there anymore, we're already good
+                }
+
                 policiesCache().invalidate(globalZkPolicyPath);
                 localCacheService().policiesCache().invalidate(lcaolZkPolicyPath);
             } catch (Exception e) {
