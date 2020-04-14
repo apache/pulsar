@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
@@ -1024,6 +1025,91 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> removeAutoTopicCreationAsync(String namespace);
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given namespace, overriding broker settings.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the broker level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAutoSubscriptionCreation(
+            String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException;
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given namespace, overriding broker settings asynchronously.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the broker level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     */
+    CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given namespace.
+     * <p/>
+     * Allowing the broker to dictate the subscription auto-creation policy.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAutoSubscriptionCreation(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given namespace asynchronously.
+     * <p/>
+     * Allowing the broker to dictate the subscription auto-creation policy.
+     * <p/>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String namespace);
 
     /**
      * Get the bundles split data.

@@ -827,6 +827,10 @@ Subcommands
 * `create`
 * `delete`
 * `set-deduplication`
+* `set-auto-topic-creation`
+* `remove-auto-topic-creation`
+* `set-auto-subscription-creation`
+* `remove-auto-subscription-creation`
 * `permissions`
 * `grant-permission`
 * `revoke-permission`
@@ -947,6 +951,50 @@ Options
 |`--enable`, `-e`|Enable message deduplication on the specified namespace|false|
 |`--disable`, `-d`|Disable message deduplication on the specified namespace|false|
 
+### `set-auto-topic-creation`
+Enable or disable autoTopicCreation for a namespace, overriding broker settings
+
+Usage
+```bash
+$ pulsar-admin namespaces set-auto-topic-creation tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable allowAutoTopicCreation on namespace|false|
+|`--disable`, `-d`|Disable allowAutoTopicCreation on namespace|false|
+|`--type`, `-t`|Type of topic to be auto-created. Possible values: (partitioned, non-partitioned)|non-partitioned|
+|`--num-partitions`, `-n`|Default number of partitions of topic to be auto-created, applicable to partitioned topics only||
+
+### `remove-auto-topic-creation`
+Remove override of autoTopicCreation for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-auto-topic-creation tenant/namespace
+```
+
+### `set-auto-subscription-creation`
+Enable autoSubscriptionCreation for a namespace, overriding broker settings
+
+Usage
+```bash
+$ pulsar-admin namespaces set-auto-subscription-creation tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable allowAutoSubscriptionCreation on namespace|false|
+
+### `remove-auto-subscription-creation`
+Remove override of autoSubscriptionCreation for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-auto-subscription-creation tenant/namespace
+```
 
 ### `permissions`
 Get the permissions on a namespace
