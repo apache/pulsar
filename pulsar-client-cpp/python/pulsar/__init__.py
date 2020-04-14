@@ -113,7 +113,7 @@ import re
 _retype = type(re.compile('x'))
 
 import certifi
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 
 class MessageId:
