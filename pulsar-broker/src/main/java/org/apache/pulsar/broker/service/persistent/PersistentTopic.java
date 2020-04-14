@@ -671,49 +671,51 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
-        // Create a new non-durable cursor only for the first consumer that connects
-        Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
-            MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
-                    : (MessageIdImpl) MessageId.latest;
+        synchronized (ledger) {
+            // Create a new non-durable cursor only for the first consumer that connects
+            Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
+                MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
+                        : (MessageIdImpl) MessageId.latest;
 
-            long ledgerId = msgId.getLedgerId();
-            long entryId = msgId.getEntryId();
-            if (ledgerId >= 0
-                && msgId instanceof BatchMessageIdImpl) {
-                // When the start message is relative to a batch, we need to take one step back on the previous message,
-                // because the "batch" might not have been consumed in its entirety.
-                // The client will then be able to discard the first messages if needed.
-                entryId = msgId.getEntryId() - 1;
-            }
+                long ledgerId = msgId.getLedgerId();
+                long entryId = msgId.getEntryId();
+                if (ledgerId >= 0
+                        && msgId instanceof BatchMessageIdImpl) {
+                    // When the start message is relative to a batch, we need to take one step back on the previous message,
+                    // because the "batch" might not have been consumed in its entirety.
+                    // The client will then be able to discard the first messages if needed.
+                    entryId = msgId.getEntryId() - 1;
+                }
 
-            Position startPosition = new PositionImpl(ledgerId, entryId);
-            ManagedCursor cursor = null;
-            try {
-                cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
-            } catch (ManagedLedgerException e) {
-                subscriptionFuture.completeExceptionally(e);
-            }
+                Position startPosition = new PositionImpl(ledgerId, entryId);
+                ManagedCursor cursor = null;
+                try {
+                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
+                } catch (ManagedLedgerException e) {
+                    subscriptionFuture.completeExceptionally(e);
+                }
 
-            return new PersistentSubscription(this, subscriptionName, cursor, false);
-        });
+                return new PersistentSubscription(this, subscriptionName, cursor, false);
+            });
 
-        if (!subscriptionFuture.isDone()) {
-            if (startMessageRollbackDurationSec > 0) {
-                long timestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
-                subscription.resetCursor(timestamp).handle((s, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
-                                startMessageRollbackDurationSec);
-                    }
+            if (!subscriptionFuture.isDone()) {
+                if (startMessageRollbackDurationSec > 0) {
+                    long timestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
+                    subscription.resetCursor(timestamp).handle((s, ex) -> {
+                        if (ex != null) {
+                            log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
+                                    startMessageRollbackDurationSec);
+                        }
+                        subscriptionFuture.complete(subscription);
+                        return null;
+                    });
+                } else {
                     subscriptionFuture.complete(subscription);
-                    return null;
-                });
+                }
             } else {
-                subscriptionFuture.complete(subscription);
+                // failed to initialize managed-cursor: clean up created subscription
+                subscriptions.remove(subscriptionName);
             }
-        } else {
-            // failed to initialize managed-cursor: clean up created subscription
-            subscriptions.remove(subscriptionName);
         }
 
         return subscriptionFuture;
