@@ -48,14 +48,20 @@ public class AvroWriter<T> implements SchemaWriter<T> {
 
     @Override
     public synchronized byte[] write(T message) {
+        byte[] outputBytes = null;
         try {
             writer.write(message, this.encoder);
-            this.encoder.flush();
-            return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
             throw new SchemaSerializationException(e);
         } finally {
+            try {
+                this.encoder.flush();
+                outputBytes = this.byteArrayOutputStream.toByteArray();
+            } catch (Exception ex) {
+                throw new SchemaSerializationException(ex);
+            }
             this.byteArrayOutputStream.reset();
         }
+        return outputBytes;
     }
 }
