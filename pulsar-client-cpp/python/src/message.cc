@@ -86,12 +86,14 @@ const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
 
-void deliverAfter(MessageBuilder* const builder, py::object obj_delta) {
-    PyDateTime_Delta const* pydelta = reinterpret_cast<PyDateTime_Delta*>(&obj_delta);
+void deliverAfter(MessageBuilder* const builder, PyObject* obj_delta) {
+    PyDateTime_Delta const* pydelta = reinterpret_cast<PyDateTime_Delta*>(obj_delta);
+
     long days = pydelta->days;
-    bool is_negative = (days < 0);
-    if (is_negative)
+    const bool is_negative = days < 0;
+    if (is_negative) {
         days = -days;
+    }
 
     // Create chrono duration object
     std::chrono::milliseconds
@@ -100,8 +102,10 @@ void deliverAfter(MessageBuilder* const builder, py::object obj_delta) {
                 + std::chrono::seconds(pydelta->seconds)
                 + std::chrono::microseconds(pydelta->microseconds)
                 );
-    if (is_negative)
+
+    if (is_negative) {
         duration = duration * -1;
+    }
 
     builder->setDeliverAfter(duration);
 }
