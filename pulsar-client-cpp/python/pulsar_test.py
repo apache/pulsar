@@ -196,7 +196,7 @@ class PulsarTest(TestCase):
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
         producer = client.create_producer('my-python-topic-deliver-after')
-        # Delay message in 500ms
+        # Delay message in 1.1s
         producer.send(b'hello', deliver_after=timedelta(milliseconds=1100))
 
         # Message should not be available in the next second
@@ -207,7 +207,7 @@ class PulsarTest(TestCase):
             pass  # Exception is expected
 
         # Message should be published in the next 500ms
-        msg = consumer.receive(500)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         consumer.unsubscribe()
