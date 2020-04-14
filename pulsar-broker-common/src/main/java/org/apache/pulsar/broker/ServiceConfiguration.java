@@ -1466,8 +1466,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Maximum prefetch rounds for ledger reading for offloading"
     )
     private int managedLedgerOffloadPrefetchRounds = 1;
-    /**** --- Transaction config variables --- ****/
 
+    /**** --- Transaction config variables --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Enable transaction coordinator in broker"
