@@ -20,7 +20,7 @@
 
 BINDIR=`dirname "$0"`
 PULSAR_HOME=`cd ${BINDIR}/..;pwd`
-CHARTS_HOME=`${PULSAR_HOME}/deployment/kubernetes/helm`
+CHARTS_HOME=${PULSAR_HOME}/deployment/kubernetes/helm
 OUTPUT_BIN=${CHARTS_HOME}/output/bin
 KIND_BIN=$OUTPUT_BIN/kind
 HELM=${OUTPUT_BIN}/helm
