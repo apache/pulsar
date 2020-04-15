@@ -270,10 +270,6 @@ void PartitionedConsumerImpl::start() {
          consumer++) {
         (*consumer)->start();
     }
-
-    if (partitionsUpdateTimer_) {
-        runPartitionUpdateTask();
-    }
 }
 
 void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
@@ -304,6 +300,9 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
                                                                    << numPartitions << " Partitions.");
         state_ = Ready;
         lock.unlock();
+        if (partitionsUpdateTimer_) {
+            runPartitionUpdateTask();
+        }
         receiveMessages();
         partitionedConsumerCreatedPromise_.setValue(shared_from_this());
         return;
@@ -560,6 +559,11 @@ void PartitionedConsumerImpl::getPartitionMetadata() {
 
 void PartitionedConsumerImpl::handleGetPartitions(Result result,
                                                   const LookupDataResultPtr& lookupDataResult) {
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        return;
+    }
+
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
         const auto config =
@@ -575,6 +579,8 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
                 consumer->start();
                 consumers_.push_back(consumer);
             }
+            // `runPartitionUpdateTask()` will be called in `handleSinglePartitionConsumerCreated()`
+            return;
         }
     } else {
         LOG_WARN("Failed tp getPartitionMetadata: " << strResult(result));

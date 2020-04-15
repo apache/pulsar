@@ -101,11 +101,6 @@ void PartitionedProducerImpl::start() {
     for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
         (*prod)->start();
     }
-    producersLock.unlock();
-
-    if (partitionsUpdateTimer_) {
-        runPartitionUpdateTask();
-    }
 }
 
 void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result,
@@ -136,6 +131,9 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
     numProducersCreated_++;
     if (numProducersCreated_ == numPartitions) {
         lock.unlock();
+        if (partitionsUpdateTimer_) {
+            runPartitionUpdateTask();
+        }
         partitionedProducerCreatedPromise_.setValue(shared_from_this());
     }
 }
@@ -195,6 +193,8 @@ int64_t PartitionedProducerImpl::getLastSequenceId() const {
  * create one or many producers for partitions. So, we have to notify with ERROR on createProducerFailure
  */
 void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
+    setState(Closing);
+
     int producerIndex = 0;
     unsigned int producerAlreadyClosed = 0;
 
@@ -334,6 +334,12 @@ void PartitionedProducerImpl::getPartitionMetadata() {
 
 void PartitionedProducerImpl::handleGetPartitions(Result result,
                                                   const LookupDataResultPtr& lookupDataResult) {
+    Lock stateLock(mutex_);
+    if (state_ == Closing || state_ == Closed) {
+        return;
+    }
+    stateLock.unlock();
+
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
         Lock producersLock(producersMutex_);
@@ -347,6 +353,8 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
                 producer->start();
                 producers_.push_back(producer);
             }
+            // `runPartitionUpdateTask()` will be called in `handleSinglePartitionProducerCreated()`
+            return;
         }
     } else {
         LOG_WARN("Failed to getPartitionMetadata: " << strResult(result));
