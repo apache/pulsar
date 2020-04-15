@@ -203,10 +203,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return closeAsync(false);
-    }
-
-    public CompletableFuture<Void> closeAsync(boolean waitForPendingMessages) {
         if (getState() == State.Closing || getState() == State.Closed) {
             return CompletableFuture.completedFuture(null);
         }

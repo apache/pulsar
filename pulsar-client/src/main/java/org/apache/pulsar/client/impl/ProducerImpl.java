@@ -121,12 +121,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected volatile long lastSequenceIdPushed;
     private volatile boolean isLastSequenceIdPotentialDuplicated;
 
-    public static final int FALSE = 0;
-    public static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<ProducerImpl> CLOSING_IN_PROGRESS_UPDATER =
-        AtomicIntegerFieldUpdater.newUpdater(ProducerImpl.class, "closingInProgress");
-    @SuppressWarnings("unused")
-    private volatile int closingInProgress = FALSE;
+    private volatile boolean closingInProgress = false;
 
     private final MessageCrypto msgCrypto;
 
@@ -636,7 +631,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private boolean isValidProducerState(SendCallback callback) {
-        if (closingInProgress == TRUE) {
+        if (closingInProgress) {
             callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed"));
             return false;
         }
@@ -735,20 +730,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return closeAsync(true);
-    }
-
-    public CompletableFuture<Void> closeAsync(boolean waitForPendingMessage) {
         CompletableFuture<Void> closeResult = new CompletableFuture<>();
-        closeAsync(waitForPendingMessage, closeResult);
+        closeAsync(closeResult);
         return closeResult;
     }
 
-    private void closeAsync(boolean waitForPendingMessage, CompletableFuture<Void> closeFuture) {
-        if (waitForPendingMessage && !pendingMessages.isEmpty()) {
-            CLOSING_IN_PROGRESS_UPDATER.set(this, TRUE);
+    private void closeAsync(CompletableFuture<Void> closeFuture) {
+        if (!pendingMessages.isEmpty()) {
+            closingInProgress = true;
             client.timer().newTimeout((timeout) -> {
-                closeAsync(true, closeFuture);
+                closeAsync(closeFuture);
             }, 10, TimeUnit.MILLISECONDS);
             return;
         }
