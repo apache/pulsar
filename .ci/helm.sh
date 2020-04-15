@@ -19,11 +19,11 @@
 #
 
 BINDIR=`dirname "$0"`
-CHARTS_HOME=`cd ${BINDIR}/../deployment/kubernetes/helm/;pwd`
+CHARTS_HOME=`cd ${BINDIR}/..;pwd`
 OUTPUT_BIN=${CHARTS_HOME}/output/bin
+KIND_BIN=$OUTPUT_BIN/kind
 HELM=${OUTPUT_BIN}/helm
 KUBECTL=${OUTPUT_BIN}/kubectl
-KIND_BIN=$OUTPUT_BIN/kind
 NAMESPACE=pulsar
 CLUSTER=pulsar-ci
 CLUSTER_ID=$(uuidgen)
@@ -42,9 +42,7 @@ function ci::delete_cluster() {
 
 function ci::install_storage_provisioner() {
     echo "Installing the local storage provisioner ..."
-    ${HELM} repo add streamnative https://charts.streamnative.io
-    ${HELM} repo update
-    ${HELM} install local-storage-provisioner streamnative/local-storage-provisioner
+    ${HELM} install local-storage-provisioner ${CHARTS_HOME}/charts/local-storage-provisioner
     WC=$(${KUBECTL} get pods --field-selector=status.phase=Running | grep local-storage-provisioner | wc -l)
     while [[ ${WC} -lt 1 ]]; do
       echo ${WC};
@@ -77,12 +75,12 @@ function ci::install_pulsar_chart() {
     ${KUBECTL} create namespace ${NAMESPACE}
     echo ${CHARTS_HOME}/scripts/pulsar/prepare_helm_release.sh -k ${CLUSTER} -n ${NAMESPACE} ${extra_opts}
     ${CHARTS_HOME}/scripts/pulsar/prepare_helm_release.sh -k ${CLUSTER} -n ${NAMESPACE} ${extra_opts}
-    ${CHARTS_HOME}/scripts/pulsar/upload_tls.sh -k ${CLUSTER} -d ${CHARTS_HOME}/../../../.ci/tls
+    ${CHARTS_HOME}/scripts/pulsar/upload_tls.sh -k ${CLUSTER} -d ${CHARTS_HOME}/.ci/tls
     sleep 10
 
-    echo ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
-    ${HELM} template --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
-    ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
+    echo ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
+    ${HELM} template --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
+    ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
 
     echo "wait until broker is alive"
     WC=$(${KUBECTL} get pods -n ${NAMESPACE} --field-selector=status.phase=Running | grep ${CLUSTER}-broker | wc -l)
