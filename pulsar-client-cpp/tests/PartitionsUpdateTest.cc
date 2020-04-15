@@ -22,6 +22,7 @@
 #include <set>
 #include <chrono>
 #include <thread>
+#include <memory>
 
 #include "HttpHelper.h"
 
@@ -29,101 +30,80 @@ using namespace pulsar;
 
 static const std::string serviceUrl = "pulsar://localhost:6650";
 static const std::string adminUrl = "http://localhost:8080/";
-static const std::string topicOperateUrl = adminUrl + "admin/v2/persistent/";
 
 static const std::string topicNameSuffix = "public/default/partitions-update-test-topic";
 static const std::string topicName = "persistent://" + topicNameSuffix;
+static const std::string topicOperateUrl =
+    adminUrl + "admin/v2/persistent/" + topicNameSuffix + "/partitions";
 
-static constexpr int initialNumPartitions = 2;
-static constexpr int latestNumPartitions = 5;
-
-static const ProducerConfiguration producerConfig =
-    ProducerConfiguration().setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
-static const std::string subName = "SubscriptionName";
-
-static bool updateNumPartitions() {
-    int res = makePostRequest(topicOperateUrl + topicNameSuffix + "/partitions",
-                              std::to_string(latestNumPartitions));
-    return (res == 204 || res == 409);
+static ClientConfiguration newClientConfig(bool enablePartitionsUpdate) {
+    ClientConfiguration clientConfig;
+    if (enablePartitionsUpdate) {
+        clientConfig.setPartititionsUpdateInterval(1);  // 1s
+    } else {
+        clientConfig.setPartititionsUpdateInterval(0);  // disable
+    }
+    return clientConfig;
 }
+
+// In round robin routing mode, if N messages were sent to a topic with N partitions, each partition must have
+// received 1 message. So we check whether producer/consumer have increased along with partitions by checking
+// partitions' count of N messages.
+// Use std::set because it doesn't allow repeated elements.
+class PartitionsSet {
+   public:
+    size_t size() const { return names_.size(); }
+
+    Result initProducer(bool enablePartitionsUpdate) {
+        clientForProducer_.reset(new Client(serviceUrl, newClientConfig(enablePartitionsUpdate)));
+        const auto producerConfig =
+            ProducerConfiguration().setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+        return clientForProducer_->createProducer(topicName, producerConfig, producer_);
+    }
+
+    Result initConsumer(bool enablePartitionsUpdate) {
+        clientForConsumer_.reset(new Client(serviceUrl, newClientConfig(enablePartitionsUpdate)));
+        return clientForConsumer_->subscribe(topicName, "SubscriptionName", consumer_);
+    }
+
+    void close() {
+        producer_.close();
+        clientForProducer_->close();
+        consumer_.close();
+        clientForConsumer_->close();
+    }
+
+    void doSendAndReceive(int numMessagesSend, int numMessagesReceive) {
+        names_.clear();
+        for (int i = 0; i < numMessagesSend; i++) {
+            producer_.send(MessageBuilder().setContent("a").build());
+        }
+        while (numMessagesReceive > 0) {
+            Message msg;
+            if (consumer_.receive(msg, 100) == ResultOk) {
+                names_.emplace(msg.getTopicName());
+                consumer_.acknowledge(msg);
+                numMessagesReceive--;
+            }
+        }
+    }
+
+   private:
+    std::set<std::string> names_;
+
+    std::unique_ptr<Client> clientForProducer_;
+    Producer producer_;
+
+    std::unique_ptr<Client> clientForConsumer_;
+    Consumer consumer_;
+};
 
 static void waitForPartitionsUpdated() {
     // Assume producer and consumer have updated partitions in 3 seconds if enabled
     std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
-class PartitionsUpdateTest : public ::testing::Test {
-   protected:
-    PartitionsUpdateTest() : clientForProducer_(serviceUrl), clientForConsumer_(serviceUrl) {
-        // Ensure `topicName` doesn't exist before created
-        makeDeleteRequest(topicOperateUrl + topicNameSuffix);
-        makeDeleteRequest(topicOperateUrl + topicNameSuffix + "/partitions");
-    }
-
-    void SetUp() override {
-        // Create a partitioned topic
-        int res = makePutRequest(topicOperateUrl + topicNameSuffix + "/partitions",
-                                 std::to_string(initialNumPartitions));
-        ASSERT_TRUE(res == 204 || res == 409);
-    }
-
-    void TearDown() override {
-        // Close producer and consumer first, otherwise delete will fail
-        consumer_.close();
-        clientForConsumer_.close();
-
-        producer_.close();
-        clientForProducer_.close();
-
-        int res = makeDeleteRequest(topicOperateUrl + topicNameSuffix + "/partitions");
-        ASSERT_TRUE(res == 204 || res == 409);
-    }
-
-    bool initProducer(bool enablePartitionsUpdateForProducer) {
-        if (enablePartitionsUpdateForProducer) {
-            clientForProducer_ = Client(serviceUrl, ClientConfiguration().setPartititionsUpdateInterval(1));
-        } else {
-            clientForProducer_ = Client(serviceUrl, ClientConfiguration().setPartititionsUpdateInterval(0));
-        }
-        return clientForProducer_.createProducer(topicName, producerConfig, producer_) == ResultOk;
-    }
-
-    bool initConsumer(bool enablePartitionsUpdateForConsumer) {
-        if (enablePartitionsUpdateForConsumer) {
-            clientForConsumer_ = Client(serviceUrl, ClientConfiguration().setPartititionsUpdateInterval(1));
-        } else {
-            clientForConsumer_ = Client(serviceUrl, ClientConfiguration().setPartititionsUpdateInterval(0));
-        }
-        return clientForConsumer_.subscribe(topicName, subName, consumer_) == ResultOk;
-    }
-
-    void sendMessages(int numMessages) {
-        for (int i = 0; i < numMessages; i++) {
-            producer_.send(MessageBuilder().setContent("a").build());
-        }
-    }
-
-    void receiveMessages(int numMessages) {
-        partitionNames_.clear();
-        while (numMessages > 0) {
-            Message msg;
-            if (consumer_.receive(msg, 100) == ResultOk) {
-                partitionNames_.emplace(msg.getTopicName());
-                numMessages--;
-            }
-        }
-    }
-
-    Client clientForProducer_;
-    Producer producer_;
-
-    Client clientForConsumer_;
-    Consumer consumer_;
-
-    std::set<std::string> partitionNames_;
-};
-
-TEST_F(PartitionsUpdateTest, testConfigPartitionsUpdateInterval) {
+TEST(PartitionsUpdateTest, testConfigPartitionsUpdateInterval) {
     ClientConfiguration clientConfig;
     ASSERT_EQ(60, clientConfig.getPartitionsUpdateInterval());
 
@@ -137,55 +117,60 @@ TEST_F(PartitionsUpdateTest, testConfigPartitionsUpdateInterval) {
     ASSERT_EQ(static_cast<unsigned int>(-1), clientConfig.getPartitionsUpdateInterval());
 }
 
-TEST_F(PartitionsUpdateTest, testOnlyProducerEnabled) {
-    ASSERT_TRUE(initProducer(true));
-    ASSERT_TRUE(initConsumer(false));
+TEST(PartitionsUpdateTest, testPartitionsUpdate) {
+    // Ensure `topicName` doesn't exist before created
+    makeDeleteRequest(topicOperateUrl);
+    // Create a 2 partitions topic
+    int res = makePutRequest(topicOperateUrl, "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
 
-    updateNumPartitions();
+    PartitionsSet partitionsSet;
+
+    // 1. Both producer and consumer enable partitions update
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(true));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(true));
+
+    res = makePostRequest(topicOperateUrl, "3");  // update partitions to 3
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
     waitForPartitionsUpdated();
 
-    // Only `initialNumPartitions / latestNumPartitions` of produced messages could be consumed
-    sendMessages(latestNumPartitions * latestNumPartitions);
-    receiveMessages(initialNumPartitions * latestNumPartitions);
+    partitionsSet.doSendAndReceive(3, 3);
+    ASSERT_EQ(3, partitionsSet.size());
+    partitionsSet.close();
 
-    ASSERT_EQ(initialNumPartitions, partitionNames_.size());
-}
+    // 2. Only producer enables partitions update
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(true));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(false));
 
-TEST_F(PartitionsUpdateTest, testOnlyConsumerEnabled) {
-    ASSERT_TRUE(initProducer(false));
-    ASSERT_TRUE(initConsumer(true));
-
-    updateNumPartitions();
+    res = makePostRequest(topicOperateUrl, "5");  // update partitions to 5
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
     waitForPartitionsUpdated();
 
-    sendMessages(latestNumPartitions);
-    receiveMessages(latestNumPartitions);
+    partitionsSet.doSendAndReceive(5, 3);  // can't consume partition-3,4
+    ASSERT_EQ(3, partitionsSet.size());
+    partitionsSet.close();
 
-    ASSERT_EQ(initialNumPartitions, partitionNames_.size());
-}
+    // 3. Only consumer enables partitions update
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(false));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(true));
 
-TEST_F(PartitionsUpdateTest, testBothEnabled) {
-    ASSERT_TRUE(initProducer(true));
-    ASSERT_TRUE(initConsumer(true));
-
-    updateNumPartitions();
+    res = makePostRequest(topicOperateUrl, "7");  // update partitions to 7
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
     waitForPartitionsUpdated();
 
-    sendMessages(latestNumPartitions);
-    receiveMessages(latestNumPartitions);
+    partitionsSet.doSendAndReceive(7, 7);
+    ASSERT_EQ(5, partitionsSet.size());
+    partitionsSet.close();
 
-    ASSERT_EQ(latestNumPartitions, partitionNames_.size());
-}
+    // 4. Both producer and consumer disables partitions update
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(false));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(false));
 
-TEST_F(PartitionsUpdateTest, testBothDisabled) {
-    ASSERT_TRUE(initProducer(false));
-    ASSERT_TRUE(initConsumer(false));
-
-    updateNumPartitions();
+    res = makePostRequest(topicOperateUrl, "10");  // update partitions to 10
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
     waitForPartitionsUpdated();
 
-    sendMessages(latestNumPartitions);
-    receiveMessages(latestNumPartitions);
-
-    ASSERT_EQ(initialNumPartitions, partitionNames_.size());
+    partitionsSet.doSendAndReceive(10, 10);
+    ASSERT_EQ(7, partitionsSet.size());
+    partitionsSet.close();
 }
