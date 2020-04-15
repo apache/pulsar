@@ -18,6 +18,7 @@
  */
 #include "utils.h"
 
+#include <datetime.h>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
@@ -85,8 +86,34 @@ const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
 
+void deliverAfter(MessageBuilder* const builder, PyObject* obj_delta) {
+    PyDateTime_Delta const* pydelta = reinterpret_cast<PyDateTime_Delta*>(obj_delta);
+
+    long days = pydelta->days;
+    const bool is_negative = days < 0;
+    if (is_negative) {
+        days = -days;
+    }
+
+    // Create chrono duration object
+    std::chrono::milliseconds
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::hours(24)*days
+                + std::chrono::seconds(pydelta->seconds)
+                + std::chrono::microseconds(pydelta->microseconds)
+                );
+
+    if (is_negative) {
+        duration = duration * -1;
+    }
+
+    builder->setDeliverAfter(duration);
+}
+
 void export_message() {
     using namespace boost::python;
+
+    PyDateTime_IMPORT;
 
     MessageBuilder& (MessageBuilder::*MessageBuilderSetContentString)(const std::string&) = &MessageBuilder::setContent;
 
@@ -95,6 +122,8 @@ void export_message() {
             .def("property", &MessageBuilder::setProperty, return_self<>())
             .def("properties", &MessageBuilder::setProperties, return_self<>())
             .def("sequence_id", &MessageBuilder::setSequenceId, return_self<>())
+            .def("deliver_after", &deliverAfter, return_self<>())
+            .def("deliver_at", &MessageBuilder::setDeliverAt, return_self<>())
             .def("partition_key", &MessageBuilder::setPartitionKey, return_self<>())
             .def("event_timestamp", &MessageBuilder::setEventTimestamp, return_self<>())
             .def("replication_clusters", &MessageBuilder::setReplicationClusters, return_self<>())
