@@ -43,7 +43,9 @@ function ci::delete_cluster() {
 
 function ci::install_storage_provisioner() {
     echo "Installing the local storage provisioner ..."
-    ${HELM} install local-storage-provisioner ${CHARTS_HOME}/charts/local-storage-provisioner
+    ${HELM} repo add streamnative https://charts.streamnative.io
+    ${HELM} repo update
+    ${HELM} install local-storage-provisioner streamnative/local-storage-provisioner
     WC=$(${KUBECTL} get pods --field-selector=status.phase=Running | grep local-storage-provisioner | wc -l)
     while [[ ${WC} -lt 1 ]]; do
       echo ${WC};
@@ -79,9 +81,9 @@ function ci::install_pulsar_chart() {
     ${CHARTS_HOME}/scripts/pulsar/upload_tls.sh -k ${CLUSTER} -d ${PULSAR_HOME}/.ci/tls
     sleep 10
 
-    echo ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
-    ${HELM} template --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
-    ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/charts/pulsar
+    echo ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
+    ${HELM} template --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
+    ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
 
     echo "wait until broker is alive"
     WC=$(${KUBECTL} get pods -n ${NAMESPACE} --field-selector=status.phase=Running | grep ${CLUSTER}-broker | wc -l)
