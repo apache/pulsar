@@ -140,18 +140,24 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     @Test(groups = "source")
-    public void testDebeziumMySqlSource() throws Exception {
-        testDebeziumMySqlConnect();
+    public void testDebeziumMySqlSourceJson() throws Exception {
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter");
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMySqlSourceAvro() throws Exception {
+        testDebeziumMySqlConnect(
+                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter");
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
-        testDebeziumPostgreSqlConnect();
+        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter");
     }
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
-        testDebeziumMongoDbConnect();
+        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter");
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -2262,8 +2268,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    private  void testDebeziumMySqlConnect()
-        throws Exception {
+    private void testDebeziumMySqlConnect(String converterClassName) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2301,14 +2306,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
             .topic(consumeTopicName)
             .subscriptionName("debezium-source-tester")
             .subscriptionType(SubscriptionType.Exclusive)
             .subscribe();
 
         @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
 
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
@@ -2331,25 +2336,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2358,7 +2363,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumPostgreSqlConnect() throws Exception {
+    private  void testDebeziumPostgreSqlConnect(String converterClassName) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2396,7 +2401,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2426,25 +2431,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2453,7 +2458,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumMongoDbConnect() throws Exception {
+    private  void testDebeziumMongoDbConnect(String converterClassName) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2491,7 +2496,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2520,31 +2525,40 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private Schema getSchema(String converterClassName) {
+        if (converterClassName.endsWith("AvroConverter")) {
+            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME());
+        } else {
+            return KeyValueSchema.kvBytes();
+        }
+
     }
 
 }

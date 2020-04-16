@@ -31,7 +31,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -178,6 +180,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
             if (record.getSchema() != null) {
+                schema = record.getSchema();
                 return getProducer(record
                         .getDestinationTopic()
                         .orElse(pulsarSinkConfig.getTopic()))
@@ -231,6 +234,7 @@ public class PulsarSink<T> implements Sink<T> {
                     record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
             );
             if (record.getSchema() != null) {
+                schema = record.getSchema();
                 return producer.newMessage(record.getSchema());
             } else {
                 return producer.newMessage();
@@ -289,7 +293,8 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
-        if (record.getKey().isPresent()) {
+        if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
+                ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
             msg.key(record.getKey().get());
         }
 

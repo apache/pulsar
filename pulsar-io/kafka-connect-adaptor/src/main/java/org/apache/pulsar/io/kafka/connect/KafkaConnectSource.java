@@ -37,6 +37,8 @@ import java.util.stream.Collectors;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +57,9 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
-import org.apache.pulsar.io.kafka.connect.schema.KafkaSchema;
+import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
+import org.apache.pulsar.kafka.shade.io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
+import org.apache.pulsar.kafka.shade.io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 
 /**
  * A pulsar source that runs
@@ -81,8 +85,9 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     // number of outstandingRecords that have been polled but not been acked
     private AtomicInteger outstandingRecords = new AtomicInteger(0);
 
-    private final Cache<String, KafkaSchema> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build();
+    private final Cache<org.apache.kafka.connect.data.Schema, KafkaSchemaWrappedSchema> readerCache =
+            CacheBuilder.newBuilder().maximumSize(10000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -111,6 +116,14 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             .getDeclaredConstructor()
             .newInstance();
 
+        if (keyConverter instanceof AvroConverter) {
+            keyConverter = new AvroConverter(new MockSchemaRegistryClient());
+            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+        }
+        if (valueConverter instanceof AvroConverter) {
+            valueConverter = new AvroConverter(new MockSchemaRegistryClient());
+            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+        }
         keyConverter.configure(config, true);
         valueConverter.configure(config, false);
 
@@ -155,7 +168,6 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 Record<KeyValue<byte[], byte[]>> processRecord = processSourceRecord(currentBatch.next());
                 if (processRecord.getValue().getValue() == null) {
                     outstandingRecords.decrementAndGet();
-                    continue;
                 } else {
                     return processRecord;
                 }
@@ -198,46 +210,37 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         @Getter
         Optional<String> destinationTopic;
 
-        private final AvroData avroData;
+        KafkaSchemaWrappedSchema keySchema;
 
-        private org.apache.pulsar.kafka.shade.avro.Schema keyAvroSchema;
-
-        private org.apache.pulsar.kafka.shade.avro.Schema valueAvroSchema;
-
-        private final KafkaSchema keySchema;
-
-        private final KafkaSchema valueSchema;
-
-        private byte[] keyBytes;
-
-        private byte[] valueBytes;
+        KafkaSchemaWrappedSchema valueSchema;
 
         KafkaSourceRecord(SourceRecord srcRecord) {
-            keyBytes = keyConverter.fromConnectData(
-                srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
-            valueBytes = valueConverter.fromConnectData(
-                srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
-            this.avroData = new AvroData(1000);
-            this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
-            this.value = new KeyValue(keyBytes, valueBytes);
+            AvroData avroData = new AvroData(1000);
+            byte[] keyBytes = keyConverter.fromConnectData(
+                    srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
+            this.key = keyBytes != null ? Optional.of(
+                    Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
+
+            byte[] valueBytes = valueConverter.fromConnectData(
+                    srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+
+            this.value = new KeyValue<>(keyBytes, valueBytes);
 
             this.topicName = Optional.of(srcRecord.topic());
-            String keyName = this.topicName.get() + "-key";
-            String valueName = this.topicName.get() + "-value";
 
-            if (readerCache.getIfPresent(keyName) == null
-                    || readerCache.getIfPresent(valueName) == null) {
-                keySchema = new KafkaSchema();
-                valueSchema = new KafkaSchema();
-                readerCache.put(keyName, keySchema);
-                readerCache.put(valueName, valueSchema);
-                keyAvroSchema = this.avroData.fromConnectSchema(srcRecord.keySchema());
-                valueAvroSchema = this.avroData.fromConnectSchema(srcRecord.valueSchema());
-                keySchema.setAvroSchema(true, this.avroData, keyAvroSchema, keyConverter);
-                valueSchema.setAvroSchema(false, this.avroData, valueAvroSchema, valueConverter);
-            } else {
-                keySchema = readerCache.getIfPresent(keyName);
-                valueSchema = readerCache.getIfPresent(valueName);
+            keySchema = readerCache.getIfPresent(srcRecord.keySchema());
+            valueSchema = readerCache.getIfPresent(srcRecord.valueSchema());
+
+            if (keySchema == null) {
+                keySchema = new KafkaSchemaWrappedSchema(
+                        avroData.fromConnectSchema(srcRecord.keySchema()), keyConverter);
+                readerCache.put(srcRecord.keySchema(), keySchema);
+            }
+
+            if (valueSchema == null) {
+                valueSchema = new KafkaSchemaWrappedSchema(
+                        avroData.fromConnectSchema(srcRecord.valueSchema()), valueConverter);
+                readerCache.put(srcRecord.valueSchema(), valueSchema);
             }
 
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
@@ -250,8 +253,16 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         }
 
         @Override
-        public Schema<KeyValue<byte[], byte[]>> getSchema() {
-            return KeyValueSchema.of(keySchema, valueSchema);
+        public Schema getSchema() {
+            // When use `org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter`
+            // as the key.converter and value.converter, make the `KeyValueSchema` encodingType
+            // use the `KeyValueEncodingType.SEPARATED`, then the pulsar client could get the original
+            // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
+            if (keyConverter instanceof AvroConverter && valueConverter instanceof AvroConverter) {
+                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+            } else {
+                return KeyValueSchema.of(Schema.BYTES, Schema.BYTES);
+            }
         }
 
         @Override

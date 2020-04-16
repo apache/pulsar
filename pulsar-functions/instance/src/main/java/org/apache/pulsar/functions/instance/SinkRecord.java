@@ -24,6 +24,7 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
 
 @Data
@@ -80,5 +81,10 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Optional<String> getDestinationTopic() {
         return sourceRecord.getDestinationTopic();
+    }
+
+    @Override
+    public Schema<T> getSchema() {
+        return sourceRecord.getSchema();
     }
 }

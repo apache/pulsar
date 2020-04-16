@@ -73,6 +73,9 @@ public class GenericAvroSchema extends GenericSchemaImpl {
                  schemaInfo);
              Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
              Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
+             readerSchema.addProp(GenericAvroReader.OFFSET_PROP,
+                     schemaInfo.getProperties().getOrDefault(GenericAvroReader.OFFSET_PROP, "0"));
+
              return new GenericAvroReader(
                      writerSchema,
                      readerSchema,
