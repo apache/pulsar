@@ -53,12 +53,17 @@ public class PulsarClientTool {
             "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
+    @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
+    String tlsTrustCertsFilePath;
+
+    @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
+    Boolean tlsAllowInsecureConnection = null;
+
+    @Parameter(names = { "--tls-hostname-verification" }, description = "Enable TLS hostname verification")
+    Boolean tlsEnableHostnameVerification = null;
+
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
-
-    boolean tlsAllowInsecureConnection = false;
-    boolean tlsEnableHostnameVerification = false;
-    String tlsTrustCertsFilePath = null;
 
     JCommander commandParser;
     CmdProduce produceCommand;
