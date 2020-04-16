@@ -17,8 +17,17 @@
 # under the License.
 #
 
+components:
+  pulsar_manager: false
+
+monitoring:
+  prometheus: false
+  grafana: false
+  node_exporter: false
+  alert_manager: false
+
 volumes:
-  local_storage: true
+  persistence: false
 
 # disabled AntiAffinity
 affinity:

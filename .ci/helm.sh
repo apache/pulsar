@@ -19,11 +19,12 @@
 #
 
 BINDIR=`dirname "$0"`
-CHARTS_HOME=`cd ${BINDIR}/../deployment/kubernetes/helm/;pwd`
+PULSAR_HOME=`cd ${BINDIR}/..;pwd`
+CHARTS_HOME=${PULSAR_HOME}/deployment/kubernetes/helm
 OUTPUT_BIN=${CHARTS_HOME}/output/bin
+KIND_BIN=$OUTPUT_BIN/kind
 HELM=${OUTPUT_BIN}/helm
 KUBECTL=${OUTPUT_BIN}/kubectl
-KIND_BIN=$OUTPUT_BIN/kind
 NAMESPACE=pulsar
 CLUSTER=pulsar-ci
 CLUSTER_ID=$(uuidgen)
@@ -77,7 +78,7 @@ function ci::install_pulsar_chart() {
     ${KUBECTL} create namespace ${NAMESPACE}
     echo ${CHARTS_HOME}/scripts/pulsar/prepare_helm_release.sh -k ${CLUSTER} -n ${NAMESPACE} ${extra_opts}
     ${CHARTS_HOME}/scripts/pulsar/prepare_helm_release.sh -k ${CLUSTER} -n ${NAMESPACE} ${extra_opts}
-    ${CHARTS_HOME}/scripts/pulsar/upload_tls.sh -k ${CLUSTER} -d ${CHARTS_HOME}/../../../.ci/tls
+    ${CHARTS_HOME}/scripts/pulsar/upload_tls.sh -k ${CLUSTER} -d ${PULSAR_HOME}/.ci/tls
     sleep 10
 
     echo ${HELM} install --values ${value_file} ${CLUSTER} ${CHARTS_HOME}/pulsar
