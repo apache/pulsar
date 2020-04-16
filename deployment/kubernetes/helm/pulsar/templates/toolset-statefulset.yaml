@@ -99,7 +99,7 @@ spec:
       {{- if and .Values.tls.enabled (or .Values.tls.broker.enabled .Values.tls.proxy.enabled) }}
       - name: proxy-ca
         secret:
-          secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+          secretName: "{{ .Release.Name }}-ca-tls"
           items:
             - key: ca.crt
               path: ca.crt

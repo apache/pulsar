@@ -28,7 +28,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.proxy.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.proxy.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:
@@ -67,7 +67,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.broker.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.broker.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:
@@ -106,7 +106,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.bookie.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.bookie.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:
@@ -144,7 +144,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.autorecovery.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.autorecovery.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:
@@ -179,7 +179,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.toolset.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.toolset.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:
@@ -214,7 +214,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   # Secret names are always required.
-  secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.zookeeper.cert_name }}"
+  secretName: "{{ .Release.Name }}-{{ .Values.tls.zookeeper.cert_name }}"
   duration: "{{ .Values.tls.common.duration }}"
   renewBefore: "{{ .Values.tls.common.renewBefore }}"
   organization:

@@ -29,8 +29,6 @@ FUNCTION=${FUNCTION:-"false"}
 
 source ${PULSAR_HOME}/.ci/helm.sh
 
-CHARTS_HOME="${PULSAR_HOME}/deployment/kubernetes/helm"
-
 # create cluster
 ci::create_cluster
 

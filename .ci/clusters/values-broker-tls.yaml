@@ -17,6 +17,12 @@
 # under the License.
 #
 
+monitoring:
+  prometheus: false
+  grafana: false
+  node_exporter: false
+  alert_manager: false
+
 volumes:
   local_storage: true
 
@@ -27,6 +33,7 @@ affinity:
 # disable auto recovery
 components:
   autorecovery: false
+  pulsar_manager: false
 
 zookeeper:
   replicaCount: 1
