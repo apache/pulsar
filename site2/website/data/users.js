@@ -85,8 +85,7 @@ module.exports = [
     {
         name: 'Stream Native',
         url: 'https://streamnative.io/',
-        logo: 'https://streamnative.io/img/streamnative_logo.8284ad3d.png',
-        logo_white: true
+        logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
     },
     {
         name: 'EMQ',
