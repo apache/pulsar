@@ -181,7 +181,7 @@ public class Producer {
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
             int encryptionKeysCount = msgMetadata.getEncryptionKeysCount();
-            metadata.recycle();
+            msgMetadata.recycle();
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
