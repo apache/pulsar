@@ -659,7 +659,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, brokerAudience);
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNoBrokerTokenAudience() throws Exception {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
 
@@ -676,7 +676,6 @@ public class AuthenticationProviderTokenTest {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
 
         Properties properties = new Properties();
-        // Not set broker audience, should throw exception.
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, Lists.newArrayList(brokerAudience));
@@ -688,7 +687,7 @@ public class AuthenticationProviderTokenTest {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
 
         Properties properties = new Properties();
-        // Not set broker audience, should throw exception.
+        // Set wrong broker audience, should throw exception.
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties,
@@ -704,13 +703,12 @@ public class AuthenticationProviderTokenTest {
         List<String> audiences = Lists.newArrayList("AnotherBrokerAudience", brokerAudience);
 
         Properties properties = new Properties();
-        // Not set broker audience, should throw exception.
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
     }
 
-    @Test
+    @Test(expectedExceptions = AuthenticationException.class)
     public void testMultiTokenAudienceNotInclude() throws Exception {
         String audienceClaim = "audience_claim_" + System.currentTimeMillis();
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
@@ -718,7 +716,7 @@ public class AuthenticationProviderTokenTest {
         List<String> audiences = Lists.newArrayList("AnotherBrokerAudience", brokerAudience + "_wrong");
 
         Properties properties = new Properties();
-        // Not set broker audience, should throw exception.
+        // Broker audience not included in token's audiences, should throw exception.
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
