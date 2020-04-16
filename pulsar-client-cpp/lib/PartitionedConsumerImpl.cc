@@ -203,7 +203,10 @@ void PartitionedConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
 }
 
 void PartitionedConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
-    callback(ResultOperationNotSupported);
+    int32_t partition = msgId.partition();
+    assert(partition < numPartitions_ && partition >= 0 && consumers_.size() > partition);
+    unAckedMessageTrackerPtr_->removeMessagesTill(msgId);
+    consumers_[partition]->acknowledgeCumulativeAsync(msgId, callback);
 }
 
 void PartitionedConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
