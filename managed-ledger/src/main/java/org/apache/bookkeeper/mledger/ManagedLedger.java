@@ -447,4 +447,18 @@ public interface ManagedLedger {
      * Signaling managed ledger that we can resume after BK write failure
      */
     void readyToCreateNewLedger();
+
+    /**
+     * Returns managed-ledger's properties.
+     *
+     * @return key-values of properties
+     */
+    Map<String, String> getProperties();
+
+    /**
+     * Updates managed-ledger's properties.
+     *
+     * @param properties key-values of properties
+     */
+    void setProperties(Map<String, String> properties) throws InterruptedException;
 }

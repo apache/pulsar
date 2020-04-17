@@ -47,6 +47,7 @@ import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1167,6 +1168,24 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         c2.close();
         ledger.deleteCursor("c2");
         assertEquals(Sets.newHashSet(ledger.getCursors()), Sets.newHashSet());
+    }
+
+    @Test
+    public void testSetProperties() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        properties.put("key3", "value3");
+        ledger.setProperties(properties);
+        assertEquals(ledger.getProperties(), properties);
+
+        Map<String, String> newProperties = new HashMap<>();
+        newProperties.put("key4", "value4");
+        newProperties.put("key5", "value5");
+        newProperties.put("key6", "value6");
+        ledger.setProperties(newProperties);
+        assertEquals(ledger.getProperties(), newProperties);
     }
 
     @Test
