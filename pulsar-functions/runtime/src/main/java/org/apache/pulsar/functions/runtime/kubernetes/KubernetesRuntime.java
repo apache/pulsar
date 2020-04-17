@@ -131,6 +131,9 @@ public class KubernetesRuntime implements Runtime {
     private final String jobNamespace;
     private final Map<String, String> customLabels;
     private final String pulsarDockerImageName;
+    private final String javaFunctionDockerImageName;
+    private final String pythonFunctionDockerImageName;
+    private final String goFunctionDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
     private final String configAdminCLI;
@@ -155,6 +158,9 @@ public class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      String javaFunctionDockerImageName,
+                      String pythonFunctionDockerImageName,
+                      String goFunctionDockerImageName,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -184,6 +190,9 @@ public class KubernetesRuntime implements Runtime {
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
         this.pulsarDockerImageName = pulsarDockerImageName;
+        this.javaFunctionDockerImageName = javaFunctionDockerImageName;
+        this.pythonFunctionDockerImageName = pythonFunctionDockerImageName;
+        this.goFunctionDockerImageName = goFunctionDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
@@ -975,6 +984,15 @@ public class KubernetesRuntime implements Runtime {
 
         // set up the container images
         container.setImage(pulsarDockerImageName);
+        if (javaFunctionDockerImageName != null){
+            container.setImage(javaFunctionDockerImageName);
+        }
+        if (pythonFunctionDockerImageName != null){
+            container.setImage(pythonFunctionDockerImageName);
+        }
+        if (goFunctionDockerImageName != null){
+            container.setImage(goFunctionDockerImageName);
+        }
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command

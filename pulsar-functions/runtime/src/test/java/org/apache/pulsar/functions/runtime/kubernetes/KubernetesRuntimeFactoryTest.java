@@ -153,6 +153,9 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setJavaFunctionDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setPythonFunctionDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setGoFunctionDockerImageName(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
         kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
         kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);
@@ -355,12 +358,18 @@ public class KubernetesRuntimeFactoryTest {
 
         HashMap<String, String> configs = new HashMap<>();
         configs.put("pulsarDockerImageName", "test_dockerImage2");
+        configs.put("javaFunctionDockerImageName", "test_java_function_dockerImage2");
+        configs.put("pythonFunctionDockerImageName", "test_python_function_dockerImage2");
+        configs.put("goFunctionDockerImageName", "test_go_function_dockerImage2");
         configs.put("imagePullPolicy", "test_imagePullPolicy2");
         v1ConfigMap.setData(configs);
         KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
         Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null), eq(true), eq(false));
 
        assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "test_dockerImage2");
+       assertEquals(kubernetesRuntimeFactory.getJavaFunctionDockerImageName(), "test_java_function_dockerImage2");
+       assertEquals(kubernetesRuntimeFactory.getPythonFunctionDockerImageName(), "test_python_function_dockerImage2");
+       assertEquals(kubernetesRuntimeFactory.getGoFunctionDockerImageName(), "test_go_function_dockerImage2");
        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");
     }
 
@@ -371,6 +380,9 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setK8Uri("test_k8uri");
         kubernetesRuntimeFactoryConfig.setJobNamespace("test_jobNamespace");
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName("test_dockerImage");
+        kubernetesRuntimeFactoryConfig.setJavaFunctionDockerImageName("test_java_function_dockerImage");
+        kubernetesRuntimeFactoryConfig.setPythonFunctionDockerImageName("test_python_function_dockerImage");
+        kubernetesRuntimeFactoryConfig.setGoFunctionDockerImageName("test_go_function_dockerImage");
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(

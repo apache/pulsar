@@ -828,6 +828,9 @@ public class FunctionRuntimeManagerTest {
         kubernetesContainerFactory.setK8Uri("k8Uri");
         kubernetesContainerFactory.setJobNamespace("jobNamespace");
         kubernetesContainerFactory.setPulsarDockerImageName("pulsarDockerImageName");
+        kubernetesContainerFactory.setJavaFunctionDockerImageName("javaFunctionDockerImageName");
+        kubernetesContainerFactory.setPythonFunctionDockerImageName("pythonFunctionDockerImageName");
+        kubernetesContainerFactory.setGoFunctionDockerImageName("goFunctionDockerImageName");
         kubernetesContainerFactory.setImagePullPolicy("imagePullPolicy");
         kubernetesContainerFactory.setPulsarRootDir("pulsarRootDir");
         WorkerConfig workerConfig = new WorkerConfig();
@@ -846,6 +849,9 @@ public class FunctionRuntimeManagerTest {
         assertEquals(kubernetesRuntimeFactory.getK8Uri(), "k8Uri");
         assertEquals(kubernetesRuntimeFactory.getJobNamespace(), "jobNamespace");
         assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "pulsarDockerImageName");
+        assertEquals(kubernetesRuntimeFactory.getJavaFunctionDockerImageName(), "javaFunctionDockerImageName");
+        assertEquals(kubernetesRuntimeFactory.getPythonFunctionDockerImageName(), "pythonFunctionDockerImageName");
+        assertEquals(kubernetesRuntimeFactory.getGoFunctionDockerImageName(), "goFunctionDockerImageName");
         assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "imagePullPolicy");
         assertEquals(kubernetesRuntimeFactory.getPulsarRootDir(), "pulsarRootDir");
 

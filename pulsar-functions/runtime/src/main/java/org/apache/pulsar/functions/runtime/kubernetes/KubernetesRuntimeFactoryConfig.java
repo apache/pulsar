@@ -43,6 +43,21 @@ public class KubernetesRuntimeFactoryConfig {
     protected String pulsarDockerImageName;
 
     @FieldContext(
+            doc = "The docker image used to run java function instance. By default it is null"
+    )
+    protected String javaFunctionDockerImageName;
+
+    @FieldContext(
+            doc = "The docker image used to run python function instance. By default it is null"
+    )
+    protected String pythonFunctionDockerImageName;
+
+    @FieldContext(
+            doc = "The docker image used to run go function instance. By default it is null"
+    )
+    protected String goFunctionDockerImageName;
+
+    @FieldContext(
             doc = "The image pull policy for image used to run function instance. By default it is `IfNotPresent`"
     )
     protected String imagePullPolicy;

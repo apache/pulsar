@@ -53,6 +53,12 @@ kubernetesContainerFactory:
   jobNamespace:
   # the docker image to run function instance. by default it is `apachepulsar/pulsar`
   pulsarDockerImageName:
+  # the docker image to run java function instance. by default it is `null`
+  javaFunctionDockerImageName:
+  # the docker image to run python function instance. by default it is `null`
+  pythonFunctionDockerImageName:
+  # the docker image to run go function instance. by default it is `null`
+  goFunctionDockerImageName:
   # the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.
   # if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly
   pulsarRootDir:
