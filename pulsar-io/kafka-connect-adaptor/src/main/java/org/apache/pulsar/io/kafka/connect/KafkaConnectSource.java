@@ -228,16 +228,20 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
             this.topicName = Optional.of(srcRecord.topic());
 
-            keySchema = readerCache.getIfPresent(srcRecord.keySchema());
-            valueSchema = readerCache.getIfPresent(srcRecord.valueSchema());
+            if (srcRecord.keySchema() != null) {
+                keySchema = readerCache.getIfPresent(srcRecord.keySchema());
+            }
+            if (srcRecord.valueSchema() != null) {
+                valueSchema = readerCache.getIfPresent(srcRecord.valueSchema());
+            }
 
-            if (keySchema == null) {
+            if (srcRecord.keySchema() != null && keySchema == null) {
                 keySchema = new KafkaSchemaWrappedSchema(
                         avroData.fromConnectSchema(srcRecord.keySchema()), keyConverter);
                 readerCache.put(srcRecord.keySchema(), keySchema);
             }
 
-            if (valueSchema == null) {
+            if (srcRecord.valueSchema() != null && valueSchema == null) {
                 valueSchema = new KafkaSchemaWrappedSchema(
                         avroData.fromConnectSchema(srcRecord.valueSchema()), valueConverter);
                 readerCache.put(srcRecord.valueSchema(), valueSchema);
