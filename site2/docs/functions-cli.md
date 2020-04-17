@@ -113,7 +113,7 @@ Update a Pulsar Function that has been deployed to a Pulsar cluster.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | true
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 classname | The class name of a Pulsar Function. | |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
 custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
