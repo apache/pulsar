@@ -78,6 +78,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -122,6 +123,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -191,6 +193,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService messagePublishBufferMonitor;
+    private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
@@ -272,6 +275,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-compaction-monitor"));
         this.messagePublishBufferMonitor =
             Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-publish-buffer-monitor"));
+        this.consumedLedgersMonitor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -402,8 +407,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startMessageExpiryMonitor();
         this.startCompactionMonitor();
         this.startMessagePublishBufferMonitor();
+        this.startConsumedLedgersMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
+        this.startCheckReplicationPolicies();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(pulsar.getExecutor());
@@ -446,6 +453,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 TimeUnit.MINUTES);
     }
 
+    protected void startCheckReplicationPolicies() {
+        int interval = pulsar.getConfig().getReplicatioPolicyCheckDurationSeconds();
+        if (interval > 0) {
+            messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkReplicationPolicies), interval, interval,
+                    TimeUnit.SECONDS);
+        }
+    }
+
     protected void startCompactionMonitor() {
         int interval = pulsar().getConfiguration().getBrokerServiceCompactionMonitorIntervalInSeconds();
         if (interval > 0) {
@@ -459,6 +474,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (interval > 0 && maxMessagePublishBufferBytes > 0) {
             messagePublishBufferMonitor.scheduleAtFixedRate(safeRun(this::checkMessagePublishBuffer),
                                                             interval, interval, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    protected void startConsumedLedgersMonitor() {
+        int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
+        if (interval > 0) {
+            consumedLedgersMonitor.scheduleAtFixedRate(safeRun(this::checkConsumedLedgers),
+                                                            interval, interval, TimeUnit.SECONDS);
         }
     }
 
@@ -1143,12 +1166,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         forEachTopic(Topic::checkMessageExpiry);
     }
 
+    public void checkReplicationPolicies() {
+        forEachTopic(Topic::checkReplication);
+    }
+
     public void checkCompaction() {
         forEachTopic((t) -> {
                 if (t instanceof PersistentTopic) {
                     ((PersistentTopic) t).checkCompaction();
                 }
             });
+    }
+
+    private void checkConsumedLedgers() {
+        forEachTopic((t) -> {
+            if (t instanceof PersistentTopic) {
+                Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
+                        managedLedger -> {
+                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                        }
+                );
+            }
+        });
     }
 
     public void checkMessageDeduplicationInfo() {
@@ -2135,6 +2174,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return null;
         }
         log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        return null;
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return isAllowAutoSubscriptionCreation(topicName);
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final TopicName topicName) {
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = getAutoSubscriptionCreationOverride(topicName);
+        if (autoSubscriptionCreationOverride != null) {
+            return autoSubscriptionCreationOverride.allowAutoSubscriptionCreation;
+        } else {
+            return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+        }
+    }
+
+    private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
+        try {
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                return policies.get().autoSubscriptionCreationOverride;
+            }
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
+            return null;
+        }
+        log.warn("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
 }

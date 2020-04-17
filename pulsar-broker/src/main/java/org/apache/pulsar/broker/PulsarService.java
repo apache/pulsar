@@ -630,14 +630,14 @@ public class PulsarService implements AutoCloseable {
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                 (int) config.getZooKeeperSessionTimeoutMillis(),
                 config.getZooKeeperOperationTimeoutSeconds(), config.getConfigurationStoreServers(),
-                getOrderedExecutor(), this.cacheExecutor);
+                getOrderedExecutor(), this.cacheExecutor, config.getZooKeeperCacheExpirySeconds());
         try {
             this.globalZkCache.start();
         } catch (IOException e) {
             throw new PulsarServerException(e);
         }
 
-        this.configurationCacheService = new ConfigurationCacheService(getGlobalZkCache(), this.config.getClusterName());
+        this.configurationCacheService = new ConfigurationCacheService(globalZkCache, this.config.getClusterName());
         this.localZkCacheService = new LocalZooKeeperCacheService(getLocalZkCache(), this.configurationCacheService);
     }
 

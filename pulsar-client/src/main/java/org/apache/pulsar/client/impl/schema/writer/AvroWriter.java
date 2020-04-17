@@ -21,9 +21,11 @@ package org.apache.pulsar.client.impl.schema.writer;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 
 import java.io.ByteArrayOutputStream;
 
@@ -33,21 +35,33 @@ public class AvroWriter<T> implements SchemaWriter<T> {
     private ByteArrayOutputStream byteArrayOutputStream;
 
     public AvroWriter(Schema schema) {
+        this(schema, false);
+    }
+
+    public AvroWriter(Schema schema, boolean jsr310ConversionEnabled) {
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
-        this.writer = new ReflectDatumWriter<>(schema);
+        ReflectData reflectData = new ReflectData();
+        AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+        this.writer = new ReflectDatumWriter<>(schema, reflectData);
     }
 
     @Override
     public synchronized byte[] write(T message) {
+        byte[] outputBytes = null;
         try {
             writer.write(message, this.encoder);
-            this.encoder.flush();
-            return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
             throw new SchemaSerializationException(e);
         } finally {
+            try {
+                this.encoder.flush();
+                outputBytes = this.byteArrayOutputStream.toByteArray();
+            } catch (Exception ex) {
+                throw new SchemaSerializationException(ex);
+            }
             this.byteArrayOutputStream.reset();
         }
+        return outputBytes;
     }
 }

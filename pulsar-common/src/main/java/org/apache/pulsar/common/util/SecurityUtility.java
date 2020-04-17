@@ -257,16 +257,17 @@ public class SecurityUtility {
 
         try (BufferedReader reader = new BufferedReader(new FileReader(keyFilePath))) {
             StringBuilder sb = new StringBuilder();
-            String previousLine = "";
             String currentLine = null;
 
-            // Skip the first line (-----BEGIN RSA PRIVATE KEY-----)
-            reader.readLine();
-            while ((currentLine = reader.readLine()) != null) {
-                sb.append(previousLine);
-                previousLine = currentLine;
+            // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
+            while (!reader.readLine().startsWith("-----BEGIN")) {
+                reader.readLine();
             }
-            // Skip the last line (-----END RSA PRIVATE KEY-----)
+
+            // Stop (and skip) at the last line that has, say, -----END [RSA] PRIVATE KEY-----
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----END")) {
+                sb.append(currentLine);
+            }
 
             KeyFactory kf = KeyFactory.getInstance("RSA");
             KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));

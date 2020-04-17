@@ -92,7 +92,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 return;
             }
 
-            int messagesForC = Math.min(entriesWithSameKey.getValue().size(), consumer.getAvailablePermits());
+            int availablePermits = consumer.isWritable() ? consumer.getAvailablePermits() : 1;
+            if (log.isDebugEnabled() && !consumer.isWritable()) {
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
+                        consumer);
+            }
+            int messagesForC = Math.min(entriesWithSameKey.getValue().size(), availablePermits);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
                         name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);

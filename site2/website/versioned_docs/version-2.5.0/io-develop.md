@@ -183,7 +183,7 @@ Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-co
 The easiest approach to package a Pulsar connector is to create a NAR package using
 [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
 
-All you need to do is to include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector as below. 
+Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector as below. 
 
 ```xml
 <plugins>
@@ -194,6 +194,17 @@ All you need to do is to include this [nifi-nar-maven-plugin](https://mvnreposit
   </plugin>
 </plugins>
 ```
+
+You must also create a `resources/META-INF/services/pulsar-io.yaml` file with the following contents:
+
+```yaml
+name: connector name
+description: connector description
+sourceClass: fully qualified class name (only if source connector)
+sinkClass: fully qualified class name (only if sink connector)
+```
+
+If you are using the [Gradle NiFi plugin](https://github.com/sponiro/gradle-nar-plugin) you might need to create a directive to ensure your pulsar-io.yaml is [copied into the NAR file correctly](https://github.com/sponiro/gradle-nar-plugin/issues/5).
 
 > #### Tip
 > 

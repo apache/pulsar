@@ -820,7 +820,7 @@ public class ServerCnx extends PulsarHandler {
                                     Topic topic = optTopic.get();
 
                                     boolean rejectSubscriptionIfDoesNotExist = isDurable
-                                        && !service.pulsar().getConfig().isAllowAutoSubscriptionCreation()
+                                        && !service.isAllowAutoSubscriptionCreation(topicName.toString())
                                         && !topic.getSubscriptions().containsKey(subscriptionName);
 
                                     if (rejectSubscriptionIfDoesNotExist) {
