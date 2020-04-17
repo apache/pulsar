@@ -63,4 +63,9 @@ public class KafkaSchemaWrappedSchema implements Schema<byte[]> {
     public SchemaInfo getSchemaInfo() {
         return schemaInfo;
     }
+
+    @Override
+    public Schema<byte[]> clone() {
+        return null;
+    }
 }
