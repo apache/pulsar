@@ -982,8 +982,10 @@ public class KubernetesRuntime implements Runtime {
     V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        // set up the container images
-        container.setImage(pulsarDockerImageName);
+        // By default, if we do not use the function image of a specific language, then we will support all languages.
+        if (javaFunctionDockerImageName == null && pythonFunctionDockerImageName == null && goFunctionDockerImageName == null) {
+            container.setImage(pulsarDockerImageName);
+        }
         if (javaFunctionDockerImageName != null){
             container.setImage(javaFunctionDockerImageName);
         }
