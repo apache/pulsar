@@ -101,6 +101,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     boost::posix_time::time_duration partitionsUpdateInterval_;
     LookupServicePtr lookupServicePtr_;
     /* methods */
+    unsigned int getNumPartitions() const;
     unsigned int getNumPartitionsWithLock() const;
     ConsumerConfiguration getSinglePartitionConsumerConfig() const;
     ConsumerImplPtr newInternalConsumer(unsigned int partition, const ConsumerConfiguration& config) const;

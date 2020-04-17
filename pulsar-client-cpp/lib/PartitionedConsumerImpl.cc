@@ -174,9 +174,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
         callback(ResultUnknownError);
         return;
     }
-    Lock consumersLock(consumersMutex_);
-    const auto numPartitions = numPartitions_;
-    consumersLock.unlock();
+    const auto numPartitions = getNumPartitionsWithLock();
     assert(unsubscribedSoFar_ <= numPartitions);
     assert(consumerIndex <= numPartitions);
     // this means we have successfully closed this partition consumer and no unsubscribe has failed so far
@@ -196,7 +194,7 @@ void PartitionedConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
     int32_t partition = msgId.partition();
 #ifndef NDEBUG
     Lock consumersLock(consumersMutex_);
-    assert(partition < numPartitions_ && partition >= 0 && consumers_.size() > partition);
+    assert(partition < getNumPartitions() && partition >= 0 && consumers_.size() > partition);
     consumersLock.unlock();
 #endif
     unAckedMessageTrackerPtr_->remove(msgId);
@@ -213,9 +211,11 @@ void PartitionedConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
     consumers_[partition]->negativeAcknowledge(msgId);
 }
 
+unsigned int PartitionedConsumerImpl::getNumPartitions() const { return numPartitions_; }
+
 unsigned int PartitionedConsumerImpl::getNumPartitionsWithLock() const {
     Lock consumersLock(consumersMutex_);
-    return numPartitions_;
+    return getNumPartitions();
 }
 
 ConsumerConfiguration PartitionedConsumerImpl::getSinglePartitionConsumerConfig() const {
@@ -235,7 +235,7 @@ ConsumerConfiguration PartitionedConsumerImpl::getSinglePartitionConsumerConfig(
     // than previous created internal consumers.
     config.setReceiverQueueSize(
         std::min(conf_.getReceiverQueueSize(),
-                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions_)));
+                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / getNumPartitions())));
 
     return config;
 }
@@ -263,7 +263,9 @@ void PartitionedConsumerImpl::start() {
     const auto config = getSinglePartitionConsumerConfig();
 
     // create consumer on each partition
-    for (unsigned int i = 0; i < numPartitions_; i++) {
+    // Here we don't need `consumersMutex` to protect `consumers_`, because `consumers_` can only be increased
+    // when `state_` is Ready
+    for (unsigned int i = 0; i < getNumPartitions(); i++) {
         consumers_.push_back(newInternalConsumer(i, config));
     }
     for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
@@ -351,6 +353,8 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
     int consumerIndex = 0;
     unsigned int consumerAlreadyClosed = 0;
     // close successfully subscribed consumers
+    // Here we don't need `consumersMutex` to protect `consumers_`, because `consumers_` can only be increased
+    // when `state_` is Ready
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         ConsumerImplPtr consumer = *i;
         if (!consumer->isClosed()) {
@@ -566,14 +570,13 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
 
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
-        const auto config =
-            getSinglePartitionConsumerConfig();  // put it outside the lock section to avoid dead lock
-
         Lock consumersLock(consumersMutex_);
-        const auto currentNumPartitions = static_cast<unsigned int>(consumers_.size());
+        const auto currentNumPartitions = getNumPartitions();
+        assert(currentNumPartitions == consumers_.size());
         if (newNumPartitions > currentNumPartitions) {
             LOG_INFO("new partition count: " << newNumPartitions);
             numPartitions_ = newNumPartitions;
+            const auto config = getSinglePartitionConsumerConfig();
             for (unsigned int i = currentNumPartitions; i < newNumPartitions; i++) {
                 auto consumer = newInternalConsumer(i, config);
                 consumer->start();
@@ -583,7 +586,7 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
             return;
         }
     } else {
-        LOG_WARN("Failed tp getPartitionMetadata: " << strResult(result));
+        LOG_WARN("Failed to getPartitionMetadata: " << strResult(result));
     }
 
     runPartitionUpdateTask();

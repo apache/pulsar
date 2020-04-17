@@ -110,6 +110,9 @@ class PartitionedProducerImpl : public ProducerImplBase,
     // producersMutex_ is used to share producers_ and topicMetadata_
     mutable std::mutex producersMutex_;
 
+    unsigned int getNumPartitions() const;
+    unsigned int getNumPartitionsWithLock() const;
+
     ProducerImplPtr newInternalProducer(unsigned int partition) const;
 
     MessageRoutingPolicyPtr routerPolicy_;

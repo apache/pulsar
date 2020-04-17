@@ -69,7 +69,7 @@ MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
         case ProducerConfiguration::UseSinglePartition:
         default:
             unsigned int random = rand();
-            return std::make_shared<SinglePartitionMessageRouter>(random % topicMetadata_->getNumPartitions(),
+            return std::make_shared<SinglePartitionMessageRouter>(random % getNumPartitions(),
                                                                   conf_.getHashingScheme());
     }
 }
@@ -77,6 +77,15 @@ MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
 PartitionedProducerImpl::~PartitionedProducerImpl() {}
 // override
 const std::string& PartitionedProducerImpl::getTopic() const { return topic_; }
+
+unsigned int PartitionedProducerImpl::getNumPartitions() const {
+    return static_cast<unsigned int>(topicMetadata_->getNumPartitions());
+}
+
+unsigned int PartitionedProducerImpl::getNumPartitionsWithLock() const {
+    Lock lock(producersMutex_);
+    return getNumPartitions();
+}
 
 ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition) const {
     using namespace std::placeholders;
@@ -93,8 +102,9 @@ ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partit
 // override
 void PartitionedProducerImpl::start() {
     // create producer per partition
-    Lock producersLock(producersMutex_);
-    for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
+    // Here we don't need `producersMutex` to protect `producers_`, because `producers_` can only be increased
+    // when `state_` is Ready
+    for (unsigned int i = 0; i < getNumPartitions(); i++) {
         producers_.push_back(newInternalProducer(i));
     }
 
@@ -114,9 +124,7 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
         // Ignore, we have already informed client that producer creation failed
         return;
     }
-    Lock producersLock(producersMutex_);
-    const auto numPartitions = static_cast<unsigned int>(topicMetadata_->getNumPartitions());
-    producersLock.unlock();
+    const auto numPartitions = getNumPartitionsWithLock();
     assert(numProducersCreated_ <= numPartitions);
     if (result != ResultOk) {
         state_ = Failed;
@@ -130,6 +138,7 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
     assert(partitionIndex <= numPartitions);
     numProducersCreated_++;
     if (numProducersCreated_ == numPartitions) {
+        state_ = Ready;
         lock.unlock();
         if (partitionsUpdateTimer_) {
             runPartitionUpdateTask();
@@ -143,7 +152,7 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
     // get partition for this message from router policy
     Lock producersLock(producersMutex_);
     short partition = (short)(routerPolicy_->getPartition(msg, *topicMetadata_));
-    if (partition >= topicMetadata_->getNumPartitions() || partition >= producers_.size()) {
+    if (partition >= getNumPartitions() || partition >= producers_.size()) {
         LOG_ERROR("Got Invalid Partition for message from Router Policy, Partition - " << partition);
         // change me: abort or notify failure in callback?
         //          change to appropriate error if callback
@@ -151,7 +160,7 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
         return;
     }
     // find a producer for that partition, index should start from 0
-    ProducerImplPtr& producer = producers_[partition];
+    ProducerImplPtr producer = producers_[partition];
     producersLock.unlock();
     // send message on that partition
     producer->sendAsync(msg, callback);
@@ -198,7 +207,8 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
     int producerIndex = 0;
     unsigned int producerAlreadyClosed = 0;
 
-    Lock producersLock(producersMutex_);
+    // Here we don't need `producersMutex` to protect `producers_`, because `producers_` can only be increased
+    // when `state_` is Ready
     for (ProducerList::const_iterator i = producers_.begin(); i != producers_.end(); i++) {
         ProducerImplPtr prod = *i;
         if (!prod->isClosed()) {
@@ -210,7 +220,6 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
         }
     }
     const auto numProducers = producers_.size();
-    producersLock.unlock();
 
     /*
      * No need to set state since:-
@@ -244,11 +253,7 @@ void PartitionedProducerImpl::handleSinglePartitionProducerClose(Result result,
         }
         return;
     }
-#ifndef NDEBUG
-    Lock producersLock(producersMutex_);
-    assert(partitionIndex < topicMetadata_->getNumPartitions());
-    producersLock.unlock();
-#endif
+    assert(partitionIndex < getNumPartitionsWithLock());
     if (numProducersCreated_ > 0) {
         numProducersCreated_--;
     }
@@ -336,15 +341,15 @@ void PartitionedProducerImpl::getPartitionMetadata() {
 void PartitionedProducerImpl::handleGetPartitions(Result result,
                                                   const LookupDataResultPtr& lookupDataResult) {
     Lock stateLock(mutex_);
-    if (state_ == Closing || state_ == Closed) {
+    if (state_ != Ready) {
         return;
     }
-    stateLock.unlock();
 
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
         Lock producersLock(producersMutex_);
-        const auto currentNumPartitions = static_cast<unsigned int>(producers_.size());
+        const auto currentNumPartitions = getNumPartitions();
+        assert(currentNumPartitions == producers_.size());
         if (newNumPartitions > currentNumPartitions) {
             LOG_INFO("new partition count: " << newNumPartitions);
             topicMetadata_.reset(new TopicMetadataImpl(newNumPartitions));
