@@ -302,11 +302,13 @@ void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
         return;
     }
 
-    FlushCallback subFlushCallback = [this, callback](Result result) {
+    Lock producersLock(producersMutex_);
+    const int numProducers = static_cast<int>(producers_.size());
+    FlushCallback subFlushCallback = [this, callback, numProducers](Result result) {
+        // We shouldn't lock `producersMutex_` here because `subFlushCallback` may be called in
+        // `ProducerImpl::flushAsync`, and then deadlock occurs.
         int previous = flushedPartitions_.fetch_add(1);
-        Lock producersLock(producersMutex_);
-        if (previous == producers_.size() - 1) {
-            producersLock.unlock();
+        if (previous == numProducers - 1) {
             flushedPartitions_.store(0);
             flushPromise_->setValue(true);
             callback(result);
@@ -314,7 +316,6 @@ void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
         return;
     };
 
-    Lock producersLock(producersMutex_);
     for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
         (*prod)->flushAsync(subFlushCallback);
     }
