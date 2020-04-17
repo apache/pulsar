@@ -28,6 +28,8 @@ public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String configurationStoreServers;
+    @Deprecated
+    private String ledgersRootPath;
     private String bookkeeperMetadataServiceUri;
     private String stateStorageServiceUrl;
 
@@ -36,10 +38,12 @@ public class InternalConfigurationData {
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
+                                     String ledgersRootPath,
                                      String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
+        this.ledgersRootPath = ledgersRootPath;
         this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
@@ -50,6 +54,12 @@ public class InternalConfigurationData {
 
     public String getConfigurationStoreServers() {
         return configurationStoreServers;
+    }
+
+    /** @deprecated */
+    @Deprecated
+    public String getLedgersRootPath() {
+        return ledgersRootPath;
     }
 
     public String getBookkeeperMetadataServiceUri() {
@@ -68,6 +78,7 @@ public class InternalConfigurationData {
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(configurationStoreServers, other.configurationStoreServers)
+            && Objects.equals(ledgersRootPath, other.ledgersRootPath)
             && Objects.equals(bookkeeperMetadataServiceUri, other.bookkeeperMetadataServiceUri)
             && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
     }
@@ -76,6 +87,7 @@ public class InternalConfigurationData {
     public int hashCode() {
         return Objects.hash(zookeeperServers,
                 configurationStoreServers,
+                ledgersRootPath,
                 bookkeeperMetadataServiceUri,
                 stateStorageServiceUrl);
     }
@@ -85,6 +97,7 @@ public class InternalConfigurationData {
         return MoreObjects.toStringHelper(this)
             .add("zookeeperServers", zookeeperServers)
             .add("configurationStoreServers", configurationStoreServers)
+            .add("ledgersRootPath", ledgersRootPath)
             .add("bookkeeperMetadataServiceUri", bookkeeperMetadataServiceUri)
             .add("stateStorageServiceUrl", stateStorageServiceUrl)
             .toString();

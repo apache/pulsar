@@ -740,6 +740,7 @@ public class PulsarService implements AutoCloseable {
         return new InternalConfigurationData(
             this.getConfiguration().getZookeeperServers(),
             this.getConfiguration().getConfigurationStoreServers(),
+            new ClientConfiguration().getZkLedgersRootPath(),
             metadataServiceUri,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
@@ -1099,9 +1100,8 @@ public class PulsarService implements AutoCloseable {
         String metadataServiceUri = null;
         try {
             String zkServers = config.getZookeeperServers();
-            String ledgerManagerType = bkConf.getLedgerManagerLayoutStringFromFactoryClass();
-            metadataServiceUri = String.format("zk+%s://%s%s", ledgerManagerType,
-                zkServers.replace(",", ";"), "/ledgers");
+            bkConf.setZkServers(zkServers);
+            metadataServiceUri = bkConf.getMetadataServiceUri();
         } catch (ConfigurationException e) {
             LOG.error("Failed to get bookkeeper metadata service uri", e);
         }
