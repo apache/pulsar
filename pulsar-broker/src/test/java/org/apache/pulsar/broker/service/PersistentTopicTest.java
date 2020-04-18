@@ -70,7 +70,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -125,7 +127,7 @@ import io.netty.buffer.Unpooled;
 
 /**
  */
-public class PersistentTopicTest {
+public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private PulsarService pulsar;
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
@@ -1507,18 +1509,32 @@ public class PersistentTopicTest {
 
     @Test
     public void testBacklogCursor() throws Exception {
+        log.info("rongsheng:");
         int backloggedThreshold = 10;
         pulsar.getConfiguration().setManagedLedgerCursorBackloggedThreshold(backloggedThreshold);
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_backlog_ledger");
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledger, brokerService);
+
         // Open Cursor also adds cursor into activeCursor-container
-        ManagedCursor cursor1 = ledgerMock.openCursor("c1");
-        ManagedCursor cursor2 = ledgerMock.openCursor("c2");
+        ManagedCursor cursor1 = ledger.openCursor("c1");
+        PersistentSubscription sub1 = new PersistentSubscription(topic, "sub-1", cursor1, false);
+        Consumer consumer1 = new Consumer(sub1, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
+            50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+        sub1.addConsumer(consumer1);
+
+        log.info("rongsheng:");
+        ManagedCursor cursor2 = ledger.openCursor("c2");
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursor2, false);
+        Consumer consumer2 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
+            50000, serverCnx, "myrole-2", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+        sub2.addConsumer(consumer2);
 
         CountDownLatch latch = new CountDownLatch(backloggedThreshold);
         for (int i = 0; i < backloggedThreshold + 1; i++) {
             String content = "entry"; // 5 bytes
             ByteBuf entry = getMessageWithMetadata(content.getBytes());
-            ledgerMock.asyncAddEntry(entry, new AddEntryCallback() {
+            ledger.asyncAddEntry(entry, new AddEntryCallback() {
                 @Override
                 public void addComplete(Position position, Object ctx) {
                     latch.countDown();
@@ -1546,6 +1562,7 @@ public class PersistentTopicTest {
         assertFalse(cursor1.isActive());
         assertFalse(cursor2.isActive());
 
+        log.info("rongsheng:");
         // read entries so, cursor1 reaches maxBacklog threshold again to be active again
         List<Entry> entries1 = cursor1.readEntries(50);
         for (Entry entry : entries1) {
