@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -42,6 +44,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
+    private Supplier<InputStream> certStreamProvider, keyStreamProvider;
 
     public AuthenticationTls() {
     }
@@ -49,6 +52,11 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;
+    }
+
+    public AuthenticationTls(Supplier<InputStream> certStreamProvider, Supplier<InputStream> keyStreamProvider) {
+        this.certStreamProvider = certStreamProvider;
+        this.keyStreamProvider = keyStreamProvider;
     }
 
     @Override
@@ -64,10 +72,15 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {
-            return new AuthenticationDataTls(certFilePath, keyFilePath);
+            if (certFilePath != null && keyFilePath != null) {
+                return new AuthenticationDataTls(certFilePath, keyFilePath);
+            } else if (certStreamProvider != null && keyStreamProvider != null) {
+                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider);
+            }
         } catch (Exception e) {
             throw new PulsarClientException(e);
         }
+        throw new IllegalArgumentException("cert/key file path or cert/key stream must be present");
     }
 
     @Override
