@@ -18,30 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static com.google.common.collect.Iterables.concat;
-import static com.google.common.collect.Lists.newArrayList;
-import static com.google.protobuf.ByteString.copyFrom;
-import static java.util.Objects.isNull;
-import static java.util.Objects.nonNull;
-import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
-
 import com.google.common.annotations.VisibleForTesting;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import javax.validation.constraints.NotNull;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -64,12 +41,30 @@ import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.NotNull;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import static com.google.common.collect.Iterables.concat;
+import static com.google.common.collect.Lists.newArrayList;
+import static com.google.protobuf.ByteString.copyFrom;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
+
 public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final Logger log = LoggerFactory.getLogger(BookkeeperSchemaStorage.class);
 
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
     private static final byte[] LedgerPassword = "".getBytes();
+    private static final byte[] DeletedEntryHashCode = new byte[0];
 
     private final PulsarService pulsar;
     private final ZooKeeper zooKeeper;
@@ -236,12 +231,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             }
 
             return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
-                .thenApply(entry ->
-                    new StoredSchema(
-                        entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(version)
-                    )
-                );
+                .thenApply(entry -> {
+                    if (entry == null) {
+                        return null;
+                    }
+                    return new StoredSchema(
+                            entry.getSchemaData().toByteArray(),
+                            new LongSchemaVersion(version)
+                    );
+                });
         });
     }
 
@@ -265,6 +263,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(locator.getIndexList().get(0).getPosition())
                         .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId, locator.getIndexList(), data).thenCompose(
                         position -> {
+                            tryTrimSchemaLedager(hash, locator);
                             CompletableFuture<Long> future = new CompletableFuture<>();
                             updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash)
                                     .thenAccept(future::complete)
@@ -316,6 +315,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         });
     }
 
+    private void tryTrimSchemaLedager(byte[] hash, SchemaStorageFormat.SchemaLocator locator) {
+        if (Arrays.equals(DeletedEntryHashCode, hash)) {
+            for (SchemaStorageFormat.IndexEntry indexEntry : locator.getIndexList()) {
+                asyncDeleteLedger(indexEntry.getPosition().getLedgerId());
+            }
+        }
+    }
+
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
         SchemaStorageFormat.IndexEntry emptyIndex = SchemaStorageFormat.IndexEntry.newBuilder()
                         .setVersion(0)
@@ -348,7 +355,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                return putSchema(schemaId, new byte[]{}, new byte[]{});
+                return putSchema(schemaId, new byte[]{}, DeletedEntryHashCode);
             }
         });
     }
@@ -387,12 +394,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .setPosition(position)
                 .setHash(copyFrom(hash))
                 .build();
+
+        Iterable<SchemaStorageFormat.IndexEntry> allIndex = Arrays.equals(DeletedEntryHashCode, hash)
+                ? newArrayList(info) : concat(locator.getIndexList(), newArrayList(info));
+
         return updateSchemaLocator(getSchemaPath(schemaId),
             SchemaStorageFormat.SchemaLocator.newBuilder()
                 .setInfo(info)
-                .addAllIndex(
-                    concat(locator.getIndexList(), newArrayList(info))
-                ).build(), locatorEntry.zkZnodeVersion
+                .addAllIndex(allIndex).build(), locatorEntry.zkZnodeVersion
         ).thenApply(ignore -> nextVersion);
     }
 
@@ -408,8 +417,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
-            return readSchemaEntry(lowest.getPosition())
-                .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
+            return completedFuture(null);
         }
 
         for (SchemaStorageFormat.IndexEntry entry : index) {
@@ -513,6 +521,21 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             }, null, metadata
         );
         return future;
+    }
+
+    @NotNull
+    private void asyncDeleteLedger(long ledgerId) {
+        bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+            if (isNoSuchLedgerExistsException(rc)) {
+                log.warn("Ledger was already deleted {}", ledgerId);
+            } else if (rc != BKException.Code.OK) {
+                log.error("Error deleting ledger {} : {}", ledgerId, BKException.getMessage(rc));
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Deleted ledger {}", ledgerId);
+                }
+            }
+        }, null);
     }
 
     @NotNull
