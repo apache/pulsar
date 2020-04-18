@@ -2079,71 +2079,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testBacklogCursor() throws Exception {
-        int backloggedThreshold = 10;
-        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
-        factoryConf.setThresholdBackloggedCursor(backloggedThreshold);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_backlog_ledger");
-
-        // Open Cursor also adds cursor into activeCursor-container
-        ManagedCursor cursor1 = ledger.openCursor("c1");
-        ManagedCursor cursor2 = ledger.openCursor("c2");
-
-        CountDownLatch latch = new CountDownLatch(backloggedThreshold);
-        for (int i = 0; i < backloggedThreshold + 1; i++) {
-            String content = "entry"; // 5 bytes
-            ByteBuf entry = getMessageWithMetadata(content.getBytes());
-            ledger.asyncAddEntry(entry, new AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, Object ctx) {
-                    latch.countDown();
-                    entry.release();
-                }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    latch.countDown();
-                    entry.release();
-                }
-
-            }, null);
-        }
-        latch.await();
-
-        // Verify: cursors are active as :haven't started deactivateBacklogCursor scan
-        assertTrue(cursor1.isActive());
-        assertTrue(cursor2.isActive());
-
-        // deactivate backlog cursors
-        ledger.checkBackloggedCursors();
-
-        // both cursors have to be inactive
-        assertFalse(cursor1.isActive());
-        assertFalse(cursor2.isActive());
-
-        // read entries so, cursor1 reaches maxBacklog threshold again to be active again
-        List<Entry> entries1 = cursor1.readEntries(50);
-        for (Entry entry : entries1) {
-            log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
-            entry.release();
-        }
-
-        // activate cursors which caught up maxbacklog threshold
-        ledger.checkBackloggedCursors();
-
-        // verify: cursor1 has consumed messages so, under maxBacklog threshold => active
-        assertTrue(cursor1.isActive());
-
-        // verify: cursor2 has not consumed messages so, above maxBacklog threshold => inactive
-        assertFalse(cursor2.isActive());
-
-        ledger.close();
-
-        factory.shutdown();
-    }
-
-    @Test
     public void testConcurrentOpenCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
 
@@ -2278,21 +2213,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         } finally {
             ledger.close();
         }
-    }
-
-    public ByteBuf getMessageWithMetadata(byte[] data) throws IOException {
-        MessageMetadata messageData = MessageMetadata.newBuilder().setPublishTime(System.currentTimeMillis())
-                .setProducerName("prod-name").setSequenceId(0).build();
-        ByteBuf payload = Unpooled.wrappedBuffer(data, 0, data.length);
-
-        int msgMetadataSize = messageData.getSerializedSize();
-        int headersSize = 4 + msgMetadataSize;
-        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
-        headers.writeInt(msgMetadataSize);
-        messageData.writeTo(outStream);
-        outStream.recycle();
-        return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
     }
 
     @Test
