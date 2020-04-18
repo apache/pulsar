@@ -59,8 +59,6 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
         this.functions = new FunctionsImpl(this);
     }
 
-    
-
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
