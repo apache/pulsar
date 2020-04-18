@@ -79,9 +79,9 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return brokerServiceUrl;
     }
 
-    @Config("pulsar.broker-service-url")
-    public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
-        this.brokerServiceUrl = brokerServiceUrl;
+    @Config("pulsar.web-service-url")
+    public PulsarConnectorConfig setBrokerServiceUrl(String brokerWebServiceUrl) {
+        this.brokerServiceUrl = brokerWebServiceUrl;
         return this;
     }
 
