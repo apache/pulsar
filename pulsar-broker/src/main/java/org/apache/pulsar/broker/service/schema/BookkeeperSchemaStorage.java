@@ -520,21 +520,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private void asyncDeleteLedger(long ledgerId) {
-        bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
-            if (isNoSuchLedgerExistsException(rc)) {
-                log.warn("Ledger was already deleted {}", ledgerId);
-            } else if (rc != BKException.Code.OK) {
-                log.error("Error deleting ledger {} : {}", ledgerId, BKException.getMessage(rc));
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Deleted ledger {}", ledgerId);
-                }
-            }
-        }, null);
-    }
-
-    @NotNull
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         bookKeeper.asyncOpenLedger(
