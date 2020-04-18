@@ -101,6 +101,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -1509,7 +1510,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBacklogCursor() throws Exception {
-        log.info("rongsheng:");
         int backloggedThreshold = 10;
         pulsar.getConfiguration().setManagedLedgerCursorBackloggedThreshold(backloggedThreshold);
 
@@ -1521,13 +1521,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub1 = new PersistentSubscription(topic, "sub-1", cursor1, false);
         Consumer consumer1 = new Consumer(sub1, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
             50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+        topic.getSubscriptions().put(Codec.decode(cursor1.getName()), sub1);
         sub1.addConsumer(consumer1);
 
-        log.info("rongsheng:");
         ManagedCursor cursor2 = ledger.openCursor("c2");
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursor2, false);
         Consumer consumer2 = new Consumer(sub2, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
             50000, serverCnx, "myrole-2", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
+        topic.getSubscriptions().put(Codec.decode(cursor2.getName()), sub2);
         sub2.addConsumer(consumer2);
 
         CountDownLatch latch = new CountDownLatch(backloggedThreshold);
@@ -1562,7 +1563,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(cursor1.isActive());
         assertFalse(cursor2.isActive());
 
-        log.info("rongsheng:");
         // read entries so, cursor1 reaches maxBacklog threshold again to be active again
         List<Entry> entries1 = cursor1.readEntries(50);
         for (Entry entry : entries1) {
