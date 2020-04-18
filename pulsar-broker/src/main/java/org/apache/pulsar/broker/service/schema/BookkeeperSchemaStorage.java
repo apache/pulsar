@@ -44,7 +44,12 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Collections;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -263,7 +268,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(locator.getIndexList().get(0).getPosition())
                         .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId, locator.getIndexList(), data).thenCompose(
                         position -> {
-                            tryTrimSchemaLedager(hash, locator);
                             CompletableFuture<Long> future = new CompletableFuture<>();
                             updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash)
                                     .thenAccept(future::complete)
@@ -313,14 +317,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return future;
             }
         });
-    }
-
-    private void tryTrimSchemaLedager(byte[] hash, SchemaStorageFormat.SchemaLocator locator) {
-        if (Arrays.equals(DeletedEntryHashCode, hash)) {
-            for (SchemaStorageFormat.IndexEntry indexEntry : locator.getIndexList()) {
-                asyncDeleteLedger(indexEntry.getPosition().getLedgerId());
-            }
-        }
     }
 
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
