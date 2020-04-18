@@ -242,8 +242,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
-        int avgMessgesPerEntry = consumer.getAvgMessagesPerEntry();
-        totalAvailablePermits += (int) Math.ceil(additionalNumberOfMessages * 1.0 / avgMessgesPerEntry);
+        totalAvailablePermits += additionalNumberOfMessages;
 
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {}", name, consumer,
@@ -256,7 +255,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // totalAvailablePermits may be updated by other threads
         int currentTotalAvailablePermits = totalAvailablePermits;
         if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-            int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
+            Consumer c = getRandomConsumer();
+            int avgMessagePerEntry = c != null ? c.getAvgMessagesPerEntry() : 1;
+            int messagesToRead = Math.min((int) Math.ceil(totalAvailablePermits * 1.0 / avgMessagePerEntry), readBatchSize);
 
             if (!isConsumerWritable()) {
                 // If the connection is not currently writable, we issue the read request anyway, but for a single
