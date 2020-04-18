@@ -101,7 +101,7 @@ public class PulsarCluster {
                     .withEnv("zkServers", ZKContainer.NAME)
                     .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+                    .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080");
         } else {
             prestoWorkerContainer = null;
         }
@@ -336,7 +336,7 @@ public class PulsarCluster {
                     .withEnv("zkServers", ZKContainer.NAME)
                     .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+                    .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080");
         }
         log.info("Starting Presto Worker");
         prestoWorkerContainer.start();
