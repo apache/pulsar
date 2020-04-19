@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
@@ -25,6 +28,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.function.Supplier;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -37,7 +41,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     private FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
     private InputStream certStream, keyStream;
-    private Supplier<InputStream> certStreamProvider, keyStreamProvider;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -52,8 +56,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
     }
 
-    public AuthenticationDataTls(Supplier<InputStream> certStreamProvider, Supplier<InputStream> keyStreamProvider)
-            throws KeyManagementException {
+    public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider) throws KeyManagementException {
         if (certStreamProvider == null || certStreamProvider.get() == null) {
             throw new IllegalArgumentException("certStream provider or stream must not be null");
         }

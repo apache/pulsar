@@ -254,10 +254,13 @@ public class SecurityUtility {
         }
         CertificateFactory cf;
         try {
+            if (inStream.markSupported()) {
+                inStream.reset();
+            }
             cf = CertificateFactory.getInstance("X.509");
             Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(inStream);
             return collection.toArray(new X509Certificate[collection.size()]);
-        } catch (CertificateException e) {
+        } catch (CertificateException | IOException e) {
             throw new KeyManagementException("Certificate loading error", e);
         }
     }
@@ -285,8 +288,10 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        //TODO: check if bufferReader should be closed or not
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+            if (inStream.markSupported()) {
+                inStream.reset();
+            }
             StringBuilder sb = new StringBuilder();
             String currentLine = null;
 

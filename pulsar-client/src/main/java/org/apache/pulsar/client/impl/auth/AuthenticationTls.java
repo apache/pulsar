@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
@@ -44,7 +45,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
-    private Supplier<InputStream> certStreamProvider, keyStreamProvider;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
 
     public AuthenticationTls() {
     }
@@ -54,7 +55,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         this.keyFilePath = keyFilePath;
     }
 
-    public AuthenticationTls(Supplier<InputStream> certStreamProvider, Supplier<InputStream> keyStreamProvider) {
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider) {
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
     }
