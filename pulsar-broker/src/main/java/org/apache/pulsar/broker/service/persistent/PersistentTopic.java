@@ -1708,12 +1708,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void checkBackloggedCursors() {
         // activate caught up cursors which include consumers
-        ledger.getCursors().forEach(cursor -> {
-            if (cursor.getNumberOfEntries() < backloggedCursorThresholdEntries
-                && !subscriptions.get(Codec.decode(cursor.getName())).getConsumers().isEmpty()) {
-                cursor.setActive();
+        subscriptions.forEach((subName, subscription) -> {
+            if (!subscription.getConsumers().isEmpty()
+                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+                subscription.getCursor().setActive();
             } else {
-                cursor.setInactive();
+                subscription.getCursor().setInactive();
             }
         });
     }
