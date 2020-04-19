@@ -1404,7 +1404,9 @@
   ],
   "schemaVersion": 14,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "pulsar"
+  ],
   "templating": {
     "list": [
       {
