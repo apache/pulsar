@@ -190,6 +190,38 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 | pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
 
+### LoadBalancing metrics
+All the loadbalancing metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- broker: broker=${broker}. ${broker} is the ip address of the broker
+- metric: metric="loadBalancing". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_bandwidth_in_usage | Gauge | The broker bandwith in usage |
+| pulsar_lb_bandwidth_out_usage | Gauge | The broker bandwith out usage |
+| pulsar_lb_cpu_usage | Gauge | The broker cpu usage |
+| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage |
+| pulsar_lb_memory_usage | Gauge | The broker process memory usage  |
+
+#### BundleUnloading metrics
+All the bundleUnloading metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- metric: metric="bundleUnloading". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+
+#### BundleSplit metrics
+All the bundleUnloading metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- metric: metric="bundlesSplit". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
 
 ### Subscription metrics
 
