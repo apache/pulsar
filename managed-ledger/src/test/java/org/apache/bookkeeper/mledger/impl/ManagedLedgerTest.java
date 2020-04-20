@@ -76,6 +76,7 @@ import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -1186,6 +1187,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         newProperties.put("key6", "value6");
         ledger.setProperties(newProperties);
         assertEquals(ledger.getProperties(), newProperties);
+    }
+
+    @Test
+    public void testAsyncSetProperties() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        properties.put("key3", "value3");
+        ledger.asyncSetProperties(properties, new AsyncCallbacks.SetPropertiesCallback() {
+            @Override
+            public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
+                assertEquals(ledger.getProperties(), properties);
+                Map<String, String> newProperties = new HashMap<>();
+                newProperties.put("key4", "value4");
+                newProperties.put("key5", "value5");
+                newProperties.put("key6", "value6");
+                ledger.asyncSetProperties(properties, new AsyncCallbacks.SetPropertiesCallback() {
+                    @Override
+                    public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
+                        assertEquals(ledger.getProperties(), newProperties);
+                    }
+                    @Override
+                    public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        fail("should have succeeded");
+                    }
+                }, null);
+            }
+            @Override
+            public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("should have succeeded");
+            }
+        }, null);
     }
 
     @Test

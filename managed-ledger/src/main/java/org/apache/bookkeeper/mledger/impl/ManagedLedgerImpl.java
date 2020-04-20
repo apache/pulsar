@@ -88,6 +88,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.SetPropertiesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -3229,6 +3230,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         });
         latch.await();
+    }
+
+    @Override
+    public void asyncSetProperties(Map<String, String> properties, final SetPropertiesCallback callback, Object ctx) {
+        store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
+            @Override
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
+                ledgersStat = version;
+                // Update manageLedger's  properties.
+                ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
+                info.clearProperties();
+                for (Map.Entry<String, String> property : properties.entrySet()) {
+                    info.addProperties(MLDataFormats.KeyValue.newBuilder().setKey(property.getKey()).setValue(property.getValue()));
+                }
+                store.asyncUpdateLedgerIds(name, info.build(), version, new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Stat version) {
+                        ledgersStat = version;
+                        propertiesMap.clear();
+                        propertiesMap.putAll(properties);
+                        callback.setPropertiesComplete(properties, ctx);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        log.error("[{}] Update manageLedger's info failed:{}", name, e.getMessage());
+                        callback.setPropertiesFailed(e, ctx);
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.error("[{}] Get manageLedger's info failed:{}", name, e.getMessage());
+                callback.setPropertiesFailed(e, ctx);
+            }
+        });
     }
 
     @VisibleForTesting
