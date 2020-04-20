@@ -100,6 +100,9 @@ Broker has the following kinds of metrics:
     * [Replication metrics](#replication-metrics)
 * [Topic metrics](#topic-metrics)
     * [Replication metrics](#replication-metrics-1)
+* [LoadBalancing metrics](#loadbalancing-metrics)
+    * [BundleUnloading metrics](#bundleunloading-metrics)
+    * [BundleSplit metrics](#bundlesplit-metrics)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 
