@@ -1191,35 +1191,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testAsyncSetProperties() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1);
         ManagedLedger ledger = factory.open("my_test_ledger");
         Map<String, String> properties = new HashMap<>();
         properties.put("key1", "value1");
         properties.put("key2", "value2");
         properties.put("key3", "value3");
-        ledger.asyncSetProperties(properties, new AsyncCallbacks.SetPropertiesCallback() {
+        ledger.setProperties(properties);
+        Map<String, String> newProperties = new HashMap<>();
+        newProperties.put("key4", "value4");
+        newProperties.put("key5", "value5");
+        newProperties.put("key6", "value6");
+        ledger.asyncSetProperties(newProperties, new AsyncCallbacks.SetPropertiesCallback() {
             @Override
             public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
-                assertEquals(ledger.getProperties(), properties);
-                Map<String, String> newProperties = new HashMap<>();
-                newProperties.put("key4", "value4");
-                newProperties.put("key5", "value5");
-                newProperties.put("key6", "value6");
-                ledger.asyncSetProperties(properties, new AsyncCallbacks.SetPropertiesCallback() {
-                    @Override
-                    public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
-                        assertEquals(ledger.getProperties(), newProperties);
-                    }
-                    @Override
-                    public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                        fail("should have succeeded");
-                    }
-                }, null);
+                latch.countDown();
             }
+
             @Override
             public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
                 fail("should have succeeded");
             }
         }, null);
+        latch.await();
+        assertEquals(ledger.getProperties(), newProperties);
     }
 
     @Test
