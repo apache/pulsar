@@ -2552,9 +2552,10 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-
-            if (offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis()
-                    .equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+            // there is possibility that `offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis()` is null.
+            if (offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null && OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS == null
+                    || offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis() != null
+                    && offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().equals(OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                 offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
             } else {
                 policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
