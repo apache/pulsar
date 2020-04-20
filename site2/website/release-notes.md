@@ -54,7 +54,7 @@ PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pul
 * [Python Test]Fixed the enum34 package not found [#6401](https://github.com/apache/pulsar/pull/6401)  
 * Consumer received duplicated deplayed messages upon restart [#6404](https://github.com/apache/pulsar/pull/6404)  
 * [Schema] Fixed wrong avro schema [#6406](https://github.com/apache/pulsar/pull/6406)  
-[Java client] MultiTopics discovery is broken due to discovery task scheduled twice instead of pendingBatchReceiveTask [#6407](https://github.com/apache/pulsar/* pull/6407)  
+* [Java client] MultiTopics discovery is broken due to discovery task scheduled twice instead of pendingBatchReceiveTask [#6407](https://github.com/apache/pulsar/pull/6407)
 * Fixed publish buffer limit does not take effect [#6431](https://github.com/apache/pulsar/pull/6431)  
 * Fixed the bug of authenticationData is't initialized. [#6440](https://github.com/apache/pulsar/pull/6440)  
 * Fixed the max backoff configuration for lookups [#6444](https://github.com/apache/pulsar/pull/6444)  
