@@ -9,6 +9,36 @@ and persists the messages to MySQL or SQlite.
 
 > Currently, INSERT, DELETE and UPDATE operations are supported.
 
+## Build NAR package with MySQL (Optional)
+
+Because of the license of MySQL, if you need to persist the messages to MySQL, you can manually package the JDBC NAR with
+MySQL before using the JDBC io connector.
+
+```shell
+git clone https://github.com/apache/pulsar.git
+git checkout v2.5.0                                   // checkout to a stable version
+cd pulsar-io/jdbc
+```
+
+Add the following MySQL dependency to the `pom.xml` under the jdbc directory.
+
+```
+<dependency>
+  <groupId>mysql</groupId>
+  <artifactId>mysql-connector-java</artifactId>
+  <version>${mysql-jdbc.version}</version>
+  <scope>runtime</scope>
+</dependency>
+```
+
+Then run the following command to package a JDBC NAR package.
+
+```shell script
+mvn clean install package -DskipTests
+```
+
+Then you will find the NAR package under the `target` directory.
+
 ## Configuration 
 
 The configuration of the JDBC sink connector has the following properties.
