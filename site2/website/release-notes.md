@@ -8,6 +8,7 @@
 * PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pulsar/pull/6074)
 * Namespace level support offloader [#6183](https://github.com/apache/pulsar/pull/6183)  
 * Upgrade Avro to 1.9.1 [#5938](https://github.com/apache/pulsar/pull/5938)  
+  * *Avro 1.9.1 enables the JSR310 datetimes by default, which might introduce some regression problems if users use generated source code by Avro compiler 1.8.x and contains datetimes fields. It's better to use Avro 1.9.x compiler to recompile.*
 * Support `unload` all partitions of a partitioned topic [#6187](https://github.com/apache/pulsar/pull/6187)  
 * Supports evenly distribute topics count when splits bundle [#6241](https://github.com/apache/pulsar/pull/6241)  
 * KeyValue schema support for pulsar sql [#6325](https://github.com/apache/pulsar/pull/6325)  
@@ -15,7 +16,6 @@
 * Support BouncyCastle FIPS provider [#6588](https://github.com/apache/pulsar/pull/6588)  
 * Improve Key_Shared subscription message dispatching performance. [#6647](https://github.com/apache/pulsar/pull/6647)  
 * Add Joda time logical type conversion. [#6704](https://github.com/apache/pulsar/pull/6704)  
-
 
 
 #### Fixes
