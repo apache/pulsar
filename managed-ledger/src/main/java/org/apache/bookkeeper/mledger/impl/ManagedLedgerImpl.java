@@ -3194,41 +3194,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void setProperties(Map<String, String> properties) throws InterruptedException {
-        final CountDownLatch latch = new CountDownLatch(2);
-        store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
+        final CountDownLatch latch = new CountDownLatch(1);
+        this.asyncSetProperties(properties, new SetPropertiesCallback() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Stat version) {
-                ledgersStat = version;
-                // Update manageLedger's  properties.
-                ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
-                info.clearProperties();
-                for (Map.Entry<String, String> property : properties.entrySet()) {
-                    info.addProperties(MLDataFormats.KeyValue.newBuilder().setKey(property.getKey()).setValue(property.getValue()));
-                }
-                store.asyncUpdateLedgerIds(name, info.build(), version, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat version) {
-                        ledgersStat = version;
-                        propertiesMap.clear();
-                        propertiesMap.putAll(properties);
-                        latch.countDown();
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error("[{}] Update manageLedger's info failed:{}", name, e.getMessage());
-                        latch.countDown();
-                    }
-                });
+            public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
                 latch.countDown();
             }
 
             @Override
-            public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Get manageLedger's info failed:{}", name, e.getMessage());
+            public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}] Update manageLedger's info failed:{}", name, exception.getMessage());
                 latch.countDown();
             }
-        });
+        }, null);
+
         latch.await();
     }
 
