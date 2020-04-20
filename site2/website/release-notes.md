@@ -5,7 +5,7 @@
 
 #### PIPS
 
-PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pulsar/pull/6074)
+* PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pulsar/pull/6074)
 
 #### Fixes
 
@@ -74,6 +74,7 @@ PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pul
 * Fixed avro schema decode error in functions [#6662](https://github.com/apache/pulsar/pull/6662)  
 * [broker]Handle BadVersionException thrown by updateSchemaLocator() [#6683](https://github.com/apache/pulsar/pull/6683)  
 * Fixed restore clusterDispatchRate policy for compatibility [#6176](https://github.com/apache/pulsar/pull/6176)  
+* Fix maven broken link [#6068](https://github.com/apache/pulsar/pull/6068)  
 
 
 #### Enhancements
@@ -87,7 +88,6 @@ PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pul
 * [pulsar-broker] Prevent creation of regular topic with the same name as existing partitioned topic [#5943](https://github.com/apache/pulsar/pull/5943)  
 * [pulsar-broker] Clean up closed producer to avoid publish-time for producer [#5988](https://github.com/apache/pulsar/pull/5988)  
 * Expose lastConsumedTimestamp and lastAckedTimestamp to consumer stats [#6051](https://github.com/apache/pulsar/pull/6051)  
-* Fix maven broken link [#6068](https://github.com/apache/pulsar/pull/6068)  
 * [minor] make acker in BatchMessageIdImpl transient [#6064](https://github.com/apache/pulsar/pull/6064)  
 * Support delete inactive topic when subscriptions caught up [#6077](https://github.com/apache/pulsar/pull/6077)  
 * Add a message on how to make log refresh immediately when starting a component [#6078](https://github.com/apache/pulsar/pull/6078)  
@@ -140,7 +140,7 @@ PIP-55: Refresh Authentication Credentials [#6074](https://github.com/apache/pul
 * Update README.md To Represent JDK 11 in Build Pulsar Doc [#6686](https://github.com/apache/pulsar/pull/6686)  
 * Add Joda time logical type conversion. [#6704](https://github.com/apache/pulsar/pull/6704)  
 * Improve backlogSize stats in the topic. [#6700](https://github.com/apache/pulsar/pull/6700)  
-* [python client]Support generate pulsar-client for python3.8  [#6741](https://github.com/apache/pulsar/pull/6741)  
+* [Python Client] Support generate pulsar-client for python3.8  [#6741](https://github.com/apache/pulsar/pull/6741)  
 
 ### 2.5.0 &mdash; 2019-12-06 <a id="2.5.0"></a>
 
