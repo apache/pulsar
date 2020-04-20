@@ -25,18 +25,17 @@ package org.apache.pulsar.common.policies.data;
 public enum NamespaceOperation {
     CREATE_TOPIC,
     GET_TOPIC,
+    GET_TOPICS,
     DELETE_TOPIC,
 
-    CLEAR_BACKLOG,
     ADD_BUNDLE,
     DELETE_BUNDLE,
-
     GET_BUNDLE,
-    GET_TOPICS,
-    GET_PERMISSION,
 
+    GET_PERMISSION,
     GRANT_PERMISSION,
     REVOKE_PERMISSION,
 
+    CLEAR_BACKLOG,
     UNSUBSCRIBE,
 }
