@@ -293,10 +293,14 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
-        log.info("[write] KeyValueSchema className: {}, classLoader: {}",
-                KeyValueSchema.class.getName(), KeyValueSchema.class.getClassLoader());
-        log.info("[write] schema className: {}, classLoader: {}",
-                record.getSchema().getClass().getName(), record.getSchema().getClass().getClassLoader());
+
+        if (record != null && record.getSchema() != null) {
+            log.info("[write] KeyValueSchema className: {}, classLoader: {}",
+                    KeyValueSchema.class.getName(), KeyValueSchema.class.getClassLoader());
+            log.info("[write] schema className: {}, classLoader: {}",
+                    record.getSchema().getClass().getName(), record.getSchema().getClass().getClassLoader());
+        }
+
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
                 ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
             msg.key(record.getKey().get());
