@@ -2302,7 +2302,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
                     consumeTopicName, e.getMessage());
         }
-        admin.topics().createNonPartitionedTopic(consumeTopicName);
+
+        SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
+        log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
+
+        @Cleanup
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+//        admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
@@ -2327,13 +2338,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // wait for source to process messages
         Failsafe.with(statusRetryPolicy).run(() ->
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
-
-        @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
-                .topic(consumeTopicName)
-                .subscriptionName("debezium-source-tester")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
 
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9, null, converterClassName);

@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
 
+import java.lang.reflect.Method;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,6 +38,8 @@ import java.util.stream.Collectors;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
@@ -85,18 +88,32 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     // number of outstandingRecords that have been polled but not been acked
     private AtomicInteger outstandingRecords = new AtomicInteger(0);
 
+    private boolean jsonWithEnvelope = false;
+    static private final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
+
     private final Cache<org.apache.kafka.connect.data.Schema, KafkaSchemaWrappedSchema> readerCache =
             CacheBuilder.newBuilder().maximumSize(10000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
+    private Method keyValueSchemaOfMethod;
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
+        initKeyValueSchemaOfMethod(sourceContext.getClass().getClassLoader());
+
         Map<String, String> stringConfig = new HashMap<>();
         config.forEach((key, value) -> {
             if (value instanceof String) {
                 stringConfig.put(key, (String) value);
             }
         });
+
+        if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
+            jsonWithEnvelope = Boolean.parseBoolean(config.get(JSON_WITH_ENVELOPE_CONFIG).toString());
+            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
+        } else {
+            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
+        }
 
         // get the source class name from config and create source task from reflection
         sourceTask = ((Class<? extends SourceTask>)Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
@@ -262,10 +279,17 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             // as the key.converter and value.converter, make the `KeyValueSchema` encodingType
             // use the `KeyValueEncodingType.SEPARATED`, then the pulsar client could get the original
             // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
-            if (keyConverter instanceof AvroConverter && valueConverter instanceof AvroConverter) {
-                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
-            } else {
-                return KeyValueSchema.of(Schema.BYTES, Schema.BYTES);
+            try {
+                if (jsonWithEnvelope) {
+                    return (Schema) keyValueSchemaOfMethod.invoke(
+                            Schema.BYTES, Schema.BYTES, KeyValueEncodingType.INLINE);
+                } else {
+                    return (Schema) keyValueSchemaOfMethod.invoke(
+                            keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+                }
+            } catch (Exception e) {
+                log.error("failed to invoke the keyValueSchemaOfMethod.");
+                return null;
             }
         }
 
@@ -337,5 +361,14 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 flushFuture.completeExceptionally(new Exception("Sink Error"));
             }
         }
+    }
+
+    private void initKeyValueSchemaOfMethod(ClassLoader classLoader) throws ClassNotFoundException,
+            NoSuchMethodException {
+        Class<KeyValueSchema> keyValueSchemaClazz =
+                (Class<KeyValueSchema>) classLoader.loadClass(KeyValueSchema.class.getName());
+        keyValueSchemaOfMethod = keyValueSchemaClazz.getDeclaredMethod(
+                "of", Schema.class, Schema.class, KeyValueEncodingType.class);
+        keyValueSchemaOfMethod.setAccessible(true);
     }
 }

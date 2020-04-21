@@ -90,20 +90,27 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Schema<T> getSchema() {
         log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
-        if (sourceRecord != null && sourceRecord.getSchema() != null) {
-            SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
-            log.info("[SinkRecord] map classLoader: {}", srcSchemaInfo.getProperties().getClass().getClassLoader());
-            SchemaInfo schemaInfo = SchemaInfo.builder()
-                    .name(srcSchemaInfo.getName())
-                    .schema(srcSchemaInfo.getSchema())
-                    .type(SchemaType.valueOf(srcSchemaInfo.getType().getValue()))
-                    .properties(srcSchemaInfo.getProperties())
-                    .build();
-            Schema<T> schema = (Schema<T>) Schema.getSchema(schemaInfo);
-            log.info("[SinkRecord] schemaInfo: {}", schemaInfo);
-            return schema;
-        } else {
+        if (sourceRecord == null || sourceRecord.getSchema() == null) {
             return null;
         }
+        log.info("[SinkRecord] sourceRecord schema: {}, classLoader: {}",
+                sourceRecord.getSchema().getSchemaInfo().toString(), Schema.class.getClassLoader());
+        return sourceRecord.getSchema();
+//        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
+//        if (sourceRecord != null && sourceRecord.getSchema() != null) {
+//            SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
+//            log.info("[SinkRecord] map classLoader: {}", srcSchemaInfo.getProperties().getClass().getClassLoader());
+//            SchemaInfo schemaInfo = SchemaInfo.builder()
+//                    .name(srcSchemaInfo.getName())
+//                    .schema(srcSchemaInfo.getSchema())
+//                    .type(SchemaType.valueOf(srcSchemaInfo.getType().getValue()))
+//                    .properties(srcSchemaInfo.getProperties())
+//                    .build();
+//            Schema<T> schema = (Schema<T>) Schema.getSchema(schemaInfo);
+//            log.info("[SinkRecord] schemaInfo: {}", schemaInfo);
+//            return schema;
+//        } else {
+//            return null;
+//        }
     }
 }

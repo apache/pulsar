@@ -40,15 +40,12 @@ public class KafkaSchemaWrappedSchema implements Schema<byte[]> {
 
     public KafkaSchemaWrappedSchema(org.apache.pulsar.kafka.shade.avro.Schema schema,
                                     Converter converter) {
-        if (converter instanceof JsonConverter) {
-            return;
-        }
         Map<String, String> props = new HashMap<>();
-        props.put(GenericAvroReader.OFFSET_PROP, "5");
-
+        boolean isJsonConverter = converter instanceof JsonConverter;
+        props.put(GenericAvroReader.OFFSET_PROP, isJsonConverter ? "0" : "5");
         this.schemaInfo = SchemaInfo.builder()
-                .name("KafkaAvro")
-                .type(SchemaType.AVRO)
+                .name(isJsonConverter? "KafKaJson" : "KafkaAvro")
+                .type(isJsonConverter ? SchemaType.JSON : SchemaType.AVRO)
                 .schema(schema.toString().getBytes(UTF_8))
                 .properties(props)
                 .build();
