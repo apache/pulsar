@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -43,6 +44,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
+@Slf4j
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final long serialVersionUID = 0L;
@@ -108,6 +110,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> key(String key) {
         if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            log.info("[key] KeyValueSchema className: {}, classLoader: {}",
+                    KeyValueSchema.class.getName(), KeyValueSchema.class.getClassLoader());
+            log.info("[key] schema className: {}, classLoader: {}",
+                    schema.getClass().getName(), schema.getClass().getClassLoader());
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");

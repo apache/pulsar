@@ -24,9 +24,13 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 
+@Slf4j
 @Data
 @AllArgsConstructor
 public class SinkRecord<T> implements Record<T> {
@@ -85,6 +89,20 @@ public class SinkRecord<T> implements Record<T> {
 
     @Override
     public Schema<T> getSchema() {
-        return sourceRecord.getSchema();
+        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
+        if (sourceRecord != null) {
+            SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
+            SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .name(srcSchemaInfo.getName())
+                    .schema(srcSchemaInfo.getSchema())
+                    .type(SchemaType.valueOf(srcSchemaInfo.getType().getValue()))
+                    .properties(srcSchemaInfo.getProperties())
+                    .build();
+            Schema<T> schema = (Schema<T>) Schema.getSchema(schemaInfo);
+            log.info("[SinkRecord] schemaInfo: {}", schemaInfo);
+            return schema;
+        } else {
+            return null;
+        }
     }
 }
