@@ -196,7 +196,7 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * parameterize messageReceiveTimeoutMs for `PulsarConsumerSource`
+     * parameterize messageReceiveTimeoutMs for `PulsarConsumerSource`.
      * @param timeout timeout in ms, should be gt 0
      * @return this builder
      */
