@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,9 +45,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private Authentication authentication = new AuthenticationDisabled();
+    private transient Authentication authentication = new AuthenticationDisabled();
     private String authPluginClassName;
     private String authParams;
+    private Map<String, String> authParamMap;
 
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
