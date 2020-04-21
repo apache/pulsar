@@ -92,6 +92,7 @@ public class SinkRecord<T> implements Record<T> {
         log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
         if (sourceRecord != null && sourceRecord.getSchema() != null) {
             SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
+            log.info("[SinkRecord] map classLoader: {}", srcSchemaInfo.getProperties().getClass().getClassLoader());
             SchemaInfo schemaInfo = SchemaInfo.builder()
                     .name(srcSchemaInfo.getName())
                     .schema(srcSchemaInfo.getSchema())

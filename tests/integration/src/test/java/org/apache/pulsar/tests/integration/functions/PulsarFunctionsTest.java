@@ -2275,7 +2275,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "public/default/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
-            + functionRuntimeType + "-name-" + randomName(8);
+            + functionRuntimeType + "-name-mysql";
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
