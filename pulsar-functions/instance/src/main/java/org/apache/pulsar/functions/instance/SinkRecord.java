@@ -90,7 +90,7 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Schema<T> getSchema() {
         log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
-        if (sourceRecord != null) {
+        if (sourceRecord != null && sourceRecord.getSchema() != null) {
             SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
             SchemaInfo schemaInfo = SchemaInfo.builder()
                     .name(srcSchemaInfo.getName())
