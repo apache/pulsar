@@ -21,7 +21,7 @@
 
 #### Fixes
 
-#### Broker
+##### Broker
 * [Broker] Fixed NPE occurs when getting partitioned topic stats [#6060](https://github.com/apache/pulsar/pull/6060)
 * [Broker] Fixed zero queue consumer message redelivery [#6076](https://github.com/apache/pulsar/pull/6076)
 * [Broker] Fixed message redelivery for zero queue consumer while using async api to receive messages [#6090](https://github.com/apache/pulsar/pull/6090)
@@ -36,7 +36,7 @@
 * [Broker] Fixed topic with one partition cannot be updated [#6560](https://github.com/apache/pulsar/pull/6560)
 * [Broker] Fixed negative un-ack messages in consumer stats [#5929](https://github.com/apache/pulsar/pull/5929)
 * [broker] Fixed bug that tenants whose allowed clusters include global cannot be created/updated [#6275](https://github.com/apache/pulsar/pull/6275)
-* [Compaction] Fixed log compaction for flow control/empty topic/last deletion [#6237](https://github.com/apache/pulsar/pull/6237)
+* [Broker] Fixed log compaction for flow control/empty topic/last deletion [#6237](https://github.com/apache/pulsar/pull/6237)
 * [Broker] Fixed restore clusterDispatchRate policy for compatibility [#6176](https://github.com/apache/pulsar/pull/6176) 
 * [Broker] Fix some async method problems at PersistentTopicsBase. [#6483](https://github.com/apache/pulsar/pull/6483) 
 
@@ -73,7 +73,7 @@
 * [Schema] Fixed avro schema decode error `ClassCastException` in Pulsar Function [#6662](https://github.com/apache/pulsar/pull/6662)
 * [Schema] Fixed channel write error handling for send get raw schema request [#6650](https://github.com/apache/pulsar/pull/6650)
 
-#### Java client
+##### Java client
 * [Client] Fixed available permits may be greater than 1 even though queue size is 0. [#6106](https://github.com/apache/pulsar/pull/6106)
 * [Client] Fixed broker client tls settings error [#6128](https://github.com/apache/pulsar/pull/6128)
 * [Client]Fixed hasMessageAvailable() [#6362](https://github.com/apache/pulsar/pull/6362)
@@ -81,7 +81,7 @@
 * [Client] fixed deadlock on send failure [#6488](https://github.com/apache/pulsar/pull/6488)
 * [Client] Fixed NPE while call getLastMessageId [#6562](https://github.com/apache/pulsar/pull/6562) 
 
-#### C++ client
+##### C++ client
 * [C++] Fixed static linking on C++ lib on MacOS [#5581](https://github.com/apache/pulsar/pull/5581)
 * [C++] Fixed memory corruption on ExecutorService destructor [#6270](https://github.com/apache/pulsar/pull/6270)
 * [C++] Fixed handling of canceled timer events on NegativeAcksTracker [#6272](https://github.com/apache/pulsar/pull/6272)
@@ -89,10 +89,10 @@
 * [C++] Fixed Unacked Message Tracker by Using Time Partition on C++ [#6391](https://github.com/apache/pulsar/pull/6391)
 * [C++] Fixed Redelivery of Messages on UnackedMessageTracker When Ack Messages . [#6498](https://github.com/apache/pulsar/pull/6498)
 
-#### Python Client
+##### Python Client
 * [Python Client]Fixed the enum34 package not found [#6401](https://github.com/apache/pulsar/pull/6401)
 
-#### Pulsar Websocket
+##### Pulsar Websocket
 * [Websocket] Fixed Websocket doesn't set the correct cluster data [#6102](https://github.com/apache/pulsar/pull/6102)
 
 ##### Deployments
