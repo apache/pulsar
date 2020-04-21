@@ -39,6 +39,11 @@
 * [Broker] Fixed log compaction for flow control/empty topic/last deletion [#6237](https://github.com/apache/pulsar/pull/6237)
 * [Broker] Fixed restore clusterDispatchRate policy for compatibility [#6176](https://github.com/apache/pulsar/pull/6176) 
 * [Broker] Fix some async method problems at PersistentTopicsBase. [#6483](https://github.com/apache/pulsar/pull/6483) 
+* [Broker] This "earlier" message should be avoided to emit when reset cursor.[#6393](https://github.com/apache/pulsar/pull/6393)
+
+
+##### Managed Ledger
+* [Managed Ledger] Fixed consumer received duplicated delayed messages upon restart [#6404](https://github.com/apache/pulsar/pull/6404)
 
 
 ##### Pulsar Proxy
@@ -51,10 +56,6 @@
 ##### Zookeeper
 
 * [Zookeeper] Fixed casting in ZooKeeperCache.getDataIfPresent() [#6313](https://github.com/apache/pulsar/pull/6313)
-* Fixed consumer received duplicated delayed messages upon restart [#6404](https://github.com/apache/pulsar/pull/6404)
-* Fixed the max backoff configuration for lookups [#6444](https://github.com/apache/pulsar/pull/6444)
-* Pin the netty-transport-native-epoll to avoid conflicts [#6194](https://github.com/apache/pulsar/pull/6194)
-* This "earlier" message should be avoided to emit when reset curosr.[#6393](https://github.com/apache/pulsar/pull/6393)
 
 ##### Pulsar Functions
 * [Function] remove future.join() from PulsarSinkEffectivelyOnceProcessor [#6361](https://github.com/apache/pulsar/pull/6361)
@@ -80,6 +81,8 @@
 * [Client] Fixed duplicate key to send propertys [#6390](https://github.com/apache/pulsar/pull/6390)
 * [Client] fixed deadlock on send failure [#6488](https://github.com/apache/pulsar/pull/6488)
 * [Client] Fixed NPE while call getLastMessageId [#6562](https://github.com/apache/pulsar/pull/6562) 
+* [Client] Fixed the max backoff configuration for lookups [#6444](https://github.com/apache/pulsar/pull/6444)
+
 
 ##### C++ client
 * [C++] Fixed static linking on C++ lib on MacOS [#5581](https://github.com/apache/pulsar/pull/5581)
