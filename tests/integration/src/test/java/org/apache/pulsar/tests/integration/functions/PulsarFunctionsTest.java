@@ -2306,13 +2306,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
-            .topic(consumeTopicName)
-            .subscriptionName("debezium-source-tester")
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscribe();
-
-        @Cleanup
         DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
 
         // setup debezium mysql server
@@ -2334,6 +2327,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // wait for source to process messages
         Failsafe.with(statusRetryPolicy).run(() ->
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+
+        @Cleanup
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
 
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
