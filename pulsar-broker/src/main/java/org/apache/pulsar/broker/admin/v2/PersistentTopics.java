@@ -797,14 +797,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String topic,
             @ApiParam(value = "Subscription to create position on", required = true)
             @PathParam("subscriptionName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "messageId where to create the subscription. " +
                     "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest,earliest,ledgerId:entryId"
             )
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("replicated") boolean replicated) {
+            MessageIdImpl messageId,
+            @ApiParam(value = "Is replicated required to perform this operation")
+            @QueryParam("replicated") boolean replicated
+            ) {
         try {
             validateTopicName(tenant, namespace, topic);
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
