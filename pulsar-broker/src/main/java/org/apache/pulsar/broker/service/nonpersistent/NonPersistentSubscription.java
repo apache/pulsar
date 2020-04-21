@@ -36,8 +36,10 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -122,24 +124,21 @@ public class NonPersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    if (consumer.getKeySharedMeta() != null) {
-                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                            case STICKY:
-                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                        new HashRangeExclusiveStickyKeyConsumerSelector());
-                                break;
-                            case AUTO_SPLIT:
-                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                            default:
-                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                        }
-                    } else {
-                        dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
+
+                    switch (ksm.getKeySharedMode()) {
+                        case STICKY:
+                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                    new HashRangeExclusiveStickyKeyConsumerSelector());
+                            break;
+
+                        case AUTO_SPLIT:
+                        default:
+                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
+                                    new HashRangeAutoSplitStickyKeyConsumerSelector(
+                                            topic.getBrokerService().getPulsar().getConfiguration()
+                                                    .getSubscriptionKeySharedConsistentHashingReplicaPoints()));
+                            break;
                     }
                 }
                 break;

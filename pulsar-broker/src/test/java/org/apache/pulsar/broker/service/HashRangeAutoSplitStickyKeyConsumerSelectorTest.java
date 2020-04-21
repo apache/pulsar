@@ -18,138 +18,120 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
 
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testConsumerSelect() throws ConsumerAssignException {
 
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(100);
         String key1 = "anyKey";
         Assert.assertNull(selector.select(key1.getBytes()));
 
         Consumer consumer1 = mock(Consumer.class);
+        when(consumer1.consumerName()).thenReturn("c1");
         selector.addConsumer(consumer1);
-        int consumer1Slot = DEFAULT_RANGE_SIZE;
         Assert.assertEquals(selector.select(key1.getBytes()), consumer1);
-        Assert.assertEquals(selector.getConsumerRange().size(), 1);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
 
         Consumer consumer2 = mock(Consumer.class);
+        when(consumer2.consumerName()).thenReturn("c2");
         selector.addConsumer(consumer2);
-        Assert.assertEquals(selector.getConsumerRange().size(), 2);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
-        int consumer2Slot = consumer1Slot >> 1;
 
-        for (int i = 0; i < 100; i++) {
+        final int N = 1000;
+        final double PERCENT_ERROR = 0.20; // 20 %
+
+        Map<String, Integer> selectionMap = new HashMap<>();
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        // Check that keys got assigned uniformely to consumers
+        Assert.assertEquals(selectionMap.get("c1"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N/2, N/2 * PERCENT_ERROR);
+        selectionMap.clear();
 
         Consumer consumer3 = mock(Consumer.class);
+        when(consumer3.consumerName()).thenReturn("c3");
         selector.addConsumer(consumer3);
-        Assert.assertEquals(selector.getConsumerRange().size(), 3);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
-        int consumer3Slot = consumer2Slot >> 1;
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        Assert.assertEquals(selectionMap.get("c1"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
+        selectionMap.clear();
 
         Consumer consumer4 = mock(Consumer.class);
+        when(consumer4.consumerName()).thenReturn("c4");
         selector.addConsumer(consumer4);
-        Assert.assertEquals(selector.getConsumerRange().size(), 4);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 4);
-        int consumer4Slot = consumer1Slot - ((consumer1Slot - consumer2Slot) >> 1);
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else if (slot < consumer4Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer1);
-            }
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        Assert.assertEquals(selectionMap.get("c1"), N/4, N/4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), N/4, N/4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N/4, N/4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N/4, N/4 * PERCENT_ERROR);
+        selectionMap.clear();
 
         selector.removeConsumer(consumer1);
-        Assert.assertEquals(selector.getConsumerRange().size(), 3);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 3);
-        for (int i = 0; i < 100; i++) {
+
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else if (slot < consumer2Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer2);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            }
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N/3, N/3 * PERCENT_ERROR);
+        selectionMap.clear();
 
         selector.removeConsumer(consumer2);
-        Assert.assertEquals(selector.getConsumerRange().size(), 2);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 2);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes()) % DEFAULT_RANGE_SIZE;
-            if (slot < consumer3Slot) {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer3);
-            } else {
-                Assert.assertEquals(selector.select(key.getBytes()), consumer4);
-            }
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        System.err.println(selectionMap);
+        Assert.assertEquals(selectionMap.get("c3"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c4"), N/2, N/2 * PERCENT_ERROR);
+        selectionMap.clear();
 
         selector.removeConsumer(consumer3);
-        Assert.assertEquals(selector.getConsumerRange().size(), 1);
-        Assert.assertEquals(selector.getRangeConsumer().size(), 1);
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < N; i++) {
             String key = UUID.randomUUID().toString();
-            Assert.assertEquals(selector.select(key.getBytes()), consumer4);
+            Consumer selectedConsumer = selector.select(key.getBytes());
+            int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
+            selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
+
+        Assert.assertEquals(selectionMap.get("c4").intValue(), N);
     }
 
-    @Test(expectedExceptions = ConsumerAssignException.class)
-    public void testSplitExceed() throws ConsumerAssignException {
-        StickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(16);
-        for (int i = 0; i <= 16; i++) {
-            selector.addConsumer(mock(Consumer.class));
-        }
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testRangeSizeLessThan2() {
-        new HashRangeAutoSplitStickyKeyConsumerSelector(1);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testRangeSizePower2() {
-        new HashRangeAutoSplitStickyKeyConsumerSelector(6);
-    }
 }
