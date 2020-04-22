@@ -25,6 +25,7 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
@@ -44,15 +45,16 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Collections;
-import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
@@ -68,7 +70,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
     private static final byte[] LedgerPassword = "".getBytes();
-    private static final byte[] DeletedEntryHashCode = new byte[0];
 
     private final PulsarService pulsar;
     private final ZooKeeper zooKeeper;
@@ -234,7 +235,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
+            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version, schemaId)
                 .thenApply(entry -> {
                     if (entry == null) {
                         return null;
@@ -350,7 +351,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                return putSchema(schemaId, new byte[]{}, DeletedEntryHashCode);
+                return putSchema(schemaId, new byte[]{}, new byte[]{});
             }
         });
     }
@@ -390,20 +391,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .setHash(copyFrom(hash))
                 .build();
 
-        Iterable<SchemaStorageFormat.IndexEntry> allIndex = Arrays.equals(DeletedEntryHashCode, hash)
-                ? newArrayList(info) : concat(locator.getIndexList(), newArrayList(info));
-
         return updateSchemaLocator(getSchemaPath(schemaId),
             SchemaStorageFormat.SchemaLocator.newBuilder()
                 .setInfo(info)
-                .addAllIndex(allIndex).build(), locatorEntry.zkZnodeVersion
+                .addAllIndex(
+                        concat(locator.getIndexList(), newArrayList(info))
+                ).build(), locatorEntry.zkZnodeVersion
         ).thenApply(ignore -> nextVersion);
     }
 
     @NotNull
     private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntryByVersion(
         List<SchemaStorageFormat.IndexEntry> index,
-        long version
+        long version,
+        String schemaId
     ) {
 
         if (index.isEmpty()) {
@@ -415,15 +416,23 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             return completedFuture(null);
         }
 
-        for (SchemaStorageFormat.IndexEntry entry : index) {
-            if (entry.getVersion() == version) {
-                return readSchemaEntry(entry.getPosition());
-            } else if (entry.getVersion() > version) {
-                break;
-            }
-        }
-
-        return completedFuture(null);
+        return pulsar.getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(schemaId)
+                .thenApply(metadataList -> metadataList.stream().filter(schemaAndMetadata ->
+                        ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == version)
+                        .collect(Collectors.toList()))
+                .thenCompose(metadataList -> {
+                    if (CollectionUtils.isNotEmpty(metadataList)) {
+                        for (SchemaStorageFormat.IndexEntry entry : index) {
+                            if (entry.getVersion() == version) {
+                                return readSchemaEntry(entry.getPosition());
+                            } else if (entry.getVersion() > version) {
+                                break;
+                            }
+                        }
+                    }
+                    return completedFuture(null);
+                });
     }
 
     @NotNull
