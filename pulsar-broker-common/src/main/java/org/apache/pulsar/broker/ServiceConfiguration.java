@@ -1431,6 +1431,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerOffloadMaxThreads = 2;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Maximum prefetch rounds for ledger reading for offloading"
+    )
+    private int managedLedgerOffloadPrefetchRounds = 1;
+
     /**** --- Transaction config variables --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
