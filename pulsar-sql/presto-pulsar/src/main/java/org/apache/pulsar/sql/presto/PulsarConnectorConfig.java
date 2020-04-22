@@ -38,6 +38,7 @@ import org.apache.pulsar.common.protocol.Commands;
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
+    private String webServiceUrl = ""; //leave empty
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
@@ -76,12 +77,22 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @NotNull
     public String getBrokerServiceUrl() {
-        return brokerServiceUrl;
+		if(StringUtils.isEmpty(webServiceUrl))
+        { 
+		  return brokerServiceUrl;
+        }
+        else{
+            return webServiceUrl;
+        }
     }
-
+   @Config("pulsar.broker-service-url")
+    public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
+        this.brokerServiceUrl = brokerServiceUrl;
+        return this;
+    }
     @Config("pulsar.web-service-url")
-    public PulsarConnectorConfig setBrokerServiceUrl(String brokerWebServiceUrl) {
-        this.brokerServiceUrl = brokerWebServiceUrl;
+    public PulsarConnectorConfig setBrokerServiceUrl(String webServiceUrl) {
+        this.webServiceUrl = webServiceUrl;
         return this;
     }
 
@@ -391,8 +402,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
+        if(StringUtils.isEmpty(webServiceUrl))
+        {            
         return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
+        }
+        else{
+            return "PulsarConnectorConfig{"
+            + "brokerServiceUrl='" + webServiceUrl + '\''
+            + '}';
+        }
     }
 }
