@@ -8,6 +8,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.annotations.Test;
@@ -15,7 +16,7 @@ import org.testng.annotations.Test;
 public class DebeziumTest {
 
     @Test
-    private void testJsonConverter() throws PulsarClientException {
+    private void testJsonConverterBytes() throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
         Schema<KeyValue<byte[], byte[]>> schema =
@@ -36,6 +37,29 @@ public class DebeziumTest {
         }
     }
 
+    @Test
+    private void testJsonConverter() throws PulsarClientException {
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+
+        Schema<KeyValue<GenericRecord, GenericRecord>> schema =
+                Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
+
+        Consumer<KeyValue<GenericRecord, GenericRecord>> consumer = pulsarClient.newConsumer(schema)
+                .topic("public/default/dbserver1.inventory.products")
+                .subscriptionName("journey-test")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        while (true) {
+            Message<KeyValue<GenericRecord, GenericRecord>> message = consumer.receive();
+            KeyValue<GenericRecord, GenericRecord> keyValue = message.getValue();
+            System.out.println("----------- get message -----------");
+            System.out.println("key: " + new String(message.getKeyBytes()));
+            System.out.println("value: " + new String(message.getData()));
+        }
+    }
+
+    @Test
     private void testAvroConverter() throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 

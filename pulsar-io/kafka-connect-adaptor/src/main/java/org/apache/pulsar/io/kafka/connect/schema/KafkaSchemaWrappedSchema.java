@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kafka.connect.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -31,10 +32,10 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
- * Wrapped schema for kafka connect schema,
+ * Wrapped schema for kafka connect schema.
  */
 @Slf4j
-public class KafkaSchemaWrappedSchema implements Schema<byte[]> {
+public class KafkaSchemaWrappedSchema implements Schema<byte[]>, Serializable {
 
     private SchemaInfo schemaInfo = null;
 

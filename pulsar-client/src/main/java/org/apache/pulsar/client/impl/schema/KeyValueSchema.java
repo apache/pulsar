@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  * [Key, Value] pair schema definition
  */
 @Slf4j
-public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
+public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>>, Serializable {
 
     @Getter
     private final Schema<K> keySchema;

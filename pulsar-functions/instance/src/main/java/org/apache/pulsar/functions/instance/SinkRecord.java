@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.Optional;
 
@@ -89,13 +95,33 @@ public class SinkRecord<T> implements Record<T> {
 
     @Override
     public Schema<T> getSchema() {
-        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
         if (sourceRecord == null || sourceRecord.getSchema() == null) {
             return null;
         }
+
+        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
         log.info("[SinkRecord] sourceRecord schema: {}, classLoader: {}",
                 sourceRecord.getSchema().getSchemaInfo().toString(), Schema.class.getClassLoader());
+
         return sourceRecord.getSchema();
+//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//        try {
+//            ObjectOutputStream oos = new ObjectOutputStream(byteArrayOutputStream);
+//            oos.writeObject(sourceRecord.getSchema());
+//            oos.flush();
+//            oos.close();
+//
+//            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+//            ObjectInputStream ois = new ObjectInputStream(byteArrayInputStream);
+//            Schema schema = (Schema) ois.readObject();
+//            log.info("deserializable schema: {}, classLoader: {}",
+//                    schema.getClass().getName(), schema.getClass().getClassLoader());
+//            return schema;
+//        } catch (IOException | ClassNotFoundException e) {
+//            e.printStackTrace();
+//            return null;
+//        }
+
 //        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
 //        if (sourceRecord != null && sourceRecord.getSchema() != null) {
 //            SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();

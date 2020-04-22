@@ -99,7 +99,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        initKeyValueSchemaOfMethod(sourceContext.getClass().getClassLoader());
+        log.info("sourceContext classLoader: {}", sourceContext.getClass().getClassLoader());
+//        initKeyValueSchemaOfMethod(sourceContext.getClass().getClassLoader());
 
         Map<String, String> stringConfig = new HashMap<>();
         config.forEach((key, value) -> {
@@ -110,10 +111,11 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
             jsonWithEnvelope = Boolean.parseBoolean(config.get(JSON_WITH_ENVELOPE_CONFIG).toString());
-            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
+            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, jsonWithEnvelope);
         } else {
             config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
         }
+        log.info("jsonWithEnvelope: {}", jsonWithEnvelope);
 
         // get the source class name from config and create source task from reflection
         sourceTask = ((Class<? extends SourceTask>)Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
@@ -200,7 +202,9 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
     @Override
     public void close() {
-        sourceTask.stop();
+        if (sourceTask != null) {
+            sourceTask.stop();
+        }
     }
 
     private synchronized Record<KeyValue<byte[], byte[]>> processSourceRecord(final SourceRecord srcRecord) {
@@ -279,18 +283,28 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             // as the key.converter and value.converter, make the `KeyValueSchema` encodingType
             // use the `KeyValueEncodingType.SEPARATED`, then the pulsar client could get the original
             // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
-            try {
-                if (jsonWithEnvelope) {
-                    return (Schema) keyValueSchemaOfMethod.invoke(
-                            Schema.BYTES, Schema.BYTES, KeyValueEncodingType.INLINE);
-                } else {
-                    return (Schema) keyValueSchemaOfMethod.invoke(
-                            keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
-                }
-            } catch (Exception e) {
-                log.error("failed to invoke the keyValueSchemaOfMethod.");
-                return null;
+
+            if (jsonWithEnvelope) {
+                return KeyValueSchema.of(Schema.BYTES, Schema.BYTES, KeyValueEncodingType.SEPARATED);
+            } else {
+                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
             }
+
+//            try {
+//                log.info("key classLoader: {}", keySchema.getClass().getClassLoader());
+//                log.info("value classLoader: {}", valueSchema.getClass().getClassLoader());
+//                if (jsonWithEnvelope) {
+//                    return (Schema) keyValueSchemaOfMethod.invoke(
+//                            Schema.BYTES, Schema.BYTES, KeyValueEncodingType.INLINE);
+//                } else {
+//                    return (Schema) keyValueSchemaOfMethod.invoke(
+//                            keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+//                }
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//                log.error("failed to invoke the keyValueSchemaOfMethod.");
+//                return null;
+//            }
         }
 
         @Override
@@ -367,8 +381,14 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             NoSuchMethodException {
         Class<KeyValueSchema> keyValueSchemaClazz =
                 (Class<KeyValueSchema>) classLoader.loadClass(KeyValueSchema.class.getName());
+        log.info("keyValueSchemaClazz: {}, classLoader: {}", keyValueSchemaClazz.getName(), keyValueSchemaClazz.getClassLoader());
         keyValueSchemaOfMethod = keyValueSchemaClazz.getDeclaredMethod(
                 "of", Schema.class, Schema.class, KeyValueEncodingType.class);
         keyValueSchemaOfMethod.setAccessible(true);
+        log.info("keyValueSchemaOfMethod: {}", keyValueSchemaOfMethod.toString());
+        Class[] clazzArr = keyValueSchemaOfMethod.getParameterTypes();
+        for (Class paramClass : clazzArr) {
+            log.info("paramClass: {}", paramClass.getName());
+        }
     }
 }
