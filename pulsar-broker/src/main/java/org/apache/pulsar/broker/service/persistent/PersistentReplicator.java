@@ -732,21 +732,22 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         String replicatedFrom = msg.getMessageBuilder().getReplicatedFrom();
 
-        if (!localCluster.equals(replicatedFrom)) {
-            topic.getSubscriptions().forEach((subName, sub) -> {
-                if (sub != null) {
-                    sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
-                            Collections.emptyMap());
-                }
-            });
-        }
-
         if (!remoteCluster.equals(replicatedFrom)) {
             // Only consider markers that are coming from the same cluster that this
             // replicator instance is assigned to.
             // All the replicators will see all the markers, but we need to only process
             // it once.
             return;
+        }
+
+        if (!localCluster.equals(replicatedFrom)) {
+            // Acknowledge the marker message to prevent it from accumulating in the backlog
+            topic.getSubscriptions().forEach((subName, sub) -> {
+                if (sub != null) {
+                    sub.acknowledgeMessage(Collections.singletonList(position), AckType.Individual,
+                            Collections.emptyMap());
+                }
+            });
         }
 
         int markerType = msg.getMessageBuilder().getMarkerType();

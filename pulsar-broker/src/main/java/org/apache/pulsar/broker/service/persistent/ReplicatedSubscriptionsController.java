@@ -243,6 +243,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         if (e == null) {
+            // Acknowledge the marker message to prevent it from accumulating in the backlog
             Position position = new PositionImpl(ledgerId, entryId);
             topic.getSubscriptions().forEach((subName, sub) -> {
                 if (sub != null) {
