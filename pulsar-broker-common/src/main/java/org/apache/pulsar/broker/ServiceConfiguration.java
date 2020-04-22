@@ -645,6 +645,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int retentionCheckIntervalInSeconds = 120;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The number of partitions per partitioned topic.\n"
+                + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
+    )
+    private int maxNumPartitionsPerPartitionedTopic = 0;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
