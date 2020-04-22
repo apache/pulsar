@@ -2276,8 +2276,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "public/default/dbserver1.inventory.products";
-        final String sourceName = "test-source-connector-"
-            + functionRuntimeType + "-name-mysql";
+//        final String sourceName = "test-source-connector-"
+//            + functionRuntimeType + "-name-mysql";
+        final String sourceName = "test-source-debezium-mysql";
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
@@ -2382,9 +2383,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "public/default/dbserver1.inventory.products";
-        final String sourceName = "test-source-connector-"
+//        final String sourceName = "test-source-connector-"
 //                + functionRuntimeType + "-name-" + randomName(8);
-                + functionRuntimeType + "-name-postgresql";
+        final String sourceName = "test-source-debezium-postgersql";
+
 
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
