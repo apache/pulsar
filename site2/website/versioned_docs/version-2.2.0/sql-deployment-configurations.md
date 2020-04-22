@@ -16,7 +16,7 @@ The configurations for the connector and its default values are discribed below.
 connector.name=pulsar
 
 # the url of Pulsar broker service
-pulsar.web-service-url=http://localhost:8080
+pulsar.broker-service-url=http://localhost:8080
 
 # URI of Zookeeper cluster
 pulsar.zookeeper-uri=localhost:2181
@@ -105,7 +105,7 @@ discovery-server.enabled=true
 discovery.uri=<coordinator-url>
 ```
 
-Also, modify ```pulsar.web-service-url``` and  ```pulsar.zookeeper-uri``` configs in ```${project.root}/conf/presto/catalog/pulsar.properties``` on those nodes accordingly
+Also, modify ```pulsar.broker-service-url``` and  ```pulsar.zookeeper-uri``` configs in ```${project.root}/conf/presto/catalog/pulsar.properties``` on those nodes accordingly
 
 Afterwards, you can start the coordinator by just running
 
@@ -122,7 +122,7 @@ discovery.uri=<coordinator-url>
 
 ```
 
-Also, modify ```pulsar.web-service-url``` and  ```pulsar.zookeeper-uri``` configs in ```${project.root}/conf/presto/catalog/pulsar.properties``` accordingly
+Also, modify ```pulsar.broker-service-url``` and  ```pulsar.zookeeper-uri``` configs in ```${project.root}/conf/presto/catalog/pulsar.properties``` accordingly
 
 You can also start the worker by just running:
 
