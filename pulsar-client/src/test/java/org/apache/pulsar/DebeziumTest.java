@@ -38,7 +38,7 @@ public class DebeziumTest {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
         Schema<KeyValue<byte[], byte[]>> schema =
-                Schema.KeyValue(Schema.BYTES, Schema.BYTES, KeyValueEncodingType.SEPARATED);
+                Schema.KeyValue(Schema.BYTES, Schema.BYTES, KeyValueEncodingType.INLINE);
 
         Consumer<KeyValue<byte[], byte[]>> consumer = pulsarClient.newConsumer(schema)
                 .topic("public/default/dbserver1.inventory.products")

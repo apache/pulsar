@@ -146,6 +146,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         if (this.getContainerName().contains("functions-worker")) {
             DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
                     "tail", "-f", "/var/log/pulsar/functions_worker.log");
+
             DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
                     "mkdir", "-p",
                     "/tmp/functions/public/default/test-source-connector-PROCESS-name-mysql");
@@ -157,6 +158,20 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
                     "tail", "-f",
                     "/tmp/functions/public/default/test-source-connector-PROCESS-name-mysql/" +
                             "test-source-connector-PROCESS-name-mysql-0.log");
+
+            // postgresql
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "mkdir", "-p",
+                    "/tmp/functions/public/default/test-source-connector-PROCESS-name-postgresql");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "touch",
+                    "/tmp/functions/public/default/test-source-connector-PROCESS-name-postgresql/" +
+                            "test-source-connector-PROCESS-name-postgresql-0.log");
+            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
+                    "tail", "-f",
+                    "/tmp/functions/public/default/test-source-connector-PROCESS-name-postgresql/" +
+                            "test-source-connector-PROCESS-name-postgresql-0.log");
+
         }
     }
 

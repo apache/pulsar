@@ -87,6 +87,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
+            log.info("[createProducer] schema: {}", schema == null ? "null" : schema.getSchemaInfo());
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)

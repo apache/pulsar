@@ -297,6 +297,15 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         }
 
         @Override
+        public KeyValueEncodingType getKeyValueEncodingType() {
+            if (jsonWithEnvelope) {
+                return KeyValueEncodingType.INLINE;
+            } else {
+                return KeyValueEncodingType.SEPARATED;
+            }
+        }
+
+        @Override
         public Schema getSchema() {
             // When use `org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter`
             // as the key.converter and value.converter, make the `KeyValueSchema` encodingType

@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,8 +27,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
@@ -106,14 +98,17 @@ public class SinkRecord<T> implements Record<T> {
         }
 
         log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
+        log.info("[SinkRecord] sourceRecord classLoader: {}", sourceRecord.getClass().getClassLoader());
+        log.info("[SinkRecord] KVRecord classLoader: {}", KVRecord.class.getClassLoader());
 
         if (sourceRecord instanceof KVRecord) {
-            log.info("[SinkRecord] sourceRecord keySchema classLoader: {}, valueSchema classLoader: {}",
-                    ((KVRecord) sourceRecord).getKeySchema().getClass().getClassLoader(),
-                    ((KVRecord) sourceRecord).getValueSchema().getClass().getClassLoader());
-            Schema keySchema= ((KVRecord) sourceRecord).getKeySchema();
-            Schema valueSchema = ((KVRecord) sourceRecord).getValueSchema();
-            return KeyValueSchema.of(keySchema, valueSchema);
+            KVRecord kvRecord = (KVRecord) sourceRecord;
+            log.info("[SinkRecord] keySchema classLoader: {}, schemaInfo: {}",
+                    kvRecord.getKeySchema().getClass().getClassLoader(), kvRecord.getKeySchema().getSchemaInfo().toString());
+            log.info("[SinkRecord] valueSchema classLoader: {}, schemaInfo: {}",
+                    kvRecord.getValueSchema().getClass().getClassLoader(), kvRecord.getValueSchema().getSchemaInfo().toString());
+            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+                    kvRecord.getKeyValueEncodingType());
         }
 
         return null;

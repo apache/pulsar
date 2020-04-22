@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 
 /**
  * key value schema record.
@@ -28,5 +29,7 @@ public interface KVRecord<K, V> extends Record {
     Schema<K> getKeySchema();
 
     Schema<V> getValueSchema();
+
+    KeyValueEncodingType getKeyValueEncodingType();
 
 }

@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -2307,15 +2308,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
             log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
         } catch (Exception e) {
-            log.warn("failed to get schemaInfo for topic: {}", consumeTopicName);
+            log.warn("failed to get schemaInfo for topic: {}, exceptions message: {}",
+                    consumeTopicName, e.getMessage());
         }
-
-        @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
-                .topic(consumeTopicName)
-                .subscriptionName("debezium-source-tester")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
 
 //        admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
@@ -2342,6 +2337,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // wait for source to process messages
         Failsafe.with(statusRetryPolicy).run(() ->
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+
+        @Cleanup
+        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
@@ -2378,7 +2381,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String outputTopicName = "debe-output-topic-name";
         final String consumeTopicName = "public/default/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+//                + functionRuntimeType + "-name-" + randomName(8);
+                + functionRuntimeType + "-name-postgresql";
 
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
