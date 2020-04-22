@@ -3424,6 +3424,75 @@ TEST(BasicEndToEndTest, testSendCallback) {
     client.close();
 }
 
+TEST(BasicEndToEndTest, testCumulativeAcknowledgeForPartitionedTopic) {
+    const std::string topicNameSuffix = "public/default/testCumulativeAcknowledgeForPartitionedTopic";
+    const std::string topicName = "persistent://" + topicNameSuffix;
+    const std::string subName = "MySubscriptionName";
+    constexpr int numPartitions = 3;
+
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + topicNameSuffix + "/partitions",
+                             std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Client client(lookupUrl);
+
+    Producer producer;
+    const auto producerConfig =
+        ProducerConfiguration().setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfig, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    // In round robin routing mode, each partition will receive 5 messages
+    for (int i = 0; i < numPartitions * 5; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<int> numMessagesReceivedOfPartition(numPartitions);
+    for (int i = 0; i < numPartitions * 5; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+
+        const int32_t partition = msg.getMessageId().partition();
+        ASSERT_TRUE(partition >= 0 && partition < numPartitions) << "partition: " << partition;
+        numMessagesReceivedOfPartition[partition]++;
+
+        // Only acknowledge last message of each partition
+        if (numMessagesReceivedOfPartition[partition] == 5) {
+            ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(msg));
+        }
+    }
+
+    // resubscribe the topic
+    consumer.close();
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    // send 0,...,N-1, N is num of partitions
+    for (int i = 0; i < numPartitions; i++) {
+        const auto msg = MessageBuilder().setContent(std::to_string(i)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::set<std::string> receivedMessages;
+    for (int i = 0; i < numPartitions; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedMessages.emplace(msg.getDataAsString());
+    }
+
+    std::set<std::string> expectedMessages;
+    for (int i = 0; i < numPartitions; i++) {
+        expectedMessages.emplace(std::to_string(i));
+    }
+    ASSERT_EQ(expectedMessages, receivedMessages);
+
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
 class AckGroupingTrackerMock : public AckGroupingTracker {
    public:
     explicit AckGroupingTrackerMock(bool mockAck) : mockAck_(mockAck) {}
