@@ -1764,8 +1764,8 @@ Subcommands
 * `expire-messages-all-subscriptions`
 * `peek-messages`
 * `reset-cursor`
+* `get-message-by-id`
 * `last-message-id`
-
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2165,6 +2165,21 @@ Usage
 ```bash
 $ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
 ```
+
+### `get-message-by-id`
+Get message by ledger id and entry id
+
+Usage
+```bash
+$ pulsar-admin topics get-message-by-id topic options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-l`, `--ledgerId`|The ledger id |0|
+|`-e`, `--entryId`|The entry id |0|
 
 
 ## `tenants`
