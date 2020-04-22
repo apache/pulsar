@@ -93,21 +93,6 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     }
 
     @Override
-    public void setActive() {
-        /// No-Op
-    }
-
-    @Override
-    public boolean isActive() {
-        return false;
-    }
-
-    @Override
-    public void setInactive() {
-        /// No-Op
-    }
-
-    @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
         // No-Op
         callback.closeComplete(ctx);
