@@ -45,6 +45,7 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
+import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
@@ -900,6 +901,21 @@ public class PulsarAdminToolTest {
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertNull(atuh.getCertFilePath());
         assertNull(atuh.getKeyFilePath());
+    }
+
+    @Test
+    void proxy() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ProxyStats mockProxyStats = mock(ProxyStats.class);
+        doReturn(mockProxyStats).when(admin).proxyStats();
+
+        CmdProxyStats proxyStats = new CmdProxyStats(admin);
+
+        proxyStats.run(split("connections"));
+        verify(mockProxyStats).getConnections();
+
+        proxyStats.run(split("topics"));
+        verify(mockProxyStats).getTopics();
     }
 
     String[] split(String s) {
