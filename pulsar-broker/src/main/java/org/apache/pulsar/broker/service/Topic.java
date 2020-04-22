@@ -129,6 +129,12 @@ public interface Topic {
 
     void checkInactiveSubscriptions();
 
+    /**
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
+     * backlog.
+     */
+    void checkBackloggedCursors();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
