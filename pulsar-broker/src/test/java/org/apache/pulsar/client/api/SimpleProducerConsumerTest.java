@@ -1040,7 +1040,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Thread.sleep(maxMessageCacheRetentionTimeMillis);
 
         // 4. deactivate subscriber which has built the backlog
-        ledger.checkBackloggedCursors();
+        topicRef.checkBackloggedCursors();
         Thread.sleep(100);
 
         // 5. verify: active subscribers
@@ -1055,7 +1055,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             subscriber2.acknowledge(msg);
         }
 
-        ledger.checkBackloggedCursors();
+        topicRef.checkBackloggedCursors();
 
         activeSubscriber.clear();
         ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
