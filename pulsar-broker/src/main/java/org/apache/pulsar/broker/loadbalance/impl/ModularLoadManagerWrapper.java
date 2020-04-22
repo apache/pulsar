@@ -83,7 +83,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
     
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        return Collections.emptyList();
+        return loadManager.getLoadBalancingMetrics();
     }
 
     @Override

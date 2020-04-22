@@ -1146,6 +1146,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
     )
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "load balance load shedding strategy"
+    )
+    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.OverloadShedder";
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -1201,6 +1208,63 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Usage threshold to determine a broker as over-loaded"
     )
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Usage threshold to determine a broker whether to start threshold shedder"
+    )
+    private int loadBalancerBrokerThresholdShedderPercentage = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Resource history Usage Percentage When adding new resource usage info"
+    )
+    private double loadBalancerHistoryResourcePercentage = 0.9;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwithIn Resource Usage Weight"
+    )
+    private double loadBalancerBandwithInResourceWeight = 1.0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwithOut Resource Usage Weight"
+    )
+    private double loadBalancerBandwithOutResourceWeight = 1.0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "CPU Resource Usage Weight"
+    )
+    private double loadBalancerCPUResourceWeight = 1.0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Memory Resource Usage Weight"
+    )
+    private double loadBalancerMemoryResourceWeight = 1.0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Direct Memory Resource Usage Weight"
+    )
+    private double loadBalancerDirectMemoryResourceWeight = 1.0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Bundle unload minimum throughput threshold (MB)"
+    )
+    private double loadBalancerBundleUnloadMinThroughputThreshold = 10;
+
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         doc = "Interval to flush dynamic resource quota to ZooKeeper"
