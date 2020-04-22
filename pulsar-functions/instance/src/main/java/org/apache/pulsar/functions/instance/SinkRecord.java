@@ -109,7 +109,8 @@ public class SinkRecord<T> implements Record<T> {
 
         if (sourceRecord instanceof KVRecord) {
             log.info("[SinkRecord] sourceRecord keySchema classLoader: {}, valueSchema classLoader: {}",
-                    sourceRecord.getSchema().getSchemaInfo().toString(), Schema.class.getClassLoader());
+                    ((KVRecord) sourceRecord).getKeySchema().getClass().getClassLoader(),
+                    ((KVRecord) sourceRecord).getValueSchema().getClass().getClassLoader());
             Schema keySchema= ((KVRecord) sourceRecord).getKeySchema();
             Schema valueSchema = ((KVRecord) sourceRecord).getValueSchema();
             return KeyValueSchema.of(keySchema, valueSchema);
