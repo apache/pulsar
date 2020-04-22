@@ -32,8 +32,10 @@ import lombok.Data;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
 @Slf4j
@@ -95,15 +97,26 @@ public class SinkRecord<T> implements Record<T> {
 
     @Override
     public Schema<T> getSchema() {
-        if (sourceRecord == null || sourceRecord.getSchema() == null) {
+        if (sourceRecord == null) {
             return null;
         }
 
-        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
-        log.info("[SinkRecord] sourceRecord schema: {}, classLoader: {}",
-                sourceRecord.getSchema().getSchemaInfo().toString(), Schema.class.getClassLoader());
+        if (sourceRecord.getSchema() != null) {
+            return sourceRecord.getSchema();
+        }
 
-        return sourceRecord.getSchema();
+        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
+
+        if (sourceRecord instanceof KVRecord) {
+            log.info("[SinkRecord] sourceRecord keySchema classLoader: {}, valueSchema classLoader: {}",
+                    sourceRecord.getSchema().getSchemaInfo().toString(), Schema.class.getClassLoader());
+            Schema keySchema= ((KVRecord) sourceRecord).getKeySchema();
+            Schema valueSchema = ((KVRecord) sourceRecord).getValueSchema();
+            return KeyValueSchema.of(keySchema, valueSchema);
+        }
+
+        return null;
+
 //        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 //        try {
 //            ObjectOutputStream oos = new ObjectOutputStream(byteArrayOutputStream);

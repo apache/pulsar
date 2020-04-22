@@ -118,8 +118,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             log.info("[key] KeyValueSchema encodingType, classLoader: {}", KeyValueEncodingType.SEPARATED);
             log.info("[key] schema encodingType, classLoader: {}",
                     ((KeyValueSchema) schema).getKeyValueEncodingType().getClass().getClassLoader());
-//            KeyValueSchema kvSchema = (KeyValueSchema) schema;
-            checkArgument(!(((KeyValueSchema) schema).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
         }
         msgMetadataBuilder.setPartitionKey(key);
@@ -150,15 +150,15 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
         checkArgument(value != null, "Need Non-Null content value");
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-//            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (((KeyValueSchema) schema).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
                 msgMetadataBuilder.setPartitionKey(
-                        Base64.getEncoder().encodeToString(((KeyValueSchema) schema).getKeySchema().encode(kv.getKey())));
+                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
                 msgMetadataBuilder.setPartitionKeyB64Encoded(true);
                 // set value as the payload
-                this.content = ByteBuffer.wrap(((KeyValueSchema) schema).getValueSchema().encode(kv.getValue()));
+                this.content = ByteBuffer.wrap((kvSchema.getValueSchema().encode(kv.getValue())));
                 return this;
             }
         }

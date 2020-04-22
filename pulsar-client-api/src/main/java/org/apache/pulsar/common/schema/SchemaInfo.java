@@ -20,7 +20,6 @@ package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.Serializable;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
@@ -41,7 +40,7 @@ import org.apache.pulsar.client.internal.DefaultImplementation;
 @NoArgsConstructor
 @Accessors(chain = true)
 @Builder
-public class SchemaInfo implements Serializable {
+public class SchemaInfo {
 
     @EqualsAndHashCode.Exclude
     private String name;

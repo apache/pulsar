@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.api.schema;
 
-import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * Schema Provider.
  */
-public interface SchemaInfoProvider extends Serializable {
+public interface SchemaInfoProvider {
 
     /**
      * Retrieve the schema info of a given <tt>schemaVersion</tt>.

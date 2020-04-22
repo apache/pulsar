@@ -41,6 +41,7 @@ import com.google.common.cache.CacheBuilder;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 import lombok.Getter;
@@ -217,7 +218,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
     private static long FLUSH_TIMEOUT_MS = 2000;
 
-    private class KafkaSourceRecord implements Record<KeyValue<byte[], byte[]>>  {
+    private class KafkaSourceRecord implements KVRecord<byte[], byte[]> {
         @Getter
         Optional<String> key;
         @Getter
@@ -278,17 +279,36 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         }
 
         @Override
+        public Schema<byte[]> getKeySchema() {
+            if (jsonWithEnvelope) {
+                return Schema.BYTES;
+            } else {
+                return keySchema;
+            }
+        }
+
+        @Override
+        public Schema<byte[]> getValueSchema() {
+            if (jsonWithEnvelope) {
+                return Schema.BYTES;
+            } else {
+                return valueSchema;
+            }
+        }
+
+        @Override
         public Schema getSchema() {
             // When use `org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter`
             // as the key.converter and value.converter, make the `KeyValueSchema` encodingType
             // use the `KeyValueEncodingType.SEPARATED`, then the pulsar client could get the original
             // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
 
-            if (jsonWithEnvelope) {
-                return KeyValueSchema.kvBytes();
-            } else {
-                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
-            }
+            return null;
+//            if (jsonWithEnvelope) {
+//                return KeyValueSchema.kvBytes();
+//            } else {
+//                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+//            }
 
 //            try {
 //                log.info("key classLoader: {}", keySchema.getClass().getClassLoader());
