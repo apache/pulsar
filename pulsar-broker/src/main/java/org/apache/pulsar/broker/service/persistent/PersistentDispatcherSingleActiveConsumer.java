@@ -53,7 +53,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,8 +213,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             Iterator<Entry> iterator = entries.iterator();
             while (iterator.hasNext()) {
                 Entry entry = iterator.next();
-                int keyHash = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
-                Consumer consumer = stickyKeyConsumerSelector.select(keyHash);
+                byte[] key = peekStickyKey(entry.getDataBuffer());
+                Consumer consumer = stickyKeyConsumerSelector.select(key);
                 if (consumer == null || currentConsumer != consumer) {
                     iterator.remove();
                 }

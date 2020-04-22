@@ -72,6 +72,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
+            if (entry == null) {
+                continue;
+            }
+
             ByteBuf metadataAndPayload = entry.getDataBuffer();
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
