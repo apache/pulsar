@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -52,7 +52,7 @@ public class RawBatchConverter {
         }
     }
 
-    public static List<ImmutablePair<MessageId,String>> extractIdsAndKeys(RawMessage msg)
+    public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(RawMessage msg)
             throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
@@ -66,7 +66,7 @@ public class RawBatchConverter {
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         metadata.recycle();
 
-        List<ImmutablePair<MessageId,String>> idsAndKeys = new ArrayList<>();
+        List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
 
         for (int i = 0; i < batchSize; i++) {
             SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
@@ -78,13 +78,13 @@ public class RawBatchConverter {
                                                   msg.getMessageIdData().getPartition(),
                                                   i);
             if (!singleMessageMetadataBuilder.getCompactedOut()) {
-                idsAndKeys.add(ImmutablePair.of(id, singleMessageMetadataBuilder.getPartitionKey()));
+                idsAndKeysAndSize.add(ImmutableTriple.of(id, singleMessageMetadataBuilder.getPartitionKey(), singleMessageMetadataBuilder.getPayloadSize()));
             }
             singleMessageMetadataBuilder.recycle();
             singleMessagePayload.release();
         }
         uncompressedPayload.release();
-        return idsAndKeys;
+        return idsAndKeysAndSize;
     }
 
     /**
