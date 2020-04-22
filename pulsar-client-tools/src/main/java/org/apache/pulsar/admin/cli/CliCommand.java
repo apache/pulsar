@@ -109,7 +109,7 @@ abstract class CliCommand {
             return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
         } catch (Exception e) {
             throw new PulsarAdminException(
-                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
+                    "Invalid message id (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
         }
     }
 

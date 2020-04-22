@@ -547,6 +547,28 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{property}/{cluster}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}")
+    @ApiOperation(hidden = true, value = "Get message by its messageId.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't java admin permission"),
+            @ApiResponse(code = 404, message = "Topic, subscription or the messageId does not exist")
+    })
+    public void getMessageByID(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+                @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                @PathParam("topic") @Encoded String encodedTopic, @PathParam("ledgerId") Long ledgerId,
+                @PathParam("entryId") Long entryId, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @GET
     @Path("{property}/{cluster}/{namespace}/{topic}/backlog")
     @ApiOperation(hidden = true, value = "Get estimated backlog for offline topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
