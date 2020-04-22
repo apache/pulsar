@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
@@ -142,23 +143,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
-        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter");
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceAvro() throws Exception {
         testDebeziumMySqlConnect(
-                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter");
+                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false);
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
-        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter");
+        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
-        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter");
+        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -2269,7 +2270,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    private void testDebeziumMySqlConnect(String converterClassName) throws Exception {
+    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2317,6 +2318,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
@@ -2339,7 +2341,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2374,7 +2376,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumPostgreSqlConnect(String converterClassName) throws Exception {
+    private  void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2413,7 +2415,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2421,6 +2423,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium postgresql server
         DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
@@ -2470,7 +2473,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumMongoDbConnect(String converterClassName) throws Exception {
+    private  void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -2508,7 +2511,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer consumer = client.newConsumer(getSchema(converterClassName))
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2516,6 +2519,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
@@ -2564,13 +2568,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private Schema getSchema(String converterClassName) {
-        if (converterClassName.endsWith("AvroConverter")) {
-            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME());
-        } else {
+    private Schema getSchema(boolean jsonWithEnvelope) {
+        if (jsonWithEnvelope) {
             return KeyValueSchema.kvBytes();
+        } else {
+            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
         }
-
     }
 
 }
