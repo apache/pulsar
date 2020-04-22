@@ -3001,6 +3001,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    void testNonDurableCursorActive() throws Exception {
+        ManagedLedger ml = factory.open("testInactive");
+        ManagedCursor cursor = ml.newNonDurableCursor(PositionImpl.latest, "c1");
+
+        assertTrue(cursor.isActive());
+
+        cursor.setInactive();
+        assertFalse(cursor.isActive());
+    }
+
+    @Test
     public void deleteMessagesCheckhMarkDelete() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");

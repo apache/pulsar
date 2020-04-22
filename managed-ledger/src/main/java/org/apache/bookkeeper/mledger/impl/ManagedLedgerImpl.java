@@ -854,6 +854,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, config, this, cursorName,
                 (PositionImpl) startCursorPosition);
+        cursor.setActive();
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
         synchronized (this) {
@@ -2899,7 +2900,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
-        return cursor.isDurable() && activeCursors.get(cursor.getName()) != null;
+        return activeCursors.get(cursor.getName()) != null;
     }
 
     private boolean currentLedgerIsFull() {
