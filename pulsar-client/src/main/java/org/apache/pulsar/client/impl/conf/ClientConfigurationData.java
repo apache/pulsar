@@ -80,6 +80,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         return authentication;
     }
 
+    public void setAuthentication(Authentication authentication) {
+        this.authentication = authentication;
+    }
     public boolean isUseTls() {
         if (useTls)
             return true;
