@@ -2303,8 +2303,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     consumeTopicName, e.getMessage());
         }
 
-        SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
-        log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
+        try {
+            SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
+            log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
+        } catch (Exception e) {
+            log.warn("failed to get schemaInfo for topic: {}", consumeTopicName);
+        }
 
         @Cleanup
         Consumer consumer = client.newConsumer(getSchema(converterClassName))

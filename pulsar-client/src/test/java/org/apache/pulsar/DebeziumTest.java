@@ -15,12 +15,12 @@ import org.testng.annotations.Test;
 
 public class DebeziumTest {
 
-    @Test
+//    @Test
     private void testJsonConverterBytes() throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
         Schema<KeyValue<byte[], byte[]>> schema =
-                Schema.KeyValue(Schema.BYTES, Schema.BYTES);
+                Schema.KeyValue(Schema.BYTES, Schema.BYTES, KeyValueEncodingType.SEPARATED);
 
         Consumer<KeyValue<byte[], byte[]>> consumer = pulsarClient.newConsumer(schema)
                 .topic("public/default/dbserver1.inventory.products")
@@ -37,7 +37,7 @@ public class DebeziumTest {
         }
     }
 
-    @Test
+//    @Test
     private void testJsonConverter() throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
@@ -59,7 +59,7 @@ public class DebeziumTest {
         }
     }
 
-    @Test
+//    @Test
     private void testAvroConverter() throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 

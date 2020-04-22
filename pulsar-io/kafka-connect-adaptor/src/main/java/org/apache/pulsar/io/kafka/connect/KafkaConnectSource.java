@@ -285,7 +285,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
 
             if (jsonWithEnvelope) {
-                return KeyValueSchema.of(Schema.BYTES, Schema.BYTES, KeyValueEncodingType.SEPARATED);
+                return KeyValueSchema.kvBytes();
             } else {
                 return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
             }
