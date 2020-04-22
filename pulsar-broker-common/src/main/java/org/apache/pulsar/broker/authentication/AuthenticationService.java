@@ -99,18 +99,38 @@ public class AuthenticationService implements Closeable {
     }
 
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
-        // Try to validate with any configured provider
         AuthenticationException authenticationException = null;
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
-        for (AuthenticationProvider provider : providers.values()) {
+        String authMethodName = request.getHeader("Auth-Method-Name");
+
+        if (authMethodName != null) {
+            AuthenticationProvider providerToUse = providers
+                    .values()
+                    .parallelStream()
+                    .filter(provider -> provider.getAuthMethodName().equals(authMethodName))
+                    .findAny()
+                    .orElseThrow(() -> new AuthenticationException(String.format("Unsupported header Auth-Method-Name [%s].", authMethodName)));
+
             try {
-                return provider.authenticate(authData);
+                return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
+                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + ": " + e.getMessage(), e);
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = e;
+                throw e;
+            }
+        } else {
+            for (AuthenticationProvider provider : providers.values()) {
+                try {
+                    return provider.authenticate(authData);
+                } catch (AuthenticationException e) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
+                    }
+                    // Ignore the exception because we don't know which authentication method is expected here.
+                }
             }
         }
 
