@@ -119,11 +119,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             log.info("[key] schema encodingType, classLoader: {}",
                     ((KeyValueSchema) schema).getKeyValueEncodingType().getClass().getClassLoader());
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            log.info("[value] kvSchema class: {}, schemaInfo: {}",
+                    kvSchema.getClass().getName(), kvSchema.getSchemaInfo().toString());
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
         }
         msgMetadataBuilder.setPartitionKey(key);
         msgMetadataBuilder.setPartitionKeyB64Encoded(false);
+        log.info("[key] success encode");
         return this;
     }
 
@@ -150,7 +153,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
         checkArgument(value != null, "Need Non-Null content value");
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            log.info("[value] instanceof: {}", schema instanceof KeyValueSchema);
+            log.info("[value] KeyValueScehma classLoader: {}", KeyValueSchema.class.getClassLoader());
+            log.info("[value] schema: {}", schema.getClass().getClassLoader());
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            log.info("[value] kvSchema class: {}, schemaInfo: {}",
+                    kvSchema.getClass().getName(), kvSchema.getSchemaInfo().toString());
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (((KeyValueSchema) schema).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
@@ -159,10 +167,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 msgMetadataBuilder.setPartitionKeyB64Encoded(true);
                 // set value as the payload
                 this.content = ByteBuffer.wrap((kvSchema.getValueSchema().encode(kv.getValue())));
+                log.info("[value] success encode1");
                 return this;
             }
         }
         this.content = ByteBuffer.wrap(schema.encode(value));
+        log.info("[value] success encode2");
         return this;
     }
 
