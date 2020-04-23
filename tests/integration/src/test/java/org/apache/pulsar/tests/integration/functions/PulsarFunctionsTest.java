@@ -2348,6 +2348,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
 
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9, null, converterClassName);

@@ -401,7 +401,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         @Override
         public void fail() {
             if (flushFuture != null) {
-                flushFuture.completeExceptionally(new Exception("Sink Error"));
+                log.info("[fail] isCompletedExceptionally: {}", flushFuture.isCompletedExceptionally());
+//                flushFuture.completeExceptionally(new Exception("Sink Error"));
             }
         }
     }
