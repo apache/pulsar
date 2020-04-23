@@ -52,6 +52,11 @@ cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/zh-TW/versi
 cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-TW/version-2.5.0/io-overview.md
 cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/zh-TW/version-2.5.1/functions-develop.md
 
+cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ko/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/ko/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ko/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ko/version-2.5.1/functions-develop.md
+
 yarn build
 
 node ./scripts/replace.js
