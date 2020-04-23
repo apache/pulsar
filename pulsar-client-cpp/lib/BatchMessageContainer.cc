@@ -157,7 +157,8 @@ void BatchMessageContainer::batchMessageCallBack(Result r, const MessageId& mess
               << r << "] [numOfMessages = " << messagesContainerListPtr->size() << "]");
     size_t batch_size = messagesContainerListPtr->size();
     for (size_t i = 0; i < batch_size; i++) {
-        messagesContainerListPtr->operator[](i).callBack(r, messageId);
+        MessageId messageIdInBatch(messageId.partition(), messageId.ledgerId(), messageId.entryId(), i);
+        messagesContainerListPtr->operator[](i).callBack(r, messageIdInBatch);
     }
     if (flushCallback) {
         flushCallback(ResultOk);
