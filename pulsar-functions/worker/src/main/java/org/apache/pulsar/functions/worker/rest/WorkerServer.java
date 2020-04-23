@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.net.BindException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +31,7 @@ import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
 
+import io.prometheus.client.exporter.MetricsServlet;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -103,7 +105,8 @@ public class WorkerServer {
                 newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
                 newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
-        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
+        // don't require auth for metrics or config routes
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService, workerConfig.isAuthenticateMetricsEndpoint()));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -142,6 +145,10 @@ public class WorkerServer {
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
+        return newServletContextHandler(contextPath, config, workerService, true);
+    }
+
+    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService, boolean requireAuthentication) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -153,7 +160,7 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
-        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+        if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
