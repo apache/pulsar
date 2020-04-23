@@ -798,18 +798,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
             try {
-                ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
+                if (!org.apache.pulsar.zookeeper.ZkUtils.checkNodeAndWaitExpired(
+                    zkClient, brokerZnodePath,
+                    pulsar.getConfig().getZooKeeperSessionTimeoutMillis())) {
+                    ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-            } catch (KeeperException.NodeExistsException e) {
-                long ownerZkSessionId = getBrokerZnodeOwner();
-                if (ownerZkSessionId != 0 && ownerZkSessionId != zkClient.getSessionId()) {
-                    log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
-                            ownerZkSessionId);
-                    throw new PulsarServerException(
-                            "Broker-znode owned by different zk-session " + ownerZkSessionId);
+                } else {
+                    // Node may already be created by another load manager: in this case update the data.
+                    zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
                 }
-                // Node may already be created by another load manager: in this case update the data.
-                zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+            } catch (KeeperException.NodeExistsException e) {
+                log.error("Broker znode - [{}] is own by different zookeeper-session", brokerZnodePath);
+                throw new PulsarServerException(
+                    "Broker znode - [" + brokerZnodePath + "] is owned by different zk-session");
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                // Catching exception here to print the right error message
+                log.error("Interrupted at creating znode - [{}] for load balance on zookeeper ", brokerZnodePath, ie);
+                throw ie;
             } catch (Exception e) {
                 // Catching exception here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
@@ -937,17 +943,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         } catch (Exception e) {
             log.warn("Failed to delete bundle-data {} from zookeeper", bundle, e);
         }
-    }
-
-    private long getBrokerZnodeOwner() {
-        try {
-            Stat stat = new Stat();
-            zkClient.getData(brokerZnodePath, false, stat);
-            return stat.getEphemeralOwner();
-        } catch (Exception e) {
-            log.warn("Failed to get stat of {}", brokerZnodePath, e);
-        }
-        return 0;
     }
 
     private void refreshBrokerToFailureDomainMap() {
