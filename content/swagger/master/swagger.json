@@ -4781,6 +4781,81 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get message by its messageId.",
+        "description" : "",
+        "operationId" : "getMessageById",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "ledgerId",
+          "in" : "path",
+          "description" : "The ledger id",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int64"
+        }, {
+          "name" : "entryId",
+          "in" : "path",
+          "description" : "The entry id",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int64"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic, subscription or the message position does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a non-persistent topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/offload" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
@@ -6931,6 +7006,81 @@
           },
           "405" : {
             "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
+          }
+        }
+      }
+    },
+    "/persistent/{tenant}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get message by its messageId.",
+        "description" : "",
+        "operationId" : "getMessageById",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "ledgerId",
+          "in" : "path",
+          "description" : "The ledger id",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int64"
+        }, {
+          "name" : "entryId",
+          "in" : "path",
+          "description" : "The entry id",
+          "required" : true,
+          "type" : "integer",
+          "format" : "int64"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "307" : {
+            "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic, subscription or the message position does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a non-persistent topic is not allowed"
           },
           "412" : {
             "description" : "Topic name is not valid"
@@ -9639,6 +9789,9 @@
         "ledgersRootPath" : {
           "type" : "string"
         },
+        "bookkeeperMetadataServiceUri" : {
+          "type" : "string"
+        },
         "stateStorageServiceUrl" : {
           "type" : "string"
         }
@@ -9828,23 +9981,32 @@
           "type" : "number",
           "format" : "double"
         },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -9852,17 +10014,8 @@
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -10251,6 +10404,10 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "managedLedgerOffloadPrefetchRounds" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "managedLedgerOffloadThresholdInBytes" : {
           "type" : "integer",
           "format" : "int64"
@@ -10305,13 +10462,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "s3Driver" : {
-          "type" : "boolean"
-        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
+          "type" : "boolean"
+        },
+        "s3Driver" : {
           "type" : "boolean"
         }
       }
@@ -10971,11 +11128,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/reference-metrics">日本語</a></li><li><a href="/docs/fr/next/reference-metrics">Français</a></li><li><a href="/docs/zh-CN/next/reference-metrics">中文</a></li><li><a href="/docs/zh-TW/next/reference-metrics">繁體中文</a></li><li><a href="/docs/ko-KR/next/reference-metrics">한국어</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/en"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/en/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/en/next/standalone" target="_self">Docs</a></li><li class=""><a href="/en/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/en/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>English</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/ja/next/reference-metrics">日本語</a></li><li><a href="/docs/fr/next/reference-metrics">Français</a></li><li><a href="/docs/ko/next/reference-metrics">한국어</a></li><li><a href="/docs/zh-CN/next/reference-metrics">中文</a></li><li><a href="/docs/zh-TW/next/reference-metrics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -180,6 +180,11 @@ name you configured in <code>broker.conf</code>.</p>
 <ul>
 <li><a href="#replication-metrics-1">Replication metrics</a></li>
 </ul></li>
+<li><a href="#loadbalancing-metrics">LoadBalancing metrics</a>
+<ul>
+<li><a href="#bundleunloading-metrics">BundleUnloading metrics</a></li>
+<li><a href="#bundlesplit-metrics">BundleSplit metrics</a></li>
+</ul></li>
 <li><a href="#subscription-metrics">Subscription metrics</a></li>
 <li><a href="#consumer-metrics">Consumer metrics</a></li>
 </ul>
@@ -280,6 +285,54 @@ name you configured in <code>broker.conf</code>.</p>
 <tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the topic replicating to remote cluster (messages).</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="loadbalancing-metrics"></a><a href="#loadbalancing-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LoadBalancing metrics</h3>
+<p>All the loadbalancing metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>broker: broker=${broker}. ${broker} is the ip address of the broker</li>
+<li>metric: metric=&quot;loadBalancing&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bandwidth_in_usage</td><td>Gauge</td><td>The broker bandwith in usage</td></tr>
+<tr><td>pulsar_lb_bandwidth_out_usage</td><td>Gauge</td><td>The broker bandwith out usage</td></tr>
+<tr><td>pulsar_lb_cpu_usage</td><td>Gauge</td><td>The broker cpu usage</td></tr>
+<tr><td>pulsar_lb_directMemory_usage</td><td>Gauge</td><td>The broker process direct memory usage</td></tr>
+<tr><td>pulsar_lb_memory_usage</td><td>Gauge</td><td>The broker process memory usage</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundleunloading-metrics"></a><a href="#bundleunloading-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleUnloading metrics</h4>
+<p>All the bundleUnloading metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>metric: metric=&quot;bundleUnloading&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_unload_broker_count</td><td>Counter</td><td>Unload broker count in this bundle unloading</td></tr>
+<tr><td>pulsar_lb_unload_bundle_count</td><td>Counter</td><td>Bundle unload count in this bundle unloading</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="bundlesplit-metrics"></a><a href="#bundlesplit-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleSplit metrics</h4>
+<p>All the bundleUnloading metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>metric: metric=&quot;bundlesSplit&quot;.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_lb_bundles_split_count</td><td>Counter</td><td>bundle split count in this bundle splitting check interval</td></tr>
+</tbody>
+</table>
 <h3><a class="anchor" aria-hidden="true" id="subscription-metrics"></a><a href="#subscription-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription metrics</h3>
 <blockquote>
 <p>Subscription metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to true.</p>
@@ -340,7 +393,7 @@ are set to true.</p>
 <li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
 <li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
