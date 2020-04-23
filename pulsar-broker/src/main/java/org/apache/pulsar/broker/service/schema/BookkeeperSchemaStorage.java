@@ -39,7 +39,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 
@@ -49,7 +48,6 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
@@ -237,16 +235,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version, schemaId)
-                .thenApply(entry -> {
-                    if (entry == null) {
-                        return null;
-                    }
-                    return new StoredSchema(
+            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
+                .thenApply(entry ->
+                        new StoredSchema(
                             entry.getSchemaData().toByteArray(),
                             new LongSchemaVersion(version)
-                    );
-                });
+                        )
+                );
         });
     }
 
@@ -405,8 +400,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntryByVersion(
         List<SchemaStorageFormat.IndexEntry> index,
-        long version,
-        String schemaId
+        long version
     ) {
 
         if (index.isEmpty()) {
@@ -415,26 +409,19 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
-            return completedFuture(null);
+            return readSchemaEntry(lowest.getPosition())
+                    .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
         }
 
-        return pulsar.getSchemaRegistryService()
-                .trimDeletedSchemaAndGetList(schemaId)
-                .thenApply(metadataList -> metadataList.stream().filter(schemaAndMetadata ->
-                        ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == version)
-                        .collect(Collectors.toList()))
-                .thenCompose(metadataList -> {
-                    if (CollectionUtils.isNotEmpty(metadataList)) {
-                        for (SchemaStorageFormat.IndexEntry entry : index) {
-                            if (entry.getVersion() == version) {
-                                return readSchemaEntry(entry.getPosition());
-                            } else if (entry.getVersion() > version) {
-                                break;
-                            }
-                        }
-                    }
-                    return completedFuture(null);
-                });
+        for (SchemaStorageFormat.IndexEntry entry : index) {
+            if (entry.getVersion() == version) {
+                return readSchemaEntry(entry.getPosition());
+            } else if (entry.getVersion() > version) {
+                break;
+            }
+        }
+
+        return completedFuture(null);
     }
 
     @NotNull
