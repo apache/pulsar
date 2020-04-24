@@ -791,6 +791,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         topicStats = admin.topics().getStats(persistentTopicName);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
 
+        publishNullValueMessageOnPersistentTopic(persistentTopicName, 10);
+        topicStats = admin.topics().getStats(persistentTopicName);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        messages = admin.topics().peekMessages(persistentTopicName, subName, 10);
+        assertEquals(messages.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertNull(messages.get(i).getData());
+            assertNull(messages.get(i).getValue());
+        }
+        admin.topics().skipAllMessages(persistentTopicName, subName);
+
         consumer.close();
         client.close();
 
@@ -1557,10 +1568,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     long secondTimestamp = System.currentTimeMillis();
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages) throws Exception {
-        publishMessagesOnPersistentTopic(topicName, messages, 0);
+        publishMessagesOnPersistentTopic(topicName, messages, 0, false);
     }
 
-    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
+    private void publishNullValueMessageOnPersistentTopic(String topicName, int messages) throws Exception {
+        publishMessagesOnPersistentTopic(topicName, messages, 0, true);
+    }
+
+    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx,
+                                                  boolean nullValue) throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
             .topic(topicName)
             .enableBatching(false)
@@ -1568,8 +1584,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
-            String message = "message-" + i;
-            producer.send(message.getBytes());
+            if (nullValue) {
+                producer.send(null);
+            } else {
+                String message = "message-" + i;
+                producer.send(message.getBytes());
+            }
         }
 
         producer.close();
@@ -1702,13 +1722,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long messageTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 10);
         assertEquals(messages.size(), 10);
@@ -1755,17 +1775,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long firstTimestamp = System.currentTimeMillis();
-        publishMessagesOnPersistentTopic(topicName, 3, 5);
+        publishMessagesOnPersistentTopic(topicName, 3, 5, false);
 
         Thread.sleep(1);
         long secondTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 2, 8);
+        publishMessagesOnPersistentTopic(topicName, 2, 8, false);
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 10);
         assertEquals(messages.size(), 10);
@@ -1827,13 +1847,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .consumerName("consumerA").subscriptionType(SubscriptionType.Failover)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long messageTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         // Currently the active consumer is consumerA
         for (int i = 0; i < 10; i++) {
@@ -1864,7 +1884,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // Closing consumerA activates consumerB
         consumerA.close();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 10);
+        publishMessagesOnPersistentTopic(topicName, 5, 10, false);
 
         int receivedAfterFailover = 0;
         for (int i = 10; i < 15; i++) {
@@ -1899,11 +1919,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
         Thread.sleep(1);
 
         long timestamp = System.currentTimeMillis();
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();

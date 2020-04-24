@@ -162,12 +162,12 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
-            byte[] payload, Schema<T> schema) {
-        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema);
+            byte[] payload, Schema<T> schema, MessageMetadata.Builder msgMetadataBuilder) {
+        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadataBuilder);
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
-                       ByteBuf payload, Schema<T> schema) {
+                       ByteBuf payload, Schema<T> schema, MessageMetadata.Builder msgMetadataBuilder) {
         String[] data = msgId.split(":");
         long ledgerId = Long.parseLong(data[0]);
         long entryId = Long.parseLong(data[1]);
@@ -182,6 +182,7 @@ public class MessageImpl<T> implements Message<T> {
         this.properties = Collections.unmodifiableMap(properties);
         this.schema = schema;
         this.redeliveryCount = 0;
+        this.msgMetadataBuilder = msgMetadataBuilder;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
