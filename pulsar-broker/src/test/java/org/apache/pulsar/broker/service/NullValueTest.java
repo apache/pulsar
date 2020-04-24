@@ -65,7 +65,11 @@ public class NullValueTest extends BrokerTestBase {
 
         int numMessage = 10;
         for (int i = 0; i < numMessage; i++) {
-            producer.newMessage().value(null).send();
+            if (i % 2 == 0) {
+                producer.newMessage().send();
+            } else {
+                producer.newMessage().value(null).send();
+            }
         }
 
         for (int i = 0; i < numMessage; i++) {
