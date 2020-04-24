@@ -25,6 +25,7 @@
 
 #include <lib/Commands.h>
 #include <lib/Future.h>
+#include <lib/Latch.h>
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 #include <lib/Utils.h>
@@ -1003,14 +1004,16 @@ TEST(BatchMessageTest, testSendCallback) {
     Consumer consumer;
     ASSERT_EQ(ResultOk, client.subscribe(topicName, "SubscriptionName", consumer));
 
+    Latch latch(numMessagesOfBatch);
     std::set<MessageId> sentIdSet;
     for (int i = 0; i < numMessagesOfBatch; i++) {
         const auto msg = MessageBuilder().setContent("a").build();
-        producer.sendAsync(msg, [&sentIdSet, i](Result result, const MessageId& id) {
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId& id) {
             ASSERT_EQ(ResultOk, result);
             ASSERT_EQ(i, id.batchIndex());
             sentIdSet.emplace(id);
             LOG_INFO("id of batch " << i << ": " << id);
+            latch.countdown();
         });
     }
 
@@ -1021,6 +1024,7 @@ TEST(BatchMessageTest, testSendCallback) {
         receivedIdSet.emplace(msg.getMessageId());
     }
 
+    latch.wait();
     ASSERT_EQ(sentIdSet, receivedIdSet);
 
     consumer.close();
