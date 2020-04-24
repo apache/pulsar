@@ -146,6 +146,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    //
+    @FieldContext(category=CATEGORY_SERVER, doc = "")
+    private String advertisedListeners;
+
+    //
+    @FieldContext(category=CATEGORY_SERVER, doc = "")
+    private String internalListenerName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."

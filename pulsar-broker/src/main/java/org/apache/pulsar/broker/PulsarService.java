@@ -36,11 +36,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -69,6 +65,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -114,6 +111,7 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -201,6 +199,8 @@ public class PulsarService implements AutoCloseable {
 
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
+    // key is listener name , value is pulsar address and pulsar ssl address
+    private Map<String, AdvertisedListener> advertisedListeners;
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty());
@@ -209,7 +209,13 @@ public class PulsarService implements AutoCloseable {
     public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService) {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
-
+        // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
+        Map<String, AdvertisedListener> result = validateAndAnalysisAdvertisedListener(config);
+        if (result != null) {
+            this.advertisedListeners = Collections.unmodifiableMap(result);
+        } else {
+            this.advertisedListeners = Collections.unmodifiableMap(Collections.emptyMap());
+        }
         state = State.Init;
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.advertisedAddress = advertisedAddress(config);
@@ -1212,6 +1218,62 @@ public class PulsarService implements AutoCloseable {
             functionWorkerService.get().start(dlogURI, authenticationService, authorizationService);
             LOG.info("Function worker service started");
         }
+    }
+
+    private Map<String, AdvertisedListener> validateAndAnalysisAdvertisedListener(ServiceConfiguration config) {
+        // the wrong configure are
+        // 1. both `advertisedListeners` and `internalListenerName` exist, and `advertisedAddress` exist
+        // 2. both `advertisedListeners` and `internalListenerName` exist, but `advertisedListeners` do not contain `internalListenerName`
+        if (StringUtils.isNotBlank(config.getAdvertisedListeners()) && StringUtils.isNotBlank(config.getInternalListenerName())
+                && StringUtils.isNotBlank(config.getAdvertisedAddress())) {
+            throw new IllegalArgumentException("`advertisedListeners`, `internalListenerName`, `internalListenerName` must not appear together");
+        }
+        if (StringUtils.isNotBlank(config.getAdvertisedListeners()) && StringUtils.isNotBlank(config.getInternalListenerName())) {
+            String[] splits = StringUtils.split(config.getAdvertisedListeners(), ",");
+            Map<String, Set<String>> protocols = Maps.newHashMap();
+            for (final String str : splits) {
+                int index = str.indexOf(":");
+                if (index <= 0) {
+                    throw new IllegalArgumentException("the `advertisedListeners` configure is not valid. because " +
+                            str + " do not contain listener name");
+                }
+                String protocol = StringUtils.trim(str.substring(0, index));
+                String value = StringUtils.trim(str.substring(index + 1));
+                protocols.computeIfAbsent(protocol, k -> Sets.newHashSet());
+                protocols.get(protocol).add(value);
+            }
+            if (!protocols.containsKey(config.getInternalListenerName())) {
+                throw new IllegalArgumentException("the `advertisedListeners` configure do not contain `internalListenerName` entry");
+            }
+            Map<String, AdvertisedListener> result = Maps.newHashMap();
+            for (final Map.Entry<String, Set<String>> entry : protocols.entrySet()) {
+                if (entry.getValue().size() != 2) {
+                    throw new IllegalArgumentException("listenerName in the `advertisedListeners` configure do not configure both pulsar and pulsar+ssl");
+                }
+                URI pulsarAddress = null, pulsarSslAddress = null;
+                for (final String strUri : entry.getValue()) {
+                    try {
+                        URI uri = URI.create(strUri);
+                        if (StringUtils.equalsIgnoreCase(uri.getScheme(), "pulsar")) {
+                            pulsarAddress = uri;
+                        } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "pulsar+ssl")) {
+                            pulsarSslAddress = uri;
+                        }
+                    } catch (Throwable cause) {
+                        throw new IllegalArgumentException("the value " + strUri + " in the `advertisedListeners` configure is invalid");
+                    }
+                }
+                if (pulsarAddress == null || pulsarSslAddress == null) {
+                    throw new IllegalArgumentException("listenerName in the `advertisedListeners` configure do not configure both pulsar and pulsar+ssl");
+                }
+                result.put(entry.getKey(), AdvertisedListener.builder().brokerServiceUrl(pulsarAddress).brokerServiceUrlTls(pulsarSslAddress).build());
+            }
+            return result;
+        }
+        if (StringUtils.isNotBlank(config.getAdvertisedListeners())) {
+            throw new IllegalArgumentException("the `internalListenerName` configure is missing");
+        }
+        return null;
     }
 
     public Optional<Integer> getListenPortHTTP() {
