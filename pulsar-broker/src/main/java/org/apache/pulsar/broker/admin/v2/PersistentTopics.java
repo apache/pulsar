@@ -799,7 +799,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "messageId where to create the subscription. " +
+            @ApiParam(name = "messageId", value = "messageId where to create the subscription. " +
                     "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest,earliest,ledgerId:entryId"
