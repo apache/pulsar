@@ -424,6 +424,7 @@ public class MessageImplTest {
         builder.setSchemaVersion(byteString);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
         builder.setPartitionKeyB64Encoded(true);
+        builder.setNullValue(true);
         MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of());
         assertNull(msg.getValue());
     }

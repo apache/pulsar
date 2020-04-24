@@ -137,8 +137,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
-
-        checkArgument(value != null, "Need Non-Null content value");
+        if (value == null) {
+            msgMetadataBuilder.setNullValue(true);
+            return this;
+        }
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
@@ -147,13 +149,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 msgMetadataBuilder.setPartitionKey(
                         Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
                 msgMetadataBuilder.setPartitionKeyB64Encoded(true);
-                msgMetadataBuilder.setValueSet(Boolean.TRUE);
                 // set value as the payload
                 this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
                 return this;
             }
         }
-        this.msgMetadataBuilder.setValueSet(Boolean.TRUE);
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }

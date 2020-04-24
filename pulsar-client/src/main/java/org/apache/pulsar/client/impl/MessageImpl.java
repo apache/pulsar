@@ -154,6 +154,10 @@ public class MessageImpl<T> implements Message<T> {
             msgMetadataBuilder.setSequenceId(singleMessageMetadata.getSequenceId());
         }
 
+        if (singleMessageMetadata.hasNullValue()) {
+            msgMetadataBuilder.setNullValue(singleMessageMetadata.hasNullValue());
+        }
+
         this.schema = schema;
     }
 
@@ -235,7 +239,7 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public byte[] getData() {
         checkNotNull(msgMetadataBuilder);
-        if (!msgMetadataBuilder.getValueSet()) {
+        if (msgMetadataBuilder.hasNullValue()) {
             return null;
         }
         if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
@@ -264,7 +268,7 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public T getValue() {
         checkNotNull(msgMetadataBuilder);
-        if (!msgMetadataBuilder.getValueSet()) {
+        if (msgMetadataBuilder.hasNullValue()) {
             return null;
         }
         if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
