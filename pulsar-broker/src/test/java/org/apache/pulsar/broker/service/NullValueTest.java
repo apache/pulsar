@@ -30,6 +30,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+/**
+ * Null value message produce and consume test.
+ */
 @Slf4j
 public class NullValueTest extends BrokerTestBase {
 
