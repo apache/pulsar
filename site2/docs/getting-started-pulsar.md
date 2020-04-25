@@ -32,6 +32,7 @@ Two important changes have been made in Pulsar 2.0:
 * There is no longer a [cluster component](#no-cluster)
 * Properties have been [renamed to tenants](#tenants)
 * You can use a [flexible](#flexible-topic-naming) naming system to shorten many topic names
+* `/` is not allowed in topic name
 
 #### No cluster component
 
