@@ -73,8 +73,13 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
+import org.apache.bookkeeper.mledger.stats.prometheus.PrometheusMetricsProvider;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
+import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
@@ -106,6 +111,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetadataStore metadataStore;
 
     private static final int StatsPeriodSeconds = 60;
+
+    private StatsLogger statsLogger = NullStatsLogger.INSTANCE;
+    private StatsProvider statsProvider = new PrometheusMetricsProvider();
 
     public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, String zkConnection) throws Exception {
         this(bkClientConfiguration, zkConnection, new ManagedLedgerFactoryConfig());
@@ -149,12 +157,22 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory, boolean isBookkeeperManaged, ZooKeeper zooKeeper,
             ManagedLedgerFactoryConfig config) throws Exception {
+        Configuration configuration = new ClientConfiguration();
+        configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS, config.getPrometheusStatsLatencyRolloverSeconds());
+        statsProvider.start(configuration);
+
+        statsLogger = statsProvider.getStatsLogger("pulsar_bookie_client");
+
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
+                .statsLogger(statsLogger)
+                .traceTaskExecution(config.isTraceTaskExecution())
                 .name("bookkeeper-ml-scheduler")
                 .build();
         orderedExecutor = OrderedExecutor.newBuilder()
                 .numThreads(config.getNumManagedLedgerWorkerThreads())
+                .statsLogger(statsLogger)
+                .traceTaskExecution(config.isTraceTaskExecution())
                 .name("bookkeeper-ml-workers")
                 .build();
         cacheEvictionExecutor = Executors
@@ -195,6 +213,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    @Override
+    public StatsProvider getStatsProvider() {
+        return statsProvider;
     }
 
     private synchronized void refreshStats() {
@@ -462,6 +485,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         scheduledExecutor.shutdownNow();
         orderedExecutor.shutdownNow();
         cacheEvictionExecutor.shutdownNow();
+        statsProvider.stop();
 
         entryCacheManager.clear();
         try {

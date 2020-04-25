@@ -20,12 +20,18 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.io.IOException;
 import java.io.OutputStream;
+<<<<<<< HEAD
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+=======
+import java.io.StringWriter;
+import java.io.Writer;
+>>>>>>> expose managed ledger bookie client metric to prometheus
 import java.util.Enumeration;
 
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
@@ -84,6 +90,8 @@ public class PrometheusMetricsGenerator {
                     pulsar.getConfiguration().getClusterName(), stream);
 
             generateBrokerBasicMetrics(pulsar, stream);
+
+            generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
@@ -152,6 +160,17 @@ public class PrometheusMetricsGenerator {
                 stream.write("} ").write(String.valueOf(entry.getValue()))
                         .write(' ').write(System.currentTimeMillis()).write("\n");
             }
+        }
+    }
+
+    private static void generateManagedLedgerBookieClientMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
+        StatsProvider statsProvider = pulsar.getManagedLedgerClientFactory().getManagedLedgerFactory().getStatsProvider();
+        try {
+            Writer writer = new StringWriter();
+            statsProvider.writeAllMetrics(writer);
+            stream.write(writer.toString());
+        } catch (IOException e) {
+            // nop
         }
     }
 
