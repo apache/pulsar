@@ -20,15 +20,12 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.io.IOException;
 import java.io.OutputStream;
-<<<<<<< HEAD
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-=======
 import java.io.StringWriter;
 import java.io.Writer;
->>>>>>> expose managed ledger bookie client metric to prometheus
 import java.util.Enumeration;
 
 import org.apache.bookkeeper.stats.StatsProvider;
