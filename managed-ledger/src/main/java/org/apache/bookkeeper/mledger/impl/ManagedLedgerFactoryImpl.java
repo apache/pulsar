@@ -158,7 +158,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory, boolean isBookkeeperManaged, ZooKeeper zooKeeper,
             ManagedLedgerFactoryConfig config) throws Exception {
         Configuration configuration = new ClientConfiguration();
-
         configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS
                 , config.getPrometheusStatsLatencyRolloverSeconds());
         statsProvider.start(configuration);
