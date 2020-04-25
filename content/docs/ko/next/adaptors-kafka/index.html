@@ -176,13 +176,13 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>buffer.memory</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>client.id</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>compression.type</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Allows <code>gzip</code> and <code>lz4</code>. No <code>snappy</code>.</td></tr>
+<tr><td style="text-align:left"><code>compression.type</code></td><td style="text-align:left">Yes</td><td style="text-align:left">항상 <code>gzip</code>과 <code>lz4</code>을 사용하고 <code>snappy</code>를 쓰지않습니다.</td></tr>
 <tr><td style="text-align:left"><code>connections.max.idle.ms</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Only support up to 2,147,483,647,000(Integer.MAX_VALUE * 1000) ms of idle time</td></tr>
 <tr><td style="text-align:left"><code>interceptor.classes</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>key.serializer</code></td><td style="text-align:left">Yes</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>linger.ms</code></td><td style="text-align:left">Yes</td><td style="text-align:left">Controls the group commit time when batching messages</td></tr>
+<tr><td style="text-align:left"><code>linger.ms</code></td><td style="text-align:left">Yes</td><td style="text-align:left">메시지를 일괄 처리 할 때 그룹 커밋 시간을 제어합니다</td></tr>
 <tr><td style="text-align:left"><code>max.block.ms</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>max.in.flight.requests.per.connection</code></td><td style="text-align:left">Ignored</td><td style="text-align:left">In Pulsar ordering is maintained even with multiple requests in flight</td></tr>
+<tr><td style="text-align:left"><code>max.in.flight.requests.per.connection</code></td><td style="text-align:left">Ignored</td><td style="text-align:left">커넥션당 순서를 보장할 최대 리퀘스트의 수</td></tr>
 <tr><td style="text-align:left"><code>max.request.size</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>metric.reporters</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>metrics.num.samples</code></td><td style="text-align:left">Ignored</td><td style="text-align:left"></td></tr>

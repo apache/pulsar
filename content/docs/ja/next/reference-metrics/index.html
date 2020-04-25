@@ -181,6 +181,8 @@
 <ul>
 <li><a href="#replication-metrics-1">Replication metrics</a></li>
 </ul></li>
+<li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li>
+<li><a href="#managedledger-metrics">ManagedLedger metrics</a></li>
 <li><a href="#loadbalancing-metrics">LoadBalancing metrics</a>
 <ul>
 <li><a href="#bundleunloading-metrics">BundleUnloading metrics</a></li>
@@ -336,6 +338,87 @@ Available thresholds:</p>
 <tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the topic replicating to remote cluster (messages).</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="managedledgercache-metrics"></a><a href="#managedledgercache-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedgerCache metrics</h3>
+<p>All the ManagedLedgerCache metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_cache_evictions</td><td>Gauge</td><td>The number of cache evictions during the last minute.</td></tr>
+<tr><td>pulsar_ml_cache_hits_rate</td><td>Gauge</td><td>The number of cache hits per second.</td></tr>
+<tr><td>pulsar_ml_cache_hits_throughput</td><td>Gauge</td><td>The amount of data is retrieved from the cache in byte/s</td></tr>
+<tr><td>pulsar_ml_cache_misses_rate</td><td>Gauge</td><td>The number of cache misses per second</td></tr>
+<tr><td>pulsar_ml_cache_misses_throughput</td><td>Gauge</td><td>The amount of data is retrieved from the cache in byte/s</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations</td><td>Gauge</td><td>The number of currently active allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_huge</td><td>Gauge</td><td>The number of currently active huge allocation in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_normal</td><td>Gauge</td><td>The number of currently active normal allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_small</td><td>Gauge</td><td>The number of currently active small allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_active_allocations_tiny</td><td>Gauge</td><td>The number of currently active tiny allocations in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_allocated</td><td>Gauge</td><td>The total allocated memory of chunk lists in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_pool_used</td><td>Gauge</td><td>The total used memory of chunk lists in direct arena</td></tr>
+<tr><td>pulsar_ml_cache_used_size</td><td>Gauge</td><td>The size in byte used to store the entries payloads</td></tr>
+<tr><td>pulsar_ml_count</td><td>Gauge</td><td>The number of currently opened managed ledgers</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="managedledger-metrics"></a><a href="#managedledger-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedger metrics</h3>
+<p>All the managedLedger metrics are labelled with the following labels:</p>
+<ul>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.</li>
+<li>quantile: quantile=${quantile}. Quantile is only for <code>Histogram</code> type metric, and represents the threshold for given Buckets.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_ml_AddEntryBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages added</td></tr>
+<tr><td>pulsar_ml_AddEntryErrors</td><td>Gauge</td><td>The number of addEntry requests that failed</td></tr>
+<tr><td>pulsar_ml_AddEntryLatencyBuckets</td><td>Histogram</td><td>The add entry latency of a ledger with a given quantile (threshold).</td></tr>
+<tr><td>Available quantile:</td></tr>
+</tbody>
+</table>
+<ul>
+<li>quantile=&quot;0.0_0.5&quot; is AddEntryLatency between (0.0ms, 0.5ms]</li>
+<li>quantile=&quot;0.5_1.0&quot; is AddEntryLatency between (0.5ms, 1.0ms]</li>
+<li>quantile=&quot;1.0_5.0&quot; is AddEntryLatency between (1ms, 5ms]</li>
+<li>quantile=&quot;5.0_10.0&quot; is AddEntryLatency between (5ms, 10ms]</li>
+<li>quantile=&quot;10.0_20.0&quot; is AddEntryLatency between (10ms, 20ms]</li>
+<li>quantile=&quot;20.0_50.0&quot; is AddEntryLatency between (20ms, 50ms]</li>
+<li>quantile=&quot;50.0_100.0&quot; is AddEntryLatency between (50ms, 100ms]</li>
+<li>quantile=&quot;100.0_200.0&quot; is AddEntryLatency between (100ms, 200ms]</li>
+<li>quantile=&quot;200.0_1000.0&quot; is AddEntryLatency between (200ms, 1s]</li>
+</ul>
+<p>| | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency &gt; 1s | | pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added | | pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded | | pulsar_ml_EntrySizeBuckets | Histogram | The add entry size of a ledger with given quantile.<br>
+Available quantile:</p>
+<ul>
+<li>quantile=&quot;0.0_128.0&quot; is EntrySize between (0byte, 128byte]</li>
+<li>quantile=&quot;128.0_512.0&quot; is EntrySize between (128byte, 512byte]</li>
+<li>quantile=&quot;512.0_1024.0&quot; is EntrySize between (512byte, 1KB]</li>
+<li>quantile=&quot;1024.0_2048.0&quot; is EntrySize between (1KB, 2KB]</li>
+<li>quantile=&quot;2048.0_4096.0&quot; is EntrySize between (2KB, 4KB]</li>
+<li>quantile=&quot;4096.0_16384.0&quot; is EntrySize between (4KB, 16KB]</li>
+<li>quantile=&quot;16384.0_102400.0&quot; is EntrySize between (16KB, 100KB]</li>
+<li>quantile=&quot;102400.0_1232896.0&quot; is EntrySize between (100KB, 1MB]</li>
+</ul>
+<p>| | pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge | The add entry size &gt; 1MB | | pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with given quantile.<br>
+Available quantile:</p>
+<ul>
+<li>quantile=&quot;0.0_0.5&quot; is EntrySize between (0ms, 0.5ms]</li>
+<li>quantile=&quot;0.5_1.0&quot; is EntrySize between (0.5ms, 1ms]</li>
+<li>quantile=&quot;1.0_5.0&quot; is EntrySize between (1ms, 5ms]</li>
+<li>quantile=&quot;5.0_10.0&quot; is EntrySize between (5ms, 10ms]</li>
+<li>quantile=&quot;10.0_20.0&quot; is EntrySize between (10ms, 20ms]</li>
+<li>quantile=&quot;20.0_50.0&quot; is EntrySize between (20ms, 50ms]</li>
+<li>quantile=&quot;50.0_100.0&quot; is EntrySize between (50ms, 100ms]</li>
+<li>quantile=&quot;100.0_200.0&quot; is EntrySize between (100ms, 200ms]</li>
+<li>quantile=&quot;200.0_1000.0&quot; is EntrySize between (200ms, 1000ms]</li>
+</ul>
+<p>| | pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The ledger switch latency &gt; 1s | | pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s | | pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers | | pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read | | pulsar_ml_ReadEntriesErrors | Gauge | The number of readEntries requests that failed | | pulsar_ml_ReadEntriesRate | Gauge | The msg/s rate of messages read | | pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded | | pulsar_ml_StoredMessagesSize | Gauge | The total size of the messages in active ledgers (accounting for the multiple copies stored) |</p>
 <h3><a class="anchor" aria-hidden="true" id="loadbalancing-metrics"></a><a href="#loadbalancing-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LoadBalancing metrics</h3>
 <p>All the loadbalancing metrics are labelled with the following labels:</p>
 <ul>
@@ -447,7 +530,7 @@ Available thresholds:</p>
 <li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
 <li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概要">概要</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概要">概要</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
