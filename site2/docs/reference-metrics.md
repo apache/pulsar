@@ -100,6 +100,8 @@ Broker has the following kinds of metrics:
     * [Replication metrics](#replication-metrics)
 * [Topic metrics](#topic-metrics)
     * [Replication metrics](#replication-metrics-1)
+* [ManagedLedgerCache metrics](#managedledgercache-metrics)
+* [ManagedLedger metrics](#managedledger-metrics)
 * [LoadBalancing metrics](#loadbalancing-metrics)
     * [BundleUnloading metrics](#bundleunloading-metrics)
     * [BundleSplit metrics](#bundlesplit-metrics)
@@ -192,6 +194,53 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 | pulsar_replication_throughput_in | Gauge | The total throughput of the topic replicating from remote cluster (bytes/second). |
 | pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
+
+### ManagedLedgerCache metrics
+All the ManagedLedgerCache metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
+| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
+| pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_tiny | Gauge | The number of currently active tiny allocations in direct arena |
+| pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
+| pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
+| pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |
+| pulsar_ml_count | Gauge | The number of currently opened managed ledgers  |
+
+### ManagedLedger metrics
+All the managedLedger metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
+- quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_ml_AddEntryBytesRate | Gauge | The bytes/s rate of messages added |
+| pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
+| pulsar_ml_AddEntryLatencyBuckets | Histogram | The add entry latency of a ledger with a given quantile (threshold).<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency > 1s |
+| pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added |
+| pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded |
+| pulsar_ml_EntrySizeBuckets | Histogram | The add entry size of a ledger with given quantile.<br> Available quantile: <br><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
+| pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge  | The add entry size > 1MB |
+| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
+| pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The ledger switch latency > 1s |
+| pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s |
+| pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers |
+| pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read |
+| pulsar_ml_ReadEntriesErrors | Gauge | The number of readEntries requests that failed |
+| pulsar_ml_ReadEntriesRate | Gauge | The msg/s rate of messages read |
+| pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded |
+| pulsar_ml_StoredMessagesSize | Gauge | The total size of the messages in active ledgers (accounting for the multiple copies stored) |
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
