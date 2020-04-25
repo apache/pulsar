@@ -143,22 +143,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
+        Thread.sleep(1000 * 30);
         testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceAvro() throws Exception {
+        Thread.sleep(1000 * 30);
         testDebeziumMySqlConnect(
                 "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false);
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
+        Thread.sleep(1000 * 30);
         testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
+        Thread.sleep(1000 * 30);
         testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 

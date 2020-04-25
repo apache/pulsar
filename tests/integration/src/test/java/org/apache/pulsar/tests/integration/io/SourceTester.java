@@ -103,7 +103,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
             Assert.assertTrue(key.contains(this.keyContains()));
             Assert.assertTrue(value.contains(this.valueContains()));
             if (eventType != null) {
-                Assert.assertTrue(value.contains(this.eventContains(eventType)));
+                Assert.assertTrue(value.contains(this.eventContains(eventType, true)));
             }
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -132,7 +132,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
             if (eventType != null) {
                 String op = valueRecord.getField("op").toString();
-                Assert.assertEquals(this.eventContains(eventType), op);
+                Assert.assertEquals(this.eventContains(eventType, false), op);
             }
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -150,13 +150,13 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
         return "dbserver1.inventory.products.Value";
     }
 
-    public String eventContains(String eventType) {
+    public String eventContains(String eventType, boolean isJson) {
         if (eventType.equals(INSERT)) {
-            return "\"op\":\"c\"";
+            return isJson ? "\"op\":\"c\"" : "c";
         } else if (eventType.equals(UPDATE)) {
-            return "\"op\":\"u\"";
+            return isJson ? "\"op\":\"u\"" : "u";
         } else {
-            return "\"op\":\"d\"";
+            return isJson ? "\"op\":\"d\"" : "d";
         }
     }
 }

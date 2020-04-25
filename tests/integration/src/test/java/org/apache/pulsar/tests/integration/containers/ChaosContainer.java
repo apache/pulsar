@@ -162,18 +162,6 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
             DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
                     "tail", "-f",
                     "/tmp/functions/public/default/test-source-debezium-mysql/test-source-debezium-mysql-0.log");
-
-            // postgresql
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "mkdir", "-p",
-                    "/tmp/functions/public/default/test-source-debezium-postgersql");
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "touch",
-                    "/tmp/functions/public/default/test-source-debezium-postgersql/test-source-debezium-postgersql-0.log");
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "tail", "-f",
-                    "/tmp/functions/public/default/test-source-debezium-postgersql/test-source-debezium-postgersql-0.log");
-
         }
     }
 
