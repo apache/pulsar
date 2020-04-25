@@ -58,7 +58,7 @@ public class ManagedLedgerFactoryConfig {
     private boolean traceTaskExecution = false;
 
     /**
-     * managed ledger prometheus stats Latency Rollover Seconds
+     * Managed ledger prometheus stats Latency Rollover Seconds
      */
     private int prometheusStatsLatencyRolloverSeconds = 60;
 }
