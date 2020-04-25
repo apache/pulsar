@@ -21,15 +21,16 @@ package org.apache.bookkeeper.mledger.stats.prometheus;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.lang.reflect.Field;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.stats.CachingStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -148,7 +149,6 @@ public class PrometheusMetricsProvider implements StatsProvider {
             }
         }
     }
-
 
     private static final Logger log = LoggerFactory.getLogger(org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider.class);
 }

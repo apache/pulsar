@@ -35,8 +35,8 @@ import org.apache.bookkeeper.stats.Counter;
 public class PrometheusTextFormatUtil {
     static void writeGauge(Writer w, String name, SimpleGauge<? extends Number> gauge) {
         // Example:
-        // # TYPE bookie_storage_entries_count gauge
-        // bookie_storage_entries_count 519
+        // # TYPE bookie_client_bookkeeper_ml_scheduler_completed_tasks_0 gauge
+        // pulsar_bookie_client_bookkeeper_ml_scheduler_completed_tasks_0 1044057
         try {
             w.append("# TYPE ").append(name).append(" gauge\n");
             w.append(name).append(' ').append(gauge.getSample().toString()).append('\n');
@@ -59,25 +59,25 @@ public class PrometheusTextFormatUtil {
 
     static void writeOpStat(Writer w, String name, DataSketchesOpStatsLogger opStat) {
         // Example:
-        // # TYPE bookie_journal_JOURNAL_ADD_ENTRY summary
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.5",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.75",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.95",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.99",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.999",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.9999",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="1.0",} NaN
-        // bookie_journal_JOURNAL_ADD_ENTRY_count{success="false",} 0.0
-        // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="false",} 0.0
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.5",} 1.706
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.75",} 1.89
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.95",} 2.121
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.99",} 10.708
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.999",} 10.902
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.9999",} 10.902
-        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="1.0",} 10.902
-        // bookie_journal_JOURNAL_ADD_ENTRY_count{success="true",} 658.0
-        // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="true",} 1265.0800000000002
+        // # TYPE pulsar_bookie_client_bookkeeper_ml_workers_task_queued summary
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.5"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.75"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.95"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.99"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.999"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="0.9999"} NaN
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="false",quantile="1.0"} -Infinity
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_count{success="false"} 0
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_sum{success="false"} 0.0
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.5"} 0.031
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.75"} 0.043
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.95"} 0.061
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.99"} 0.064
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.999"} 0.073
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="0.9999"} 0.073
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued{success="true",quantile="1.0"} 0.552
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_count{success="true"} 40911432
+        // pulsar_bookie_client_bookkeeper_ml_workers_task_queued_sum{success="true"} 527.0
         try {
             w.append("# TYPE ").append(name).append(" summary\n");
             writeQuantile(w, opStat, name, false, 0.5);
