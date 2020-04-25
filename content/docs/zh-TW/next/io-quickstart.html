@@ -483,7 +483,7 @@ engine=innodb;
 
 ```bash
 $ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-2.5.0.nar \
+--archive ./connectors/pulsar-io-jdbc-2.5.1.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
 --name pulsar-mysql-jdbc-sink \
 --sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
@@ -497,7 +497,7 @@ $ bin/pulsar-admin sinks create \
 <tr><th>旗標</th><th>說明</th><th>本範例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>sink 的nar 檔路徑。</td><td><em>pulsar-io-jdbc-2.5.0.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>sink 的nar 檔路徑。</td><td><em>pulsar-io-jdbc-2.5.1.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>Pulsar Function 的一個或多個輸入 topic（可以使用逗號分隔來指定多個 topic）。</td><td></td></tr>
 <tr><td><code>--name</code></td><td>sink 連結器的名稱。</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>指定配置 Pulsar Function 的 YAML 設定檔路徑。</td><td><em>pulsar-mysql-jdbc-sink.yaml</em></td></tr>
