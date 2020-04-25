@@ -113,10 +113,7 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <b>
-     * Do not use this API if application needs serializable Pulsar-client instead use
-     * {@link #authentication(String, String)} or {@link #authentication(String, Map)}.
-     * </b> 
+     *
      * <p>Example:
      * <pre>{@code
      * PulsarClient client = PulsarClient.builder()
