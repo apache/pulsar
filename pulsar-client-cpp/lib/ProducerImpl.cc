@@ -39,6 +39,18 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
       sequenceId_(sequenceId),
       timeout_(TimeUtils::now() + milliseconds(conf.getSendTimeout())) {}
 
+struct ProducerImpl::PendingCallbacks {
+    std::vector<OpSendMsg> opSendMsgs;
+    BatchMessageContainer::MessageContainerListPtr messageContainerListPtr;
+
+    void complete(Result result) {
+        for (const auto& opSendMsg : opSendMsgs) {
+            opSendMsg.sendCallback_(result, opSendMsg.msg_.getMessageId());
+        }
+        BatchMessageContainer::batchMessageCallBack(result, MessageId{}, messageContainerListPtr, nullptr);
+    }
+};
+
 ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf,
                            int32_t partition)
     : HandlerBase(
@@ -227,33 +239,34 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
     }
 }
 
-void ProducerImpl::failPendingMessages(Result result) {
-    std::vector<OpSendMsg> messagesToFail;
-    Lock lock(mutex_);
-    messagesToFail.reserve(pendingMessagesQueue_.size());
+std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallbacksWhenFailed() {
+    auto callbacks = std::make_shared<PendingCallbacks>();
+    callbacks->opSendMsgs.reserve(pendingMessagesQueue_.size());
     LOG_DEBUG(getName() << "# messages in pending queue : " << pendingMessagesQueue_.size());
 
     // Iterate over a copy of the pending messages queue, to trigger the future completion
     // without holding producer mutex.
     for (MessageQueue::const_iterator it = pendingMessagesQueue_.begin(); it != pendingMessagesQueue_.end();
          it++) {
-        messagesToFail.push_back(*it);
+        callbacks->opSendMsgs.push_back(*it);
     }
 
-    BatchMessageContainer::MessageContainerListPtr messageContainerListPtr;
     if (batchMessageContainer) {
-        messageContainerListPtr = batchMessageContainer->messagesContainerListPtr_;
+        callbacks->messageContainerListPtr = batchMessageContainer->messagesContainerListPtr_;
         batchMessageContainer->clear();
     }
     pendingMessagesQueue_.clear();
-    lock.unlock();
-    for (std::vector<OpSendMsg>::const_iterator it = messagesToFail.begin(); it != messagesToFail.end();
-         it++) {
-        it->sendCallback_(result, it->msg_.getMessageId());
-    }
 
-    // this function can handle null pointer
-    BatchMessageContainer::batchMessageCallBack(result, MessageId{}, messageContainerListPtr, NULL);
+    return callbacks;
+}
+
+std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallbacksWhenFailedWithLock() {
+    Lock lock(mutex_);
+    return getPendingCallbacksWhenFailed();
+}
+
+void ProducerImpl::failPendingMessages(Result result) {
+    getPendingCallbacksWhenFailedWithLock()->complete(result);
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -549,6 +562,11 @@ Future<Result, ProducerImplBaseWeakPtr> ProducerImpl::getProducerCreatedFuture()
 uint64_t ProducerImpl::getProducerId() const { return producerId_; }
 
 void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
+    Lock lock(mutex_);
+    if (state_ != Ready) {
+        return;
+    }
+
     if (err == boost::asio::error::operation_aborted) {
         LOG_DEBUG(getName() << "Timer cancelled: " << err.message());
         return;
@@ -557,6 +575,7 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
         return;
     }
 
+    std::shared_ptr<PendingCallbacks> pendingCallbacks;
     OpSendMsg msg;
     if (!pendingMessagesQueue_.peek(msg)) {
         // If there are no pending messages, reset the timeout to the configured value.
@@ -569,7 +588,7 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
         if (diff.total_milliseconds() <= 0) {
             // The diff is less than or equal to zero, meaning that the message has been expired.
             LOG_DEBUG(getName() << "Timer expired. Calling timeout callbacks.");
-            failPendingMessages(ResultTimeout);
+            pendingCallbacks = getPendingCallbacksWhenFailed();
             // Since the pending queue is cleared now, set timer to expire after configured value.
             sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
         } else {
@@ -582,6 +601,10 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     // Asynchronously wait for the timeout to trigger
     sendTimer_->async_wait(
         std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+    lock.unlock();
+    if (pendingCallbacks) {
+        pendingCallbacks->complete(ResultTimeout);
+    }
 }
 
 bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
