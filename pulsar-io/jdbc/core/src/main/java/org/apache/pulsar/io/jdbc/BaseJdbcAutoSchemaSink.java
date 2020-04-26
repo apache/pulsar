@@ -23,7 +23,9 @@ import java.sql.PreparedStatement;
 import java.util.List;
 
 import com.google.common.collect.Lists;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
@@ -52,8 +54,13 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
         int index = 1;
         for (ColumnId columnId : columns) {
             String colName = columnId.getName();
-            Object obj = record.getField(colName);
-            setColumnValue(statement, index++, obj);
+            Optional<Field> foundField = record.getFields().stream()
+                .filter(f -> f.getName().equalsIgnoreCase(colName)).findFirst();
+            if (!foundField.isPresent()) {
+                throw new Exception("The database field '" + colName +
+                    "' was not found among the fields from the record: " + record.getFields());
+            }
+            setColumnValue(statement, index++, record.getField(foundField.get()));
         }
     }
 
