@@ -403,7 +403,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
-        admin.tenants().createTenant("prop", new TenantInfo());
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect

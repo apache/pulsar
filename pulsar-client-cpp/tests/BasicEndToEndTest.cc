@@ -38,6 +38,7 @@
 #include <functional>
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 DECLARE_LOG_OBJECT()
 
@@ -258,6 +259,53 @@ TEST(BasicEndToEndTest, testProduceConsume) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testRedeliveryCount) {
+    ClientConfiguration config;
+    Client client(lookupUrl, config);
+    std::string topicName = "persistent://public/default/test-redelivery-count";
+    std::string subName = "my-sub-name";
+
+    Producer producer;
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setNegativeAckRedeliveryDelayMs(500);
+    consumerConf.setConsumerType(ConsumerShared);
+    client.subscribeAsync(topicName, subName, consumerConf, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content = "msg-content";
+    Message msg = MessageBuilder().setContent(content).build();
+    producer.send(msg);
+
+    int redeliveryCount = 0;
+    Message msgReceived;
+    for (int i = 0; i < 4; i++) {
+        consumer.receive(msgReceived);
+        LOG_INFO("Received message " << msgReceived.getDataAsString());
+        consumer.negativeAcknowledge(msgReceived);
+        redeliveryCount = msgReceived.getRedeliveryCount();
+    }
+
+    ASSERT_EQ(3, redeliveryCount);
+    consumer.acknowledge(msgReceived);
+    consumer.close();
+    producer.close();
 }
 
 TEST(BasicEndToEndTest, testLookupThrottling) {
@@ -561,6 +609,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1114,6 +1163,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1165,6 +1215,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -2061,9 +2112,12 @@ TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
     LOG_INFO("created topics consumer on a pattern that match 0 topics");
 
-    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+    result = consumer.unsubscribe();
+    LOG_INFO("unsubscribed topics consumer : " << result);
+    ASSERT_EQ(ResultOk, result) << "expected " << ResultOk << " but found " << result;
 
-    client.shutdown();
+    // TODO: flaky test
+    // client.shutdown();
 }
 
 // create a pattern consumer, which contains no match topics at beginning.
@@ -3131,4 +3185,41 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
         }
     }
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testSendCallback) {
+    const std::string topicName = "persistent://public/default/BasicEndToEndTest-testSendCallback";
+
+    Client client(lookupUrl);
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, "SubscriptionName", consumer));
+
+    Latch latch(100);
+    std::set<MessageId> sentIdSet;
+    for (int i = 0; i < 100; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+            ASSERT_EQ(ResultOk, result);
+            sentIdSet.emplace(id);
+            latch.countdown();
+        });
+    }
+
+    std::set<MessageId> receivedIdSet;
+    for (int i = 0; i < 100; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    consumer.close();
+    producer.close();
+    client.close();
 }

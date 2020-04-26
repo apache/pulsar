@@ -18,10 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -31,24 +28,19 @@ import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
-import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.DataFormats;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
@@ -136,32 +128,6 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return this.dataHeaderLength;
     }
 
-    private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
-        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
-        builder.setQuorumSize(metadata.getWriteQuorumSize())
-            .setAckQuorumSize(metadata.getAckQuorumSize())
-            .setEnsembleSize(metadata.getEnsembleSize())
-            .setLength(metadata.getLength())
-            .setState(metadata.isClosed() ? LedgerMetadataFormat.State.CLOSED : LedgerMetadataFormat.State.OPEN)
-            .setLastEntryId(metadata.getLastEntryId())
-            .setCtime(metadata.getCtime())
-            .setDigestType(BookKeeper.DigestType.toProtoDigestType(
-                BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
-
-        for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
-            builder.addCustomMetadataBuilder()
-                .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
-        }
-
-        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
-            builder.addSegmentBuilder()
-                .setFirstEntryId(e.getKey())
-                .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
-        }
-
-        return builder.build().toByteArray();
-    }
-
     /**
      * Get the content of the index block as InputStream.
      * Read out in format:
@@ -201,140 +167,6 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                 .writeLong(entry.getValue().getOffset()));
 
         return new OffloadIndexBlock.IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
-    }
-
-    static private class InternalLedgerMetadata implements LedgerMetadata {
-        private LedgerMetadataFormat ledgerMetadataFormat;
-
-        private int ensembleSize;
-        private int writeQuorumSize;
-        private int ackQuorumSize;
-        private long lastEntryId;
-        private long length;
-        private DataFormats.LedgerMetadataFormat.DigestType digestType;
-        private long ctime;
-        private byte[] password;
-        private State state;
-        private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
-
-        InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
-            this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
-            this.writeQuorumSize = ledgerMetadataFormat.getQuorumSize();
-            this.ackQuorumSize = ledgerMetadataFormat.getAckQuorumSize();
-            this.lastEntryId = ledgerMetadataFormat.getLastEntryId();
-            this.length = ledgerMetadataFormat.getLength();
-            this.digestType = ledgerMetadataFormat.getDigestType();
-            this.ctime = ledgerMetadataFormat.getCtime();
-            this.state = State.CLOSED;
-            this.password = ledgerMetadataFormat.getPassword().toByteArray();
-
-            if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-                ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
-            }
-
-            ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-                ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<BookieSocketAddress>();
-                segment.getEnsembleMemberList().forEach(address -> {
-                    try {
-                        addressArrayList.add(new BookieSocketAddress(address));
-                    } catch (IOException e) {
-                        log.error("Exception when create BookieSocketAddress. ", e);
-                    }
-                });
-                this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
-            });
-        }
-
-        @Override
-        public boolean hasPassword() { return true; }
-
-        @Override
-        public byte[] getPassword() { return password; }
-
-        @Override
-        public State getState() { return state; }
-
-        @Override
-        public int getMetadataFormatVersion() { return 2; }
-
-        @Override
-        public int getEnsembleSize() {
-            return this.ensembleSize;
-        }
-
-        @Override
-        public int getWriteQuorumSize() {
-            return this.writeQuorumSize;
-        }
-
-        @Override
-        public int getAckQuorumSize() {
-            return this.ackQuorumSize;
-        }
-
-        @Override
-        public long getLastEntryId() {
-            return this.lastEntryId;
-        }
-
-        @Override
-        public long getLength() {
-            return this.length;
-        }
-
-        @Override
-        public DigestType getDigestType() {
-            switch (this.digestType) {
-                case HMAC:
-                    return DigestType.MAC;
-                case CRC32:
-                    return DigestType.CRC32;
-                case CRC32C:
-                    return DigestType.CRC32C;
-                case DUMMY:
-                    return DigestType.DUMMY;
-                default:
-                    throw new IllegalArgumentException("Unable to convert digest type " + digestType);
-            }
-        }
-
-        @Override
-        public long getCtime() {
-            return this.ctime;
-        }
-
-        @Override
-        public boolean isClosed() {
-            return this.state == State.CLOSED;
-        }
-
-        @Override
-        public Map<String, byte[]> getCustomMetadata() {
-            return this.customMetadata;
-        }
-
-        @Override
-        public List<BookieSocketAddress> getEnsembleAt(long entryId) {
-            return ensembles.get(ensembles.headMap(entryId + 1).lastKey());
-        }
-
-        @Override
-        public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
-            return this.ensembles;
-        }
-
-        @Override
-        public String toSafeString() {
-            return toString();
-        }
-    }
-
-    private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
-        builder.mergeFrom(bytes);
-        return new InternalLedgerMetadata(builder.build());
     }
 
     private OffloadIndexBlock fromStream(InputStream stream) throws IOException {

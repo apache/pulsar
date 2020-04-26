@@ -67,7 +67,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
+        serviceUrl = pulsar.getWebServiceAddress();
 
         pulsarBoltConf = new PulsarBoltConfiguration();
         pulsarBoltConf.setServiceUrl(serviceUrl);

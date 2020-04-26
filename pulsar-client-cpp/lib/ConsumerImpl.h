@@ -98,6 +98,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
 
     virtual void closeAsync(ResultCallback callback);
@@ -136,7 +137,8 @@ class ConsumerImpl : public ConsumerImplBase,
                                  proto::CommandAck::ValidationError validationError);
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
     void drainIncomingMessageQueue(size_t count);
-    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage);
+    uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
+                                                int redeliveryCount);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,

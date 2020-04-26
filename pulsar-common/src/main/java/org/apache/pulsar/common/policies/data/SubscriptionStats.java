@@ -40,6 +40,9 @@ public class SubscriptionStats {
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
 
+    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    public long msgBacklogNoDelayed;
+
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
     public boolean blockedSubscriptionOnUnackedMsgs;
 
@@ -58,6 +61,18 @@ public class SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
+    /** Last message expire execution timestamp. */
+    public long lastExpireTimestamp;
+
+    /** Last received consume flow command timestamp. */
+    public long lastConsumedFlowTimestamp;
+
+    /** Last consume message timestamp. */
+    public long lastConsumedTimestamp;
+
+    /** Last acked message timestamp. */
+    public long lastAckedTimestamp;
+
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStats> consumers;
 
@@ -73,8 +88,10 @@ public class SubscriptionStats {
         msgThroughputOut = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
+        msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
+        lastExpireTimestamp = 0L;
         consumers.clear();
     }
 
@@ -86,6 +103,7 @@ public class SubscriptionStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
+        this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
         this.isReplicated |= stats.isReplicated;

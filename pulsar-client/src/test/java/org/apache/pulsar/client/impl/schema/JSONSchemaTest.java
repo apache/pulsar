@@ -33,8 +33,10 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.json.JSONException;
 
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_NOT_ALLOW_NULL;
@@ -44,13 +46,16 @@ import static org.testng.Assert.assertEquals;
 @Slf4j
 public class JSONSchemaTest {
 
+    public static void assertJSONEqual(String s1, String s2) throws JSONException{
+        JSONAssert.assertEquals(s1, s2, false);
+    }
     @Test
-    public void testNotAllowNullSchema() {
+    public void testNotAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
-        Assert.assertEquals(schemaJson, SCHEMA_JSON_NOT_ALLOW_NULL);
+        assertJSONEqual(schemaJson, SCHEMA_JSON_NOT_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -67,12 +72,13 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testAllowNullSchema() {
+    public void testAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
-        Assert.assertEquals(schemaJson, SCHEMA_JSON_ALLOW_NULL);
+        assertJSONEqual(schemaJson, SCHEMA_JSON_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {

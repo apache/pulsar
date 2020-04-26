@@ -104,8 +104,6 @@ public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;
-    private static final Integer GRPC_PORT = 9093;
-    private static final Integer METRICS_PORT = 9094;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
@@ -135,6 +133,7 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
+    private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
@@ -144,6 +143,9 @@ public class KubernetesRuntime implements Runtime {
     private double memoryOverCommitRatio;
     private final Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
+    private Integer grpcPort;
+    private Integer metricsPort;
+    private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -159,6 +161,7 @@ public class KubernetesRuntime implements Runtime {
                       String instanceFile,
                       String extraDependenciesDir,
                       String logDirectory,
+                      String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
                       String pulsarServiceUrl,
@@ -171,7 +174,10 @@ public class KubernetesRuntime implements Runtime {
                       double cpuOverCommitRatio,
                       double memoryOverCommitRatio,
                       Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
-                      boolean authenticationEnabled) throws Exception {
+                      boolean authenticationEnabled,
+                      Integer grpcPort,
+                      Integer metricsPort,
+                      Optional<KubernetesManifestCustomizer> manifestCustomizer) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -180,6 +186,7 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
+        this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
@@ -188,6 +195,7 @@ public class KubernetesRuntime implements Runtime {
         this.cpuOverCommitRatio = cpuOverCommitRatio;
         this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
+        this.manifestCustomizer = manifestCustomizer;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -209,6 +217,9 @@ public class KubernetesRuntime implements Runtime {
 
         this.functionAuthDataCacheProvider = functionAuthDataCacheProvider;
 
+        this.grpcPort = grpcPort;
+        this.metricsPort = metricsPort;
+
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
         // use exec to to launch function so that it gets launched in the foreground with the same PID as shell
@@ -226,7 +237,7 @@ public class KubernetesRuntime implements Runtime {
                         stateStorageServiceUrl,
                         authConfig,
                         "$" + ENV_SHARD_ID,
-                        GRPC_PORT,
+                        grpcPort,
                         -1l,
                         logConfigFile,
                         secretsProviderClassName,
@@ -234,7 +245,7 @@ public class KubernetesRuntime implements Runtime {
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        METRICS_PORT));
+                        metricsPort));
 
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -274,7 +285,7 @@ public class KubernetesRuntime implements Runtime {
             String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
-                channel[i] = ManagedChannelBuilder.forAddress(address, GRPC_PORT)
+                channel[i] = ManagedChannelBuilder.forAddress(address, grpcPort)
                         .usePlaintext(true)
                         .build();
                 stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
@@ -381,7 +392,7 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return RuntimeUtils.getPrometheusMetrics(METRICS_PORT);
+        return RuntimeUtils.getPrometheusMetrics(metricsPort);
     }
 
     @Override
@@ -435,7 +446,8 @@ public class KubernetesRuntime implements Runtime {
         }
     }
 
-    private V1Service createService() {
+    @VisibleForTesting
+    V1Service createService() {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
         final V1Service service = new V1Service();
@@ -444,6 +456,8 @@ public class KubernetesRuntime implements Runtime {
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
         objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
+        // we don't technically need to set this, but it is useful for testing
+        objectMeta.setNamespace(jobNamespace);
         service.metadata(objectMeta);
 
         // create the stateful set spec
@@ -452,14 +466,18 @@ public class KubernetesRuntime implements Runtime {
         serviceSpec.clusterIP("None");
 
         final V1ServicePort servicePort = new V1ServicePort();
-        servicePort.name("grpc").port(GRPC_PORT).protocol("TCP");
+        servicePort.name("grpc").port(grpcPort).protocol("TCP");
         serviceSpec.addPortsItem(servicePort);
 
         serviceSpec.selector(getLabels(instanceConfig.getFunctionDetails()));
 
         service.spec(serviceSpec);
 
-        return service;
+        // let the customizer run but ensure it doesn't change the name so we can find it again
+        final V1Service overridden = manifestCustomizer.map((customizer) -> customizer.customizeService(instanceConfig.getFunctionDetails(), service)).orElse(service);
+        overridden.getMetadata().name(jobName);
+
+        return overridden;
     }
 
     private void submitStatefulSet() throws Exception {
@@ -789,7 +807,7 @@ public class KubernetesRuntime implements Runtime {
                     && isNotBlank(authConfig.getClientAuthenticationParameters())
                     && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
-                        pulsarRootDir + "/bin/pulsar-admin",
+                        pulsarRootDir + configAdminCLI,
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
@@ -810,7 +828,7 @@ public class KubernetesRuntime implements Runtime {
         }
 
         return Arrays.asList(
-                pulsarRootDir + "/bin/pulsar-admin",
+                pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
                 "functions",
@@ -829,7 +847,8 @@ public class KubernetesRuntime implements Runtime {
         return String.format("%s=${POD_NAME##*-} && echo shardId=${%s}", ENV_SHARD_ID, ENV_SHARD_ID);
     }
 
-    private V1StatefulSet createStatefulSet() {
+    @VisibleForTesting
+    V1StatefulSet createStatefulSet() {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
         final V1StatefulSet statefulSet = new V1StatefulSet();
@@ -838,6 +857,8 @@ public class KubernetesRuntime implements Runtime {
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
         objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
+        // we don't technically need to set this, but it is useful for testing
+        objectMeta.setNamespace(jobNamespace);
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec
@@ -871,6 +892,9 @@ public class KubernetesRuntime implements Runtime {
 
         statefulSet.spec(statefulSetSpec);
 
+        // let the customizer run but ensure it doesn't change the name so we can find it again
+        final V1StatefulSet overridden = manifestCustomizer.map((customizer) -> customizer.customizeStatefulSet(instanceConfig.getFunctionDetails(), statefulSet)).orElse(statefulSet);
+        overridden.getMetadata().name(jobName);
 
         return statefulSet;
     }
@@ -878,7 +902,7 @@ public class KubernetesRuntime implements Runtime {
     private Map<String, String> getPrometheusAnnotations() {
         final Map<String, String> annotations = new HashMap<>();
         annotations.put("prometheus.io/scrape", "true");
-        annotations.put("prometheus.io/port", String.valueOf(METRICS_PORT));
+        annotations.put("prometheus.io/port", String.valueOf(metricsPort));
         return annotations;
     }
 
@@ -1005,7 +1029,7 @@ public class KubernetesRuntime implements Runtime {
         List<V1ContainerPort> ports = new ArrayList<>();
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("grpc");
-        port.setContainerPort(GRPC_PORT);
+        port.setContainerPort(grpcPort);
         ports.add(port);
         return ports;
     }
@@ -1014,7 +1038,7 @@ public class KubernetesRuntime implements Runtime {
         List<V1ContainerPort> ports = new ArrayList<>();
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("prometheus");
-        port.setContainerPort(METRICS_PORT);
+        port.setContainerPort(metricsPort);
         ports.add(port);
         return ports;
     }

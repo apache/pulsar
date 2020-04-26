@@ -1,7 +1,7 @@
 ---
 id: version-2.4.1-functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Setup: Pulsar Functions Worker
+sidebar_label: "Setup: Pulsar Functions Worker"
 original_id: functions-worker
 ---
 

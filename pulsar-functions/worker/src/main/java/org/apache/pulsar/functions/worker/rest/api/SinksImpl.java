@@ -29,6 +29,7 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -39,7 +40,6 @@ import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.functions.worker.rest.RestException;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -188,6 +188,7 @@ public class SinksImpl extends ComponentImpl {
 
             // cache auth if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -195,14 +196,12 @@ public class SinksImpl extends ComponentImpl {
 
                         try {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
-                                    .cacheAuthData(tenant, namespace, sinkName, clientAuthenticationDataHttps);
+                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
 
-                            if (functionAuthData.isPresent()) {
-                                functionMetaDataBuilder.setFunctionAuthSpec(
-                                        Function.FunctionAuthenticationSpec.newBuilder()
-                                                .setData(ByteString.copyFrom(functionAuthData.get().getData()))
-                                                .build());
-                            }
+                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(authData.getData()))
+                                            .build()));
                         } catch (Exception e) {
                             log.error("Error caching authentication data for {} {}/{}/{}",
                                     ComponentTypeUtils.toString(componentType), tenant, namespace, sinkName, e);
@@ -372,6 +371,7 @@ public class SinksImpl extends ComponentImpl {
 
             // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -384,9 +384,7 @@ public class SinksImpl extends ComponentImpl {
 
                         try {
                             Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
-                                    .updateAuthData(
-                                            tenant, namespace,
-                                            sinkName, existingFunctionAuthData,
+                                    .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
                                             clientAuthenticationDataHttps);
 
                             if (newFunctionAuthData.isPresent()) {

@@ -174,7 +174,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram below, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
@@ -203,7 +203,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
-### Key_shared
+### Key_Shared
 
 In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
@@ -227,8 +227,8 @@ When a consumer subscribes to a Pulsar topic, by default it subscribes to one sp
 
 When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.
 
-> #### No ordering guarantees
-> When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature.
+> #### No ordering guarantees across multiple topics
+> When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
 
 Here are some multi-topic subscription examples for Java:
 

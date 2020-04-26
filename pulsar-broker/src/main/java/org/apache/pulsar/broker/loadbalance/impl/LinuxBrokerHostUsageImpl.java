@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -38,16 +40,11 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.management.OperatingSystemMXBean;
 
 /**
  * Class that will return the broker host usage.
- *
- *
  */
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
-    // The interval for host usage check command
-    private final int hostUsageCheckIntervalMin;
     private long lastCollection;
     private double lastTotalNicUsageTx;
     private double lastTotalNicUsageRx;
@@ -60,12 +57,21 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private static final Logger LOG = LoggerFactory.getLogger(LinuxBrokerHostUsageImpl.class);
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
-        this.hostUsageCheckIntervalMin = pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes();
+        this(
+            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+            pulsar.getLoadManagerExecutor()
+        );
+    }
+
+    public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
+                                    Optional<Double> overrideBrokerNicSpeedGbps,
+                                    ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
-        this.overrideBrokerNicSpeedGbps = pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps();
-        pulsar.getLoadManagerExecutor().scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
+        this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
+        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -74,7 +80,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return usage;
     }
 
-    private void calculateBrokerHostUsage() {
+    @Override
+    public void calculateBrokerHostUsage() {
         List<String> nics = getNics();
         double totalNicLimit = getTotalNicLimitKbps(nics);
         double totalNicUsageTx = getTotalNicUsageTxKb(nics);
@@ -116,7 +123,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuLimit() {
-        return (double) (100 * Runtime.getRuntime().availableProcessors());
+        return 100 * Runtime.getRuntime().availableProcessors();
     }
 
     /**
@@ -179,21 +186,18 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalNicLimitKbps(List<String> nics) {
-        if (overrideBrokerNicSpeedGbps.isPresent()) {
-            // Use the override value as configured. Return the total max speed across all available NICs, converted
-            // from Gbps into Kbps
-            return ((double) overrideBrokerNicSpeedGbps.get()) * nics.size() * 1024 * 1024;
-        }
-
-        // Nic speed is in Mbits/s, return kbits/s
-        return nics.stream().mapToDouble(s -> {
-            try {
-                return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(s))));
-            } catch (IOException e) {
-                LOG.error("Failed to read speed for nic " + s, e);
-                return 0d;
-            }
-        }).sum() * 1024;
+        // Use the override value as configured. Return the total max speed across all available NICs, converted
+        // from Gbps into Kbps
+        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1024 * 1024)
+                .orElseGet(() -> nics.stream().mapToDouble(s -> {
+                    // Nic speed is in Mbits/s, return kbits/s
+                    try {
+                        return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(s))));
+                    } catch (IOException e) {
+                        LOG.error("Failed to read speed for nic " + s, e);
+                        return 0d;
+                    }
+                }).sum() * 1024);
     }
 
     private Path getNicTxPath(String nic) {

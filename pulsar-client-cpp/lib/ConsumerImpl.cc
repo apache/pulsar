@@ -66,8 +66,13 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
     if (conf.getUnAckedMessagesTimeoutMs() != 0) {
-        unAckedMessageTrackerPtr_.reset(
-            new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), client, *this));
+        if (conf.getTickDurationInMs() > 0) {
+            unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerEnabled(
+                conf.getUnAckedMessagesTimeoutMs(), conf.getTickDurationInMs(), client, *this));
+        } else {
+            unAckedMessageTrackerPtr_.reset(
+                new UnAckedMessageTrackerEnabled(conf.getUnAckedMessagesTimeoutMs(), client, *this));
+        }
     } else {
         unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerDisabled());
     }
@@ -80,8 +85,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     unsigned int statsIntervalInSeconds = client->getClientConfig().getStatsIntervalInSeconds();
     if (statsIntervalInSeconds) {
         consumerStatsBasePtr_ = std::make_shared<ConsumerStatsImpl>(
-            consumerStr_, client->getIOExecutorProvider()->get()->createDeadlineTimer(),
-            statsIntervalInSeconds);
+            consumerStr_, client->getIOExecutorProvider()->get(), statsIntervalInSeconds);
     } else {
         consumerStatsBasePtr_ = std::make_shared<ConsumerStatsDisabled>();
     }
@@ -283,6 +287,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
+    m.impl_->setRedeliveryCount(msg.redelivery_count());
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
@@ -291,7 +296,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     unsigned int numOfMessageReceived = 1;
     if (metadata.has_num_messages_in_batch()) {
         Lock lock(mutex_);
-        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m);
+        numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m, msg.redelivery_count());
     } else {
         Lock lock(pendingReceiveMutex_);
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
@@ -358,7 +363,7 @@ void ConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
 
 // Zero Queue size is not supported with Batch Messages
 uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx,
-                                                          Message& batchedMessage) {
+                                                          Message& batchedMessage, int redeliveryCount) {
     unsigned int batchSize = batchedMessage.impl_->metadata.num_messages_in_batch();
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
@@ -369,6 +374,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     for (int i = 0; i < batchSize; i++) {
         // This is a cheap copy since message contains only one shared pointer (impl_)
         Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
+        msg.impl_->setRedeliveryCount(redeliveryCount);
 
         if (startMessageId_.is_present()) {
             const MessageId& msgId = msg.getMessageId();
@@ -952,6 +958,18 @@ Result ConsumerImpl::resumeMessageListener() {
 void ConsumerImpl::redeliverUnacknowledgedMessages() {
     static std::set<MessageId> emptySet;
     redeliverMessages(emptySet);
+    unAckedMessageTrackerPtr_->clear();
+}
+
+void ConsumerImpl::redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) {
+    if (messageIds.empty()) {
+        return;
+    }
+    if (config_.getConsumerType() != ConsumerShared && config_.getConsumerType() != ConsumerKeyShared) {
+        redeliverUnacknowledgedMessages();
+        return;
+    }
+    redeliverMessages(messageIds);
 }
 
 void ConsumerImpl::redeliverMessages(const std::set<MessageId>& messageIds) {

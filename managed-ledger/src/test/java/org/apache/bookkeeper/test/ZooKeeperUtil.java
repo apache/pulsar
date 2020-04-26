@@ -26,6 +26,7 @@ package org.apache.bookkeeper.test;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -44,18 +45,16 @@ public class ZooKeeperUtil {
     static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
 
     // ZooKeeper related variables
-    protected final static Integer zooKeeperPort = PortManager.nextFreePort();
-    private final InetSocketAddress zkaddr;
+    protected int zooKeeperPort;
+    private InetSocketAddress zkaddr;
 
     protected ZooKeeperServer zks;
     protected ZooKeeper zkc; // zookeeper client
     protected NIOServerCnxnFactory serverFactory;
     protected File ZkTmpDir;
-    private final String connectString;
+    private String connectString;
 
     public ZooKeeperUtil() {
-        zkaddr = new InetSocketAddress(zooKeeperPort);
-        connectString = "localhost:" + zooKeeperPort;
     }
 
     public ZooKeeper getZooKeeperClient() {
@@ -80,6 +79,10 @@ public class ZooKeeperUtil {
         serverFactory.configure(zkaddr, 100);
         serverFactory.startup(zks);
 
+        zooKeeperPort = serverFactory.getLocalPort();
+        zkaddr = new InetSocketAddress(zooKeeperPort);
+        connectString = "localhost:" + zooKeeperPort;
+
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
 
@@ -90,6 +93,35 @@ public class ZooKeeperUtil {
         // initialize the zk client with values
         zkc.create("/ledgers", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zkc.create("/ledgers/available", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    public void startServer(String path) throws Exception {
+        LOG.debug("Running ZK server");
+        // ServerStats.registerAsConcrete();
+        ClientBase.setupTestEnv();
+        ZkTmpDir = File.createTempFile("zookeeper", "test");
+        ZkTmpDir.delete();
+        ZkTmpDir.mkdir();
+
+        zks = new ZooKeeperServer(ZkTmpDir, ZkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+        serverFactory = new NIOServerCnxnFactory();
+        serverFactory.configure(zkaddr, 100);
+        serverFactory.startup(zks);
+
+        zooKeeperPort = serverFactory.getLocalPort();
+        connectString = "localhost:" + zooKeeperPort;
+        boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
+        LOG.debug("Server up: " + b);
+
+        // create a zookeeper client
+        LOG.debug("Instantiate ZK Client");
+        zkc = ZooKeeperClient.newBuilder().connectString(getZooKeeperConnectString()).build();
+        if (path != "") {
+            zkc.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        }
+        // initialize the zk client with values
+        zkc.create(path + "/ledgers", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        zkc.create(path +"/ledgers/available", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     @SuppressWarnings("deprecation")

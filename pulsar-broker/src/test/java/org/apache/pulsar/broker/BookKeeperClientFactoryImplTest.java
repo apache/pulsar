@@ -28,10 +28,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -154,9 +156,37 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setZookeeperServers("localhost:2181");
         assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
         assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+    }
+
+    @Test
+    public void testSetExplicitLacInterval() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setZookeeperServers("localhost:2181");
+        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 0);
+        conf.setBookkeeperExplicitLacIntervalInMills(5);
+        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 5);
+    }
+
+    @Test
+    public void testSetMetadataServiceUri() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setZookeeperServers("localhost:2181");
+        try {
+            String defaultUri = "zk+null://localhost:2181/ledgers";
+            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), defaultUri);
+            String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
+            conf.setBookkeeperMetadataServiceUri(expectedUri);
+            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), expectedUri);
+        } catch (ConfigurationException e) {
+            e.printStackTrace();
+            fail("Get metadata service uri should be successful", e);
+        }
     }
 
 }

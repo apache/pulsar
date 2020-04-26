@@ -35,6 +35,8 @@ import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
@@ -52,7 +54,7 @@ public class FunctionConfigUtils {
             if (classLoader != null) {
                 try {
                     typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
                             String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
                 }
@@ -147,6 +149,9 @@ public class FunctionConfigUtils {
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
             sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
         }
+        if (functionConfig.getForwardSourceMessageProperty() != null) {
+            sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
+        }
 
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
@@ -234,6 +239,10 @@ public class FunctionConfigUtils {
 
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
 
+        if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
+            functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -287,6 +296,7 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         if (functionDetails.hasRetryDetails()) {
@@ -334,6 +344,10 @@ public class FunctionConfigUtils {
             functionConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
         }
 
+        if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
+            functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
+        }
+
         return functionConfig;
     }
 
@@ -373,12 +387,13 @@ public class FunctionConfigUtils {
             Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
 
             if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
-                    && !java.util.function.Function.class.isAssignableFrom(functionClass)) {
+                    && !java.util.function.Function.class.isAssignableFrom(functionClass)
+                    && !org.apache.pulsar.functions.api.WindowFunction.class.isAssignableFrom(functionClass)) {
                 throw new IllegalArgumentException(
                         String.format("Function class %s does not implement the correct interface",
                                 functionClass.getName()));
             }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
         }
@@ -386,7 +401,7 @@ public class FunctionConfigUtils {
         Class<?>[] typeArgs;
         try {
             typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
         }
@@ -774,6 +789,9 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
             mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
+        if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
+            mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
     }

@@ -24,6 +24,7 @@ import com.google.common.collect.ComparisonChain;
 
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -88,28 +89,35 @@ public class CompactedTopicImpl implements CompactedTopic {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
             } else {
                 compactedTopicContext.thenCompose(
-                        (context) -> {
-                            return findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
-                                .thenCompose((startPoint) -> {
-                                        if (startPoint == NEWER_THAN_COMPACTED) {
-                                            cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
-                                            return CompletableFuture.completedFuture(null);
-                                        } else {
-                                            long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
-                                                                     startPoint + numberOfEntriesToRead);
-                                            return readEntries(context.ledger, startPoint, endPoint)
-                                                .thenAccept((entries) -> {
-                                                        Entry lastEntry = entries.get(entries.size() - 1);
-                                                        cursor.seek(lastEntry.getPosition().getNext());
-                                                        callback.readEntriesComplete(entries, ctx);
-                                                    });
-                                        }
+                    (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
+                        .thenCompose((startPoint) -> {
+                            if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
+                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, ctx);
+                                return CompletableFuture.completedFuture(null);
+                            } else {
+                                long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
+                                                         startPoint + numberOfEntriesToRead);
+                                if (startPoint == NEWER_THAN_COMPACTED) {
+                                    cursor.seek(compactionHorizon.getNext());
+                                    callback.readEntriesComplete(Collections.emptyList(), ctx);
+                                }
+                                return readEntries(context.ledger, startPoint, endPoint)
+                                    .thenAccept((entries) -> {
+                                        Entry lastEntry = entries.get(entries.size() - 1);
+                                        cursor.seek(lastEntry.getPosition().getNext());
+                                        callback.readEntriesComplete(entries, ctx);
                                     });
-                                })
+                            }
+                        }))
                     .exceptionally((exception) -> {
+                        if (exception.getCause() instanceof NoSuchElementException) {
+                            cursor.seek(compactionHorizon.getNext());
+                            callback.readEntriesComplete(Collections.emptyList(), ctx);
+                        } else {
                             callback.readEntriesFailed(new ManagedLedgerException(exception), ctx);
-                            return null;
-                        });
+                        }
+                        return null;
+                    });
             }
         }
     }
@@ -164,12 +172,19 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 if (rc != BKException.Code.OK) {
                                     promise.completeExceptionally(BKException.create(rc));
                                 } else {
-                                    try (RawMessage m = RawMessageImpl.deserializeFrom(
-                                                 seq.nextElement().getEntryBuffer())) {
-                                        promise.complete(m.getMessageIdData());
-                                    } catch (NoSuchElementException e) {
-                                        log.error("No such entry {} in ledger {}", entryId, lh.getId());
-                                        promise.completeExceptionally(e);
+                                    // Need to release buffers for all entries in the sequence
+                                    if (seq.hasMoreElements()) {
+                                        LedgerEntry entry = seq.nextElement();
+                                        try (RawMessage m = RawMessageImpl.deserializeFrom(entry.getEntryBuffer())) {
+                                            entry.getEntryBuffer().release();
+                                            while (seq.hasMoreElements()) {
+                                                seq.nextElement().getEntryBuffer().release();
+                                            }
+                                            promise.complete(m.getMessageIdData());
+                                        }
+                                    } else {
+                                        promise.completeExceptionally(new NoSuchElementException(
+                                                String.format("No such entry %d in ledger %d", entryId, lh.getId())));
                                     }
                                 }
                             }, null);

@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
 
@@ -112,17 +113,18 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        String lookupUrl = pulsar.getBrokerServiceUrl();
 
         Authentication authentication = new ClientAuthentication(clientRole);
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
         @Cleanup
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -188,9 +190,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(subAdminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
         superAdmin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -201,7 +200,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -224,7 +226,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // grant subscription access to specific different role and only that role can access the subscription
         String otherPrincipal = "Principal-1-to-access-sub";
-        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
 
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
@@ -270,12 +272,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 

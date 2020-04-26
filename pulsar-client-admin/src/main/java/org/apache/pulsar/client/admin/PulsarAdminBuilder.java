@@ -38,7 +38,7 @@ public interface PulsarAdminBuilder {
 
     /**
      * Create a copy of the current client builder.
-     * <p>
+     * <p/>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
@@ -59,9 +59,9 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
      * <pre>
      * <code>
@@ -88,12 +88,11 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
-     * <pre>
-     * <code>
+     * <pre>{@code
      * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
      *
      * Map<String, String> conf = new TreeMap<>();
@@ -105,7 +104,8 @@ public interface PulsarAdminBuilder {
      *          .authentication(AUTH_CLASS, conf)
      *          .build();
      * ....
-     * </code>
+     * }
+     * </pre>
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
@@ -119,12 +119,11 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar admin instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
-     * <pre>
-     * <code>
+     * <pre>{@code
      * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
      *
      * Map<String, String> conf = new TreeMap<>();
@@ -138,7 +137,7 @@ public interface PulsarAdminBuilder {
      *          .authentication(auth)
      *          .build();
      * ....
-     * </code>
+     * }
      * </pre>
      *
      * @param authentication
@@ -147,14 +146,14 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder authentication(Authentication authentication);
 
     /**
-     * Set the path to the trusted TLS certificate file
+     * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
      */
     PulsarAdminBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath);
 
     /**
-     * Configure whether the Pulsar admin client accept untrusted TLS certificate from broker <i>(default: false)</i>
+     * Configure whether the Pulsar admin client accept untrusted TLS certificate from broker <i>(default: false)</i>.
      *
      * @param allowTlsInsecureConnection
      */
@@ -172,7 +171,7 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
 
     /**
-     * This sets the connection time out for the pulsar admin client
+     * This sets the connection time out for the pulsar admin client.
      *
      * @param connectionTimeout
      * @param connectionTimeoutUnit

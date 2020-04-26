@@ -45,7 +45,7 @@ public class MessageParser {
      * Definition of an interface to process a raw Pulsar entry payload.
      */
     public interface MessageProcessor {
-        void process(RawMessage message);
+        void process(RawMessage message) throws IOException;
     }
 
     /**

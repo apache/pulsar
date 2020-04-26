@@ -1,0 +1,71 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: CI - Integration - Schema
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  schema:
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 .github deployment .asf.yaml .ci ct.yaml
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        if: steps.docs.outputs.changed_only == 'no'
+        with:
+          java-version: 1.8
+
+      - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
+        run: |
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
+      - name: run install by skip tests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn clean install -DskipTests
+
+      - name: build artifacts and docker image
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+
+      - name: run integration tests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-schema.xml -DintegrationTests -DredirectTestOutputToFile=false

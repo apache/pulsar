@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -577,13 +578,81 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    // wrap an exception to enriching more info messages.
+    public static Throwable wrap(Throwable t, String msg) {
+        msg += "\n" + t.getMessage();
+        // wrap an exception with new message info
+        if (t instanceof TimeoutException) {
+            return new TimeoutException(msg);
+        } else if (t instanceof InvalidConfigurationException) {
+            return new InvalidConfigurationException(msg);
+        } else if (t instanceof AuthenticationException) {
+            return new AuthenticationException(msg);
+        } else if (t instanceof IncompatibleSchemaException) {
+            return new IncompatibleSchemaException(msg);
+        } else if (t instanceof TooManyRequestsException) {
+            return new TooManyRequestsException(msg);
+        } else if (t instanceof LookupException) {
+            return new LookupException(msg);
+        } else if (t instanceof ConnectException) {
+            return new ConnectException(msg);
+        } else if (t instanceof AlreadyClosedException) {
+            return new AlreadyClosedException(msg);
+        } else if (t instanceof TopicTerminatedException) {
+            return new TopicTerminatedException(msg);
+        } else if (t instanceof AuthorizationException) {
+            return new AuthorizationException(msg);
+        } else if (t instanceof GettingAuthenticationDataException) {
+            return new GettingAuthenticationDataException(msg);
+        } else if (t instanceof UnsupportedAuthenticationException) {
+            return new UnsupportedAuthenticationException(msg);
+        } else if (t instanceof BrokerPersistenceException) {
+            return new BrokerPersistenceException(msg);
+        } else if (t instanceof BrokerMetadataException) {
+            return new BrokerMetadataException(msg);
+        } else if (t instanceof ProducerBusyException) {
+            return new ProducerBusyException(msg);
+        } else if (t instanceof ConsumerBusyException) {
+            return new ConsumerBusyException(msg);
+        } else if (t instanceof NotConnectedException) {
+            return new NotConnectedException();
+        } else if (t instanceof InvalidMessageException) {
+            return new InvalidMessageException(msg);
+        } else if (t instanceof InvalidTopicNameException) {
+            return new InvalidTopicNameException(msg);
+        } else if (t instanceof NotSupportedException) {
+            return new NotSupportedException(msg);
+        } else if (t instanceof ProducerQueueIsFullError) {
+            return new ProducerQueueIsFullError(msg);
+        } else if (t instanceof ProducerBlockedQuotaExceededError) {
+            return new ProducerBlockedQuotaExceededError(msg);
+        } else if (t instanceof ProducerBlockedQuotaExceededException) {
+            return new ProducerBlockedQuotaExceededException(msg);
+        } else if (t instanceof ChecksumException) {
+            return new ChecksumException(msg);
+        } else if (t instanceof CryptoException) {
+            return new CryptoException(msg);
+        } else if (t instanceof PulsarClientException) {
+            return new PulsarClientException(msg);
+        } else if (t instanceof CompletionException) {
+            return t;
+        } else if (t instanceof RuntimeException) {
+            return new RuntimeException(msg, t.getCause());
+        } else if (t instanceof InterruptedException) {
+            return t;
+        } else if (t instanceof ExecutionException) {
+            return t;
+        }
+
+        return t;
+    }
+
     public static PulsarClientException unwrap(Throwable t) {
         if (t instanceof PulsarClientException) {
             return (PulsarClientException) t;
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
         }  else if (t instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
             return new PulsarClientException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception
@@ -644,8 +713,30 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (cause instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
         } else {
             return new PulsarClientException(t);
         }
+    }
+
+    public static boolean isRetriableError(Throwable t) {
+        if (t instanceof AuthorizationException
+                || t instanceof InvalidServiceURL
+                || t instanceof InvalidConfigurationException
+                || t instanceof NotFoundException
+                || t instanceof IncompatibleSchemaException
+                || t instanceof TopicDoesNotExistException
+                || t instanceof UnsupportedAuthenticationException
+                || t instanceof InvalidMessageException
+                || t instanceof InvalidTopicNameException
+                || t instanceof NotSupportedException
+                || t instanceof ChecksumException
+                || t instanceof CryptoException
+                || t instanceof ProducerBusyException
+                || t instanceof ConsumerBusyException) {
+            return false;
+        }
+        return true;
     }
 }

@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-common</artifactId>
@@ -36,12 +36,6 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>
 

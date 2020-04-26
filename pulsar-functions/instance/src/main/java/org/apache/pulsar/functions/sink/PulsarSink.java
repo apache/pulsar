@@ -83,7 +83,7 @@ public class PulsarSink<T> implements Sink<T> {
             this.schema = schema;
         }
 
-        public <T> Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
@@ -234,7 +234,6 @@ public class PulsarSink<T> implements Sink<T> {
             CompletableFuture<MessageId> future = msg.sendAsync();
 
             future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
-            future.join();
         }
     }
 
@@ -281,7 +280,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty()) {
+        if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());
         }
 
@@ -295,9 +294,7 @@ public class PulsarSink<T> implements Sink<T> {
         } else {
             // It is coming from some source
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
-            if (eventTime.isPresent()) {
-                msg.eventTime(eventTime.get());
-            }
+            eventTime.ifPresent(msg::eventTime);
         }
 
         pulsarSinkProcessor.sendOutputMessage(msg, record);

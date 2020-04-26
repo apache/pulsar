@@ -71,8 +71,6 @@ import org.testng.annotations.Test;
 public class KafkaApiTest extends PulsarStandaloneTestSuite {
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         @Nullable
         private String field1;
@@ -82,8 +80,6 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Bar {
         private boolean field1;
     }

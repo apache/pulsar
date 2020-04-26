@@ -229,6 +229,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
+     * Select the subscription mode to be used when subscribing to the topic.
+     *
+     * <p>Options are:
+     * <ul>
+     *  <li>{@link SubscriptionMode#Durable} (Default)</li>
+     *  <li>{@link SubscriptionMode#NonDurable}</li>
+     * </ul>
+     *
+     * @param subscriptionMode
+     *            the subscription mode value
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> subscriptionMode(SubscriptionMode subscriptionMode);
+
+    /**
      * Sets a {@link MessageListener} for the consumer
      *
      * <p>When a {@link MessageListener} is set, application will receive messages through it. Calls to
@@ -250,6 +265,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto
+     *            MessageCrypto object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified.
@@ -373,6 +399,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
+
+
+    /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     *
+     * @param interval
+     *            the amount of delay between checks for
+     *            new topics matching pattern set with {@link #topicsPattern(String)}
+     * @param unit
+     *            the unit of the topics auto discovery period
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit);
+
 
     /**
      * <b>Shared subscription</b>
@@ -527,7 +568,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>Or
      * <pre>
      * client.newConsumer()
-     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
+     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
      *          .subscribe();
      * </pre>
      * Details about auto split hash range policy, please see {@link KeySharedPolicy.KeySharedPolicyAutoSplit}.
@@ -535,4 +576,37 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
      */
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * Set the consumer to include the given position of any reset operation like {@link Consumer#seek(long) or
+     * {@link Consumer#seek(MessageId)}}.
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> startMessageIdInclusive();
+
+    /**
+     * Set batch receive policy {@link BatchReceivePolicy} for consumer.
+     * By default, consumer will use {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
+     *              .maxNumMessages(100)
+     *              .maxNumBytes(5 * 1024 * 1024)
+     *              .timeout(100, TimeUnit.MILLISECONDS)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
+
+    /**
+     * If enabled, the consumer will auto retry message.
+     * default unabled.
+     *
+     * @param retryEnable
+     *            whether to auto retry message
+     */
+    ConsumerBuilder<T> enableRetry(boolean retryEnable);
+
 }

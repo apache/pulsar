@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -32,13 +33,14 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 public interface Brokers {
     /**
      * Get the list of active brokers in the cluster.
-     * <p>
+     * <p/>
      * Get the list of active brokers (web service addresses) in the cluster.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
-     * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080", "prod1-broker3.messaging.use.example.com:8080"]</code>
+     * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080"
+     * * * "prod1-broker3.messaging.use.example.com:8080"]</code>
      * </pre>
      *
      * @param cluster
@@ -53,16 +55,34 @@ public interface Brokers {
      */
     List<String> getActiveBrokers(String cluster) throws PulsarAdminException;
 
-
     /**
-     * Get the map of owned namespaces and their status from a single broker in the cluster
-     * <p>
-     * The map is returned in a JSON object format below
-     * <p>
+     * Get the list of active brokers in the cluster asynchronously.
+     * <p/>
+     * Get the list of active brokers (web service addresses) in the cluster.
+     * <p/>
      * Response Example:
      *
      * <pre>
-     * <code>{"ns-1":{"broker_assignment":"shared","is_active":"true","is_controlled":"false"}, "ns-2":{"broker_assignment":"primary","is_active":"true","is_controlled":"true"}}</code>
+     * <code>["prod1-broker1.messaging.use.example.com:8080", "prod1-broker2.messaging.use.example.com:8080",
+     * "prod1-broker3.messaging.use.example.com:8080"]</code>
+     * </pre>
+     *
+     * @param cluster
+     *            Cluster name
+     * @return a list of (host:port)
+     */
+    CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
+
+    /**
+     * Get the map of owned namespaces and their status from a single broker in the cluster.
+     * <p/>
+     * The map is returned in a JSON object format below
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{"ns-1":{"broker_assignment":"shared","is_active":"true","is_controlled":"false"},
+     * "ns-2":{"broker_assignment":"primary","is_active":"true","is_controlled":"true"}}</code>
      * </pre>
      *
      * @param cluster
@@ -70,39 +90,90 @@ public interface Brokers {
      * @return
      * @throws PulsarAdminException
      */
-    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl) throws PulsarAdminException;
-    
+    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
+            throws PulsarAdminException;
+
     /**
-	 * It updates dynamic configuration value in to Zk that triggers watch on
-	 * brokers and all brokers can update {@link ServiceConfiguration} value
-	 * locally
-	 * 
-	 * @param key
-	 * @param value
-	 * @throws PulsarAdminException
-	 */
+     * Get the map of owned namespaces and their status from a single broker in the cluster asynchronously.
+     * <p/>
+     * The map is returned in a JSON object format below
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{"ns-1":{"broker_assignment":"shared","is_active":"true","is_controlled":"false"},
+     * "ns-2":{"broker_assignment":"primary","is_active":"true","is_controlled":"true"}}</code>
+     * </pre>
+     *
+     * @param cluster
+     * @param brokerUrl
+     * @return
+     */
+    CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerUrl);
+
+    /**
+     * Update a dynamic configuration value into ZooKeeper.
+     * <p/>
+     * It updates dynamic configuration value in to Zk that triggers watch on
+     * brokers and all brokers can update {@link ServiceConfiguration} value
+     * locally
+     *
+     * @param configName
+     * @param configValue
+     * @throws PulsarAdminException
+     */
     void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException;
-    
+
     /**
-     * It deletes dynamic configuration value in to Zk. It will not impact current value in broker but next time when
+     * Update a dynamic configuration value into ZooKeeper asynchronously.
+     * <p/>
+     * It updates dynamic configuration value in to Zk that triggers watch on
+     * brokers and all brokers can update {@link ServiceConfiguration} value
+     * locally
+     *
+     * @param configName
+     * @param configValue
+     */
+    CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue);
+
+    /**
+     * It deletes dynamic configuration value into ZooKeeper.
+     * <p/>
+     * It will not impact current value in broker but next time when
      * broker restarts, it applies value from configuration file only.
-     * 
-     * @param key
-     * @param value
+     *
+     * @param configName
      * @throws PulsarAdminException
      */
     void deleteDynamicConfiguration(String configName) throws PulsarAdminException;
 
     /**
-     * Get list of updatable configuration name
-     * 
+     * It deletes dynamic configuration value into ZooKeeper asynchronously.
+     * <p/>
+     * It will not impact current value in broker but next time when
+     * broker restarts, it applies value from configuration file only.
+     *
+     * @param configName
+     */
+    CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName);
+
+    /**
+     * Get list of updatable configuration name.
+     *
      * @return
      * @throws PulsarAdminException
      */
     List<String> getDynamicConfigurationNames() throws PulsarAdminException;
 
     /**
-     * Get values of runtime configuration
+     * Get list of updatable configuration name asynchronously.
+     *
+     * @return
+     */
+    CompletableFuture<List<String>> getDynamicConfigurationNamesAsync();
+
+    /**
+     * Get values of runtime configuration.
      *
      * @return
      * @throws PulsarAdminException
@@ -110,12 +181,26 @@ public interface Brokers {
     Map<String, String> getRuntimeConfigurations() throws PulsarAdminException;
 
     /**
-     * Get values of all overridden dynamic-configs
-     * 
+     * Get values of runtime configuration asynchronously.
+     *
+     * @return
+     */
+    CompletableFuture<Map<String, String>> getRuntimeConfigurationsAsync();
+
+    /**
+     * Get values of all overridden dynamic-configs.
+     *
      * @return
      * @throws PulsarAdminException
      */
     Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException;
+
+    /**
+     * Get values of all overridden dynamic-configs asynchronously.
+     *
+     * @return
+     */
+    CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync();
 
     /**
      * Get the internal configuration data.
@@ -125,9 +210,21 @@ public interface Brokers {
     InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
 
     /**
+     * Get the internal configuration data asynchronously.
+     *
+     * @return internal configuration data.
+     */
+    CompletableFuture<InternalConfigurationData> getInternalConfigurationDataAsync();
+
+    /**
      * Run a healthcheck on the broker.
      *
-     * @throws an exception if the healthcheck fails.
+     * @throws PulsarAdminException if the healthcheck fails.
      */
     void healthcheck() throws PulsarAdminException;
+
+    /**
+     * Run a healthcheck on the broker asynchronously.
+     */
+    CompletableFuture<Void> healthcheckAsync();
 }

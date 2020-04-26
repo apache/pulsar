@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,9 +70,17 @@ public class AuthorizationService {
         }
     }
 
-    public CompletableFuture<Boolean> isSuperUser(String user) {
+    public CompletableFuture<Boolean> isSuperUser(String user, AuthenticationDataSource authenticationData) {
         if (provider != null) {
-           return provider.isSuperUser(user, conf);
+            return provider.isSuperUser(user, authenticationData, conf);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
+                                                    AuthenticationDataSource authenticationData) {
+        if (provider != null) {
+            return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -102,7 +111,7 @@ public class AuthorizationService {
 
     /**
      * Grant permission to roles that can access subscription-admin api
-     * 
+     *
      * @param namespace
      * @param subscriptionName
      * @param roles
@@ -121,7 +130,7 @@ public class AuthorizationService {
 
     /**
      * Revoke subscription admin-api access for a role
-     * 
+     *
      * @param namespace
      * @param subscriptionName
      * @param role
@@ -134,7 +143,7 @@ public class AuthorizationService {
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
-    
+
     /**
      * Grant authorization-action permission on a topic to the given client
      *
@@ -171,7 +180,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
                 if (isSuperUser) {
                     return CompletableFuture.completedFuture(true);
                 } else {
@@ -198,7 +207,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
                 if (isSuperUser) {
                     return CompletableFuture.completedFuture(true);
                 } else {

@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -55,6 +54,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +78,9 @@ public class Consumer {
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
+
+    private long lastConsumedTimestamp;
+    private long lastAckedTimestamp;
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -188,6 +191,7 @@ public class Consumer {
      */
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
             long totalBytes, RedeliveryTracker redeliveryTracker) {
+        this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
 
@@ -258,8 +262,11 @@ public class Consumer {
                             consumerId, entry.getLedgerId(), entry.getEntryId());
                 }
 
-                int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()));
+                int redeliveryCount = 0;
+                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                if (redeliveryTracker.contains(position)) {
+                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                }
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
@@ -275,7 +282,9 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
-        if (shouldBlockConsumerOnUnackMsgs() && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages) {
+        if (Subscription.isIndividualAckMode(subType)
+                && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages
+                && maxUnackedMessages > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -293,15 +302,23 @@ public class Consumer {
      * pending message acks
      */
     public void close() throws BrokerServiceException {
-        subscription.removeConsumer(this);
+        close(false);
+    }
+
+    public void close(boolean isResetCursor) throws BrokerServiceException {
+        subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
     }
 
     public void disconnect() {
+        disconnect(false);
+    }
+
+    public void disconnect(boolean isResetCursor) {
         log.info("Disconnecting consumer: {}", this);
         cnx.closeConsumer(this);
         try {
-            close();
+            close(isResetCursor);
         } catch (BrokerServiceException e) {
             log.warn("Consumer {} was already closed: {}", this, e.getMessage(), e);
         }
@@ -324,6 +341,7 @@ public class Consumer {
     }
 
     void messageAcked(CommandAck ack) {
+        this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
@@ -439,6 +457,8 @@ public class Consumer {
     }
 
     public ConsumerStats getStats() {
+        stats.lastAckedTimestamp = lastAckedTimestamp;
+        stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -31,6 +32,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,15 +53,19 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -100,7 +106,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
@@ -147,7 +153,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
@@ -244,10 +250,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
                 .subscribe();
@@ -301,7 +307,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns2";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -460,7 +466,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             }
         }
 
-        // close consumer which will clean up intenral-receive-queue
+        // close consumer which will clean up internal-receive-queue
         consumer.close();
 
         // messages should still be available due to retention
@@ -505,9 +511,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         try {
             messageId = new MessageIdImpl(0, 0, -1);
             admin.topics().resetCursor(topicName, "my-sub", messageId);
-            fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.PreconditionFailedException e) {
-            // Ok
+            fail("It shouldn't fail for a invalid position");
         }
 
         consumer.close();
@@ -561,13 +566,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
@@ -589,7 +594,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
-        // Cluster itselft can't be part of peer-list
+        // Cluster itself can't be part of peer-list
         try {
             admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west1")));
             fail("should have failed");
@@ -606,22 +611,27 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west3",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west4",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
         admin.clusters().createCluster("global", new ClusterData());
+
+        List<String> allClusters = admin.clusters().getClusters();
+        Collections.sort(allClusters);
+        assertEquals(allClusters,
+                Lists.newArrayList("test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
 
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
-                "us-east2");
+                "us-east2", "global");
         TenantInfo propConfig = new TenantInfo(Sets.newHashSet("test"), allowedClusters);
         admin.tenants().createTenant(property, propConfig);
 
@@ -752,10 +762,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://prop-xyz/ns1/" + topicName;
         final String producerName = "myProducer";
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         Producer<byte[]> producer = client.newProducer()
@@ -868,8 +876,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // create
         String policyName1 = "policy-1";
-        String namespaceRegex = "other/use/other.*";
-        String cluster = "use";
+        String cluster = pulsar.getConfiguration().getClusterName();
+        String namespaceRegex = "other/" + cluster + "/other.*";
         String brokerName = pulsar.getAdvertisedAddress();
         String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort().get();
         NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
@@ -899,11 +907,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
         assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
 
-        try {
-            admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
-            Assert.fail("should have failed due to invalid broker address");
-        } catch (PulsarAdminException.NotFoundException e) {// expected
-        }
+        BrokerNamespaceIsolationData isolationData = admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+        assertFalse(isolationData.isPrimary);
     }
 
     @Test
@@ -926,8 +931,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String persistentPartitionedTopicName = "persistent://prop-xyz/ns2/" + topicName;
         final String NonPersistentPartitionedTopicName = "non-persistent://prop-xyz/ns2/" + topicName;
 
-        // init tenant and namespace without cluster
         admin.namespaces().createNamespace("prop-xyz/ns2");
+        // By default the cluster will configure as configuration file. So the create topic operation
+        // will never throw exception except there is no cluster.
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns2", new HashSet<String>());
+
         try {
             admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
             Assert.fail("should have failed due to Namespace does not have any clusters configured");
@@ -950,4 +958,291 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getNamespaceReplicationClusters(namespace),
                 Collections.singletonList(localCluster));
     }
+
+    @Test(timeOut = 30000)
+    public void testConsumerStatsLastTimestamp() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        long timestamp = System.currentTimeMillis();
+        final String topicName = "consumer-stats-" + timestamp;
+        final String subscribeName = topicName + "-test-stats-sub";
+        final String topic = "persistent://prop-xyz/ns1/" + topicName;
+        final String producerName = "producer-" + topicName;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        Producer<byte[]> producer = client.newProducer().topic(topic)
+            .enableBatching(false)
+            .producerName(producerName)
+            .create();
+
+        // a. Send a message to the topic.
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+
+        // b. Create a consumer, because there was a message in the topic, the consumer will receive the message pushed
+        // by the broker, the lastConsumedTimestamp will as the consume subscribe time.
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+            .subscriptionName(subscribeName)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
+        Message<byte[]> message = consumer.receive();
+
+        // Get the consumer stats.
+        TopicStats topicStats = admin.topics().getStats(topic);
+        SubscriptionStats subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long startConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long startAckedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
+        ConsumerStats consumerStats = subscriptionStats.consumers.get(0);
+        long startConsumedTimestampInConsumerStats = consumerStats.lastConsumedTimestamp;
+        long startAckedTimestampInConsumerStats = consumerStats.lastAckedTimestamp;
+
+        // Because the message was pushed by the broker, the consumedTimestamp should not as 0.
+        assertNotEquals(0, startConsumedTimestampInConsumerStats);
+        // There is no consumer ack the message, so the lastAckedTimestamp still as 0.
+        assertEquals(0, startAckedTimestampInConsumerStats);
+        assertNotEquals(0, startConsumedFlowTimestamp);
+        assertEquals(0, startAckedTimestampInSubStats);
+
+        // c. The Consumer receives the message and acks the message.
+        consumer.acknowledge(message);
+        // Waiting for the ack command send to the broker.
+        while (true) {
+            topicStats = admin.topics().getStats(topic);
+            if (topicStats.subscriptions.get(subscribeName).lastAckedTimestamp != 0) {
+                break;
+            }
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
+
+        // Get the consumer stats.
+        topicStats = admin.topics().getStats(topic);
+        subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long consumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long ackedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
+        consumerStats = subscriptionStats.consumers.get(0);
+        long consumedTimestamp = consumerStats.lastConsumedTimestamp;
+        long ackedTimestamp = consumerStats.lastAckedTimestamp;
+
+        // The lastConsumedTimestamp should same as the last time because the broker does not push any messages and the
+        // consumer does not pull any messages.
+        assertEquals(startConsumedTimestampInConsumerStats, consumedTimestamp);
+        assertTrue(startAckedTimestampInConsumerStats < ackedTimestamp);
+        assertNotEquals(0, consumedFlowTimestamp);
+        assertTrue(startAckedTimestampInSubStats < ackedTimestampInSubStats);
+
+        // d. Send another messages. The lastConsumedTimestamp should be updated.
+        producer.send("message-2".getBytes(StandardCharsets.UTF_8));
+
+        // e. Receive the message and ack it.
+        message = consumer.receive();
+        consumer.acknowledge(message);
+        // Waiting for the ack command send to the broker.
+        while (true) {
+            topicStats = admin.topics().getStats(topic);
+            if (topicStats.subscriptions.get(subscribeName).lastAckedTimestamp != ackedTimestampInSubStats) {
+                break;
+            }
+            TimeUnit.MILLISECONDS.sleep(100);
+        }
+
+        // Get the consumer stats again.
+        topicStats = admin.topics().getStats(topic);
+        subscriptionStats = topicStats.subscriptions.get(subscribeName);
+        long lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        long lastConsumedTimestampInSubStats = subscriptionStats.lastConsumedTimestamp;
+        long lastAckedTimestampInSubStats = subscriptionStats.lastAckedTimestamp;
+        consumerStats = subscriptionStats.consumers.get(0);
+        long lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        long lastAckedTimestamp = consumerStats.lastAckedTimestamp;
+
+        assertTrue(consumedTimestamp < lastConsumedTimestamp);
+        assertTrue(ackedTimestamp < lastAckedTimestamp);
+        assertTrue(startConsumedTimestampInConsumerStats < lastConsumedTimestamp);
+        assertTrue(startAckedTimestampInConsumerStats < lastAckedTimestamp);
+        assertTrue(consumedFlowTimestamp == lastConsumedFlowTimestamp);
+        assertTrue(ackedTimestampInSubStats < lastAckedTimestampInSubStats);
+        assertEquals(lastConsumedTimestamp, lastConsumedTimestampInSubStats);
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPreciseBacklog() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log";
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+        Message<byte[]> message = consumer.receive();
+        assertNotNull(message);
+
+        // Mock the entries added count. Default is disable the precise backlog, so the backlog is entries added count - consumed count
+        // Since message have not acked, so the backlog is 10
+        PersistentSubscription subscription = (PersistentSubscription)pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName);
+        assertNotNull(subscription);
+        ((ManagedLedgerImpl)subscription.getCursor().getManagedLedger()).setEntriesAddedCounter(10L);
+        TopicStats topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+        consumer.acknowledge(message);
+
+        // wait for ack send
+        Thread.sleep(500);
+
+        // Consumer acks the message, so the precise backlog is 0
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
+
+        topicStats = admin.topics().getStats(topic);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 9);
+    }
+
+    @Test(timeOut = 30000)
+    public void testBacklogNoDelayed() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-no-delayed";
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < 10; i++) {
+            if (i > 4) {
+                producer.newMessage()
+                    .value("message-1".getBytes(StandardCharsets.UTF_8))
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+            } else {
+                producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        TopicStats topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
+
+        for (int i = 0; i < 5; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+        // Wait the ack send.
+        Thread.sleep(500);
+        topicStats = admin.topics().getStats(topic, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
+    }
+
+    @Test
+    public void testPreciseBacklogForPartitionedTopic() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-for-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+        Message<byte[]> message = consumer.receive();
+        assertNotNull(message);
+
+        // Mock the entries added count. Default is disable the precise backlog, so the backlog is entries added count - consumed count
+        // Since message have not acked, so the backlog is 10
+        for (int i = 0; i < 2; i++) {
+            PersistentSubscription subscription = (PersistentSubscription)pulsar.getBrokerService().getTopicReference(topic + "-partition-" + i).get().getSubscription(subName);
+            assertNotNull(subscription);
+            ((ManagedLedgerImpl)subscription.getCursor().getManagedLedger()).setEntriesAddedCounter(10L);
+        }
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 20);
+
+        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+    }
+
+    @Test(timeOut = 30000)
+    public void testBacklogNoDelayedForPartitionedTopic() throws PulsarClientException, PulsarAdminException, InterruptedException {
+        final String topic = "persistent://prop-xyz/ns1/precise-back-log-no-delayed-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        for (int i = 0; i < 10; i++) {
+            if (i > 4) {
+                producer.newMessage()
+                    .value("message-1".getBytes(StandardCharsets.UTF_8))
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+            } else {
+                producer.send("message-1".getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
+
+        for (int i = 0; i < 5; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+        // Wait the ack send.
+        Thread.sleep(500);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
+    }
+
 }

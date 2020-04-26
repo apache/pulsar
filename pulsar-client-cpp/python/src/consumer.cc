@@ -33,9 +33,7 @@ Message Consumer_receive(Consumer& consumer) {
 
     while (true) {
         Py_BEGIN_ALLOW_THREADS
-        // Use 100ms timeout to periodically check whether the
-        // interpreter was interrupted
-        res = consumer.receive(msg, 100);
+        res = consumer.receive(msg);
         Py_END_ALLOW_THREADS
 
         if (res != ResultTimeout) {

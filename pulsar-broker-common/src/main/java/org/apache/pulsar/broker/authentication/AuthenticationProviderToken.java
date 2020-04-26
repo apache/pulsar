@@ -18,21 +18,27 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.IOException;
+import java.net.SocketAddress;
+import java.security.Key;
+
+import java.util.List;
+import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.api.AuthData;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-
-import java.io.IOException;
-import java.security.Key;
-
-import javax.naming.AuthenticationException;
-
 import io.jsonwebtoken.security.SignatureException;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -51,11 +57,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // When using public key's, the algorithm of the key
     final static String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
 
+    // The token audience "claim" name, e.g. "aud", that will be used to get the audience from token.
+    final static String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
+
+    // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
+    final static String CONF_TOKEN_AUDIENCE = "tokenAudience";
+
     final static String TOKEN = "token";
 
     private Key validationKey;
     private String roleClaim;
     private SignatureAlgorithm publicKeyAlg;
+    private String audienceClaim;
+    private String audience;
 
     @Override
     public void close() throws IOException {
@@ -68,6 +82,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.publicKeyAlg = getPublicKeyAlgType(config);
         this.validationKey = getValidationKey(config);
         this.roleClaim = getTokenRoleClaim(config);
+        this.audienceClaim = getTokenAudienceClaim(config);
+        this.audience = getTokenAudience(config);
+
+        if (audienceClaim != null && audience == null ) {
+            throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
+                                               + "] configured, but Audience stands for this broker not.");
+        }
     }
 
     @Override
@@ -81,13 +102,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         String token = getToken(authData);
 
         // Parse Token by validating
-        return parseToken(token);
+        return getPrincipal(authenticateToken(token));
+    }
+
+    @Override
+    public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
+        return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
         if (authData.hasDataFromCommand()) {
             // Authenticate Pulsar binary connection
-            return authData.getCommandData();
+            return validateToken(authData.getCommandData());
         } else if (authData.hasDataFromHttp()) {
             // Authentication HTTP request. The format here should be compliant to RFC-6750
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
@@ -112,17 +139,45 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private String parseToken(final String token) throws AuthenticationException {
+    @SuppressWarnings("unchecked")
+    private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parser()
                     .setSigningKey(validationKey)
                     .parse(token);
 
-            return jwt.getBody().get(roleClaim, String.class);
+            if (audienceClaim != null) {
+                Object object = jwt.getBody().get(audienceClaim);
+                if (object == null) {
+                    throw new JwtException("Found null Audience in token, for claimed field: " + audienceClaim);
+                }
+
+                if (object instanceof List) {
+                    List<String> audiences = (List<String>) object;
+                    // audience not contains this broker, throw exception.
+                    if (!audiences.stream().anyMatch(audienceInToken -> audienceInToken.equals(audience))) {
+                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
+                                                          + "] not contains this broker: " + audience);
+                    }
+                } else if (object instanceof String) {
+                    if (!object.equals(audience)) {
+                        throw new AuthenticationException("Audiences in token: [" + object
+                                                          + "] not contains this broker: " + audience);
+                    }
+                } else {
+                    // should not reach here.
+                    throw new AuthenticationException("Audiences in token is not in expected format: " + object);
+                }
+            }
+
+            return jwt;
         } catch (JwtException e) {
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
+    }
+
+    private String getPrincipal(Jwt<?, Claims> jwt) {
+        return jwt.getBody().get(roleClaim, String.class);
     }
 
     /**
@@ -164,6 +219,84 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             }
         } else {
             return SignatureAlgorithm.RS256;
+        }
+    }
+
+    // get Token Audience Claim from configuration, if not configured return null.
+    private String getTokenAudienceClaim(ServiceConfiguration conf) throws IllegalArgumentException {
+        if (conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM) != null
+            && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM))) {
+            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM);
+        } else {
+            return null;
+        }
+    }
+
+    // get Token Audience that stands for this broker from configuration, if not configured return null.
+    private String getTokenAudience(ServiceConfiguration conf) throws IllegalArgumentException {
+        if (conf.getProperty(CONF_TOKEN_AUDIENCE) != null
+            && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE))) {
+            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE);
+        } else {
+            return null;
+        }
+    }
+
+    private static final class TokenAuthenticationState implements AuthenticationState {
+        private final AuthenticationProviderToken provider;
+        private AuthenticationDataSource authenticationDataSource;
+        private Jwt<?, Claims> jwt;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
+        private long expiration;
+
+        TokenAuthenticationState(
+                AuthenticationProviderToken provider,
+                AuthData authData,
+                SocketAddress remoteAddress,
+                SSLSession sslSession) throws AuthenticationException {
+            this.provider = provider;
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
+            this.authenticate(authData);
+        }
+
+        @Override
+        public String getAuthRole() throws AuthenticationException {
+            return provider.getPrincipal(jwt);
+        }
+
+        @Override
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
+            String token = new String(authData.getBytes(), UTF_8);
+
+            this.jwt = provider.authenticateToken(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            if (jwt.getBody().getExpiration() != null) {
+                this.expiration = jwt.getBody().getExpiration().getTime();
+            } else {
+                // Disable expiration
+                this.expiration = Long.MAX_VALUE;
+            }
+
+            // There's no additional auth stage required
+            return null;
+        }
+
+        @Override
+        public AuthenticationDataSource getAuthDataSource() {
+            return authenticationDataSource;
+        }
+
+        @Override
+        public boolean isComplete() {
+            // The authentication of tokens is always done in one single stage
+            return true;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return expiration < System.currentTimeMillis();
         }
     }
 }

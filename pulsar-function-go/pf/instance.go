@@ -24,17 +24,21 @@ import (
 	"math"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-client-go/pulsar"
+	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/apache/pulsar-client-go/pulsar"
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
-	"github.com/apache/pulsar/pulsar-function-go/pb"
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 type goInstance struct {
-	function  function
-	context   *FunctionContext
-	producer  pulsar.Producer
-	consumers map[string]pulsar.Consumer
-	client    pulsar.Client
+	function          function
+	context           *FunctionContext
+	producer          pulsar.Producer
+	consumers         map[string]pulsar.Consumer
+	client            pulsar.Client
+	lastHealthCheckTs int64
+	properties        map[string]string
 }
 
 // newGoInstance init goInstance and init function context
@@ -43,11 +47,47 @@ func newGoInstance() *goInstance {
 		context:   NewFuncContext(),
 		consumers: make(map[string]pulsar.Consumer),
 	}
+	now := time.Now()
+	goInstance.lastHealthCheckTs = now.UnixNano()
+	goInstance.properties = make(map[string]string)
 	return goInstance
+}
+
+func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {
+	log.Info("Starting processSpawnerHealthCheckTimer")
+	now := time.Now()
+	maxIdleTime := gi.context.GetMaxIdleTime()
+	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTs
+	if (timeSinceLastCheck) > (maxIdleTime) {
+		log.Error("Haven't received health check from spawner in a while. Stopping instance...")
+		gi.close()
+		tkr.Stop()
+	}
+}
+
+func (gi *goInstance) startScheduler() {
+	if gi.context.instanceConf.expectedHealthCheckInterval > 0 {
+		log.Info("Starting Scheduler")
+		go func() {
+			log.Info("Started Scheduler")
+			tkr := time.NewTicker(time.Millisecond * 1000 * gi.context.GetExpectedHealthCheckIntervalAsDuration())
+			for range tkr.C {
+				log.Info("Starting Timer")
+				go gi.processSpawnerHealthCheckTimer(tkr)
+			}
+		}()
+	}
 }
 
 func (gi *goInstance) startFunction(function function) error {
 	gi.function = function
+
+	// start process spawner health check timer
+	now := time.Now()
+	gi.lastHealthCheckTs = now.UnixNano()
+
+	gi.startScheduler()
+
 	err := gi.setupClient()
 	if err != nil {
 		log.Errorf("setup client failed, error is:%v", err)
@@ -69,8 +109,16 @@ func (gi *goInstance) startFunction(function function) error {
 		return err
 	}
 
+	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdle)
+	idleTimer := time.NewTimer(idleDuration)
+	defer idleTimer.Stop()
+
+	servicer := InstanceControlServicer{goInstance: gi}
+	servicer.serve(gi)
+
 CLOSE:
 	for {
+		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
@@ -94,7 +142,7 @@ CLOSE:
 
 			gi.processResult(msgInput, output)
 
-		case <-time.After(getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdleMs)):
+		case <-idleTimer.C:
 			close(channel)
 			break CLOSE
 		}
@@ -107,6 +155,7 @@ CLOSE:
 
 func (gi *goInstance) setupClient() error {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
+
 		URL: gi.context.instanceConf.pulsarServiceURL,
 	})
 	if err != nil {
@@ -128,12 +177,9 @@ func (gi *goInstance) setupProducer() (err error) {
 			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
 			Properties:              properties,
 			CompressionType:         pulsar.LZ4,
-			BlockIfQueueFull:        true,
-			Batching:                true,
 			BatchingMaxPublishDelay: time.Millisecond * 10,
-			// set send timeout to be infinity to prevent potential deadlock with consumer
+			// Set send timeout to be infinity to prevent potential deadlock with consumer
 			// that might happen when consumer is blocked due to unacked messages
-			SendTimeout: 0,
 		})
 		if err != nil {
 			log.Errorf("create producer error:%s", err.Error())
@@ -212,7 +258,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 			return nil, err
 		}
 		gi.consumers[topic] = consumer
-		gi.context.inputTopics = append(gi.context.inputTopics, topic)
 	}
 	return channel, nil
 }
@@ -234,25 +279,24 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		asyncMsg := pulsar.ProducerMessage{
 			Payload: output,
 		}
-		// Attempt to send the message asynchronously and handle the response
-		gi.producer.SendAsync(context.Background(), asyncMsg, func(message pulsar.ProducerMessage, e error) {
-			if e != nil {
+		// Attempt to send the message and handle the response
+		gi.producer.SendAsync(context.Background(), &asyncMsg, func(messageID pulsar.MessageID,
+			message *pulsar.ProducerMessage, err error) {
+			if err != nil {
 				if autoAck && atLeastOnce {
 					gi.nackInputMessage(msgInput)
 				}
-				log.Fatal(e)
+				log.Fatal(err)
 			} else if autoAck && !atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
 		})
-	} else {
-		if autoAck && atLeastOnce {
-			gi.ackInputMessage(msgInput)
-		}
+	} else if autoAck && atLeastOnce {
+		gi.ackInputMessage(msgInput)
 	}
 }
 
-// ackInputMessage doesn't produce any result or the user doesn't want the result.
+// ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
@@ -271,7 +315,7 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 func (gi *goInstance) setupLogHandler() error {
 	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
 		gi.context.logAppender = NewLogAppender(
-			gi.client,                                         //pulsar client
+			gi.client, //pulsar client
 			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
 			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
 				gi.context.instanceConf.funcDetails.Namespace,
@@ -283,6 +327,11 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
+	// Clear StrEntry regardless gi.context.logAppender is set or not
+	defer func() {
+		log.StrEntry = nil
+	}()
+
 	if gi.context.logAppender == nil {
 		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
@@ -315,4 +364,27 @@ func (gi *goInstance) close() {
 	if gi.client != nil {
 		gi.client.Close()
 	}
+}
+
+func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
+	now := time.Now()
+	gi.lastHealthCheckTs = now.UnixNano()
+	healthCheckResult := pb.HealthCheckResult{Success: true}
+	return &healthCheckResult
+}
+
+func (gi *goInstance) getFunctionStatus() *pb.FunctionStatus {
+	return nil // Not implemented until we add the statistics features
+}
+
+func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
+	return nil // Not implemented until we add the statistics features
+}
+
+func (gi *goInstance) resetMetrics() *empty.Empty {
+	return nil // Not implemented until we add the statistics features
+}
+
+func (gi *goInstance) getMetrics() *pb.MetricsData {
+	return nil // Not implemented until we add the statistics features
 }

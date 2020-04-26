@@ -26,6 +26,8 @@ import lombok.NoArgsConstructor;
 
 import javax.ws.rs.core.Response;
 
+import org.apache.pulsar.common.util.RestException;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RestUtils {
 

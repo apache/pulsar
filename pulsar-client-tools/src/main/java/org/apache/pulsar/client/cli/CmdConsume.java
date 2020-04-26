@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -77,8 +79,11 @@ public class CmdConsume {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type: Exclusive, Shared, Failover.")
+    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
     private String subscriptionName;
@@ -94,7 +99,7 @@ public class CmdConsume {
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
-    @Parameter(names = { "--regex" }, description = "Indicate thetopic name is a regex pattern")
+    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
 
     private ClientBuilder clientBuilder;
@@ -125,14 +130,30 @@ public class CmdConsume {
      * @return String representation of the message
      */
     private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
+        StringBuilder sb = new StringBuilder();
+
+        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
+
+        String data;
         byte[] msgData = message.getData();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
-            return new String(msgData);
+            data = new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return new String(out.toByteArray());
+            data = new String(out.toByteArray());
         }
+
+        String key = null;
+        if (message.hasKey()) {
+            key = message.getKey();
+        }
+
+        sb.append("key:[").append(key).append("], ");
+        sb.append("properties:").append(properties).append(", ");
+        sb.append("content:").append(data);
+
+        return sb.toString();
     }
 
     /**
@@ -165,7 +186,8 @@ public class CmdConsume {
             PulsarClient client = clientBuilder.build();
             ConsumerBuilder<byte[]> builder = client.newConsumer()
                     .subscriptionName(this.subscriptionName)
-                    .subscriptionType(subscriptionType);
+                    .subscriptionType(subscriptionType)
+                    .subscriptionInitialPosition(subscriptionInitialPosition);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));

@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -113,7 +115,7 @@ public abstract class PulsarWebResource {
     public static String splitPath(String source, int slice) {
         Iterable<String> parts = Splitter.on('/').limit(slice).split(source);
         Iterator<String> s = parts.iterator();
-        String result = new String();
+        String result = "";
         for (int i = 0; i < slice; i++) {
             result = s.next();
         }
@@ -184,11 +186,11 @@ public abstract class PulsarWebResource {
                 try {
                     proxyAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(appId);
+                            .isSuperUser(appId, clientAuthData());
 
                     originalPrincipalAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(originalPrincipal);
+                            .isSuperUser(originalPrincipal, clientAuthData());
 
                     if (!proxyAuthorizedFuture.get() || !originalPrincipalAuthorizedFuture.get()) {
                         throw new RestException(Status.UNAUTHORIZED,
@@ -200,8 +202,15 @@ public abstract class PulsarWebResource {
                 }
                 log.debug("Successfully authorized {} (proxied by {}) as super-user",
                           originalPrincipal, appId);
-            } else if (!config().getSuperUserRoles().contains(appId)) {
-                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+            } else {
+                if (config().isAuthorizationEnabled() && !pulsar.getBrokerService()
+                        .getAuthorizationService()
+                        .isSuperUser(appId, clientAuthData())
+                        .join()) {
+                    throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+                }
+                log.debug("Successfully authorized {} as super-user",
+                          appId);
             }
         }
     }
@@ -216,7 +225,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateAdminAccessForTenant(String tenant) {
         try {
-            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant);
+            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant, clientAuthData());
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
@@ -226,7 +235,8 @@ public abstract class PulsarWebResource {
     }
 
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
-                                                       String originalPrincipal, String tenant)
+                                                       String originalPrincipal, String tenant,
+                                                       AuthenticationDataSource authenticationData)
             throws RestException, Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
@@ -251,22 +261,17 @@ public abstract class PulsarWebResource {
             validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId, originalPrincipal);
 
             if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-
                 CompletableFuture<Boolean> isProxySuperUserFuture;
                 CompletableFuture<Boolean> isOriginalPrincipalSuperUserFuture;
                 try {
-                    isProxySuperUserFuture = pulsar.getBrokerService()
-                            .getAuthorizationService()
-                            .isSuperUser(clientAppId);
+                    AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
+                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId, authenticationData);
 
-                    isOriginalPrincipalSuperUserFuture = pulsar.getBrokerService()
-                            .getAuthorizationService()
-                            .isSuperUser(originalPrincipal);
+                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal, authenticationData);
 
-                Set<String> adminRoles = tenantInfo.getAdminRoles();
-                boolean proxyAuthorized = isProxySuperUserFuture.get() || adminRoles.contains(clientAppId);
-                boolean originalPrincipalAuthorized
-                    = isOriginalPrincipalSuperUserFuture.get() || adminRoles.contains(originalPrincipal);
+                    boolean proxyAuthorized = isProxySuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get();
+                    boolean originalPrincipalAuthorized
+                    = isOriginalPrincipalSuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, originalPrincipal, tenantInfo, authenticationData).get();
                     if (!proxyAuthorized || !originalPrincipalAuthorized) {
                         throw new RestException(Status.UNAUTHORIZED,
                                 String.format("Proxy not authorized to access resource (proxy:%s,original:%s)",
@@ -277,14 +282,15 @@ public abstract class PulsarWebResource {
                 }
                 log.debug("Successfully authorized {} (proxied by {}) on tenant {}",
                           originalPrincipal, clientAppId, tenant);
-            } else if (pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)) {
-                // Super-user has access to configure all the policies
-                log.debug("granting access to super-user {} on tenant {}", clientAppId, tenant);
             } else {
-
-                if (!tenantInfo.getAdminRoles().contains(clientAppId)) {
-                    throw new RestException(Status.UNAUTHORIZED,
-                            "Don't have permission to administrate resources on this tenant");
+                if (!pulsar.getBrokerService()
+                        .getAuthorizationService()
+                        .isSuperUser(clientAppId, authenticationData)
+                        .join()) {
+                    if (!pulsar.getBrokerService().getAuthorizationService().isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get()) {
+                        throw new RestException(Status.UNAUTHORIZED,
+                                "Don't have permission to administrate resources on this tenant");
+                    }
                 }
 
                 log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
@@ -429,7 +435,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -444,7 +450,7 @@ public abstract class PulsarWebResource {
             // propagate already wrapped-up WebApplicationExceptions
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for namespace %s", fqnn), oe);
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
             throw new RestException(oe);
         }
     }
@@ -534,13 +540,17 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for ServiceUnit %s timed out", bundle);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), iae);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, iae);
             throw new RestException(Status.PRECONDITION_FAILED,
                     "ServiceUnit format is not expected. ServiceUnit " + bundle);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for ServiceUnit %s", bundle), ise);
+            log.debug("Failed to find owner for ServiceUnit {}", bundle, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
@@ -582,17 +592,21 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
+        } catch (TimeoutException te) {
+            String msg = String.format("Finding owner for topic %s timed out", topicName);
+            log.error(msg, te);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for topic :%s", topicName), iae);
+            log.debug("Failed to find owner for topic: {}", topicName, iae);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), ise);
+            log.debug("Failed to find owner for topic: {}", topicName, ise);
             throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for topic:%s", topicName), oe);
+            log.debug("Failed to find owner for topic: {}", topicName, oe);
             throw new RestException(oe);
         }
     }

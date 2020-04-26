@@ -37,7 +37,11 @@ public interface Subscription {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
-    void removeConsumer(Consumer consumer) throws BrokerServiceException;
+    default void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        removeConsumer(consumer, false);
+    }
+
+    void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException;
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
@@ -49,7 +53,7 @@ public interface Subscription {
 
     Dispatcher getDispatcher();
 
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
 
     default long getNumberOfEntriesDelayed() {
         return 0;
@@ -60,6 +64,8 @@ public interface Subscription {
     CompletableFuture<Void> close();
 
     CompletableFuture<Void> delete();
+
+    CompletableFuture<Void> deleteForcefully();
 
     CompletableFuture<Void> disconnect();
 

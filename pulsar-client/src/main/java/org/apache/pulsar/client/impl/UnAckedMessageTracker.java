@@ -139,13 +139,13 @@ public class UnAckedMessageTracker implements Closeable {
                     headPartition.clear();
                     timePartitions.addLast(headPartition);
                 } finally {
+                    if (messageIds.size() > 0) {
+                        consumerBase.onAckTimeoutSend(messageIds);
+                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    }
+                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     writeLock.unlock();
                 }
-                if (messageIds.size() > 0) {
-                    consumerBase.onAckTimeoutSend(messageIds);
-                    consumerBase.redeliverUnacknowledgedMessages(messageIds);
-                }
-                timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
     }
@@ -164,8 +164,13 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock.lock();
         try {
             ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
-            messageIdPartitionMap.put(messageId, partition);
-            return partition.add(messageId);
+            ConcurrentOpenHashSet<MessageId> previousPartition = messageIdPartitionMap.putIfAbsent(messageId,
+                    partition);
+            if (previousPartition == null) {
+                return partition.add(messageId);
+            } else {
+                return false;
+            }
         } finally {
             writeLock.unlock();
         }

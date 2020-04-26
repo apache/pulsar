@@ -18,35 +18,44 @@
  */
 package org.apache.pulsar.io;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
+
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
@@ -59,9 +68,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-
-import com.google.common.collect.Sets;
 
 /**
  * Test Pulsar function TLS authentication
@@ -80,9 +86,6 @@ public class PulsarFunctionTlsTest {
     WorkerServer workerServer;
     PulsarAdmin functionAdmin;
     private List<String> namespaceList = new LinkedList<>();
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int workerServicePort = PortManager.nextFreePort();
-    private final int workerServicePortTls = PortManager.nextFreePort();
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -97,24 +100,27 @@ public class PulsarFunctionTlsTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser");
         config.setSuperUserRoles(superUsers);
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
         config.setAuthenticationProviders(providers);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
         functionsWorkerService = spy(createPulsarFunctionWorker(config));
         AuthenticationService authenticationService = new AuthenticationService(config);
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
         when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
         when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -137,7 +143,7 @@ public class PulsarFunctionTlsTest {
         workerServer.start();
         Thread.sleep(2000);
         String functionTlsUrl = String.format("https://%s:%s",
-                functionsWorkerService.getWorkerConfig().getWorkerHostname(), workerServicePortTls);
+                functionsWorkerService.getWorkerConfig().getWorkerHostname(), workerServer.getListenPortHTTPS().get());
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
@@ -178,7 +184,7 @@ public class PulsarFunctionTlsTest {
         workerConfig.setFunctionAssignmentTopicName("assignment");
         workerConfig.setFunctionMetadataTopicName("metadata");
         workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(workerServicePort);
+        workerConfig.setWorkerPort(0);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
         this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
@@ -192,7 +198,7 @@ public class PulsarFunctionTlsTest {
         workerConfig.setTlsAllowInsecureConnection(true);
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
 
-        workerConfig.setWorkerPortTls(workerServicePortTls);
+        workerConfig.setWorkerPortTls(0);
         workerConfig.setTlsEnabled(true);
         workerConfig.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         workerConfig.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

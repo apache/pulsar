@@ -68,7 +68,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
+        serviceUrl = pulsar.getWebServiceAddress();
 
         pulsarSpoutConf = new PulsarSpoutConfiguration();
         pulsarSpoutConf.setServiceUrl(serviceUrl);

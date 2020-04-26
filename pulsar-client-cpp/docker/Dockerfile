@@ -153,7 +153,7 @@ RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.
 RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz && \
     tar xvfz snappy-1.1.3.tar.gz && \
     cd snappy-1.1.3 && \
-    CFLAGS="-fPIC -O3" ./configure && \
+    CXXFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
     rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
 

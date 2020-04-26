@@ -19,14 +19,12 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import lombok.Data;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
 
 import java.util.Map;
 
 @Data
-@ToString
 @Accessors(chain = true)
 public class KubernetesRuntimeFactoryConfig {
     @FieldContext(
@@ -54,6 +52,12 @@ public class KubernetesRuntimeFactoryConfig {
                     + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
     )
     protected String pulsarRootDir;
+    @FieldContext(
+            doc = "The config admin CLI allows users to customize the configuration of the admin cli tool, such as:"
+                    + " `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
+                    + " you need to set this setting accordingly"
+    )
+    protected String configAdminCLI;
     @FieldContext(
         doc = "This setting only takes effects if `k8Uri` is set to null. If your function worker is"
             + " also running as a k8s pod, set this to `true` is let function worker to submit functions to"
@@ -125,4 +129,14 @@ public class KubernetesRuntimeFactoryConfig {
                     "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
     )
     protected double memoryOverCommitRatio = 1.0;
+
+    @FieldContext(
+      doc = "The port inside the function pod which is used by the worker to communicate with the pod"
+    )
+    private Integer grpcPort = 9093;
+
+    @FieldContext(
+      doc = "The port inside the function pod on which prometheus metrics are exposed"
+    )
+    private Integer metricsPort = 9094;
 }

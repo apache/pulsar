@@ -30,10 +30,13 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -42,21 +45,15 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
@@ -127,6 +124,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "ZooKeeper operation timeout in seconds"
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -266,7 +268,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String tlsKeyFilePath;
     @FieldContext(
-        category = CATEGORY_SECURITY,
+        category = CATEGORY_WORKER_SECURITY,
         doc = "Path for the trusted TLS certificate file"
     )
     private String tlsTrustCertsFilePath = "";
@@ -331,6 +333,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     	return tlsEnabled || workerPortTls != null;
     }
 
+    /******** security settings for pulsar broker client **********/
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTrustCertsFilePath;
+
 
     /******** Function Runtime configurations **********/
 
@@ -370,7 +380,34 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     "  The Function Authentication Provider is responsible to distributing the necessary" +
                     " authentication information to individual functions e.g. user tokens"
     )
-    private String functionAuthProviderClassName;
+    @Getter(AccessLevel.NONE) private String functionAuthProviderClassName;
+
+    public String getFunctionAuthProviderClassName() {
+        // if we haven't set a value and are running kubernetes, we default to the SecretsTokenAuthProvider
+        // as that matches behavior before this property could be overridden
+        if (!StringUtils.isEmpty(functionAuthProviderClassName)) {
+            return functionAuthProviderClassName;
+        } else {
+            if (StringUtils.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName()) || getKubernetesContainerFactory() != null) {
+                return KubernetesSecretsTokenAuthProvider.class.getName();
+            }
+            return null;
+        }
+    }
+
+    @FieldContext(
+            doc = "The full class-name of an instance of RuntimeCustomizer." +
+                    " This class receives the 'customRuntimeOptions string and can customize" +
+                    " details of how the runtime operates"
+    )
+    protected String runtimeCustomizerClassName;
+
+    @FieldContext(
+            doc = "A map of config passed to the RuntimeCustomizer." +
+                    " This config is distinct from the `customRuntimeOptions` provided by functions" +
+                    " as this config is the the same across all functions"
+    )
+    private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

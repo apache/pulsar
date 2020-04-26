@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.io.MoreFiles;	
+import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -74,10 +70,6 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Slf4j
 public class FunctionActioner {
 
@@ -288,6 +280,7 @@ public class FunctionActioner {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionCommon.getFullyQualifiedName(details);
         log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        FunctionDetails funcDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
@@ -300,7 +293,7 @@ public class FunctionActioner {
                                 log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
                                 functionAuthProvider
                                         .cleanUpAuthData(
-                                                details.getTenant(), details.getNamespace(), details.getName(),
+                                                details,
                                                 Optional.ofNullable(getFunctionAuthData(
                                                         Optional.ofNullable(
                                                                 functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));

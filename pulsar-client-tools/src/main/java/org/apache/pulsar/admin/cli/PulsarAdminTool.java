@@ -106,10 +106,16 @@ public class PulsarAdminTool {
 
 
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
+        // pulsar-proxy cli
+        commandMap.put("proxy-stats", CmdProxyStats.class);
+        
         commandMap.put("functions", CmdFunctions.class);
         commandMap.put("functions-worker", CmdFunctionWorker.class);
         commandMap.put("sources", CmdSources.class);
         commandMap.put("sinks", CmdSinks.class);
+
+        // Automatically generate documents for pulsar-admin
+        commandMap.put("documents", CmdGenerateDocument.class);
 
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this

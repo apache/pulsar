@@ -1,7 +1,7 @@
 ---
 id: functions-develop
 title: Develop Pulsar Functions
-sidebar_label: How-to: Develop
+sidebar_label: "How-to: Develop"
 ---
 
 This tutorial walks you through how to develop Pulsar Functions.
@@ -19,6 +19,8 @@ The language-native function, which adds an exclamation point to all incoming st
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```Java
+import java.util.function.Function;
+
 public class JavaNativeExclamationFunction implements Function<String, String> {
     @Override
     public String apply(String input) {
@@ -40,8 +42,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 > 
 > If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 > start the functions. In this case, you can create a symlink. Your system will fail if
-> you subsequently install any other package that depends on Python 2.x. A solution is under development in
-> [Issue 5518](https://github.com/apache/pulsar/issues/5518).
+> you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
 > 
 > ```bash
 > sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
@@ -53,6 +54,9 @@ The following example uses Pulsar Functions SDK.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```Java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
 public class ExclamationFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {
@@ -159,6 +163,9 @@ SerDe option | When to use
 `PickleSerDe` | When you work with complex, application-specific types and are comfortable with the "best effort" approach of `pickle`.
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.
 
+<!--Go-->
+Currently, the feature is not available in Go.
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Example
@@ -235,20 +242,18 @@ In order to use this class in Pulsar Functions, you have two options:
 2. You can create your own SerDe class. The following is an example.
 
   ```python
-  from pulsar import SerDe
+from pulsar import SerDe
 
-  class TweetSerDe(SerDe):
-      def __init__(self, tweet):
-          self.tweet = tweet
+class TweetSerDe(SerDe):
 
-      def serialize(self, input):
-          return bytes("{0}|{1}".format(self.tweet.username, self.tweet.tweet_content))
+    def serialize(self, input):
+        return bytes("{0}|{1}".format(input.username, input.tweet_content))
 
-      def deserialize(self, input_bytes):
-          tweet_components = str(input_bytes).split('|')
-          return Tweet(tweet_components[0], tweet_componentsp[1])
+    def deserialize(self, input_bytes):
+        tweet_components = str(input_bytes).split('|')
+        return Tweet(tweet_components[0], tweet_componentsp[1])
   ```
-
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -463,7 +468,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### User config
-When you run or update Pulsar Functions created using SDK, you can pass arbitrary key/values to them with the command line with the `--userConfig` flag. Key/values must be specified as JSON. The following function creation command passes a user configured key/value to a function.
+When you run or update Pulsar Functions created using SDK, you can pass arbitrary key/values to them with the command line with the `--user-config` flag. Key/values must be specified as JSON. The following function creation command passes a user configured key/value to a function.
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -561,6 +566,8 @@ class UserConfigFunction(Function):
         else:
             logger.info("The word of the day is {0}".format(wotd))
 ```
+<!--Go--> 
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -704,11 +711,75 @@ class MetricRecorderFunction(Function):
         if input == 11:
             context.record_metric('elevens-count', 1)
 ```
+<!--Go-->
+Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Access metrics
 To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
+
+## Security
+
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
+
+Pulsar Functions can support the following providers:
+
+- ClearTextSecretsProvider
+- EnvironmentBasedSecretsProvider
+
+> Pulsar Function supports ClearTextSecretsProvider by default.
+
+At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** and **SecretsProviderConfigurator**, allowing users to customize secret provider.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+You can get secret provider using the [`Context`](#context) object. The following is an example:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+public class GetSecretProviderFunction implements Function<String, Void> {
+
+    @Override
+    public Void process(String input, Context context) throws Exception {
+        Logger LOG = context.getLogger();
+        String secretProvider = context.getSecret(input);
+
+        if (!secretProvider.isEmpty()) {
+            LOG.info("The secret provider is {}", secretProvider);
+        } else {
+            LOG.warn("No secret provider");
+        }
+
+        return null;
+    }
+}
+```
+
+<!--Python-->
+You can get secret provider using the [`Context`](#context) object. The following is an example:
+
+```python
+from pulsar import Function
+
+class GetSecretProviderFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        secret_provider = context.get_secret(input)
+        if secret_provider is None:
+            logger.warn('No secret provider')
+        else:
+            logger.info("The secret provider is {0}".format(secret_provider))
+```
+
+
+<!--Go-->
+Currently, the feature is not available in Go.
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.
@@ -717,7 +788,10 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](pulsar-admin.md#querystate) and [putstate](pulsar-admin.md#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
+
+> Note  
+> State storage is not available in Go.
 
 ### API
 
@@ -870,6 +944,11 @@ If `--watch` is specified, the CLI will watch the value of the provided `state-k
 demonstrating on how Application can easily store `state` in Pulsar Functions.
 
 ```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+import java.util.Arrays;
+
 public class WordCountFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) throws Exception {

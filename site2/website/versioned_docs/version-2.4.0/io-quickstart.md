@@ -1,6 +1,6 @@
 ---
 id: version-2.4.0-io-quickstart
-title: Tutorial: Connect Pulsar with Database
+title: "Tutorial: Connect Pulsar with Database"
 sidebar_label: Get started
 original_id: io-quickstart
 ---
@@ -26,7 +26,7 @@ At the end of this tutorial, you will be able to:
 
 Before connecting Pulsar to a database, we need to install Pulsar and the desired builtin connector.
 
-For more information about how to install a standalone Pulsar and builtin connectors, see [here](standalone/#installing-pulsar).
+For more information about how to install a standalone Pulsar and builtin connectors, see [here](getting-started-standalone.md/#installing-pulsar).
 
 ## Start a standalone Pulsar 
 

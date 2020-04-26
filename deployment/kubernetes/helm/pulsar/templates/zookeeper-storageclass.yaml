@@ -17,23 +17,24 @@
 # under the License.
 #
 
-{{- if .Values.persistence }}
-{{- if .Values.zookeeper.volumes.data.storageClass }}
+# deploy zookeeper only when `components.zookeeper` is true
+{{- if .Values.components.zookeeper }}
+{{- if and (and .Values.persistence .Values.volumes.persistence) .Values.zookeeper.volumes.persistence }}
+
+# define the storage class for data directory
+{{- if and (not (and .Values.volumes.local_storage .Values.zookeeper.volumes.data.local_storage)) .Values.zookeeper.volumes.data.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.zookeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 provisioner: {{ .Values.zookeeper.volumes.data.storageClass.provisioner }}
 parameters:
   type: {{ .Values.zookeeper.volumes.data.storageClass.type }}
   fsType: {{ .Values.zookeeper.volumes.data.storageClass.fsType }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -65,6 +65,11 @@ public abstract class KeySharedPolicy {
             this.ranges = new ArrayList<>();
         }
 
+        public KeySharedPolicySticky ranges(List<Range> ranges) {
+            this.ranges.addAll(ranges);
+            return this;
+        }
+
         public KeySharedPolicySticky ranges(Range... ranges) {
             this.ranges.addAll(Arrays.asList(ranges));
             return this;

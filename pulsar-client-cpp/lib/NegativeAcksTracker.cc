@@ -48,13 +48,13 @@ void NegativeAcksTracker::scheduleTimer() {
 }
 
 void NegativeAcksTracker::handleTimer(const boost::system::error_code &ec) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    timer_ = nullptr;
-
     if (ec) {
         // Ignore cancelled events
         return;
     }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    timer_ = nullptr;
 
     if (nackedMessages_.empty()) {
         return;
@@ -74,7 +74,9 @@ void NegativeAcksTracker::handleTimer(const boost::system::error_code &ec) {
         }
     }
 
-    consumer_.redeliverMessages(messagesToRedeliver);
+    if (!messagesToRedeliver.empty()) {
+        consumer_.redeliverMessages(messagesToRedeliver);
+    }
     scheduleTimer();
 }
 

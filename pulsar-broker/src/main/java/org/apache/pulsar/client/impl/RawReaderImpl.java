@@ -33,9 +33,11 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +67,11 @@ public class RawReaderImpl implements RawReader {
     public String getTopic() {
         return consumerConfiguration.getTopicNames().stream()
             .findFirst().orElse(null);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return consumer.hasMessageAvailableAsync();
     }
 
     @Override
@@ -110,7 +117,6 @@ public class RawReaderImpl implements RawReader {
                 TopicName.getPartitionIndex(conf.getSingleTopic()),
                 false,
                 consumerFuture,
-                SubscriptionMode.Durable,
                 MessageId.earliest,
                 0 /* startMessageRollbackDurationInSec */,
                 Schema.BYTES, null,
@@ -134,6 +140,15 @@ public class RawReaderImpl implements RawReader {
             if (future == null) {
                 assert(messageAndCnx == null);
             } else {
+                int numMsg;
+                try {
+                    MessageMetadata msgMetadata = Commands.parseMessageMetadata(messageAndCnx.msg.getHeadersAndPayload());
+                    numMsg = msgMetadata.getNumMessagesInBatch();
+                    msgMetadata.recycle();
+                } catch (Throwable t) {
+                    // TODO message validation
+                    numMsg = 1;
+                }
                 if (!future.complete(messageAndCnx.msg)) {
                     messageAndCnx.msg.close();
                     closeAsync();
@@ -141,7 +156,7 @@ public class RawReaderImpl implements RawReader {
 
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {
-                    increaseAvailablePermits(currentCnx);
+                    increaseAvailablePermits(currentCnx, numMsg);
                 }
             }
         }

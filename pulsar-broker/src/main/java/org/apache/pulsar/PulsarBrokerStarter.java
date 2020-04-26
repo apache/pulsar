@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -150,6 +151,15 @@ public class PulsarBrokerStarter {
             int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
             if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
+            }
+
+            if (!NamespaceBundleSplitAlgorithm.availableAlgorithms.containsAll(brokerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
+                throw new IllegalArgumentException("The given supported namespace bundle split algorithm has unavailable algorithm. " +
+                    "Available algorithms are " + NamespaceBundleSplitAlgorithm.availableAlgorithms);
+            }
+
+            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
+                throw new IllegalArgumentException("Supported namespace bundle split algorithms must contains the default namespace bundle split algorithm");
             }
 
             // init functions worker
@@ -321,8 +331,12 @@ public class PulsarBrokerStarter {
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
-            log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-            starter.shutdown();
+            if (starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
+                log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
+            } else {
+                log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+                starter.shutdown();
+            }
         });
 
         try {

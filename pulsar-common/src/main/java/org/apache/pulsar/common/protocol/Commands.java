@@ -25,16 +25,20 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
@@ -99,6 +103,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -146,6 +151,12 @@ public class Commands {
                 originalPrincipal, clientAuthData, clientAuthMethod);
     }
 
+    public static FeatureFlags getFeatureFlags() {
+        FeatureFlags.Builder flags = FeatureFlags.newBuilder();
+        flags.setSupportsAuthRefresh(true);
+        return flags.build();
+    }
+
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
             String targetBroker, String originalPrincipal, String originalAuthData,
             String originalAuthMethod) {
@@ -181,6 +192,8 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -216,6 +229,7 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -258,9 +272,11 @@ public class Commands {
 
         challengeBuilder.setProtocolVersion(versionToAdvertise);
 
+        byte[] authData = brokerData != null ? brokerData.getBytes() : new byte[0];
+
         CommandAuthChallenge challenge = challengeBuilder
             .setChallenge(PulsarApi.AuthData.newBuilder()
-                .setAuthData(copyFrom(brokerData.getBytes()))
+                .setAuthData(copyFrom(authData))
                 .setAuthMethodName(authMethod)
                 .build())
             .build();
@@ -336,10 +352,12 @@ public class Commands {
 
     }
 
-    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long ledgerId, long entryId) {
+    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
+             long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
+        sendReceiptBuilder.setHighestSequenceId(highestId);
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
@@ -443,12 +461,43 @@ public class Commands {
         return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
     }
 
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+              ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+                checksumType, messageMetadata, payload);
+    }
+
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        CommandSend send = sendBuilder.build();
+
+        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
+                checksumType, messageData, payload);
+        send.recycle();
+        sendBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
+          long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+          MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setProducerId(producerId);
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }
@@ -651,7 +700,7 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null);
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false);
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -690,14 +739,17 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
+          boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+          long epoch, boolean userProvidedProducerName) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
         producerBuilder.setRequestId(requestId);
+        producerBuilder.setEpoch(epoch);
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+        producerBuilder.setUserProvidedProducerName(userProvidedProducerName);
         producerBuilder.setEncrypted(encrypted);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
@@ -1056,9 +1108,7 @@ public class Commands {
         CommandGetSchema.Builder schema = CommandGetSchema.newBuilder()
             .setRequestId(requestId);
         schema.setTopic(topic);
-        if (version.isPresent()) {
-            schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
-        }
+        version.ifPresent(schemaVersion -> schema.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes())));
 
         CommandGetSchema getSchema = schema.build();
 
@@ -1146,9 +1196,10 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long requestId, long ttlSeconds) {
-        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setRequestId(requestId).setTxnTtlSeconds(ttlSeconds)
-                                                   .build();
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setTcId(tcId).setRequestId(requestId)
+                .setTxnTtlSeconds(ttlSeconds)
+                .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.NEW_TXN).setNewTxn(commandNewTxn));
         commandNewTxn.recycle();
         return res;
@@ -1165,9 +1216,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandNewTxnResponse.Builder builder = CommandNewTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1205,9 +1257,11 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+           String errorMsg) {
         CommandAddPartitionToTxnResponse.Builder builder = CommandAddPartitionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1234,9 +1288,23 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
+        CommandAddSubscriptionToTxnResponse command = CommandAddSubscriptionToTxnResponse
+                .newBuilder().setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE)
+                .setAddSubscriptionToTxnResponse(command));
+        command.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+          String errorMsg) {
         CommandAddSubscriptionToTxnResponse.Builder builder = CommandAddSubscriptionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1268,9 +1336,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandEndTxnResponse.Builder builder = CommandEndTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1631,7 +1700,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+        return ByteBufPair.get(headers, metadataAndPayload);
     }
 
     public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,

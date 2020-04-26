@@ -76,19 +76,19 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
 
         PersistentSubscription sub = topicRef.getSubscription("my-subscription");
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         consumer.seek(MessageId.latest);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
         Thread.sleep(500);
         consumer.seek(MessageId.earliest);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         Thread.sleep(500);
         consumer.seek(messageIds.get(5));
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 5);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
     }
 
     @Test
@@ -131,16 +131,16 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
 
         long currentTimestamp = System.currentTimeMillis();
         consumer.seek(currentTimestamp);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
 
         // Wait for consumer to reconnect
         Thread.sleep(1000);
         consumer.seek(currentTimestamp - resetTimeInMillis);
-        assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
     }
 
     @Test
@@ -176,7 +176,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         long backlogs = 0;
         for (PersistentSubscription sub : subs) {
-            backlogs += sub.getNumberOfEntriesInBacklog();
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
         }
 
         assertEquals(backlogs, 10);
@@ -185,9 +185,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         long currentTimestamp = System.currentTimeMillis();
         consumer.seek(currentTimestamp);
         for (PersistentSubscription sub : subs) {
-            backlogs += sub.getNumberOfEntriesInBacklog();
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
         }
-        assertEquals(backlogs, 2);
+        assertEquals(backlogs, 0);
 
         // Wait for consumer to reconnect
         Thread.sleep(1000);
@@ -195,7 +195,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         backlogs = 0;
 
         for (PersistentSubscription sub : subs) {
-            backlogs += sub.getNumberOfEntriesInBacklog();
+            backlogs += sub.getNumberOfEntriesInBacklog(false);
         }
         assertEquals(backlogs, 10);
     }

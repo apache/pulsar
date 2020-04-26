@@ -11,7 +11,7 @@ sidebar_label: Pulsar configuration
 </style>
 
 
-Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
+Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
@@ -122,13 +122,17 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
+|dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
+|dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
+|skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
-|backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
+|backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit | -1 |
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
-|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned| 
+|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned|
+|allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
@@ -146,10 +150,13 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsAllowInsecureConnection|  Accept untrusted TLS certificate from client  |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 |tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
 |tokenAuthClaim| Specify which of the token's claims will be used as the authentication "principal" or "role". The default "sub" claim will be used if this is left blank ||
+|tokenAudienceClaim| The token audience "claim" name, e.g. "aud", that will be used to get the audience from token. If not set, audience will not be verified. ||
+|tokenAudience| The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this. ||
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
@@ -162,6 +169,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  ||
 |brokerClientAuthenticationParameters|||
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
+|exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
+|bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. For example: zk+hierarchical://localhost:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
@@ -221,10 +230,14 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |defaultRetentionTimeInMinutes| Default message retention time  ||
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|  How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected) |60|
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
+|supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]|
+|defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
+|managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
+|managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000|
+|managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)|
 |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  ||
 |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into ||
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
@@ -326,10 +339,11 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. |30000|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
+|skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB|  The default per-topic backlog quota limit.  |10|
-|ttlDurationDefaultInSeconds|  Default ttl for namespaces if ttl is not already configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|
@@ -346,6 +360,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |brokerClientAuthenticationPlugin|  The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters. ||
 |brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  ||
 |athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  ||
+|exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to be used when connecting to bookies (BookKeeper servers). ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper authentication plugin implementation parameters and values.  ||
 |bookkeeperClientAuthenticationParameters|  Parameters associated with the bookkeeperClientAuthenticationParametersName ||
@@ -359,11 +374,18 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientReorderReadSequenceEnabled|    |false|
 |bookkeeperClientIsolationGroups|||
+|bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||
+|bookkeeperClientMinAvailableBookiesInIsolationGroups| Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.  ||
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
 |managedLedgerCacheSizeMB|    |1024|
+|managedLedgerCacheCopyEntries| Whether we should make a copy of the entry payloads when inserting in cache| false|
 |managedLedgerCacheEvictionWatermark|   |0.9|
+|managedLedgerCacheEvictionFrequency| Configure the cache eviction frequency for the managed ledger cache (evictions/sec) | 100.0 |
+|managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 |
+|managedLedgerCursorBackloggedThreshold| Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive. | 1000|
+|managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
 |managedLedgerDefaultMarkDeleteRateLimit|   |0.1|
 |managedLedgerMaxEntriesPerLedger|    |50000|
 |managedLedgerMinLedgerRolloverTimeMinutes|   |10|
@@ -395,7 +417,6 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
-|brokerServicePurgeInactiveFrequencyInSeconds|    |60|
 
 
 

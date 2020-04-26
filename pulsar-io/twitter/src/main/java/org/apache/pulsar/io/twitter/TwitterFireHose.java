@@ -109,7 +109,7 @@ public class TwitterFireHose extends PushSource<TweetData> {
                             // TODO:- Figure out the metrics story for connectors
                             consume(new TwitterRecord(tweet, config.getGuestimateTweetTime()));
                         } catch (Exception e) {
-                            LOG.error("Exception thrown: {}", e);
+                            LOG.error("Exception thrown", e);
                         }
                         return true;
                     }

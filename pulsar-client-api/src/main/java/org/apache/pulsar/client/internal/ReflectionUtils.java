@@ -59,7 +59,7 @@ class ReflectionUtils {
                 // that loaded the API
                 return (Class<T>) Thread.currentThread().getContextClassLoader().loadClass(className);
             }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
     }

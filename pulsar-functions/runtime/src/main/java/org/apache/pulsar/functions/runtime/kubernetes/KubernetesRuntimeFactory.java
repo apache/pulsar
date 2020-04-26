@@ -39,6 +39,7 @@ import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -68,6 +69,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String pulsarDockerImageName;
     private String imagePullPolicy;
     private String pulsarRootDir;
+    private String configAdminCLI;
     private String pulsarAdminUrl;
     private String pulsarServiceUrl;
     private String pythonDependencyRepository;
@@ -89,6 +91,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private final String logDirectory = "logs/functions";
     private Resources functionInstanceMinResources;
     private boolean authenticationEnabled;
+    private Integer grpcPort;
+    private Integer metricsPort;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -105,6 +109,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<KubernetesFunctionAuthProvider> authProvider;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Optional<KubernetesManifestCustomizer> manifestCustomizer;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -118,7 +125,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
-                           Optional<FunctionAuthProvider> functionAuthProvider) {
+                           Optional<FunctionAuthProvider> functionAuthProvider,
+                           Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         KubernetesRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), KubernetesRuntimeFactoryConfig.class);
@@ -143,6 +151,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.pulsarRootDir = factoryConfig.getPulsarRootDir();
         } else {
             this.pulsarRootDir = "/pulsar";
+        }
+        if (!isEmpty(factoryConfig.getConfigAdminCLI())) {
+            this.configAdminCLI = factoryConfig.getConfigAdminCLI();
+        } else {
+            this.configAdminCLI = "/bin/pulsar-admin";
         }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
@@ -187,20 +200,35 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             log.error("Failed to setup client", e);
             throw new RuntimeException(e);
         }
+        // make sure the provided class is a kubernetes auth provider, this needs to run before the authProvider!
+        if (runtimeCustomizer.isPresent()) {
+            if (!(runtimeCustomizer.get() instanceof KubernetesManifestCustomizer)) {
+                throw new IllegalArgumentException("Function runtime customizer "
+                        + runtimeCustomizer.get().getClass().getName() + " must implement KubernetesManifestCustomizer");
+            } else {
+                KubernetesManifestCustomizer manifestCustomizer = (KubernetesManifestCustomizer) runtimeCustomizer.get();
+                this.manifestCustomizer = Optional.of(manifestCustomizer);
+            }
+        } else {
+            this.manifestCustomizer = Optional.empty();
+        }
 
+        // make sure the provided class is a kubernetes auth provider
         if (functionAuthProvider.isPresent()) {
             if (!(functionAuthProvider.get() instanceof KubernetesFunctionAuthProvider)) {
                 throw new IllegalArgumentException("Function authentication provider "
                         + functionAuthProvider.get().getClass().getName() + " must implement KubernetesFunctionAuthProvider");
             } else {
                 KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider = (KubernetesFunctionAuthProvider) functionAuthProvider.get();
-                kubernetesFunctionAuthProvider.initialize(coreClient, factoryConfig.getJobNamespace(), serverCaBytes);
+                kubernetesFunctionAuthProvider.initialize(coreClient, serverCaBytes, (funcDetails) -> getRuntimeCustomizer().map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace));
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {
             this.authProvider = Optional.empty();
         }
 
+        this.grpcPort = factoryConfig.getGrpcPort();
+        this.metricsPort = factoryConfig.getMetricsPort();
     }
 
     @Override
@@ -222,17 +250,21 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         // adjust the auth config to support auth
-        if (authenticationEnabled ) {
+        if (authenticationEnabled) {
             authProvider.ifPresent(kubernetesFunctionAuthProvider ->
                     kubernetesFunctionAuthProvider.configureAuthenticationConfig(authConfig,
                             Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
 
         }
 
+        Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
+        String overriddenNamespace = manifestCustomizer.map((customizer) -> customizer.customizeNamespace(instanceConfig.getFunctionDetails(), jobNamespace)).orElse(jobNamespace);
+
         return new KubernetesRuntime(
             appsClient,
             coreClient,
-            jobNamespace,
+            // get the namespace for this function
+            overriddenNamespace,
             customLabels,
             installUserCodeDependencies,
             pythonDependencyRepository,
@@ -244,6 +276,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             instanceFile,
             extraDependenciesDir,
             logDirectory,
+            configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
             pulsarServiceUrl,
@@ -256,7 +289,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             cpuOverCommitRatio,
             memoryOverCommitRatio,
             authProvider,
-            authenticationEnabled);
+            authenticationEnabled,
+            grpcPort,
+            metricsPort,
+            manifestCustomizer);
     }
 
     @Override
@@ -267,7 +303,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, jobNamespace, functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, getOverriddenNamespace(functionDetails), functionDetails);
     }
 
     @VisibleForTesting
@@ -362,7 +398,17 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public Optional<FunctionAuthProvider> getAuthProvider() {
-        return Optional.ofNullable(authProvider.orElse(null));
+    public Optional<KubernetesFunctionAuthProvider> getAuthProvider() {
+        return authProvider;
+    }
+
+    @Override
+    public Optional<KubernetesManifestCustomizer> getRuntimeCustomizer() {
+        return manifestCustomizer;
+    }
+
+    private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
+        Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
+        return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace);
     }
 }

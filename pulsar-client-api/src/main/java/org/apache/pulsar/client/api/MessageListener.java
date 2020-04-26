@@ -31,6 +31,8 @@ public interface MessageListener<T> extends Serializable {
      *
      * <p>This method will only be called once for each message, unless either application or broker crashes.
      *
+     * <p>Application is responsible for acking message by calling any of consumer acknowledgement methods.
+     *
      * <p>Application is responsible of handling any exception that could be thrown while processing the message.
      *
      * @param consumer

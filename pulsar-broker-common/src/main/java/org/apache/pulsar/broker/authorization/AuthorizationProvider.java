@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
  * Provider of authorization mechanism
@@ -44,6 +45,31 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+    }
+
+    /**
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @param authenticationData authentication data related to the role
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isSuperUser(String role,
+                                                   AuthenticationDataSource authenticationData,
+                                                   ServiceConfiguration serviceConfiguration) {
+        return isSuperUser(role, serviceConfiguration);
+    }
+
+    /**
+     * Check if specified role is an admin of the tenant
+     * @param tenant the tenant to check
+     * @param role the role to check
+     * @return a CompletableFuture containing a boolean in which true means the role is an admin user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
+                                                     AuthenticationDataSource authenticationData) {
+        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role) ? true : false);
     }
 
     /**
@@ -124,7 +150,7 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Grant permission to roles that can access subscription-admin api
-     * 
+     *
      * @param namespace
      * @param subscriptionName
      * @param roles
@@ -134,7 +160,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
             String authDataJson);
-    
+
     /**
      * Revoke subscription admin-api access for a role
      * @param namespace
@@ -144,7 +170,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
             String role, String authDataJson);
-    
+
     /**
      * Grant authorization-action permission on a topic to the given client
      *

@@ -18,15 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
@@ -34,7 +39,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
+import static org.apache.pulsar.client.api.KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
 
+@Getter(AccessLevel.PUBLIC)
 public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     private final PulsarClientImpl client;
@@ -43,7 +50,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     private final Schema<T> schema;
 
-    ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    public ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ReaderConfigurationData<T>(), schema);
     }
 
@@ -56,11 +63,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     @SuppressWarnings("unchecked")
     public ReaderBuilder<T> clone() {
-        try {
-            return (ReaderBuilder<T>) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ReaderBuilderImpl");
-        }
+        return new ReaderBuilderImpl<>(client, conf.clone(), schema);
     }
 
     @Override
@@ -79,9 +82,15 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() == null) {
+        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0 ||
+                conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
             return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
+                    .failedFuture(new IllegalArgumentException(
+                            "Start message id or start message from roll back must be specified but they cannot be specified at the same time"));
+        }
+
+        if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
+            conf.setStartMessageId(MessageId.earliest);
         }
 
         return client.createReaderAsync(conf, schema);
@@ -112,7 +121,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setStartMessageFromRollbackDurationInSec(timeunit.toSeconds(rollbackDuration));
         return this;
     }
-    
+
     @Override
     public ReaderBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);
@@ -158,6 +167,27 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> readCompacted(boolean readCompacted) {
         conf.setReadCompacted(readCompacted);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> keyHashRange(Range... ranges) {
+        Preconditions.checkArgument(ranges != null && ranges.length > 0,
+                "Cannot specify a null ofr an empty key hash ranges for a reader");
+        for (int i = 0; i < ranges.length; i++) {
+            Range range1 = ranges[i];
+            if (range1.getStart() < 0 || range1.getEnd() > DEFAULT_HASH_RANGE_SIZE) {
+                throw new IllegalArgumentException("Ranges must be [0, 65535] but provided range is " + range1);
+            }
+            for (int j = 0; j < ranges.length; j++) {
+                Range range2 = ranges[j];
+                if (i != j && range1.intersect(range2) != null) {
+                    throw new IllegalArgumentException("Key hash ranges with overlap between " + range1
+                            + " and " + range2);
+                }
+            }
+        }
+        conf.setKeyHashRanges(Arrays.asList(ranges));
         return this;
     }
 }

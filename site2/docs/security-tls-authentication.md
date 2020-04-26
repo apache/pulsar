@@ -8,6 +8,8 @@ sidebar_label: Authentication using TLS
 
 TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
+`Bouncy Castle Provider` provides TLS related cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle.md).
+
 ### Create client certificates
 
 Client certificates are generated using the certificate authority. Server certificates are also generated with the same certificate authority.

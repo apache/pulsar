@@ -38,7 +38,7 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
