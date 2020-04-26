@@ -26,8 +26,6 @@ import java.sql.ResultSet;
 import java.util.Map;
 import java.util.function.Consumer;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -38,12 +36,13 @@ import org.testcontainers.containers.MySQLContainer;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 /**
  * A tester for testing jdbc sink.
  * This will use MySql as DB server
  */
 @Slf4j
-public class JdbcSinkTester extends SinkTester<MySQLContainer> {
+public class JdbcMySqlSinkTester extends SinkTester<MySQLContainer> {
 
     /**
      * A Simple class to test jdbc class，
@@ -56,15 +55,15 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
         private int field3;
     }
 
-    private static final String NAME = "jdbc";
+    private static final String NAME = "jdbc-mysql";
     private static final String MYSQL = "mysql";
 
-    private AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
-    private String tableName = "test";
+    private final AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+    private final String tableName = "test";
     private Connection connection;
 
-    public JdbcSinkTester() {
-        super(NAME, SinkType.JDBC);
+    public JdbcMySqlSinkTester() {
+        super(NAME, SinkType.JDBC_MYSQL);
 
         // container default value is test
         sinkConfig.put("userName", "test");
@@ -146,7 +145,6 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
         } catch (Exception e) {
             log.error("Got exception: ", e);
             fail("Got exception when op sql.");
-            return;
         }
     }
 }

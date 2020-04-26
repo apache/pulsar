@@ -24,12 +24,10 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.stream.IntStream;
 import lombok.Data;
@@ -38,7 +36,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * Jdbc Utils
@@ -222,16 +219,22 @@ public class JdbcUtils {
     }
 
     public static String buildDeleteSql(TableDefinition table) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("DELETE ");
-        builder.append("FROM ");
-        builder.append(table.tableId.getTableName());
-        builder.append(combationWhere(table.keyColumns));
-        return builder.toString();
+        return "DELETE FROM "
+            + table.tableId.getTableName()
+            + combationWhere(table.keyColumns);
     }
 
     public static PreparedStatement buildDeleteStatement(Connection connection, String deleteSQL) throws SQLException {
         return connection.prepareStatement(deleteSQL);
+    }
+
+    public static String getDriverClassName(String jdbcUrl) throws Exception {
+        for (JdbcDriverType type : JdbcDriverType.values()) {
+            if (type.matches(jdbcUrl)) {
+                return type.getDriverClass();
+            }
+        }
+        throw new Exception("Provided JDBC connection string contains unknown driver: " + jdbcUrl);
     }
 
 }

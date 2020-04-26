@@ -35,7 +35,7 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         UNDEFINED,
         CASSANDRA,
         KAFKA,
-        JDBC,
+        JDBC_MYSQL,
         HDFS,
         ELASTIC_SEARCH,
         RABBITMQ

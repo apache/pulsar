@@ -59,12 +59,6 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The driverClass of the database this connector connects to"
-    )
-    private String driverClass;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
         help = "The name of the table this connector writes messages to"
     )
     private String tableName;
@@ -74,14 +68,12 @@ public class JdbcSinkConfig implements Serializable {
             help = "Fields used in update events. A comma-separated list."
     )
     private String nonKey;
-    // Optional
     @FieldDoc(
             required = false,
             defaultValue = "",
             help = "Fields used in where condition of update and delete Events. A comma-separated list."
     )
     private String key;
-    // Optional
     @FieldDoc(
         required = false,
         defaultValue = "500",
