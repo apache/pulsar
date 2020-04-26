@@ -494,7 +494,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!isMultiSchemaEnabled(true)) {
             PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)
-                    , msg.getSequenceId()));
+                    , msg.getSequenceId());
             completeCallbackAndReleaseSemaphore(callback, e);
             return false;
         }
