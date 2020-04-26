@@ -17,6 +17,6 @@
 # under the License.
 #
 
-name: jdbc-mysql
-description: Jdbc sink
+name: jdbc-postgres
+description: JDBC sink for PostgreSQL
 sinkClass: org.apache.pulsar.io.jdbc.PostgresqlJdbcAutoSchemaSink

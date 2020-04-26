@@ -17,6 +17,6 @@
 # under the License.
 #
 
-name: jdbc-mysql
-description: Jdbc sink
+name: jdbc-clickhouse
+description: JDBC sink for ClickHouse
 sinkClass: org.apache.pulsar.io.jdbc.ClickhouseJdbcAutoSchemaSink

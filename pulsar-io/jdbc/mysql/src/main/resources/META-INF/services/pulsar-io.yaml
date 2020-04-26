@@ -18,5 +18,5 @@
 #
 
 name: jdbc-mysql
-description: Jdbc sink
+description: JDBC sink for MySQL
 sinkClass: org.apache.pulsar.io.jdbc.MysqlJdbcAutoSchemaSink
