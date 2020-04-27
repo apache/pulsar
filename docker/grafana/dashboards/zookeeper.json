@@ -865,7 +865,9 @@
   ],
   "schemaVersion": 14,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "zookeeper"
+  ],
   "templating": {
     "list": [
       {
