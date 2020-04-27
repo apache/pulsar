@@ -87,7 +87,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            log.info("[createProducer] schema: {}", schema == null ? "null" : schema.getSchemaInfo());
+            log.info("[createProducer] topic: {}, schema: {}", topic, schema == null ? "null" : schema.getSchemaInfo());
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
@@ -107,18 +107,18 @@ public class PulsarSink<T> implements Sink<T> {
             return builder.properties(properties).create();
         }
 
-        protected Producer<T> getProducer(String destinationTopic) {
-            return getProducer(destinationTopic, null, destinationTopic);
+        protected Producer<T> getProducer(String destinationTopic, Schema schema) {
+            return getProducer(destinationTopic, null, destinationTopic, schema);
         }
 
-        protected Producer<T> getProducer(String producerId, String producerName, String topicName) {
+        protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
                     return createProducer(
                             client,
                             topicName,
                             producerName,
-                            schema);
+                            schema == null ? schema : this.schema);
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -181,15 +181,14 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
             if (record.getSchema() != null) {
-                schema = record.getSchema();
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()))
+                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
                         .newMessage(record.getSchema());
             } else {
                 return getProducer(record
                         .getDestinationTopic()
-                        .orElse(pulsarSinkConfig.getTopic()))
+                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
                         .newMessage();
             }
         }
@@ -232,10 +231,10 @@ public class PulsarSink<T> implements Sink<T> {
             Producer<T> producer = getProducer(
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
-                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
+                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
+                    record.getSchema()
             );
             if (record.getSchema() != null) {
-                schema = record.getSchema();
                 return producer.newMessage(record.getSchema());
             } else {
                 return producer.newMessage();

@@ -90,62 +90,30 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Schema<T> getSchema() {
         if (sourceRecord == null) {
+            log.info("[SinkRecord]  topic: {}, schema is null", sourceRecord.getDestinationTopic().isPresent()
+                    ? sourceRecord.getDestinationTopic().get() : "null");
             return null;
         }
 
         if (sourceRecord.getSchema() != null) {
+            log.info("[SinkRecord] topic: {}, Schema: {}",
+                    sourceRecord.getDestinationTopic().isPresent() ? sourceRecord.getDestinationTopic().get() : "null",
+                    sourceRecord.getSchema().getClass().getName());
             return sourceRecord.getSchema();
         }
 
-        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
-        log.info("[SinkRecord] sourceRecord classLoader: {}", sourceRecord.getClass().getClassLoader());
-        log.info("[SinkRecord] KVRecord classLoader: {}", KVRecord.class.getClassLoader());
-
         if (sourceRecord instanceof KVRecord) {
             KVRecord kvRecord = (KVRecord) sourceRecord;
-            log.info("[SinkRecord] keySchema classLoader: {}, schemaInfo: {}",
-                    kvRecord.getKeySchema().getClass().getClassLoader(), kvRecord.getKeySchema().getSchemaInfo().toString());
-            log.info("[SinkRecord] valueSchema classLoader: {}, schemaInfo: {}",
-                    kvRecord.getValueSchema().getClass().getClassLoader(), kvRecord.getValueSchema().getSchemaInfo().toString());
-            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+            Schema schema = KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
                     kvRecord.getKeyValueEncodingType());
+            log.info("[SinkRecord] topic: {}, Schema: {}",
+                    sourceRecord.getDestinationTopic().isPresent() ? sourceRecord.getDestinationTopic().get() : "null",
+                    schema.getClass().getName());
         }
 
+        log.info("[SinkRecord]  topic: {}, schema is null", sourceRecord.getDestinationTopic().isPresent()
+                ? sourceRecord.getDestinationTopic().get() : "null");
         return null;
-
-//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-//        try {
-//            ObjectOutputStream oos = new ObjectOutputStream(byteArrayOutputStream);
-//            oos.writeObject(sourceRecord.getSchema());
-//            oos.flush();
-//            oos.close();
-//
-//            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
-//            ObjectInputStream ois = new ObjectInputStream(byteArrayInputStream);
-//            Schema schema = (Schema) ois.readObject();
-//            log.info("deserializable schema: {}, classLoader: {}",
-//                    schema.getClass().getName(), schema.getClass().getClassLoader());
-//            return schema;
-//        } catch (IOException | ClassNotFoundException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-
-//        log.info("[SinkRecord] Schema classLoader: {}", Schema.class.getClassLoader());
-//        if (sourceRecord != null && sourceRecord.getSchema() != null) {
-//            SchemaInfo srcSchemaInfo = sourceRecord.getSchema().getSchemaInfo();
-//            log.info("[SinkRecord] map classLoader: {}", srcSchemaInfo.getProperties().getClass().getClassLoader());
-//            SchemaInfo schemaInfo = SchemaInfo.builder()
-//                    .name(srcSchemaInfo.getName())
-//                    .schema(srcSchemaInfo.getSchema())
-//                    .type(SchemaType.valueOf(srcSchemaInfo.getType().getValue()))
-//                    .properties(srcSchemaInfo.getProperties())
-//                    .build();
-//            Schema<T> schema = (Schema<T>) Schema.getSchema(schemaInfo);
-//            log.info("[SinkRecord] schemaInfo: {}", schemaInfo);
-//            return schema;
-//        } else {
-//            return null;
-//        }
     }
+
 }
