@@ -1144,7 +1144,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Whether trace managed ledger task execution time"
     )
-    private boolean managedLedgerTraceTaskExecution = false;
+    private boolean managedLedgerTraceTaskExecution = true;
 
     /*** --- Load balancer --- ****/
     @FieldContext(

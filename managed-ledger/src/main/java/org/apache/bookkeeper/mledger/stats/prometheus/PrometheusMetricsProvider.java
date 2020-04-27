@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -37,8 +36,6 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.
@@ -49,7 +46,6 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public static final String PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = "prometheusStatsLatencyRolloverSeconds";
     public static final int DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = 60;
 
-    final CollectorRegistry registry;
     private final CachingStatsProvider cachingStatsProvider;
 
     /**
@@ -60,11 +56,6 @@ public class PrometheusMetricsProvider implements StatsProvider {
     final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
 
     public PrometheusMetricsProvider() {
-        this(CollectorRegistry.defaultRegistry);
-    }
-
-    public PrometheusMetricsProvider(CollectorRegistry registry) {
-        this.registry = registry;
         this.cachingStatsProvider = new CachingStatsProvider(new StatsProvider() {
             @Override
             public void start(Configuration conf) {
@@ -120,8 +111,6 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     @Override
     public void writeAllMetrics(Writer writer) throws IOException {
-        PrometheusTextFormatUtil.writeMetricsCollectedByPrometheusClient(writer, registry);
-
         gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, gauge));
         counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, counter));
         opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, opStatLogger));
@@ -139,16 +128,4 @@ public class PrometheusMetricsProvider implements StatsProvider {
         });
     }
 
-    private void registerMetrics(Collector collector) {
-        try {
-            collector.register(registry);
-        } catch (Exception e) {
-            // Ignore if these were already registered
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to register Prometheus collector exports", e);
-            }
-        }
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider.class);
 }
