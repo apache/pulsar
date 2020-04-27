@@ -47,7 +47,6 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     private final List<Field> fields;
     private final Schema schema;
     private final byte[] schemaVersion;
-
     private int offset;
 
     public GenericAvroReader(Schema schema) {
