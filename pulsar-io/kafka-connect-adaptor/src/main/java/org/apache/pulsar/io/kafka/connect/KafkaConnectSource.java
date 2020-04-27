@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kafka.connect;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
 
-import java.lang.reflect.Method;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,7 +37,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
@@ -56,7 +54,6 @@ import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
@@ -96,13 +93,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             CacheBuilder.newBuilder().maximumSize(10000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
-    private Method keyValueSchemaOfMethod;
-
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        log.info("sourceContext classLoader: {}", sourceContext.getClass().getClassLoader());
-//        initKeyValueSchemaOfMethod(sourceContext.getClass().getClassLoader());
-
         Map<String, String> stringConfig = new HashMap<>();
         config.forEach((key, value) -> {
             if (value instanceof String) {
@@ -188,6 +180,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 Record<KeyValue<byte[], byte[]>> processRecord = processSourceRecord(currentBatch.next());
                 if (processRecord.getValue().getValue() == null) {
                     outstandingRecords.decrementAndGet();
+                    continue;
                 } else {
                     return processRecord;
                 }
@@ -240,8 +233,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             AvroData avroData = new AvroData(1000);
             byte[] keyBytes = keyConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
-            this.key = keyBytes != null ? Optional.of(
-                    Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
+            this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
 
             byte[] valueBytes = valueConverter.fromConnectData(
                     srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
@@ -280,7 +272,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         @Override
         public Schema<byte[]> getKeySchema() {
-            if (jsonWithEnvelope) {
+            if (jsonWithEnvelope || keySchema == null) {
                 return Schema.BYTES;
             } else {
                 return keySchema;
@@ -289,7 +281,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         @Override
         public Schema<byte[]> getValueSchema() {
-            if (jsonWithEnvelope) {
+            if (jsonWithEnvelope || valueSchema == null) {
                 return Schema.BYTES;
             } else {
                 return valueSchema;
@@ -307,33 +299,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
         @Override
         public Schema getSchema() {
-            // When use `org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter`
-            // as the key.converter and value.converter, make the `KeyValueSchema` encodingType
-            // use the `KeyValueEncodingType.SEPARATED`, then the pulsar client could get the original
-            // byte array which are converted by the AvroConverter, or consume the GenericRecord object.
-
             return null;
-//            if (jsonWithEnvelope) {
-//                return KeyValueSchema.kvBytes();
-//            } else {
-//                return KeyValueSchema.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
-//            }
-
-//            try {
-//                log.info("key classLoader: {}", keySchema.getClass().getClassLoader());
-//                log.info("value classLoader: {}", valueSchema.getClass().getClassLoader());
-//                if (jsonWithEnvelope) {
-//                    return (Schema) keyValueSchemaOfMethod.invoke(
-//                            Schema.BYTES, Schema.BYTES, KeyValueEncodingType.INLINE);
-//                } else {
-//                    return (Schema) keyValueSchemaOfMethod.invoke(
-//                            keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
-//                }
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//                log.error("failed to invoke the keyValueSchemaOfMethod.");
-//                return null;
-//            }
         }
 
         @Override
@@ -407,18 +373,4 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         }
     }
 
-    private void initKeyValueSchemaOfMethod(ClassLoader classLoader) throws ClassNotFoundException,
-            NoSuchMethodException {
-        Class<KeyValueSchema> keyValueSchemaClazz =
-                (Class<KeyValueSchema>) classLoader.loadClass(KeyValueSchema.class.getName());
-        log.info("keyValueSchemaClazz: {}, classLoader: {}", keyValueSchemaClazz.getName(), keyValueSchemaClazz.getClassLoader());
-        keyValueSchemaOfMethod = keyValueSchemaClazz.getDeclaredMethod(
-                "of", Schema.class, Schema.class, KeyValueEncodingType.class);
-        keyValueSchemaOfMethod.setAccessible(true);
-        log.info("keyValueSchemaOfMethod: {}", keyValueSchemaOfMethod.toString());
-        Class[] clazzArr = keyValueSchemaOfMethod.getParameterTypes();
-        for (Class paramClass : clazzArr) {
-            log.info("paramClass: {}", paramClass.getName());
-        }
-    }
 }
