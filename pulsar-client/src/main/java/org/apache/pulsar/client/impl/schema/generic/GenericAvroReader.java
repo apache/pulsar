@@ -49,7 +49,6 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     private final byte[] schemaVersion;
 
     private int offset;
-    public final static String OFFSET_PROP = "AVRO_READ_OFFSET";
 
     public GenericAvroReader(Schema schema) {
         this(null, schema, null);
@@ -70,8 +69,8 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
 
-        if (schema.getObjectProp(GenericAvroReader.OFFSET_PROP) != null) {
-            this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroReader.OFFSET_PROP).toString());
+        if (schema.getObjectProp(GenericAvroSchema.OFFSET_PROP) != null) {
+            this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
         } else {
             this.offset = 0;
         }

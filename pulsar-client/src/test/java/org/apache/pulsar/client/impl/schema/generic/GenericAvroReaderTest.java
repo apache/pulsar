@@ -54,7 +54,7 @@ public class GenericAvroReaderTest {
                 .build());
 
         fooOffsetSchema = AvroSchema.of(Foo.class);
-        fooOffsetSchema.getAvroSchema().addProp(GenericAvroReader.OFFSET_PROP, 5);
+        fooOffsetSchema.getAvroSchema().addProp(GenericAvroSchema.OFFSET_PROP, 5);
 
         foo = new Foo();
         foo.setField1("foo1");

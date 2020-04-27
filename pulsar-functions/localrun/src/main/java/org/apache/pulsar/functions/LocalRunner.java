@@ -249,7 +249,6 @@ public class LocalRunner {
                 }
 
                 String builtInSource = isBuiltInSource(userCodeFile);
-                log.info("builtInSource: {}", builtInSource);
                 if (builtInSource != null) {
                     sourceConfig.setArchive(builtInSource);
                 }

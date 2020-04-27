@@ -87,7 +87,6 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            log.info("[createProducer] topic: {}, schema: {}", topic, schema == null ? "null" : schema.getSchemaInfo());
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
@@ -293,13 +292,6 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
-
-        if (record != null && record.getSchema() != null) {
-            log.info("[write] KeyValueSchema className: {}, classLoader: {}",
-                    KeyValueSchema.class.getName(), KeyValueSchema.class.getClassLoader());
-            log.info("[write] schema className: {}, classLoader: {}",
-                    record.getSchema().getClass().getName(), record.getSchema().getClass().getClassLoader());
-        }
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
                 ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {

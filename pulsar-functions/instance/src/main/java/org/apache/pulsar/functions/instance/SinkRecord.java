@@ -90,30 +90,19 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Schema<T> getSchema() {
         if (sourceRecord == null) {
-            log.info("[SinkRecord]  topic: {}, sourceRecord is null", sourceRecord.getDestinationTopic().isPresent()
-                    ? sourceRecord.getDestinationTopic().get() : "null");
             return null;
         }
 
         if (sourceRecord.getSchema() != null) {
-            log.info("[SinkRecord] topic: {}, Schema: {}",
-                    sourceRecord.getDestinationTopic().isPresent() ? sourceRecord.getDestinationTopic().get() : "null",
-                    sourceRecord.getSchema().getClass().getName());
             return sourceRecord.getSchema();
         }
 
         if (sourceRecord instanceof KVRecord) {
             KVRecord kvRecord = (KVRecord) sourceRecord;
-            Schema schema = KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
                     kvRecord.getKeyValueEncodingType());
-            log.info("[SinkRecord] topic: {}, Schema: {}",
-                    sourceRecord.getDestinationTopic().isPresent() ? sourceRecord.getDestinationTopic().get() : "null",
-                    schema.getClass().getName());
-            return schema;
         }
 
-        log.info("[SinkRecord]  topic: {}, schema is null or sourceRecord is not KVRecord.", sourceRecord.getDestinationTopic().isPresent()
-                ? sourceRecord.getDestinationTopic().get() : "null");
         return null;
     }
 

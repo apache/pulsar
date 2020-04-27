@@ -29,7 +29,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
@@ -137,32 +136,6 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     public int hashCode() {
         return 31 * super.hashCode() + Objects.hash(
             clusterName);
-    }
-
-    @Override
-    public void start() {
-        super.start();
-        this.tailContainerLog();
-        if (this.getContainerName().contains("pulsar-broker")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "tail", "-f", "/var/log/pulsar/broker.log");
-        } else if (this.getContainerName().contains("bookie")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "tail", "-f", "/var/log/pulsar/bookie.log");
-        } else if (this.getContainerName().contains("functions-worker")) {
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "tail", "-f", "/var/log/pulsar/functions_worker.log");
-
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "mkdir", "-p",
-                    "/tmp/functions/public/default/test-source-debezium-mysql");
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "touch",
-                    "/tmp/functions/public/default/test-source-debezium-mysql/test-source-debezium-mysql-0.log");
-            DockerUtils.runCommandAsync(this.dockerClient, this.getContainerId(),
-                    "tail", "-f",
-                    "/tmp/functions/public/default/test-source-debezium-mysql/test-source-debezium-mysql-0.log");
-        }
     }
 
 }
