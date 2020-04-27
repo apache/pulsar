@@ -141,7 +141,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
     }
 
-    @Test(groups = "source")
+//    @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
         Thread.sleep(1000 * 30);
         testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
