@@ -71,9 +71,11 @@ import org.testng.collections.Maps;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -2299,16 +2301,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
-                    consumeTopicName, e.getMessage());
-        }
+        deleteInventoryTopics(admin);
+//        try {
+//            // If topic already exists, we should delete it so as not to affect the following tests.
+//            admin.topics().getStats(consumeTopicName);
+//            admin.topics().delete(consumeTopicName);
+//            admin.schemas().deleteSchema(consumeTopicName);
+//        } catch (PulsarAdminException e) {
+//            // Expected results, ignoring the exception
+//            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+//                    consumeTopicName, e.getMessage());
+//        }
 
         try {
             SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
@@ -2408,16 +2411,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
-                    consumeTopicName, e.getMessage());
-        }
+        deleteInventoryTopics(admin);
+//        try {
+//            // If topic already exists, we should delete it so as not to affect the following tests.
+//            admin.topics().getStats(consumeTopicName);
+//            admin.topics().delete(consumeTopicName);
+//            admin.schemas().deleteSchema(consumeTopicName);
+//        } catch (PulsarAdminException e) {
+//            // Expected results, ignoring the exception
+//            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+//                    consumeTopicName, e.getMessage());
+//        }
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
@@ -2504,16 +2508,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
-                    consumeTopicName, e.getMessage());
-        }
+        deleteInventoryTopics(admin);
+//        try {
+//            // If topic already exists, we should delete it so as not to affect the following tests.
+//            admin.topics().getStats(consumeTopicName);
+//            admin.topics().delete(consumeTopicName);
+//            admin.schemas().deleteSchema(consumeTopicName);
+//        } catch (PulsarAdminException e) {
+//            // Expected results, ignoring the exception
+//            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+//                    consumeTopicName, e.getMessage());
+//        }
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
@@ -2573,6 +2578,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private void deleteInventoryTopics(PulsarAdmin admin) {
+        log.info("[deleteInventoryTopics] start.");
+        List<String> topics = Arrays.asList(
+                "persistent://public/default/dbserver1.inventory.products",
+                "persistent://public/default/dbserver1.inventory.customers",
+                "persistent://public/default/dbserver1.inventory.products_on_hand",
+                "persistent://public/default/dbserver1.inventory.addresses",
+                "persistent://public/default/dbserver1.inventory.orders");
+
+        for (String topic : topics) {
+            deleteTopic(admin, topic);
+        }
+        log.info("[deleteInventoryTopics] finish.");
+    }
+
+    private void deleteTopic(PulsarAdmin admin, String topic) {
+        try {
+            // If topic already exists, we should delete it so as not to affect the following tests.
+            admin.topics().getStats(topic);
+            admin.topics().delete(topic);
+            admin.schemas().deleteSchema(topic);
+        } catch (PulsarAdminException e) {
+            // Expected results, ignoring the exception
+            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+                    topic, e.getMessage());
+        }
+
     }
 
     private Schema getSchema(boolean jsonWithEnvelope) {
