@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -65,6 +66,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
@@ -2283,10 +2285,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        boolean isJsonConverter = converterClassName.endsWith("JsonConverter");
+        final String consumeTopicName = "debezium/mysql-"
+                + (isJsonConverter ? "json" : "avro")
+                + "/dbserver1.inventory.products";
 //        final String sourceName = "test-source-connector-"
 //            + functionRuntimeType + "-name-mysql";
-        final String sourceName = "test-source-debezium-mysql";
+        final String sourceName = "test-source-debezium-mysql" + (isJsonConverter ? "json" : "avro");
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
@@ -2303,6 +2308,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
         deleteInventoryTopics(admin);
 //        try {
 //            // If topic already exists, we should delete it so as not to affect the following tests.
@@ -2392,7 +2398,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String consumeTopicName = "debezium/postgresql/dbserver1.inventory.products";
 //        final String sourceName = "test-source-connector-"
 //                + functionRuntimeType + "-name-" + randomName(8);
         final String sourceName = "test-source-debezium-postgersql";
@@ -2413,6 +2419,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
         deleteInventoryTopics(admin);
 //        try {
 //            // If topic already exists, we should delete it so as not to affect the following tests.
@@ -2491,7 +2498,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String consumeTopicName = "debezium/mongodb/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
                 + functionRuntimeType + "-name-" + randomName(8);
 
@@ -2510,6 +2517,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
         deleteInventoryTopics(admin);
 //        try {
 //            // If topic already exists, we should delete it so as not to affect the following tests.
@@ -2580,6 +2588,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private void initNamespace(PulsarAdmin admin) {
+        log.info("[initNamespace] start.");
+        try {
+            admin.tenants().createTenant("debezium", new TenantInfo(Sets.newHashSet(),
+                    Sets.newHashSet(pulsarCluster.getClusterName())));
+            admin.namespaces().createNamespace("debezium/mysql-json");
+            admin.namespaces().createNamespace("debezium/mysql-avro");
+            admin.namespaces().createNamespace("debezium/mongodb");
+            admin.namespaces().createNamespace("debezium/postgresql");
+        } catch (Exception e) {
+            log.info("[initNamespace] msg: {}", e.getMessage());
+        }
+        log.info("[initNamespace] finish.");
     }
 
     private void deleteInventoryTopics(PulsarAdmin admin) {
