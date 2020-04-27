@@ -174,10 +174,18 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                     continue;
                 }
                 outstandingRecords.addAndGet(recordList.size());
+                log.info("outstandingRecords - size: {}", outstandingRecords.get());
                 currentBatch = recordList.iterator();
             }
             if (currentBatch.hasNext()) {
                 Record<KeyValue<byte[], byte[]>> processRecord = processSourceRecord(currentBatch.next());
+                KVRecord kvRecord = (KVRecord) processRecord;
+                KeyValue<byte[], byte[]> keyValue = processRecord.getValue();
+                log.info("processRecord keyLength: {}, keySchema: {}, valueLength: {}, valueSchema: {}",
+                        keyValue.getKey() != null ? keyValue.getKey().length : "null",
+                        kvRecord.getKeySchema().getClass().getName(),
+                        keyValue.getValue() != null ? keyValue.getValue().length : "null",
+                        kvRecord.getValueSchema().getClass().getName());
                 if (processRecord.getValue().getValue() == null) {
                     outstandingRecords.decrementAndGet();
                     continue;

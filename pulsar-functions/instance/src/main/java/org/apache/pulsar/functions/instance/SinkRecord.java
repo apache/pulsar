@@ -90,7 +90,7 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Schema<T> getSchema() {
         if (sourceRecord == null) {
-            log.info("[SinkRecord]  topic: {}, schema is null", sourceRecord.getDestinationTopic().isPresent()
+            log.info("[SinkRecord]  topic: {}, sourceRecord is null", sourceRecord.getDestinationTopic().isPresent()
                     ? sourceRecord.getDestinationTopic().get() : "null");
             return null;
         }
@@ -109,9 +109,10 @@ public class SinkRecord<T> implements Record<T> {
             log.info("[SinkRecord] topic: {}, Schema: {}",
                     sourceRecord.getDestinationTopic().isPresent() ? sourceRecord.getDestinationTopic().get() : "null",
                     schema.getClass().getName());
+            return schema;
         }
 
-        log.info("[SinkRecord]  topic: {}, schema is null", sourceRecord.getDestinationTopic().isPresent()
+        log.info("[SinkRecord]  topic: {}, schema is null or sourceRecord is not KVRecord.", sourceRecord.getDestinationTopic().isPresent()
                 ? sourceRecord.getDestinationTopic().get() : "null");
         return null;
     }
