@@ -85,6 +85,7 @@ import java.util.concurrent.TimeUnit;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -101,6 +102,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
+
+    final RetryPolicy topicResetRetryPolicy = new RetryPolicy()
+            .withMaxDuration(ONE_MINUTE)
+            .withDelay(TEN_SECONDS)
+            .onRetry(e -> log.error("Retry reset topic"));
 
     PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -2590,21 +2596,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 "persistent://public/default/dbserver1.inventory.orders");
 
         for (String topic : topics) {
-            deleteTopic(admin, topic);
+            Failsafe.with(topicResetRetryPolicy).run(() -> deleteTopic(admin, topic));
         }
         log.info("[deleteInventoryTopics] finish.");
     }
 
     private void deleteTopic(PulsarAdmin admin, String topic) {
+        SchemaInfo schemaInfo = null;
         try {
             // If topic already exists, we should delete it so as not to affect the following tests.
             admin.topics().getStats(topic);
             admin.topics().delete(topic);
             admin.schemas().deleteSchema(topic);
+            schemaInfo = admin.schemas().getSchemaInfo(topic);
+            assertNull(schemaInfo);
         } catch (PulsarAdminException e) {
             // Expected results, ignoring the exception
             log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
                     topic, e.getMessage());
+            assertNull(schemaInfo);
         }
 
     }
