@@ -45,7 +45,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private Authentication authentication = new AuthenticationDisabled();
+    private Authentication authentication = AuthenticationDisabled.INSTANCE;
     private String authPluginClassName;
     private String authParams;
     private Map<String, String> authParamMap;
