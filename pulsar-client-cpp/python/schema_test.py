@@ -419,5 +419,62 @@ class SchemaTest(TestCase):
         self.assertEqual(r, msg.value())
         client.close()
 
+    def test_json_enum(self):
+        class MyEnum(Enum):
+            A = 1
+            B = 2
+            C = 3
+
+        class Example(Record):
+            name = String()
+            v = MyEnum
+
+        topic = 'my-json-enum-topic'
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                        topic=topic,
+                        schema=JsonSchema(Example))
+
+        consumer = client.subscribe(topic, 'test',
+                                    schema=JsonSchema(Example))
+
+        r = Example(name='test', v=MyEnum.C)
+        producer.send(r)
+
+        msg = consumer.receive()
+
+        self.assertEqual('test', msg.value().name)
+        self.assertEqual(MyEnum.C, MyEnum(msg.value().v))
+        client.close()
+
+    def test_avro_enum(self):
+        class MyEnum(Enum):
+            A = 1
+            B = 2
+            C = 3
+
+        class Example(Record):
+            name = String()
+            v = MyEnum
+
+        topic = 'my-avro-enum-topic'
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+                        topic=topic,
+                        schema=AvroSchema(Example))
+
+        consumer = client.subscribe(topic, 'test',
+                                    schema=AvroSchema(Example))
+
+        r = Example(name='test', v=MyEnum.C)
+        producer.send(r)
+
+        msg = consumer.receive()
+        self.assertEqual(MyEnum.C, MyEnum[msg.value().v])
+        client.close()
+
+
 if __name__ == '__main__':
     main()
