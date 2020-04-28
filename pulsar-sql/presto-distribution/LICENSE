@@ -207,17 +207,21 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.8.11.jar
-    - jackson-core-2.8.11.jar
-    - jackson-databind-2.8.11.4.jar
-    - jackson-dataformat-smile-2.8.11.jar
-    - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-jdk8-2.8.11.jar
-    - jackson-datatype-jdk8-2.8.11.jar
-    - jackson-datatype-joda-2.8.11.jar
-    - jackson-datatype-jsr310-2.8.11.jar
-    - jackson-dataformat-yaml-2.8.11.jar
+    - jackson-annotations-2.10.1.jar
+    - jackson-core-2.10.1.jar
+    - jackson-databind-2.10.1.jar
+    - jackson-dataformat-smile-2.10.1.jar
+    - jackson-datatype-guava-2.10.1.jar
+    - jackson-datatype-guava-2.10.1.jar
+    - jackson-datatype-jdk8-2.10.1.jar
+    - jackson-datatype-jdk8-2.10.1.jar
+    - jackson-datatype-joda-2.10.1.jar
+    - jackson-datatype-jsr310-2.10.1.jar
+    - jackson-dataformat-yaml-2.10.1.jar
+    - jackson-jaxrs-base-2.10.1.jar
+    - jackson-jaxrs-json-provider-2.10.1.jar
+    - jackson-module-jaxb-annotations-2.10.1.jar
+    - jackson-module-jsonSchema-2.10.1.jar
  * Guava
     - guava-25.1-jre.jar
  * Google Guice
@@ -383,7 +387,7 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
-    - snakeyaml-1.17.jar
+    - snakeyaml-1.24.jar
   * Snappy Java
     - snappy-java-1.1.1.3.jar
   * Bean Validation API
@@ -428,11 +432,6 @@ The Apache Software License, Version 2.0
     - commons-logging-1.1.1.jar
   * GSON
     - gson-2.8.2.jar
-  * Jackson
-    - jackson-jaxrs-base-2.8.11.jar
-    - jackson-jaxrs-json-provider-2.8.11.jar
-    - jackson-module-jaxb-annotations-2.8.11.jar
-    - jackson-module-jsonSchema-2.8.11.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
@@ -553,3 +552,7 @@ Creative Commons Attribution License
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - bouncy-castle-bc-shaded-2.6.0-SNAPSHOT.jar
+
+Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
+ * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
