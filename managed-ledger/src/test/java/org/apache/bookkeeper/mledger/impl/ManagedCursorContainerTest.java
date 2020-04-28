@@ -326,6 +326,16 @@ public class ManagedCursorContainerTest {
 
         }
 
+        @Override
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                Object ctx) {
+        }
+
+        @Override
+        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
+                throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
     }
 
     @Test
