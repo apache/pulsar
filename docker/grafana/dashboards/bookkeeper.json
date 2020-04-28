@@ -1435,7 +1435,9 @@
   ],
   "schemaVersion": 14,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "bookkeeper"
+  ],
   "templating": {
     "list": [
       {
