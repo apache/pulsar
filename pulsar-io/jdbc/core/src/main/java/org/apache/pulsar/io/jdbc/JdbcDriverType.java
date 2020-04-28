@@ -23,6 +23,7 @@ import lombok.Getter;
 @Getter
 public enum JdbcDriverType {
 
+    CLICKHOUSE("jdbc:clickhouse:", "ru.yandex.clickhouse.ClickHouseDriver"),
     DB2("jdbc:db2:", "com.ibm.db2.jcc.DB2Driver"),
     DERBY_CLIENT("jdbc:derby://", "org.apache.derby.jdbc.ClientDriver"),
     DERBY_EMBEDDED("jdbc:derby:", "org.apache.derby.jdbc.EmbeddedDriver"),
