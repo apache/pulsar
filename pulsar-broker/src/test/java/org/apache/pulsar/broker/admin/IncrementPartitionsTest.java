@@ -19,11 +19,15 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -122,5 +126,37 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+    }
+
+    @Test
+    public void testIncrementPartitionsWithReaders() throws Exception {
+        TopicName partitionedTopicName = TopicName.get("persistent://prop-xyz/use/ns1/test-topic-" + System.nanoTime());
+
+        admin.topics().createPartitionedTopic(partitionedTopicName.toString(), 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 1);
+
+        @Cleanup
+        Producer<String> consumer = pulsarClient.newProducer(Schema.STRING)
+                .topic(partitionedTopicName.toString())
+                .create();
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+            .topic(partitionedTopicName.getPartition(0).toString())
+            .startMessageId(MessageId.earliest)
+            .create();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName.toString(), 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 2);
+
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(0).toString()).size(), 1);
+
+        // Partition-1 should not have a subscription and it shouldn't exist yet
+        try {
+            admin.topics().getSubscriptions(partitionedTopicName.getPartition(1).toString()).size();
+            fail("The partition topic should not exist yet");
+        } catch (NotFoundException e) {
+            // Expected
+        }
     }
 }
