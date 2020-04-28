@@ -300,6 +300,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription expiration time for a namespace")
+    private class SetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--time" }, description = "Subscription expiration time in minutes", required = true)
+        private int expirationTime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionExpirationTime(namespace, expirationTime);
+        }
+    }
+
     @Parameters(commandDescription = "Set Anti-affinity group name for a namespace")
     private class SetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -565,6 +580,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getNamespaceMessageTTL(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription expiration time for a namespace")
+    private class GetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getSubscriptionExpirationTime(namespace));
         }
     }
 
@@ -1616,6 +1643,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+
+        jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
+        jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
 
         jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
         jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());

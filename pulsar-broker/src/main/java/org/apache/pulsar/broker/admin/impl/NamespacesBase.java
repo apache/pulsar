@@ -562,6 +562,45 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalSetSubscriptionExpirationTime(int expirationTime) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        if (expirationTime < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
+        }
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().subscription_expiration_time_minutes = expirationTime;
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully updated the subscription expiration time on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the subscription expiration time for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update the subscription expiration time on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the subscription expiration time on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         validateAdminAccessForTenant(namespaceName.getTenant());
