@@ -958,7 +958,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
         )
-        private String managedLedgerPassword = "";
+    private String managedLedgerPassword = "";
 
     @FieldContext(
         minValue = 1,
