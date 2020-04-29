@@ -1634,6 +1634,9 @@
           },
           "404" : {
             "description" : "Tenant or cluster or namespace doesn't exist"
+          },
+          "406" : {
+            "description" : "The number of partitions should be less than or equal to maxNumPartitionsPerPartitionedTopic"
           }
         }
       },
@@ -5182,7 +5185,7 @@
             "description" : "Tenant does not exist"
           },
           "406" : {
-            "description" : "The number of partitions should be more than 0"
+            "description" : "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
@@ -5242,6 +5245,9 @@
           },
           "404" : {
             "description" : "The tenant/namespace does not exist"
+          },
+          "406" : {
+            "description" : "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"
           },
           "409" : {
             "description" : "Partitioned topic already exists"
@@ -7420,7 +7426,7 @@
             "description" : "Tenant does not exist"
           },
           "406" : {
-            "description" : "The number of partitions should be more than 0"
+            "description" : "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
@@ -7480,6 +7486,9 @@
           },
           "404" : {
             "description" : "Tenant does not exist"
+          },
+          "406" : {
+            "description" : "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"
           },
           "409" : {
             "description" : "Partitioned topic already exist"
@@ -9981,6 +9990,27 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -9995,27 +10025,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -10183,10 +10192,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -11020,10 +11029,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -11085,15 +11094,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
@@ -11128,11 +11137,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

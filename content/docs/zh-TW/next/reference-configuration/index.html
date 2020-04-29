@@ -211,6 +211,7 @@
 <tr><td>clientLibraryVersionCheckAllowUnversioned</td><td>Allow client libraries with no version information</td><td>true</td></tr>
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td></td></tr>
 <tr><td>preferLaterVersions</td><td>If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)</td><td>false</td></tr>
+<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
 <tr><td>tlsEnabled</td><td>Enable TLS</td><td>false</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
@@ -254,6 +255,8 @@
 <tr><td>bookkeeperClientIsolationGroups</td><td>Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker</td><td></td></tr>
 <tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
 <tr><td>bookkeeperClientMinAvailableBookiesInIsolationGroups</td><td>Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.</td><td></td></tr>
+<tr><td>bookkeeperClientGetBookieInfoIntervalSeconds</td><td>Set the interval to periodically check bookie info</td><td>86400</td></tr>
+<tr><td>bookkeeperClientGetBookieInfoRetryIntervalSeconds</td><td>Set the interval to retry a failed bookie info lookup</td><td>60</td></tr>
 <tr><td>bookkeeperEnableStickyReads</td><td>Enable/disable having read operations for a ledger to be sticky to a single bookie. If this flag is enabled, the client will use one single bookie (by preference) to read all entries for a ledger.</td><td>true</td></tr>
 <tr><td>managedLedgerDefaultEnsembleSize</td><td>Number of bookies to use when creating a ledger</td><td>2</td></tr>
 <tr><td>managedLedgerDefaultWriteQuorum</td><td>Number of copies to store for each message</td><td>2</td></tr>
@@ -430,6 +433,7 @@
 <tr><td>statusFilePath</td><td>The path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td>/usr/local/apache/htdocs</td></tr>
 <tr><td>maxUnackedMessagesPerConsumer</td><td>The maximum number of unacknowledged messages allowed to be received by consumers on a shared subscription. The broker will stop sending messages to a consumer once this limit is reached or until the consumer begins acknowledging messages. A value of 0 disables the unacked message limit check and thus allows consumers to receive messages without any restrictions.</td><td>50000</td></tr>
 <tr><td>maxUnackedMessagesPerSubscription</td><td>The same as above, except per subscription rather than per consumer.</td><td>200000</td></tr>
+<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
 <tr><td>authenticationEnabled</td><td>Enable authentication for the broker.</td><td>false</td></tr>
 <tr><td>authenticationProviders</td><td>A comma-separated list of class names for authentication providers.</td><td>false</td></tr>
 <tr><td>authorizationEnabled</td><td>Enforce authorization in brokers.</td><td>false</td></tr>
