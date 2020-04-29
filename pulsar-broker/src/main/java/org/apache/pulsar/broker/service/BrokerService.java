@@ -1894,8 +1894,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
+        final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
+        checkArgument(maxPartitions <= 0 || defaultNumPartitions <= maxPartitions, "Number of partitions should be less than or equal to " + maxPartitions);
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
