@@ -322,4 +322,22 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
 
     }
+
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(2);
+
+        final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-11";
+        final String subscriptionName = "test-topic-sub-11";
+
+        try {
+            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+            fail("should throw exception when number of partitions exceed than max partitions");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+    }
 }

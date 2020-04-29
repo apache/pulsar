@@ -563,11 +563,15 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
         if (!AutoTopicCreationOverride.isValidOverride(autoTopicCreationOverride)) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid configuration for autoTopicCreationOverride");
+        }
+        if (maxPartitions > 0 && autoTopicCreationOverride.defaultNumPartitions > maxPartitions) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions);
         }
 
         // Force to read the data s.t. the watch to the cache content is setup.

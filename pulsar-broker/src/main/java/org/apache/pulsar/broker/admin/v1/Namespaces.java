@@ -400,6 +400,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 406, message = "The number of partitions should be less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
     public void setAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
                                      @PathParam("property") String property, @PathParam("cluster") String cluster,
