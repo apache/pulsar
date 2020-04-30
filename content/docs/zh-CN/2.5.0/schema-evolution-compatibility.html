@@ -511,9 +511,9 @@
 </td> 
 </tr>
 </table>
-<h2><a class="anchor" aria-hidden="true" id="order-of-upgrading-clients"></a><a href="#order-of-upgrading-clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Order of upgrading clients</h2>
-<p>The order of upgrading client applications is determined by the compatibility check strategy.</p>
-<p>For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar.</p>
+<h2><a class="anchor" aria-hidden="true" id="升级客户端的顺序"></a><a href="#升级客户端的顺序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级客户端的顺序</h2>
+<p>升级客户端应用程序的顺序由兼容性检查策略决定</p>
+<p>比如，当producers使用schemas来将数据写入Pulsar，并且consumers使用schemas来从Pulsar读取数据。</p>
 <table style="table">
 <tr>
 <th>
@@ -534,8 +534,8 @@
 <p>任何请求</p>
 </td> 
 <td> 
-<p>The compatibility check is disabled.</p>
-<p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
+<p>兼容性检查被禁用。</p>
+<p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
 </td> 
 </tr>
 <tr>
@@ -546,7 +546,7 @@
 <p>无</p>
 </td> 
 <td> 
-<p>The schema evolution is disabled.</p>
+<p>schema演化被禁用</p>
 </td> 
 </tr>
 <tr>
@@ -560,8 +560,8 @@
 <p>Consumers</p>
 </td> 
 <td> 
-<p>There is no guarantee that consumers using the old schema can read data produced using the new schema.</p>
-<p>Consequently, <strong>upgrade all consumers first</strong>, and then start producing new data.</p>
+<p>不保证使用旧schema的consumer能读取使用新schema的producer产生的数据。</p>
+<p>因此，<strong>优先升级所有consumers</strong>，然后再开始生产新的数据</p>
 </td> 
 </tr>
 <tr>
@@ -575,8 +575,8 @@
 <p>Producers</p>
 </td> 
 <td> 
-<p>There is no guarantee that consumers using the new schema can read data produced using the old schema.</p>
-<p>Consequently, <strong>upgrade all producers first</strong> to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers.</p>
+<p>不保证使用新schema的consumers能读取使用旧schema的producer产生的数据。</p>
+<p>因此，<strong>优先升级所有producers</strong>，让它们用上新的schema，并且保证先前使用旧schema生成的数据不再对consumers可用，然后再去升级consumers</p>
 </td> 
 </tr>
 <tr>
@@ -590,12 +590,12 @@
 <p>任何请求</p>
 </td> 
 <td> 
-<p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
-<p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
+<p>不保证使用旧schema的consumers能读取使用新schema生产的数据，或使用新schema的consumers可以读取旧schema生产的数据</p>
+<p>因此，您可以以<strong>任何顺序</strong>升级producers与consumers</p>
 </td> 
 </tr>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/schema-understand"><span class="arrow-prev">← </span><span>了解 schema</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-演化">Schema 演化</a><ul class="toc-headings"><li><a href="#什么是-schema-演化？">什么是 Schema 演化？</a></li><li><a href="#pulsar-schema-应如何演化？">Pulsar schema 应如何演化？</a></li><li><a href="#pulsar-对-schema-演化提供了怎样的支持？">Pulsar 对 Schema 演化提供了怎样的支持？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#always_compatible-和-always_incompatible">ALWAYS_COMPATIBLE 和 ALWAYS_INCOMPATIBLE</a></li><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-和-forward_transitive">FORWARD 和 FORWARD_TRANSITIVE</a></li><li><a href="#full-和-full_transitive">FULL 和 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#order-of-upgrading-clients">Order of upgrading clients</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/schema-understand"><span class="arrow-prev">← </span><span>了解 schema</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/schema-manage"><span>管理 Schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-演化">Schema 演化</a><ul class="toc-headings"><li><a href="#什么是-schema-演化？">什么是 Schema 演化？</a></li><li><a href="#pulsar-schema-应如何演化？">Pulsar schema 应如何演化？</a></li><li><a href="#pulsar-对-schema-演化提供了怎样的支持？">Pulsar 对 Schema 演化提供了怎样的支持？</a></li></ul></li><li><a href="#schema-兼容性检查策略">Schema 兼容性检查策略</a><ul class="toc-headings"><li><a href="#always_compatible-和-always_incompatible">ALWAYS_COMPATIBLE 和 ALWAYS_INCOMPATIBLE</a></li><li><a href="#backward-和-backward_transitive">BACKWARD 和 BACKWARD_TRANSITIVE</a></li><li><a href="#forward-和-forward_transitive">FORWARD 和 FORWARD_TRANSITIVE</a></li><li><a href="#full-和-full_transitive">FULL 和 FULL_TRANSITIVE</a></li></ul></li><li><a href="#schema-验证">Schema 验证</a><ul class="toc-headings"><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#升级客户端的顺序">升级客户端的顺序</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
