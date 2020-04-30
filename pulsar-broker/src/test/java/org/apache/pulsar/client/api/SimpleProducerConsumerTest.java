@@ -47,6 +47,7 @@ import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1139,6 +1140,44 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testtSendCallBackReturnSequenceId() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .enableBatching(false)
+                .topic("persistent://my-property/my-ns/my-topic5")
+                .sendTimeout(1, TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        final String message = "my-message";
+
+        // Trigger the send timeout
+        stopBroker();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<CompletableFuture<MessageId>>();
+        for(int i = 0 ; i < 3 ; i++) {
+             CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value(message.getBytes()).sendAsync();
+             futures.add(future);
+        }
+        Thread.sleep(3000);
+        futures.get(0).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 0L);
+            return null;
+        });
+        futures.get(1).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 1L);
+            return null;
+        });
+        futures.get(2).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 2L);
+            return null;
+        });
         log.info("-- Exiting {} test --", methodName);
     }
 
