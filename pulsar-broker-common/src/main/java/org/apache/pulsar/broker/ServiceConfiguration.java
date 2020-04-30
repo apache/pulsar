@@ -986,6 +986,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private DigestType managedLedgerDigestType = DigestType.CRC32C;
 
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
+        )
+    private String managedLedgerPassword = "";
+
+    @FieldContext(
         minValue = 1,
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of bookies to use when creating a ledger"
