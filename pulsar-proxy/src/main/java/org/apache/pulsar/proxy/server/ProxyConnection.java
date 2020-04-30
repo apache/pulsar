@@ -55,7 +55,6 @@ import org.slf4j.LoggerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
@@ -72,7 +71,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private Authentication clientAuthentication;
     AuthenticationDataSource authenticationData;
     private State state;
-    private final SslContext sslCtx;
+    private final SslHandler sslHandler;
 
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
@@ -112,11 +111,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         return client.getCnxPool();
     }
 
-    public ProxyConnection(ProxyService proxyService, SslContext sslCtx) {
+    public ProxyConnection(ProxyService proxyService, SslHandler sslHandler) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
         this.state = State.Init;
-        this.sslCtx = sslCtx;
+        this.sslHandler = sslHandler;
     }
 
     @Override
@@ -214,7 +213,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // connection there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, proxyToBrokerUrl,
-                protocolVersionToAdvertise, sslCtx);
+                protocolVersionToAdvertise, sslHandler);
             cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete

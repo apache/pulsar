@@ -33,7 +33,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
@@ -76,12 +75,12 @@ public class DirectProxyHandler {
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
-    private final SslContext sslCtx;
+    private final SslHandler sslHandler;
     private AuthenticationDataProvider authenticationDataProvider;
     private ProxyService service;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
-            int protocolVersion, SslContext sslCtx) {
+            int protocolVersion, SslHandler sslHandler) {
         this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
@@ -90,7 +89,7 @@ public class DirectProxyHandler {
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.protocolVersion = protocolVersion;
-        this.sslCtx = sslCtx;
+        this.sslHandler = sslHandler;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -103,8 +102,8 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                if (sslCtx != null) {
-                    ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+                if (sslHandler != null) {
+                    ch.pipeline().addLast(TLS_HANDLER, sslHandler);
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
