@@ -226,8 +226,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         deleteSchema(schemaId1, version(7));
 
-        SchemaData version7 = getSchema(schemaId1, version(7));
-        assertTrue(version7.isDeleted());
+        SchemaRegistry.SchemaAndMetadata version7 = schemaRegistryService.getSchema(schemaId1, version(7)).get();
+        assertNull(version7);
 
     }
 
