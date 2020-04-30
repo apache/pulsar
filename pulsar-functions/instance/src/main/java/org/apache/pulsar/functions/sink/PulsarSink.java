@@ -31,7 +31,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -104,18 +106,18 @@ public class PulsarSink<T> implements Sink<T> {
             return builder.properties(properties).create();
         }
 
-        protected Producer<T> getProducer(String destinationTopic) {
-            return getProducer(destinationTopic, null, destinationTopic);
+        protected Producer<T> getProducer(String destinationTopic, Schema schema) {
+            return getProducer(destinationTopic, null, destinationTopic, schema);
         }
 
-        protected Producer<T> getProducer(String producerId, String producerName, String topicName) {
+        protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
                     return createProducer(
                             client,
                             topicName,
                             producerName,
-                            schema);
+                            schema != null ? schema : this.schema);
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -177,7 +179,17 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public TypedMessageBuilder<T> newMessage(Record<T> record) {
-            return getProducer(record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())).newMessage();
+            if (record.getSchema() != null) {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
+                        .newMessage(record.getSchema());
+            } else {
+                return getProducer(record
+                        .getDestinationTopic()
+                        .orElse(pulsarSinkConfig.getTopic()), record.getSchema())
+                        .newMessage();
+            }
         }
 
         @Override
@@ -215,11 +227,17 @@ public class PulsarSink<T> implements Sink<T> {
                 throw new RuntimeException("PartitionId needs to be specified for every record while in Effectively-once mode");
             }
 
-            return getProducer(
+            Producer<T> producer = getProducer(
                     String.format("%s-%s",record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()), record.getPartitionId().get()),
                     record.getPartitionId().get(),
-                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic())
-            ).newMessage();
+                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
+                    record.getSchema()
+            );
+            if (record.getSchema() != null) {
+                return producer.newMessage(record.getSchema());
+            } else {
+                return producer.newMessage();
+            }
         }
 
         @Override
@@ -274,7 +292,9 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(record);
-        if (record.getKey().isPresent()) {
+
+        if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
+                ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
             msg.key(record.getKey().get());
         }
 

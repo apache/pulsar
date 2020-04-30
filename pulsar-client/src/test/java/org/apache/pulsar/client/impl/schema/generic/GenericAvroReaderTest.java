@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.testng.Assert.assertEquals;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -38,17 +40,21 @@ public class GenericAvroReaderTest {
     private AvroSchema fooSchemaNotNull;
     private AvroSchema fooSchema;
     private AvroSchema fooV2Schema;
-
+    private AvroSchema fooOffsetSchema;
 
     @BeforeMethod
     public void setup() {
         fooSchema = AvroSchema.of(Foo.class);
+
         fooV2Schema = AvroSchema.of(FooV2.class);
         fooSchemaNotNull = AvroSchema.of(SchemaDefinition
                 .builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class)
                 .build());
+
+        fooOffsetSchema = AvroSchema.of(Foo.class);
+        fooOffsetSchema.getAvroSchema().addProp(GenericAvroSchema.OFFSET_PROP, 5);
 
         foo = new Foo();
         foo.setField1("foo1");
@@ -81,6 +87,22 @@ public class GenericAvroReaderTest {
         assertEquals(genericRecordByReaderSchema.getField("fieldUnableNull"), "defaultValue");
         assertEquals(genericRecordByReaderSchema.getField("field1"), "foo1");
         assertEquals(genericRecordByReaderSchema.getField("field3"), 10);
+    }
+
+    @Test
+    public void testOffsetSchema() {
+        byte[] fooBytes = fooOffsetSchema.encode(foo);
+        ByteBuf byteBuf = Unpooled.buffer();
+        byteBuf.writeByte(0);
+        byteBuf.writeInt(10);
+        byteBuf.writeBytes(fooBytes);
+
+        GenericAvroReader reader = new GenericAvroReader(fooOffsetSchema.getAvroSchema());
+        assertEquals(reader.getOffset(), 5);
+        GenericRecord record = reader.read(byteBuf.array());
+        assertEquals(record.getField("field1"), "foo1");
+        assertEquals(record.getField("field2"), "bar1");
+        assertEquals(record.getField("fieldUnableNull"), "notNull");
     }
 
 }

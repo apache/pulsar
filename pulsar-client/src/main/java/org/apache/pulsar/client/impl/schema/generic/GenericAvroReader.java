@@ -47,6 +47,8 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     private final List<Field> fields;
     private final Schema schema;
     private final byte[] schemaVersion;
+    private int offset;
+
     public GenericAvroReader(Schema schema) {
         this(null, schema, null);
     }
@@ -65,12 +67,22 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         }
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+
+        if (schema.getObjectProp(GenericAvroSchema.OFFSET_PROP) != null) {
+            this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
+        } else {
+            this.offset = 0;
+        }
+
     }
 
     @Override
     public GenericAvroRecord read(byte[] bytes, int offset, int length) {
         try {
-            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, null);
+            if (offset == 0 && this.offset > 0) {
+                offset = this.offset;
+            }
+            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length - offset, null);
             org.apache.avro.generic.GenericRecord avroRecord =
                     (org.apache.avro.generic.GenericRecord)reader.read(
                     null,
@@ -99,6 +111,10 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                 log.error("GenericAvroReader close inputStream close error", e);
             }
         }
+    }
+
+    public int getOffset() {
+        return offset;
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);

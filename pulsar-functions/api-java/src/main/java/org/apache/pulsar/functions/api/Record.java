@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.api;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
 
 import java.util.Collections;
 import java.util.Map;
@@ -41,6 +42,10 @@ public interface Record<T> {
      */
     default Optional<String> getKey() {
         return Optional.empty();
+    }
+
+    default Schema<T> getSchema() {
+        return null;
     }
 
     /**

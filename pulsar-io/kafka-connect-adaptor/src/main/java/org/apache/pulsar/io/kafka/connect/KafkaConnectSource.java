@@ -34,6 +34,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import org.apache.kafka.connect.json.JsonConverterConfig;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.KVRecord;
+import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
+import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.TaskConfig;
@@ -45,10 +53,14 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
+import org.apache.pulsar.kafka.shade.io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
+import org.apache.pulsar.kafka.shade.io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 
 /**
  * A pulsar source that runs
@@ -74,6 +86,13 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     // number of outstandingRecords that have been polled but not been acked
     private AtomicInteger outstandingRecords = new AtomicInteger(0);
 
+    private boolean jsonWithEnvelope = false;
+    static private final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
+
+    private final Cache<org.apache.kafka.connect.data.Schema, KafkaSchemaWrappedSchema> readerCache =
+            CacheBuilder.newBuilder().maximumSize(10000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         Map<String, String> stringConfig = new HashMap<>();
@@ -82,6 +101,14 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 stringConfig.put(key, (String) value);
             }
         });
+
+        if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
+            jsonWithEnvelope = Boolean.parseBoolean(config.get(JSON_WITH_ENVELOPE_CONFIG).toString());
+            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, jsonWithEnvelope);
+        } else {
+            config.put(JsonConverterConfig.SCHEMAS_ENABLE_CONFIG, false);
+        }
+        log.info("jsonWithEnvelope: {}", jsonWithEnvelope);
 
         // get the source class name from config and create source task from reflection
         sourceTask = ((Class<? extends SourceTask>)Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG)))
@@ -101,6 +128,14 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             .getDeclaredConstructor()
             .newInstance();
 
+        if (keyConverter instanceof AvroConverter) {
+            keyConverter = new AvroConverter(new MockSchemaRegistryClient());
+            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+        }
+        if (valueConverter instanceof AvroConverter) {
+            valueConverter = new AvroConverter(new MockSchemaRegistryClient());
+            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+        }
         keyConverter.configure(config, true);
         valueConverter.configure(config, false);
 
@@ -161,7 +196,9 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
 
     @Override
     public void close() {
-        sourceTask.stop();
+        if (sourceTask != null) {
+            sourceTask.stop();
+        }
     }
 
     private synchronized Record<KeyValue<byte[], byte[]>> processSourceRecord(final SourceRecord srcRecord) {
@@ -174,7 +211,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
     private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
     private static long FLUSH_TIMEOUT_MS = 2000;
 
-    private class KafkaSourceRecord implements Record<KeyValue<byte[], byte[]>>  {
+    private class KafkaSourceRecord implements KVRecord<byte[], byte[]> {
         @Getter
         Optional<String> key;
         @Getter
@@ -188,15 +225,42 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         @Getter
         Optional<String> destinationTopic;
 
+        KafkaSchemaWrappedSchema keySchema;
+
+        KafkaSchemaWrappedSchema valueSchema;
+
         KafkaSourceRecord(SourceRecord srcRecord) {
+            AvroData avroData = new AvroData(1000);
             byte[] keyBytes = keyConverter.fromConnectData(
-                srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
-            byte[] valueBytes = valueConverter.fromConnectData(
-                srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+                    srcRecord.topic(), srcRecord.keySchema(), srcRecord.key());
             this.key = keyBytes != null ? Optional.of(Base64.getEncoder().encodeToString(keyBytes)) : Optional.empty();
-            this.value = new KeyValue(keyBytes, valueBytes);
+
+            byte[] valueBytes = valueConverter.fromConnectData(
+                    srcRecord.topic(), srcRecord.valueSchema(), srcRecord.value());
+
+            this.value = new KeyValue<>(keyBytes, valueBytes);
 
             this.topicName = Optional.of(srcRecord.topic());
+
+            if (srcRecord.keySchema() != null) {
+                keySchema = readerCache.getIfPresent(srcRecord.keySchema());
+            }
+            if (srcRecord.valueSchema() != null) {
+                valueSchema = readerCache.getIfPresent(srcRecord.valueSchema());
+            }
+
+            if (srcRecord.keySchema() != null && keySchema == null) {
+                keySchema = new KafkaSchemaWrappedSchema(
+                        avroData.fromConnectSchema(srcRecord.keySchema()), keyConverter);
+                readerCache.put(srcRecord.keySchema(), keySchema);
+            }
+
+            if (srcRecord.valueSchema() != null && valueSchema == null) {
+                valueSchema = new KafkaSchemaWrappedSchema(
+                        avroData.fromConnectSchema(srcRecord.valueSchema()), valueConverter);
+                readerCache.put(srcRecord.valueSchema(), valueSchema);
+            }
+
             this.eventTime = Optional.ofNullable(srcRecord.timestamp());
             this.partitionId = Optional.of(srcRecord.sourcePartition()
                 .entrySet()
@@ -204,6 +268,38 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
             this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
+        }
+
+        @Override
+        public Schema<byte[]> getKeySchema() {
+            if (jsonWithEnvelope || keySchema == null) {
+                return Schema.BYTES;
+            } else {
+                return keySchema;
+            }
+        }
+
+        @Override
+        public Schema<byte[]> getValueSchema() {
+            if (jsonWithEnvelope || valueSchema == null) {
+                return Schema.BYTES;
+            } else {
+                return valueSchema;
+            }
+        }
+
+        @Override
+        public KeyValueEncodingType getKeyValueEncodingType() {
+            if (jsonWithEnvelope) {
+                return KeyValueEncodingType.INLINE;
+            } else {
+                return KeyValueEncodingType.SEPARATED;
+            }
+        }
+
+        @Override
+        public Schema getSchema() {
+            return null;
         }
 
         @Override
@@ -275,4 +371,5 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             }
         }
     }
+
 }
