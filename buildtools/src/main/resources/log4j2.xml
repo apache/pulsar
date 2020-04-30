@@ -30,7 +30,7 @@
             <AppenderRef ref="Console" />
         </Root>
         <Logger name="org.eclipse.jetty" level="info"/>
-        <Logger name="org.apache.pulsar" level="debug"/>
+        <Logger name="org.apache.pulsar" level="info"/>
         <Logger name="org.apache.bookkeeper" level="info"/>
         <Logger name="org.apache.kafka" level="info"/>
     </Loggers>
