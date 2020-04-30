@@ -24,8 +24,13 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
+@Slf4j
 @Data
 @AllArgsConstructor
 public class SinkRecord<T> implements Record<T> {
@@ -81,4 +86,24 @@ public class SinkRecord<T> implements Record<T> {
     public Optional<String> getDestinationTopic() {
         return sourceRecord.getDestinationTopic();
     }
+
+    @Override
+    public Schema<T> getSchema() {
+        if (sourceRecord == null) {
+            return null;
+        }
+
+        if (sourceRecord.getSchema() != null) {
+            return sourceRecord.getSchema();
+        }
+
+        if (sourceRecord instanceof KVRecord) {
+            KVRecord kvRecord = (KVRecord) sourceRecord;
+            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+                    kvRecord.getKeyValueEncodingType());
+        }
+
+        return null;
+    }
+
 }

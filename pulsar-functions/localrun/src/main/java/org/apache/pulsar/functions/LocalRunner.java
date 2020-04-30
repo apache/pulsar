@@ -261,7 +261,7 @@ public class LocalRunner {
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
-                        throw new RuntimeException("Source archive does not exist");
+                        throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
                     }
                     functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
                 }

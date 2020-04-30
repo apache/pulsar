@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.Assert;
@@ -45,6 +49,14 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     protected final String sourceType;
     protected final Map<String, Object> sourceConfig;
+
+    public final static Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
+        add("before");
+        add("after");
+        add("source");
+        add("op");
+        add("ts_ms");
+    }};
 
     protected SourceTester(String sourceType) {
         this.sourceType = sourceType;
@@ -71,7 +83,16 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
-    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
+    public void validateSourceResult(Consumer consumer, int number,
+                                     String eventType, String converterClassName) throws Exception {
+        if (converterClassName.endsWith("AvroConverter")) {
+            validateSourceResultAvro(consumer, number, eventType);
+        } else {
+            validateSourceResultJson(consumer, number, eventType);
+        }
+    }
+
+    public void validateSourceResultJson(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
         int recordsNumber = 0;
         Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
@@ -82,7 +103,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
             Assert.assertTrue(key.contains(this.keyContains()));
             Assert.assertTrue(value.contains(this.valueContains()));
             if (eventType != null) {
-                Assert.assertTrue(value.contains(this.eventContains(eventType)));
+                Assert.assertTrue(value.contains(this.eventContains(eventType, true)));
             }
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -91,20 +112,51 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
         Assert.assertEquals(recordsNumber, number);
         log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
     }
+
+    public void validateSourceResultAvro(Consumer<KeyValue<GenericRecord, GenericRecord>> consumer,
+                                     int number, String eventType) throws Exception {
+        int recordsNumber = 0;
+        Message<KeyValue<GenericRecord, GenericRecord>> msg = consumer.receive(2, TimeUnit.SECONDS);
+        while(msg != null) {
+            recordsNumber ++;
+            GenericRecord keyRecord = msg.getValue().getKey();
+            Assert.assertNotNull(keyRecord.getFields());
+            Assert.assertTrue(keyRecord.getFields().size() > 0);
+
+            GenericRecord valueRecord = msg.getValue().getValue();
+            Assert.assertNotNull(valueRecord.getFields());
+            Assert.assertTrue(valueRecord.getFields().size() > 0);
+            for (Field field : valueRecord.getFields()) {
+                Assert.assertTrue(DEBEZIUM_FIELD_SET.contains(field.getName()));
+            }
+
+            if (eventType != null) {
+                String op = valueRecord.getField("op").toString();
+                Assert.assertEquals(this.eventContains(eventType, false), op);
+            }
+            consumer.acknowledge(msg);
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+        }
+
+        Assert.assertEquals(recordsNumber, number);
+        log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
+    }
+
     public String keyContains(){
         return "dbserver1.inventory.products.Key";
     }
+
     public String valueContains(){
         return "dbserver1.inventory.products.Value";
     }
 
-    public String eventContains(String eventType) {
+    public String eventContains(String eventType, boolean isJson) {
         if (eventType.equals(INSERT)) {
-            return "\"op\":\"c\"";
+            return isJson ? "\"op\":\"c\"" : "c";
         } else if (eventType.equals(UPDATE)) {
-            return "\"op\":\"u\"";
+            return isJson ? "\"op\":\"u\"" : "u";
         } else {
-            return "\"op\":\"d\"";
+            return isJson ? "\"op\":\"d\"" : "d";
         }
     }
 }
