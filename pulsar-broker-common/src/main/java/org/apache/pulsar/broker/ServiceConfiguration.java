@@ -307,7 +307,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
     )
-    private long subscriptionExpirationTimeMinutes = 0;
+    private int subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
@@ -319,7 +319,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"
     )
-    private long subscriptionExpiryCheckIntervalInMinutes = 5;
+    private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,

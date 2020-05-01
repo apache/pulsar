@@ -290,6 +290,32 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(value = "Get the subscription expiration time for the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public int getSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_expiration_time_minutes;
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(value = "Set subscription expiration time in minutes for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid expiration time") })
+    public void setSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace, int expirationTime) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscriptionExpirationTime(expirationTime);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/deduplication")
     @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")

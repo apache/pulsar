@@ -356,6 +356,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
 
+        namespaces.run(split("set-subscription-expiration-time myprop/clust/ns1 -t 60"));
+        verify(mockNamespaces).setSubscriptionExpirationTime("myprop/clust/ns1", 60);
+
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
 
@@ -375,6 +378,9 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
+
+        namespaces.run(split("get-subscription-expiration-time myprop/clust/ns1"));
+        verify(mockNamespaces).getSubscriptionExpirationTime("myprop/clust/ns1");
 
         namespaces.run(split("set-anti-affinity-group myprop/clust/ns1 -g group"));
         verify(mockNamespaces).setNamespaceAntiAffinityGroup("myprop/clust/ns1", "group");

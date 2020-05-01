@@ -339,6 +339,33 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public int getSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateAdminAccessForTenant(property);
+        validateNamespaceName(property, cluster, namespace);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_expiration_time_minutes;
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Set subscription expiration time in minutes for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid expiration time") })
+    public void setSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, int expirationTime) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionExpirationTime(expirationTime);
+    }
+
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
     @ApiOperation(value = "Set anti-affinity group for a namespace")
