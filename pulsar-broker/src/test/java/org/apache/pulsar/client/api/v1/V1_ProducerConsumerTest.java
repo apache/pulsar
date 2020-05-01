@@ -1715,7 +1715,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             }
 
             // client should not receive all produced messages and should be blocked due to unack-messages
-            assertEquals(messages1.size(), receiverQueueSize);
+            assertNotEquals(messages1.size(), receiverQueueSize);
             Set<MessageIdImpl> redeliveryMessages = messages1.stream().map(m -> {
                 return (MessageIdImpl) m.getMessageId();
             }).collect(Collectors.toSet());
