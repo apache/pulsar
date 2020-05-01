@@ -58,6 +58,7 @@ public class ManagedLedgerClientFactory implements Closeable {
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
+        managedLedgerFactoryConfig.setClusterName(conf.getClusterName());
 
         this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, Optional.empty(), null);
 

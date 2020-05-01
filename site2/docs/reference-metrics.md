@@ -322,7 +322,9 @@ All the consumer metrics are labelled with the following labels:
 
 ### Managed ledger bookie client metrics
 
-All the managed ledger bookie client metrics list as follows:
+All the managed ledger bookie client metrics labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -336,6 +338,7 @@ All the managed ledger bookie client metrics list as follows:
 | pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
 | pulsar_bookie_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
 | pulsar_bookie_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
+
 ## Monitor
 
 You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed at Pulsar components and set up

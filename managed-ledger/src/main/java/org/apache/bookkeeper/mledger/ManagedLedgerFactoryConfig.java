@@ -61,4 +61,9 @@ public class ManagedLedgerFactoryConfig {
      * Managed ledger prometheus stats Latency Rollover Seconds
      */
     private int prometheusStatsLatencyRolloverSeconds = 60;
+
+    /**
+     * cluster name for prometheus stats
+     */
+    private String clusterName;
 }

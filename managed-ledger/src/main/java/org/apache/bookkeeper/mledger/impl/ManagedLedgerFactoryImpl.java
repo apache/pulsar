@@ -160,6 +160,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         Configuration configuration = new ClientConfiguration();
         configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS
                 , config.getPrometheusStatsLatencyRolloverSeconds());
+        configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, config.getClusterName());
         statsProvider.start(configuration);
 
         statsLogger = statsProvider.getStatsLogger("pulsar_bookie_client");

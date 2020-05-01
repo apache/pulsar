@@ -45,7 +45,10 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     public static final String PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = "prometheusStatsLatencyRolloverSeconds";
     public static final int DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = 60;
+    public static final String CLUSTER_NAME = "cluster";
+    public static final String DEFAULT_CLUSTER_NAME = "pulsar";
 
+    private String cluster;
     private final CachingStatsProvider cachingStatsProvider;
 
     /**
@@ -93,6 +96,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
         int latencyRolloverSeconds = conf.getInt(PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
+        cluster = conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME);
 
         executor.scheduleAtFixedRate(() -> {
             rotateLatencyCollection();
@@ -111,9 +115,9 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     @Override
     public void writeAllMetrics(Writer writer) throws IOException {
-        gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, gauge));
-        counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, counter));
-        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, opStatLogger));
+        gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, cluster, gauge));
+        counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, cluster, counter));
+        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster, opStatLogger));
     }
 
     @Override
