@@ -60,6 +60,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public int message_ttl_in_seconds = 0;
     @SuppressWarnings("checkstyle:MemberName")
+    public int subscription_expiration_time_minutes = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
     public String antiAffinityGroup;
@@ -117,7 +119,7 @@ public class Policies {
                 clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
                 autoSubscriptionCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
-                message_ttl_in_seconds, retention_policies,
+                message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies,
                 subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
@@ -152,6 +154,7 @@ public class Policies {
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,
                             other.message_ttl_in_seconds)
+                    && Objects.equals(subscription_expiration_time_minutes, other.subscription_expiration_time_minutes)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
@@ -207,7 +210,9 @@ public class Policies {
                 .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
-                .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
+                .add("message_ttl_in_seconds", message_ttl_in_seconds)
+                .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
+                .add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
                 .add("delayed_delivery_policies", delayed_delivery_policies)

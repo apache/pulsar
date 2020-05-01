@@ -1694,15 +1694,33 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkInactiveSubscriptions() {
-        final long expirationTime = TimeUnit.MINUTES.toMillis(brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes());
-        if (expirationTime <= 0) return;
-        subscriptions.forEach((subName, sub) -> {
-            if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) return;
-            if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTime) {
-                sub.delete().thenAccept(
-                        v -> log.info("[{}][{}] The subscription was deleted due to expiration", topic, subName));
+        TopicName name = TopicName.get(topic);
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
+                    .getSubscriptionExpirationTimeMinutes();
+            final long expirationTimeMillis = TimeUnit.MINUTES
+                    .toMillis((policies.subscription_expiration_time_minutes <= 0 && defaultExpirationTime > 0)
+                            ? defaultExpirationTime
+                            : policies.subscription_expiration_time_minutes);
+            if (expirationTimeMillis > 0) {
+                subscriptions.forEach((subName, sub) -> {
+                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) {
+                        return;
+                    }
+                    if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
+                                topic, subName));
+                    }
+                });
             }
-        });
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies", topic);
+            }
+        }
     }
 
     @Override

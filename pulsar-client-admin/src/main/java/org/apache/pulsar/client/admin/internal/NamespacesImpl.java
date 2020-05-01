@@ -600,6 +600,62 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public int getSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
+        try {
+            return getSubscriptionExpirationTimeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionExpirationTime");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Integer>() {
+            @Override
+            public void completed(Integer expirationTime) {
+                future.complete(expirationTime);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public void setSubscriptionExpirationTime(String namespace, int expirationTime)
+            throws PulsarAdminException {
+        try {
+            setSubscriptionExpirationTimeAsync(namespace, expirationTime).get(this.readTimeoutMs,
+                    TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String namespace, int expirationTime) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionExpirationTime");
+        return asyncPostRequest(path, Entity.entity(expirationTime, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
         try {
