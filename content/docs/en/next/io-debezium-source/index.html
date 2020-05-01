@@ -42,8 +42,21 @@ and persists the messages to Pulsar topics.</p>
 <tr><td><code>database.history.pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL for history topic.</td></tr>
 <tr><td><code>pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL.</td></tr>
 <tr><td><code>offset.storage.topic</code></td><td>true</td><td>null</td><td>Record the last committed offsets that the connector successfully completes.</td></tr>
+<tr><td><code>json-with-envelope</code></td><td>false</td><td>false</td><td>Present the message only consist of payload.</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="converter-options"></a><a href="#converter-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Converter Options</h3>
+<ol>
+<li>org.apache.kafka.connect.json.JsonConverter</li>
+</ol>
+<p>This config <code>json-with-envelope</code> is valid only for the JsonConverter. It's default value is false, the consumer use the schema <code>Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)</code>,
+and the message only consist of payload.</p>
+<p>If the config <code>json-with-envelope</code> value is true, the consumer use the schema
+<code>Schema.KeyValue(Schema.BYTES, Schema.BYTES</code>, the message consist of schema and payload.</p>
+<ol start="2">
+<li>org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter</li>
+</ol>
+<p>If users select the AvroConverter, then the pulsar consumer should use the schema <code>Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)</code>, and the message consist of payload.</p>
 <h3><a class="anchor" aria-hidden="true" id="mongodb-configuration"></a><a href="#mongodb-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MongoDB Configuration</h3>
 <table>
 <thead>
@@ -388,7 +401,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 <p>If you encounter the above problems in synchronizing data, please refer to <a href="https://github.com/apache/pulsar/issues/4075">this</a> and add the following configuration to the configuration file:</p>
 <pre><code class="hljs css language-$xslt"><span class="hljs-built_in">max</span>.<span class="hljs-built_in">queue</span>.<span class="hljs-built_in">size</span>=
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#usage">Usage</a></li></ul></li><li><a href="#example-of-postgresql">Example of PostgreSQL</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#usage-1">Usage</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#usage-2">Usage</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#converter-options">Converter Options</a></li><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#usage">Usage</a></li></ul></li><li><a href="#example-of-postgresql">Example of PostgreSQL</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#usage-1">Usage</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#usage-2">Usage</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
