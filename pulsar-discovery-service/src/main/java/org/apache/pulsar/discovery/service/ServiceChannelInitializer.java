@@ -22,7 +22,7 @@ import io.netty.handler.ssl.SslHandler;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLEngineAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
@@ -41,8 +41,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
     private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
-    private NettySSLEngineAutoRefreshBuilder nettySSLEngineRefreshBuilder;
-
+    private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
 
     public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean e)
             throws Exception {
@@ -52,7 +51,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         if (this.enableTls) {
             if (tlsEnabledWithKeyStore) {
-                nettySSLEngineRefreshBuilder = new NettySSLEngineAutoRefreshBuilder(
+                nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                         serviceConfig.getTlsProvider(),
                         serviceConfig.getTlsKeyStoreType(),
                         serviceConfig.getTlsKeyStore(),
@@ -81,7 +80,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     protected void initChannel(SocketChannel ch) throws Exception {
         if (sslCtxRefresher != null && this.enableTls) {
             if (this.tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER, new SslHandler(nettySSLEngineRefreshBuilder.get()));
+                ch.pipeline().addLast(TLS_HANDLER,
+                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
             } else{
                 SslContext sslContext = sslCtxRefresher.get();
                 if (sslContext != null) {

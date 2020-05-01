@@ -33,7 +33,7 @@ import org.apache.pulsar.client.util.ObjectCache;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.keystoretls.NettySSLEngineAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 
 @Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -45,7 +45,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final boolean tlsEnabledWithKeyStore;
 
     private final Supplier<SslContext> sslContextSupplier;
-    private NettySSLEngineAutoRefreshBuilder nettySSLEngineAutoRefreshBuilder;
+    private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -60,7 +60,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
 
             if (tlsEnabledWithKeyStore) {
-                nettySSLEngineAutoRefreshBuilder = new NettySSLEngineAutoRefreshBuilder(
+                nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                             conf.getSslProvider(),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
@@ -97,7 +97,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     public void initChannel(SocketChannel ch) throws Exception {
         if (tlsEnabled) {
             if (tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER, new SslHandler(nettySSLEngineAutoRefreshBuilder.get()));
+                ch.pipeline().addLast(TLS_HANDLER,
+                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
             } else {
                 ch.pipeline().addLast(TLS_HANDLER, sslContextSupplier.get().newHandler(ch.alloc()));
             }

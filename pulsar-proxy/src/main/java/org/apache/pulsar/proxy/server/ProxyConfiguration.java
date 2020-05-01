@@ -343,9 +343,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider (JDK or OpenSSL)"
+            doc = "TLS Provider"
     )
-    private String tlsProvider = "JDK";
+    private String tlsProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -386,7 +386,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     /**** --- KeyStore TLS config variables used for proxy to auth with broker--- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "The TLS Provider (JDK or OpenSSL) used by the Pulsar proxy to authenticate with Pulsar brokers"
+            doc = "Whether the Pulsar proxy use KeyStore type to authenticate with Pulsar brokers"
+    )
+    private boolean brokerClientTlsEnabledWithKeyStore = false;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
     @FieldContext(

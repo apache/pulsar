@@ -21,13 +21,11 @@ package org.apache.pulsar.client.api;
 import static org.mockito.Mockito.spy;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -72,14 +70,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
-
-
-        conf.setSuperUserRoles(Sets.newHashSet("a-super-user"));
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
-        conf.setAuthenticationProviders(providers);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {

@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util.keystoretls;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Set;
-import javax.net.ssl.SSLEngine;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
@@ -30,8 +29,8 @@ import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 /**
  * SSL context builder for Netty.
  */
-public class NettySSLEngineAutoRefreshBuilder extends SslContextAutoRefreshBuilder<SSLEngine> {
-    private volatile SSLEngine sslEngine;
+public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuilder<KeyStoreSSLContext> {
+    private volatile KeyStoreSSLContext keyStoreSSLContext;
 
     protected final boolean tlsAllowInsecureConnection;
     protected final Set<String> tlsCiphers;
@@ -52,18 +51,18 @@ public class NettySSLEngineAutoRefreshBuilder extends SslContextAutoRefreshBuild
     protected final boolean isServer;
 
     // for server
-    public NettySSLEngineAutoRefreshBuilder(String sslProviderString,
-                                            String keyStoreTypeString,
-                                            String keyStore,
-                                            String keyStorePassword,
-                                            boolean allowInsecureConnection,
-                                            String trustStoreTypeString,
-                                            String trustStore,
-                                            String trustStorePassword,
-                                            boolean requireTrustedClientCertOnConnect,
-                                            Set<String> ciphers,
-                                            Set<String> protocols,
-                                            long certRefreshInSec) {
+    public NettySSLContextAutoRefreshBuilder(String sslProviderString,
+                                             String keyStoreTypeString,
+                                             String keyStore,
+                                             String keyStorePassword,
+                                             boolean allowInsecureConnection,
+                                             String trustStoreTypeString,
+                                             String trustStore,
+                                             String trustStorePassword,
+                                             boolean requireTrustedClientCertOnConnect,
+                                             Set<String> ciphers,
+                                             Set<String> protocols,
+                                             long certRefreshInSec) {
         super(certRefreshInSec);
 
         this.tlsAllowInsecureConnection = allowInsecureConnection;
@@ -85,15 +84,15 @@ public class NettySSLEngineAutoRefreshBuilder extends SslContextAutoRefreshBuild
     }
 
     // for client
-    public NettySSLEngineAutoRefreshBuilder(String sslProviderString,
-                                            boolean allowInsecureConnection,
-                                            String trustStoreTypeString,
-                                            String trustStore,
-                                            String trustStorePassword,
-                                            Set<String> ciphers,
-                                            Set<String> protocols,
-                                            long certRefreshInSec,
-                                            AuthenticationDataProvider authData) {
+    public NettySSLContextAutoRefreshBuilder(String sslProviderString,
+                                             boolean allowInsecureConnection,
+                                             String trustStoreTypeString,
+                                             String trustStore,
+                                             String trustStorePassword,
+                                             Set<String> ciphers,
+                                             Set<String> protocols,
+                                             long certRefreshInSec,
+                                             AuthenticationDataProvider authData) {
         super(certRefreshInSec);
 
         this.tlsAllowInsecureConnection = allowInsecureConnection;
@@ -112,16 +111,16 @@ public class NettySSLEngineAutoRefreshBuilder extends SslContextAutoRefreshBuild
     }
 
     @Override
-    public synchronized SSLEngine update() throws GeneralSecurityException, IOException {
+    public synchronized KeyStoreSSLContext update() throws GeneralSecurityException, IOException {
         if (isServer) {
-            this.sslEngine = KeyStoreSSLContext.createNettySSLEngineForServer(tlsProvider,
+            this.keyStoreSSLContext = KeyStoreSSLContext.createServerKeyStoreSslContext(tlsProvider,
                     tlsKeyStoreType, tlsKeyStore.getFileName(), tlsKeyStorePassword,
                     tlsAllowInsecureConnection,
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsRequireTrustedClientCertOnConnect, tlsCiphers, tlsProtocols);
         } else {
             KeyStoreParams authParams = authData.getTlsKeyStoreParams();
-            this.sslEngine = KeyStoreSSLContext.createNettySSLEngineForClient(tlsProvider,
+            this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider,
                     authParams != null ? authParams.getKeyStoreType() : null,
                     authParams != null ? authParams.getKeyStorePath() : null,
                     authParams != null ? authParams.getKeyStorePassword() : null,
@@ -129,17 +128,17 @@ public class NettySSLEngineAutoRefreshBuilder extends SslContextAutoRefreshBuild
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsCiphers, tlsProtocols);
         }
-        return this.sslEngine;
+        return this.keyStoreSSLContext;
     }
 
     @Override
-    public SSLEngine getSslContext() {
-        return this.sslEngine;
+    public KeyStoreSSLContext getSslContext() {
+        return this.keyStoreSSLContext;
     }
 
     @Override
     public boolean needUpdate() {
-        return  tlsKeyStore.checkAndRefresh()
-                || tlsTrustStore.checkAndRefresh();
+        return  (tlsKeyStore != null && tlsKeyStore.checkAndRefresh())
+                || (tlsTrustStore != null && tlsTrustStore.checkAndRefresh());
     }
 }

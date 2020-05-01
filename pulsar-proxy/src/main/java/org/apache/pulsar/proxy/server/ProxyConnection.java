@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import java.util.function.Supplier;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
@@ -71,7 +72,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private Authentication clientAuthentication;
     AuthenticationDataSource authenticationData;
     private State state;
-    private final SslHandler sslHandler;
+    private final Supplier<SslHandler> sslHandlerSupplier;
 
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
@@ -111,11 +112,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         return client.getCnxPool();
     }
 
-    public ProxyConnection(ProxyService proxyService, SslHandler sslHandler) {
+    public ProxyConnection(ProxyService proxyService, Supplier<SslHandler> sslHandlerSupplier) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
         this.state = State.Init;
-        this.sslHandler = sslHandler;
+        this.sslHandlerSupplier = sslHandlerSupplier;
     }
 
     @Override
@@ -213,7 +214,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // connection there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, proxyToBrokerUrl,
-                protocolVersionToAdvertise, sslHandler);
+                protocolVersionToAdvertise, sslHandlerSupplier);
             cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete
@@ -412,8 +413,15 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         }
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
-            clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
-            clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+            if (proxyConfig.isBrokerClientTlsEnabledWithKeyStore()) {
+                clientConf.setUseKeyStoreTls(true);
+                clientConf.setTlsTrustStoreType(proxyConfig.getBrokerClientTlsTrustStoreType());
+                clientConf.setTlsTrustStorePath(proxyConfig.getBrokerClientTlsTrustStore());
+                clientConf.setTlsTrustStorePassword(proxyConfig.getBrokerClientTlsTrustStorePassword());
+            } else {
+                clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
+                clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+            }
         }
         return clientConf;
     }

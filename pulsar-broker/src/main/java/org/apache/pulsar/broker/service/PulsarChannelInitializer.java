@@ -37,7 +37,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLEngineAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 
 @Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -49,7 +49,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final boolean tlsEnabledWithKeyStore;
     private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
     private final ServiceConfiguration brokerConf;
-    private NettySSLEngineAutoRefreshBuilder nettySSLEngineRefreshBuilder;
+    private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
 
     // This cache is used to maintain a list of active connections to iterate over them
     // We keep weak references to have the cache to be auto cleaned up when the connections
@@ -73,7 +73,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         if (this.enableTls) {
             if (tlsEnabledWithKeyStore) {
-                nettySSLEngineRefreshBuilder = new NettySSLEngineAutoRefreshBuilder(
+                nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                         serviceConfig.getTlsProvider(),
                         serviceConfig.getTlsKeyStoreType(),
                         serviceConfig.getTlsKeyStore(),
@@ -89,7 +89,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             } else {
                 sslCtxRefresher = new NettyServerSslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                        serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                        serviceConfig.getTlsKeyFilePath(),
+                        serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
                         serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
             }
@@ -107,7 +108,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     protected void initChannel(SocketChannel ch) throws Exception {
         if (this.enableTls) {
             if (this.tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER, new SslHandler(nettySSLEngineRefreshBuilder.get()));
+                ch.pipeline().addLast(TLS_HANDLER,
+                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
             } else {
                 ch.pipeline().addLast(TLS_HANDLER, sslCtxRefresher.get().newHandler(ch.alloc()));
             }

@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import io.netty.handler.ssl.SslHandler;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.protocol.Commands;
@@ -32,7 +33,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLEngineAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 
 /**
  * Initialize service channel handlers.
@@ -47,8 +48,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
     private SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
-    private NettySSLEngineAutoRefreshBuilder serverSSLEngineRefreshBuilder;
-    private NettySSLEngineAutoRefreshBuilder clientSSLEngineRefreshBuilder;
+    private NettySSLContextAutoRefreshBuilder serverSSLContextAutoRefreshBuilder;
+    private NettySSLContextAutoRefreshBuilder clientSSLContextAutoRefreshBuilder;
 
     public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTls)
             throws Exception {
@@ -59,7 +60,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
         if (enableTls) {
             if (tlsEnabledWithKeyStore) {
-                serverSSLEngineRefreshBuilder = new NettySSLEngineAutoRefreshBuilder(
+                serverSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                         serviceConfig.getTlsProvider(),
                         serviceConfig.getTlsKeyStoreType(),
                         serviceConfig.getTlsKeyStore(),
@@ -92,7 +93,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             }
 
             if (tlsEnabledWithKeyStore) {
-                clientSSLEngineRefreshBuilder = new NettySSLEngineAutoRefreshBuilder(
+                clientSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                         serviceConfig.getBrokerClientSslProvider(),
                         serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getBrokerClientTlsTrustStoreType(),
@@ -117,26 +118,37 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         if (serverSslCtxRefresher != null && this.enableTls) {
-            if (this.tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER, new SslHandler(serverSSLEngineRefreshBuilder.get()));
-            } else {
-                SslContext sslContext = serverSslCtxRefresher.get();
-                if (sslContext != null) {
-                    ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
-                }
+            SslContext sslContext = serverSslCtxRefresher.get();
+            if (sslContext != null) {
+                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
             }
+        } else if (this.tlsEnabledWithKeyStore && serverSSLContextAutoRefreshBuilder != null) {
+            ch.pipeline().addLast(TLS_HANDLER,
+                    new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
         }
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-            Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
-        if (clientSSLEngineRefreshBuilder != null && tlsEnabledWithKeyStore) {
-            ch.pipeline().addLast("handler",
-                    new ProxyConnection(proxyService, new SslHandler(clientSSLEngineRefreshBuilder.get())));
-        } else {
-            ch.pipeline().addLast("handler",
-                    new ProxyConnection(proxyService,
-                            clientSslCtxRefresher == null ? null : clientSslCtxRefresher.get().newHandler(ch.alloc())));
+        Supplier<SslHandler> sslHandlerSupplier = null;
+        if (clientSslCtxRefresher != null) {
+            sslHandlerSupplier = new Supplier<SslHandler>() {
+                @Override
+                public SslHandler get() {
+                    return clientSslCtxRefresher.get().newHandler(ch.alloc());
+                }
+            };
+        } else if (clientSSLContextAutoRefreshBuilder != null) {
+            sslHandlerSupplier = new Supplier<SslHandler>() {
+                @Override
+                public SslHandler get() {
+                    return new SslHandler(clientSSLContextAutoRefreshBuilder.get().createSSLEngine());
+                }
+            };
         }
+
+        ch.pipeline().addLast("handler",
+                new ProxyConnection(proxyService, sslHandlerSupplier));
+
     }
 }
