@@ -20,7 +20,6 @@
 package org.apache.pulsar.io.jdbc;
 
 import java.sql.PreparedStatement;
-import java.sql.Types;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -81,7 +80,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
 
     private static void setColumnNull(PreparedStatement statement, int index, int type) throws Exception {
         if (log.isDebugEnabled()) {
-            log.debug("Setting column value to null, statement: {}, index: {}, value: {}", statement.toString(), index);
+            log.debug("Setting column value to null, statement: {}, index: {}", statement.toString(), index);
         }
         statement.setNull(index, type);
 
