@@ -3638,6 +3638,72 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/subscriptionExpirationTime" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get the subscription expiration time for the namespace",
+        "description" : "",
+        "operationId" : "getSubscriptionExpirationTime",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Set subscription expiration time in minutes for namespace",
+        "description" : "",
+        "operationId" : "setSubscriptionExpirationTime",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace doesn't exist"
+          },
+          "412" : {
+            "description" : "Invalid expiration time"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/topics" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -9990,24 +10056,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -10025,6 +10073,24 @@
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -10741,6 +10807,10 @@
           }
         },
         "message_ttl_in_seconds" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "subscription_expiration_time_minutes" : {
           "type" : "integer",
           "format" : "int32"
         },
