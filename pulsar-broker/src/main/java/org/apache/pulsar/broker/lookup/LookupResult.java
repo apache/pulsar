@@ -28,7 +28,7 @@ import org.apache.pulsar.common.lookup.data.LookupData;
  * to redirect the client to try again.
  */
 public class LookupResult {
-    enum Type {
+    public enum Type {
         BrokerUrl, RedirectUrl
     }
 
@@ -46,6 +46,11 @@ public class LookupResult {
         this.type = Type.RedirectUrl; // type = redirect => as current broker is
                                       // not owner and prepares LookupResult
                                       // with other broker's urls
+        this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);
+    }
+
+    public LookupResult(String httpUrl, String httpUrlTls, String brokerServiceUrl, String brokerServiceUrlTls, Type type) {
+        this.type = type;
         this.lookupData = new LookupData(brokerServiceUrl, brokerServiceUrlTls, httpUrl, httpUrlTls);
     }
 

@@ -13232,6 +13232,10 @@ public final class PulsarApi {
     // optional string original_auth_method = 6;
     boolean hasOriginalAuthMethod();
     String getOriginalAuthMethod();
+    
+    // optional string advertised_listener_name = 7;
+    boolean hasAdvertisedListenerName();
+    String getAdvertisedListenerName();
   }
   public static final class CommandLookupTopic extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -13416,6 +13420,38 @@ public final class PulsarApi {
       }
     }
     
+    // optional string advertised_listener_name = 7;
+    public static final int ADVERTISED_LISTENER_NAME_FIELD_NUMBER = 7;
+    private java.lang.Object advertisedListenerName_;
+    public boolean hasAdvertisedListenerName() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public String getAdvertisedListenerName() {
+      java.lang.Object ref = advertisedListenerName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          advertisedListenerName_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAdvertisedListenerNameBytes() {
+      java.lang.Object ref = advertisedListenerName_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        advertisedListenerName_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
     private void initFields() {
       topic_ = "";
       requestId_ = 0L;
@@ -13423,6 +13459,7 @@ public final class PulsarApi {
       originalPrincipal_ = "";
       originalAuthData_ = "";
       originalAuthMethod_ = "";
+      advertisedListenerName_ = "";
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -13467,6 +13504,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBytes(6, getOriginalAuthMethodBytes());
       }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeBytes(7, getAdvertisedListenerNameBytes());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -13498,6 +13538,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(6, getOriginalAuthMethodBytes());
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(7, getAdvertisedListenerNameBytes());
       }
       memoizedSerializedSize = size;
       return size;
@@ -13624,6 +13668,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         originalAuthMethod_ = "";
         bitField0_ = (bitField0_ & ~0x00000020);
+        advertisedListenerName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -13681,6 +13727,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000020;
         }
         result.originalAuthMethod_ = originalAuthMethod_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.advertisedListenerName_ = advertisedListenerName_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -13704,6 +13754,9 @@ public final class PulsarApi {
         }
         if (other.hasOriginalAuthMethod()) {
           setOriginalAuthMethod(other.getOriginalAuthMethod());
+        }
+        if (other.hasAdvertisedListenerName()) {
+          setAdvertisedListenerName(other.getAdvertisedListenerName());
         }
         return this;
       }
@@ -13770,6 +13823,11 @@ public final class PulsarApi {
             case 50: {
               bitField0_ |= 0x00000020;
               originalAuthMethod_ = input.readBytes();
+              break;
+            }
+            case 58: {
+              bitField0_ |= 0x00000040;
+              advertisedListenerName_ = input.readBytes();
               break;
             }
           }
@@ -13961,6 +14019,42 @@ public final class PulsarApi {
       void setOriginalAuthMethod(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000020;
         originalAuthMethod_ = value;
+        
+      }
+      
+      // optional string advertised_listener_name = 7;
+      private java.lang.Object advertisedListenerName_ = "";
+      public boolean hasAdvertisedListenerName() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public String getAdvertisedListenerName() {
+        java.lang.Object ref = advertisedListenerName_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          advertisedListenerName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setAdvertisedListenerName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000040;
+        advertisedListenerName_ = value;
+        
+        return this;
+      }
+      public Builder clearAdvertisedListenerName() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        advertisedListenerName_ = getDefaultInstance().getAdvertisedListenerName();
+        
+        return this;
+      }
+      void setAdvertisedListenerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000040;
+        advertisedListenerName_ = value;
         
       }
       

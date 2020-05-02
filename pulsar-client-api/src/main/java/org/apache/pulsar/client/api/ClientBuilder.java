@@ -112,6 +112,14 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     * @return the client builder instance
+     */
+    ClientBuilder listenerName(String name);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      *
      * <p>Example:

@@ -19,6 +19,11 @@
 package org.apache.pulsar.broker.namespace;
 
 import com.google.common.base.MoreObjects;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+
+import javax.validation.constraints.NotNull;
+import java.util.Collections;
+import java.util.Map;
 
 public class NamespaceEphemeralData {
     private String nativeUrl;
@@ -26,12 +31,19 @@ public class NamespaceEphemeralData {
     private String httpUrl;
     private String httpUrlTls;
     private boolean disabled;
+    //
+    private Map<String, AdvertisedListener> advertisedListeners;
 
     public NamespaceEphemeralData() {
     }
 
     public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
             boolean disabled) {
+        this(brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
+    }
+
+    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
+                                  boolean disabled, Map<String, AdvertisedListener> advertisedListeners) {
         this.nativeUrl = brokerUrl;
         this.nativeUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
@@ -61,6 +73,14 @@ public class NamespaceEphemeralData {
 
     public void setDisabled(boolean flag) {
         this.disabled = flag;
+    }
+
+    @NotNull
+    public Map<String, AdvertisedListener> getAdvertisedListeners() {
+        if (this.advertisedListeners == null) {
+            return Collections.unmodifiableMap(Collections.EMPTY_MAP);
+        }
+        return Collections.unmodifiableMap(this.advertisedListeners);
     }
 
     @Override

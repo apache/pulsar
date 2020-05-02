@@ -18,21 +18,30 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.net.URI;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
+ * The advertisedListener for broker with brokerServiceUrl and brokerServiceUrlTls.
+ */
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdvertisedListener {
     //
     @Getter
     @Setter
+    // the broker service uri without ssl
     private URI brokerServiceUrl;
     //
     @Getter
     @Setter
+    // the broker service uri with ssl
     private URI brokerServiceUrlTls;
 
 }

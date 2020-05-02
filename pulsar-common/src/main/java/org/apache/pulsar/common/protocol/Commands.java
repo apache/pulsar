@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
@@ -811,10 +812,17 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
+        return newLookup(topic, null, authoritative, requestId);
+    }
+
+    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId) {
         CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
         lookupTopicBuilder.setTopic(topic);
         lookupTopicBuilder.setRequestId(requestId);
         lookupTopicBuilder.setAuthoritative(authoritative);
+        if (StringUtils.isNotBlank(listenerName)) {
+            lookupTopicBuilder.setAdvertisedListenerName(listenerName);
+        }
         CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
         lookupTopicBuilder.recycle();

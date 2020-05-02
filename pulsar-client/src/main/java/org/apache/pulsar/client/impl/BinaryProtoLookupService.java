@@ -54,13 +54,20 @@ public class BinaryProtoLookupService implements LookupService {
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
     private final ExecutorService executor;
+    private final String listenerName;
 
     public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls, ExecutorService executor)
+            throws PulsarClientException {
+        this(client, serviceUrl, null, useTls, executor);
+    }
+
+    public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, String listenerName, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
         this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
     }
 
@@ -94,7 +101,7 @@ public class BinaryProtoLookupService implements LookupService {
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), this.listenerName, authoritative, requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 URI uri = null;
                 try {

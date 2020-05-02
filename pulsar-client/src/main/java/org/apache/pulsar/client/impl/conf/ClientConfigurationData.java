@@ -69,6 +69,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+    //
+    private String listenerName;
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
