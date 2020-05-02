@@ -95,7 +95,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.schema = schema;
         this.interceptors = interceptors;
         if (conf.getBatchReceivePolicy() != null) {
-            this.batchReceivePolicy = conf.getBatchReceivePolicy();
+            if (conf.getBatchReceivePolicy().getMaxNumMessages() > this.maxReceiverQueueSize) {
+                BatchReceivePolicy batchReceivePolicy = conf.getBatchReceivePolicy();
+                this.batchReceivePolicy = BatchReceivePolicy.builder()
+                        .maxNumMessages(this.maxReceiverQueueSize)
+                        .maxNumBytes(batchReceivePolicy.getMaxNumBytes())
+                        .timeout((int)batchReceivePolicy.getTimeoutMs()/1000, TimeUnit.SECONDS)
+                        .build();
+            } else {
+                this.batchReceivePolicy = conf.getBatchReceivePolicy();
+            }
         } else {
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
