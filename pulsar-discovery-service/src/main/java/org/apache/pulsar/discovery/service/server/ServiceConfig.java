@@ -122,4 +122,8 @@ public class ServiceConfig implements PulsarConfiguration {
     private String tlsTrustStorePassword = null;
 
     private Properties properties = new Properties();
+
+    public String getConfigurationStoreServers() {
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
+    }
 }

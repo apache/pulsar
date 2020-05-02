@@ -42,4 +42,9 @@ public class AuthenticationDataKeyStoreTls implements AuthenticationDataProvider
     public KeyStoreParams getTlsKeyStoreParams() {
         return this.keyStoreParams;
     }
+
+    @Override
+    public String getCommandData() {
+        return null;
+    }
 }
