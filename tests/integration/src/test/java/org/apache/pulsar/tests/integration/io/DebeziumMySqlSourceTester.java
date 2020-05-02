@@ -48,7 +48,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     private final PulsarCluster pulsarCluster;
 
-    public DebeziumMySqlSourceTester(PulsarCluster cluster) {
+    public DebeziumMySqlSourceTester(PulsarCluster cluster, String converterClassName) {
         super(NAME);
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
@@ -61,6 +61,10 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.whitelist", "inventory");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("key.converter", converterClassName);
+        sourceConfig.put("value.converter", converterClassName);
+        sourceConfig.put("topic.namespace", "debezium/mysql-" +
+                (converterClassName.endsWith("AvroConverter") ? "avro" : "json"));
     }
 
     @Override

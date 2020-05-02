@@ -29,7 +29,9 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.testng.Assert;
@@ -108,13 +110,144 @@ public class SqliteJdbcSinkTest {
         jdbcSink.close();
     }
 
+    private void testOpenAndWriteSinkNullValue(Map<String, String> actionProperties) throws Exception {
+        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
+        // prepare a foo Record
+        Foo insertObj = new Foo();
+        insertObj.setField1("ValueOfField1");
+        // Not setting field2
+        // Field1 is the key and field3 is used for selecting records 
+        insertObj.setField3(3);
+        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
+
+        byte[] insertBytes = schema.encode(insertObj);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+            .message(insertMessage)
+            .topicName("fake_topic_name")
+            .ackFunction(() -> future.complete(null))
+            .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+        when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
+        when(insertMessage.getProperties()).thenReturn(actionProperties);
+        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+                insertObj.toString(),
+                insertMessage.getValue().toString(),
+                insertRecord.getValue().toString());
+
+        // write should success.
+        jdbcSink.write(insertRecord);
+        log.info("executed write");
+        // sleep to wait backend flush complete
+        future.get(1, TimeUnit.SECONDS);
+
+        // value has been written to db, read it out and verify.
+        String querySql = "SELECT * FROM " + tableName + " WHERE field3=3";
+        int count = sqliteUtils.select(querySql, (resultSet) -> {
+            Assert.assertEquals(insertObj.getField1(), resultSet.getString(1));
+            Assert.assertNull(insertObj.getField2());
+            Assert.assertEquals(insertObj.getField3(), resultSet.getInt(3));
+        });
+        Assert.assertEquals(count, 1);
+
+    }
+
+    private void testOpenAndWriteSinkJson(Map<String, String> actionProperties) throws Exception {
+        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
+        // prepare a foo Record
+        Foo insertObj = new Foo();
+        insertObj.setField1("ValueOfField1");
+        insertObj.setField2("ValueOfField2");
+        insertObj.setField3(3);
+        JSONSchema<Foo> schema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
+
+        byte[] insertBytes = schema.encode(insertObj);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+            .message(insertMessage)
+            .topicName("fake_topic_name")
+            .ackFunction(() -> future.complete(null))
+            .build();
+
+        GenericSchema<GenericRecord> decodeSchema = GenericSchemaImpl.of(schema.getSchemaInfo());
+        when(insertMessage.getValue()).thenReturn(decodeSchema.decode(insertBytes));
+        when(insertMessage.getProperties()).thenReturn(actionProperties);
+        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+                insertObj.toString(),
+                insertMessage.getValue().toString(),
+                insertRecord.getValue().toString());
+
+        // write should success.
+        jdbcSink.write(insertRecord);
+        log.info("executed write");
+        // sleep to wait backend flush complete
+        future.get(1, TimeUnit.SECONDS);
+
+        // value has been written to db, read it out and verify.
+        String querySql = "SELECT * FROM " + tableName + " WHERE field3=3";
+        int count = sqliteUtils.select(querySql, (resultSet) -> {
+            Assert.assertEquals(insertObj.getField1(), resultSet.getString(1));
+            Assert.assertEquals(insertObj.getField2(), resultSet.getString(2));
+            Assert.assertEquals(insertObj.getField3(), resultSet.getInt(3));
+        });
+        Assert.assertEquals(count, 1);
+
+    }
+
+    private void testOpenAndWriteSinkNullValueJson(Map<String, String> actionProperties) throws Exception {
+        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
+        // prepare a foo Record
+        Foo insertObj = new Foo();
+        insertObj.setField1("ValueOfField1");
+        // Not setting field2
+        // Field1 is the key and field3 is used for selecting records 
+        insertObj.setField3(3);
+        JSONSchema<Foo> schema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(true).build());
+
+        byte[] insertBytes = schema.encode(insertObj);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+            .message(insertMessage)
+            .topicName("fake_topic_name")
+            .ackFunction(() -> future.complete(null))
+            .build();
+
+        GenericSchema<GenericRecord> decodeSchema = GenericSchemaImpl.of(schema.getSchemaInfo());
+        when(insertMessage.getValue()).thenReturn(decodeSchema.decode(insertBytes));
+        when(insertMessage.getProperties()).thenReturn(actionProperties);
+        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+                insertObj.toString(),
+                insertMessage.getValue().toString(),
+                insertRecord.getValue().toString());
+
+        // write should success.
+        jdbcSink.write(insertRecord);
+        log.info("executed write");
+        // sleep to wait backend flush complete
+        future.get(1, TimeUnit.SECONDS);
+
+        // value has been written to db, read it out and verify.
+        String querySql = "SELECT * FROM " + tableName + " WHERE field3=3";
+        int count = sqliteUtils.select(querySql, (resultSet) -> {
+            Assert.assertEquals(insertObj.getField1(), resultSet.getString(1));
+            Assert.assertNull(insertObj.getField2());
+            Assert.assertEquals(insertObj.getField3(), resultSet.getInt(3));
+        });
+        Assert.assertEquals(count, 1);
+
+    }
+
     private void testOpenAndWriteSink(Map<String, String> actionProperties) throws Exception {
         Message<GenericRecord> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
         insertObj.setField1("ValueOfField1");
-        insertObj.setField2("ValueOfField1");
+        insertObj.setField2("ValueOfField2");
         insertObj.setField3(3);
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -159,6 +292,21 @@ public class SqliteJdbcSinkTest {
     @Test
     public void TestNoAction() throws Exception {
         testOpenAndWriteSink(ImmutableMap.of());
+    }
+
+    @Test
+    public void TestNoActionNullValue() throws Exception {
+        testOpenAndWriteSinkNullValue(ImmutableMap.of("ACTION", "INSERT"));
+    }
+
+    @Test
+    public void TestNoActionNullValueJson() throws Exception {
+        testOpenAndWriteSinkNullValueJson(ImmutableMap.of("ACTION", "INSERT"));
+    }
+
+    @Test
+    public void TestNoActionJson() throws Exception {
+        testOpenAndWriteSinkJson(ImmutableMap.of("ACTION", "INSERT"));
     }
 
     @Test

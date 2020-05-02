@@ -28,6 +28,24 @@ The configuration of Debezium source connector has the following properties.
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
 | `pulsar.service.url` | true | null | Pulsar cluster service URL. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
+| `json-with-envelope` | false | false | Present the message only consist of payload.
+
+### Converter Options
+
+1. org.apache.kafka.connect.json.JsonConverter
+
+This config `json-with-envelope` is valid only for the JsonConverter. It's default value is false, the consumer use the schema `
+Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`,
+and the message only consist of payload.
+
+If the config `json-with-envelope` value is true, the consumer use the schema 
+`Schema.KeyValue(Schema.BYTES, Schema.BYTES`, the message consist of schema and payload.
+
+2. org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter
+
+If users select the AvroConverter, then the pulsar consumer should use the schema `Schema.KeyValue(Schema.AUTO_CONSUME(), 
+Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist of payload.
+
 ### MongoDB Configuration
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
