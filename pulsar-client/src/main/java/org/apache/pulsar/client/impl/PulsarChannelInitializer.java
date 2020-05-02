@@ -57,9 +57,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.tlsEnabledWithKeyStore = conf.isUseKeyStoreTls();
 
         if (tlsEnabled) {
-            AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
-
             if (tlsEnabledWithKeyStore) {
+                AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
+
                 nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                             conf.getSslProvider(),
                             conf.isTlsAllowInsecureConnection(),
