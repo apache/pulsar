@@ -89,7 +89,9 @@ public class SecurityUtility {
             Provider provider = Security.getProvider(BC) != null
                     ? Security.getProvider(BC)
                     : Security.getProvider(BC_FIPS);
-            log.info("Already instantiated Bouncy Castle provider {}", provider.getName());
+            if (log.isDebugEnabled()) {
+                log.debug("Already instantiated Bouncy Castle provider {}", provider.getName());
+            }
             return provider;
         }
 
@@ -127,7 +129,9 @@ public class SecurityUtility {
 
         Provider provider = (Provider) clazz.newInstance();
         Security.addProvider(provider);
-        log.info("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
+        }
         return provider;
     }
 
