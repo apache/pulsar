@@ -49,7 +49,7 @@ public class MessagesImpl<T> implements Messages<T> {
             return true;
         }
         return (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 <= maxNumberOfMessages)
-                || (maxSizeOfMessages > 0 && currentSizeOfMessages + message.getData().length <= maxSizeOfMessages);
+                && (maxSizeOfMessages > 0 && currentSizeOfMessages + message.getData().length <= maxSizeOfMessages);
     }
 
     protected void add(Message<T> message) {
