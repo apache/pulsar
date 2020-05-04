@@ -655,6 +655,16 @@ public class ServerCnx extends PulsarHandler {
             //  2. we require to validate the original credentials
             //  3. no credentials were passed
             if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                // init authentication
+                if (connect.hasOriginalAuthMethod()) {
+                    authMethod = connect.getOriginalAuthMethod();
+                } else if (connect.hasOriginalAuthMethod()) {
+                    // Legacy client is passing enum
+                    authMethod = connect.getOriginalAuthMethod().substring(10).toLowerCase();
+                } else {
+                    authMethod = "none";
+                }
+
                 AuthenticationProvider originalAuthenticationProvider = getBrokerService()
                         .getAuthenticationService()
                         .getAuthenticationProvider(authMethod);
