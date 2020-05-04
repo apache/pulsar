@@ -36,6 +36,7 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
@@ -53,7 +54,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
         configClass = DynamoDBSourceConfig.class
     )
 @Slf4j
-public class DynamoDBSource extends AbstractDynamoDBConnector implements Source<byte[]> {
+public class DynamoDBSource extends AbstractAwsConnector implements Source<byte[]> {
 
     private LinkedBlockingQueue<StreamsRecord> queue;
     private DynamoDBSourceConfig dynamodbSourceConfig;
