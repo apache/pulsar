@@ -75,7 +75,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
-import org.apache.pulsar.functions.api.examples.AvroFunction;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink;
@@ -502,12 +502,12 @@ public class PulsarFunctionLocalRunTest {
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(true)
                 .withJSR310ConversionEnabled(true)
-                .withPojo(AvroFunction.AvroPoJo.class).build());
+                .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
 
         //produce message to sourceTopic
-        Producer<AvroFunction.AvroPoJo> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
+        Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
         //consume message from sinkTopic
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
 
@@ -519,7 +519,7 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setCustomSchemaInputs(schemaInput);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         if(jarFilePathUrl == null){
-            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.AvroFunction");
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction");
         }else {
             functionConfig.setJar(jarFilePathUrl);
         }
@@ -552,8 +552,10 @@ public class PulsarFunctionLocalRunTest {
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
+            AvroTestObject avroTestObject = new AvroTestObject();
+            avroTestObject.setBaseValue(i);
             producer.newMessage().property(propertyKey, propertyValue)
-                    .value(new AvroFunction.AvroPoJo("my-message-" + i)).send();
+                    .value(avroTestObject).send();
         }
         retryStrategically((test) -> {
             try {
@@ -569,7 +571,7 @@ public class PulsarFunctionLocalRunTest {
             Message<GenericRecord> msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedPropertyValue = msg.getProperty(propertyKey);
             assertEquals(propertyValue, receivedPropertyValue);
-            assertEquals(msg.getValue().getField("strField"),  "my-message-" + i);
+            assertEquals(msg.getValue().getField("baseValue"),  10 + i);
         }
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages

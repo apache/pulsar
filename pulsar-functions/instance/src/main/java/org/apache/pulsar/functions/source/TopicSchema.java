@@ -179,6 +179,8 @@ public class TopicSchema {
             return false;
         }
     }
+
+    @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader){
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, classLoader);
     }
@@ -225,6 +227,7 @@ public class TopicSchema {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, Thread.currentThread().getContextClassLoader());
     }
 
+    @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
         return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
     }
