@@ -28,6 +28,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Enumeration;
 
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
@@ -161,7 +162,11 @@ public class PrometheusMetricsGenerator {
     }
 
     private static void generateManagedLedgerBookieClientMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
-        StatsProvider statsProvider = pulsar.getManagedLedgerClientFactory().getManagedLedgerFactory().getStatsProvider();
+        StatsProvider statsProvider = pulsar.getManagedLedgerClientFactory().getStatsProvider();
+        if (statsProvider instanceof NullStatsProvider) {
+            return;
+        }
+
         try {
             Writer writer = new StringWriter();
             statsProvider.writeAllMetrics(writer);

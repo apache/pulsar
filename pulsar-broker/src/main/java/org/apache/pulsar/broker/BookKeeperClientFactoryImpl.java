@@ -37,6 +37,8 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
@@ -54,7 +56,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
-            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass, Map<String, Object> properties) throws IOException {
+                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                             Map<String, Object> properties) throws IOException {
+        return create(conf, zkClient, ensemblePlacementPolicyClass, properties, NullStatsLogger.INSTANCE);
+    }
+
+    @Override
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
         ClientConfiguration bkConf = createBkClientConfiguration(conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
@@ -67,6 +77,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
+                    .statsLogger(statsLogger)
                     .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);

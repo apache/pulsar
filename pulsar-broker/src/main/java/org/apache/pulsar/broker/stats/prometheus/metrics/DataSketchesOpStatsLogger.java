@@ -16,23 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.stats.prometheus;
+package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import com.yahoo.sketches.quantiles.DoublesSketch;
 import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
-
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.bookkeeper.stats.OpStatsData;
+import org.apache.bookkeeper.stats.OpStatsLogger;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.StampedLock;
-
-import org.apache.bookkeeper.stats.OpStatsData;
-import org.apache.bookkeeper.stats.OpStatsLogger;
 
 /**
  * OpStatsLogger implementation that uses DataSketches library to calculate the approximated latency quantiles.

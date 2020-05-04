@@ -141,10 +141,4 @@ public interface ManagedLedgerFactory {
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
-    /**
-     * Get managed ledger stats provider.
-     *
-     * @return StatsProvider
-     */
-    StatsProvider getStatsProvider();
 }

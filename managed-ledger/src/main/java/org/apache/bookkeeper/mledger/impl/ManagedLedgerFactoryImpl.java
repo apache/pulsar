@@ -112,9 +112,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private static final int StatsPeriodSeconds = 60;
 
-    private StatsLogger statsLogger = NullStatsLogger.INSTANCE;
-    private StatsProvider statsProvider = new PrometheusMetricsProvider();
-
     public ManagedLedgerFactoryImpl(ClientConfiguration bkClientConfiguration, String zkConnection) throws Exception {
         this(bkClientConfiguration, zkConnection, new ManagedLedgerFactoryConfig());
     }
@@ -130,7 +127,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private ManagedLedgerFactoryImpl(ZooKeeper zkc, ClientConfiguration bkClientConfiguration,
             ManagedLedgerFactoryConfig config) throws Exception {
-        this(new DefaultBkFactory(bkClientConfiguration, zkc), true /* isBookkeeperManaged */, zkc, config);
+        this(new DefaultBkFactory(bkClientConfiguration, zkc), true /* isBookkeeperManaged */,
+                zkc, config, NullStatsLogger.INSTANCE);
     }
 
     private ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
@@ -138,7 +136,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             true,
             ZooKeeperClient.newBuilder()
                 .connectString(zkConnection)
-                .sessionTimeoutMs(clientConfiguration.getZkTimeout()).build(), config);
+                .sessionTimeoutMs(clientConfiguration.getZkTimeout()).build(), config, NullStatsLogger.INSTANCE);
     }
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
@@ -147,24 +145,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config)
             throws Exception {
-        this((policyConfig) -> bookKeeper, false /* isBookkeeperManaged */, zooKeeper, config);
+        this((policyConfig) -> bookKeeper, false /* isBookkeeperManaged */,
+                zooKeeper, config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory, ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config)
+    public ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+                                    ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(bookKeeperGroupFactory, false /* isBookkeeperManaged */, zooKeeper, config);
+        this(bookKeeperGroupFactory, false /* isBookkeeperManaged */, zooKeeper, config, NullStatsLogger.INSTANCE);
     }
 
-    private ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory, boolean isBookkeeperManaged, ZooKeeper zooKeeper,
-            ManagedLedgerFactoryConfig config) throws Exception {
-        Configuration configuration = new ClientConfiguration();
-        configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS
-                , config.getPrometheusStatsLatencyRolloverSeconds());
-        configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, config.getClusterName());
-        statsProvider.start(configuration);
+    public ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+                                    ZooKeeper zooKeeper, ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
+            throws Exception {
+        this(bookKeeperGroupFactory, false /* isBookkeeperManaged */, zooKeeper, config, statsLogger);
+    }
 
-        statsLogger = statsProvider.getStatsLogger("pulsar_bookie_client");
-
+    private ManagedLedgerFactoryImpl(BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+                                     boolean isBookkeeperManaged, ZooKeeper zooKeeper,
+                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
                 .statsLogger(statsLogger)
@@ -215,11 +214,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
-    }
-
-    @Override
-    public StatsProvider getStatsProvider() {
-        return statsProvider;
     }
 
     private synchronized void refreshStats() {
@@ -487,7 +481,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         scheduledExecutor.shutdownNow();
         orderedExecutor.shutdownNow();
         cacheEvictionExecutor.shutdownNow();
-        statsProvider.stop();
 
         entryCacheManager.clear();
         try {

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.stats.prometheus;
+package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import org.apache.bookkeeper.stats.Gauge;
 

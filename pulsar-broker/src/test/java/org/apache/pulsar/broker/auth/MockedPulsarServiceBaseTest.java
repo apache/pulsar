@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.NoOpShutdownService;
@@ -302,6 +303,14 @@ public abstract class MockedPulsarServiceBaseTest {
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                 Map<String, Object> properties) {
+            // Always return the same instance (so that we don't loose the mock BK content on broker restart
+            return mockBookKeeper;
+        }
+
+        @Override
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                 Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }

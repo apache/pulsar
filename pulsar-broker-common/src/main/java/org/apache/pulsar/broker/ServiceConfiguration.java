@@ -942,6 +942,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
     private int bookkeeperExplicitLacIntervalInMills = 0;
 
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "whether expose managed ledger client stats to prometheus"
+    )
+    private boolean bookkeeperClientExposeStatsToPrometheus = false;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,

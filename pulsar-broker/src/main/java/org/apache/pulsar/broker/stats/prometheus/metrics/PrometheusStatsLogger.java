@@ -16,17 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.stats.prometheus;
+package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import com.google.common.base.Joiner;
-
 import io.prometheus.client.Collector;
-
 import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
-
 import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 
 /**
