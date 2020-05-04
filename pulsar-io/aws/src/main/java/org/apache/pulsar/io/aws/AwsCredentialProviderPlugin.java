@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kinesis;
+package org.apache.pulsar.io.aws;
 
 import java.io.Closeable;
 

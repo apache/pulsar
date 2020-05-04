@@ -16,32 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
+package org.apache.pulsar.io.dynamodb;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
-import java.io.IOException;
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 
-public class AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
-    @Override
-    public void init(String param) {
+import java.util.concurrent.LinkedBlockingQueue;
 
+public class StreamsRecordProcessorFactory implements IRecordProcessorFactory {
+
+    private final LinkedBlockingQueue<StreamsRecord> queue;
+    private final DynamoDBSourceConfig config;
+    
+    public StreamsRecordProcessorFactory(LinkedBlockingQueue<StreamsRecord> queue,
+                                         DynamoDBSourceConfig kinesisSourceConfig) {
+        this.queue = queue;
+        this.config = kinesisSourceConfig;
     }
 
     @Override
-    public AWSCredentialsProvider getCredentialProvider() {
-        return new DefaultAWSCredentialsProviderChain();
-    }
-
-    @Override
-    public software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
-        return DefaultCredentialsProvider.create();
-    }
-
-    @Override
-    public void close() throws IOException {
-
+    public IRecordProcessor createProcessor() {
+        return new StreamsRecordProcessor(queue, config);
     }
 }

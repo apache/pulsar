@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
+package org.apache.pulsar.io.dynamodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -32,9 +32,10 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 
 @Slf4j
-public abstract class AbstractKinesisConnector {
+public abstract class AbstractDynamoDBConnector {
     
     public static final String ACCESS_KEY_NAME = "accessKey";
     public static final String SECRET_KEY_NAME = "secretKey";
