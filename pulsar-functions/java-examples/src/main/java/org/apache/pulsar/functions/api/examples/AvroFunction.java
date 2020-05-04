@@ -16,31 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.functions.api.examples;
+
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-/**
- * Configuration of a consumer.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
-    private Integer receiverQueueSize;
-    private boolean jsr310ConversionEnabled;
-    private boolean alwaysAllowNull;
+public class AvroFunction implements Function<AvroFunction.AvroPoJo, AvroFunction.AvroPoJo> {
 
-    public ConsumerConfig(String schemaType) {
-        this.schemaType = schemaType;
+    @Override
+    public AvroPoJo process(AvroPoJo input, Context context) throws Exception {
+        return input;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AvroPoJo{
+        public AvroPoJo(String strField){
+            this.strField = strField;
+        }
+        public String strField;
+        public int intField;
     }
 }
+
+

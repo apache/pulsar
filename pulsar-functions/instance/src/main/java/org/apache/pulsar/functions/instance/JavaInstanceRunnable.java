@@ -653,6 +653,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
+                consumerConfig.setJsr310ConversionEnabled(conf.getJsr310ConversionEnabled());
+                consumerConfig.setAlwaysAllowNull(conf.getAlwaysAllowNull());
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }

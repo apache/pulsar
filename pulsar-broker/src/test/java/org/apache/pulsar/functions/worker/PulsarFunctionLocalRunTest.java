@@ -60,6 +60,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -73,6 +75,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
+import org.apache.pulsar.functions.api.examples.AvroFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink;
@@ -481,9 +484,144 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
+    public void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+
+        Schema schema = Schema.AVRO(SchemaDefinition.builder()
+                .withAlwaysAllowNull(true)
+                .withJSR310ConversionEnabled(true)
+                .withPojo(AvroFunction.AvroPoJo.class).build());
+        //use AVRO schema
+        admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
+
+        //produce message to sourceTopic
+        Producer<AvroFunction.AvroPoJo> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
+        //consume message from sinkTopic
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        Map<String,String> schemaInput = new HashMap<>();
+        //set jsr310ConversionEnabled、alwaysAllowNull
+        schemaInput.put(sourceTopic,"{\"schemaType\":\"AVRO\",\"jsr310ConversionEnabled\":true,\"alwaysAllowNull\":true}");
+        functionConfig.setCustomSchemaInputs(schemaInput);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        if(jarFilePathUrl == null){
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.AvroFunction");
+        }else {
+            functionConfig.setJar(jarFilePathUrl);
+        }
+
+        LocalRunner localRunner = LocalRunner.builder()
+                .functionConfig(functionConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        localRunner.start(false);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats stats = admin.topics().getStats(sourceTopic);
+                return stats.subscriptions.get(subscriptionName) != null
+                        && !stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // validate pulsar sink consumer has started on the topic
+        TopicStats stats = admin.topics().getStats(sourceTopic);
+        assertTrue(stats.subscriptions.get(subscriptionName) != null
+                && !stats.subscriptions.get(subscriptionName).consumers.isEmpty());
+
+        int totalMsgs = 5;
+        for (int i = 0; i < totalMsgs; i++) {
+            producer.newMessage().property(propertyKey, propertyValue)
+                    .value(new AvroFunction.AvroPoJo("my-message-" + i)).send();
+        }
+        retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+                return subStats.unackedMessages == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        //consume message from sinkTopic
+        for (int i = 0; i < totalMsgs; i++) {
+            Message<GenericRecord> msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedPropertyValue = msg.getProperty(propertyKey);
+            assertEquals(propertyValue, receivedPropertyValue);
+            assertEquals(msg.getValue().getField("strField"),  "my-message-" + i);
+        }
+
+        // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
+        // due to publish failure
+        assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages,
+                totalMsgs);
+
+        // stop functions
+        localRunner.stop();
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                return topicStats.subscriptions.get(subscriptionName) != null
+                        && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 20, 150);
+
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
+        assertTrue(topicStats.subscriptions.get(subscriptionName) != null
+                && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
+
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
+            } catch (PulsarAdminException e) {
+                if (e.getStatusCode() == 404) {
+                    return true;
+                }
+                return false;
+            }
+        }, 10, 150);
+
+        try {
+            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() != 404) {
+                fail();
+            }
+        }
+    }
+
     @Test(timeOut = 20000)
     public void testE2EPulsarFunctionLocalRun() throws Exception {
         testE2EPulsarFunctionLocalRun(null);
+    }
+
+    @Test(timeOut = 20000)
+    public void testAvroFunctionLocalRun() throws Exception {
+        testAvroFunctionLocalRun(null);
     }
 
     @Test(timeOut = 20000)

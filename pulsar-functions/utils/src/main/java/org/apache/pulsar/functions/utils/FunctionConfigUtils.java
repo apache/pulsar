@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
@@ -28,15 +30,18 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
@@ -46,6 +51,8 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
 @Slf4j
 public class FunctionConfigUtils {
+    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
+
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
 
@@ -89,12 +96,19 @@ public class FunctionConfigUtils {
             });
         }
         if (functionConfig.getCustomSchemaInputs() != null) {
-            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                sourceSpecBuilder.putInputSpecs(topicName,
-                        Function.ConsumerSpec.newBuilder()
-                                .setSchemaType(schemaType)
-                                .setIsRegexPattern(false)
-                                .build());
+            functionConfig.getCustomSchemaInputs().forEach((topicName, conf) -> {
+                try {
+                    ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            Function.ConsumerSpec.newBuilder()
+                                    .setSchemaType(consumerConfig.getSchemaType())
+                                    .setJsr310ConversionEnabled(consumerConfig.isJsr310ConversionEnabled())
+                                    .setAlwaysAllowNull(consumerConfig.isAlwaysAllowNull())
+                                    .setIsRegexPattern(false)
+                                    .build());
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException(String.format("Incorrect customer spec ,Topic %s ", topicName));
+                }
             });
         }
         if (functionConfig.getInputSpecs() != null) {
@@ -266,6 +280,8 @@ public class FunctionConfigUtils {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfig.setJsr310ConversionEnabled(input.getValue().getJsr310ConversionEnabled());
+            consumerConfig.setAlwaysAllowNull(input.getValue().getAlwaysAllowNull());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
@@ -418,8 +434,15 @@ public class FunctionConfigUtils {
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
         // implements SerDe class
         if (functionConfig.getCustomSchemaInputs() != null) {
-            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                ValidatorUtils.validateSchema(schemaType, typeArgs[0], clsLoader, true);
+            functionConfig.getCustomSchemaInputs().forEach((topicName, conf) -> {
+                ConsumerConfig consumerConfig;
+                try {
+                    consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException(String.format("Topic %s has an incorrect schema Info", topicName));
+                }
+                ValidatorUtils.validateSchema(consumerConfig.getSchemaType(), typeArgs[0], clsLoader, true);
+
             });
         }
 
