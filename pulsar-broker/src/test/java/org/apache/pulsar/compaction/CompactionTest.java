@@ -1251,7 +1251,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
             Message<byte[]> message4 = consumer.receive();
             Assert.assertEquals(message4.getKey(), "key2");
-            assertNull(message4.getData());
+            Assert.assertEquals(new String(message4.getData()), "");
 
             Message<byte[]> message5 = consumer.receive();
             Assert.assertEquals(message5.getKey(), "key4");
