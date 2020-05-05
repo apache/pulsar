@@ -46,7 +46,6 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-sts</artifactId>
-      <version>1.11.619</version>
     </dependency>
 
     <dependency>

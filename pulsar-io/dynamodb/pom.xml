@@ -84,6 +84,7 @@
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
+    <!--  This pulls in the appropriate version of the kinesis consumer library as a transitive dependency -->
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>dynamodb-streams-kinesis-adapter</artifactId>
