@@ -1170,6 +1170,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }).exceptionally((e) -> {
                     Throwable cause = e.getCause();
                     cnx.removeProducer(producerId);
+                    // Close the producer since topic does not exists.
+                    if (getState() == State.Failed
+                            && cause instanceof PulsarClientException.TopicDoesNotExistException) {
+                        setState(State.Closed);
+                    }
                     if (getState() == State.Closing || getState() == State.Closed) {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
                         // drops the producer on its side
