@@ -39,10 +39,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Data
-@EqualsAndHashCode
 public class DynamoDBSourceConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;

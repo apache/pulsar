@@ -89,7 +89,7 @@ public class StreamsRecordProcessor implements IRecordProcessor {
     @Override
     public void processRecords(ProcessRecordsInput processRecordsInput) {
 
-        log.info("Processing " + processRecordsInput.getRecords().size() + " records from " + kinesisShardId);
+        log.info("Processing {} records from {}", processRecordsInput.getRecords().size(), kinesisShardId);
 
         for (Record record : processRecordsInput.getRecords()) {
             try {
@@ -108,7 +108,7 @@ public class StreamsRecordProcessor implements IRecordProcessor {
 
     @Override
     public void shutdown(ShutdownInput shutdownInput) {
-        log.info("Shutting down record processor for shard: " + kinesisShardId);
+        log.info("Shutting down record processor for shard: {}", kinesisShardId);
         checkpoint(shutdownInput.getCheckpointer());
     }
 }
