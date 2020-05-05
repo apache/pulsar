@@ -54,7 +54,6 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private final Schema<T> schema;
     private ByteBuffer content;
     private final TransactionImpl txn;
-    private boolean valueIsSet = false;
 
     public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
@@ -142,7 +141,6 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             msgMetadataBuilder.setNullValue(true);
             return this;
         }
-        valueIsSet = true;
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
@@ -256,9 +254,6 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public Message<T> getMessage() {
         beforeSend();
-        if (!valueIsSet) {
-            msgMetadataBuilder.setNullValue(true);
-        }
         return MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 

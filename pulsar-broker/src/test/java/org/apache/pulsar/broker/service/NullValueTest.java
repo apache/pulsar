@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -66,7 +67,7 @@ public class NullValueTest extends BrokerTestBase {
         int numMessage = 10;
         for (int i = 0; i < numMessage; i++) {
             if (i % 2 == 0) {
-                producer.newMessage().send();
+                producer.newMessage().value("not null".getBytes()).send();
             } else {
                 producer.newMessage().value(null).send();
             }
@@ -74,8 +75,44 @@ public class NullValueTest extends BrokerTestBase {
 
         for (int i = 0; i < numMessage; i++) {
             Message message = consumer.receive();
-            Assert.assertNull(message.getValue());
-            Assert.assertNull(message.getData());
+            if (i % 2 == 0) {
+                Assert.assertNotNull(message.getData());
+                Assert.assertNotNull(message.getValue());
+                Assert.assertEquals(new String(message.getData()), "not null");
+            } else {
+                Assert.assertNull(message.getData());
+                Assert.assertNull(message.getValue());
+            }
+            consumer.acknowledge(message);
+        }
+
+        for (int i = 0; i < numMessage; i++) {
+            if (i % 2 == 0) {
+                producer.newMessage().value("not null".getBytes()).sendAsync();
+            } else {
+                producer.newMessage().value(null).sendAsync();
+            }
+        }
+
+        for (int i = 0; i < numMessage; i++) {
+            CompletableFuture<Message> completableFuture = consumer.receiveAsync();
+            final int index = i;
+            completableFuture.whenComplete((message, throwable) -> {
+                Assert.assertNull(throwable);
+                if (index % 2 == 0) {
+                    Assert.assertNotNull(message.getData());
+                    Assert.assertNotNull(message.getValue());
+                    Assert.assertEquals(new String(message.getData()), "not null");
+                } else {
+                    Assert.assertNull(message.getData());
+                    Assert.assertNull(message.getValue());
+                }
+                try {
+                    consumer.acknowledge(message);
+                } catch (PulsarClientException e) {
+                    Assert.assertNull(e);
+                }
+            });
         }
 
     }
