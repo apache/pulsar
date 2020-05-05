@@ -259,7 +259,7 @@ void ProducerImpl::failPendingMessages(Result result) {
     }
 
     // this function can handle null pointer
-    BatchMessageContainer::batchMessageCallBack(result, messageContainerListPtr, NULL);
+    BatchMessageContainer::batchMessageCallBack(result, MessageId{}, messageContainerListPtr, NULL);
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {

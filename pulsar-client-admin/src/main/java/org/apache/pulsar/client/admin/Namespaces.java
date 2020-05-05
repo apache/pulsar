@@ -776,6 +776,80 @@ public interface Namespaces {
     CompletableFuture<Void> setNamespaceMessageTTLAsync(String namespace, int ttlInSeconds);
 
     /**
+     * Get the subscription expiration time for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>1440</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the subscription expiration time for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>1440</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String namespace);
+
+    /**
+     * Set the subscription expiration time in minutes for all the topics within a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>1440</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param expirationTime
+     *            Expiration time values for all subscriptions for all topics in this namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionExpirationTime(String namespace, int expirationTime) throws PulsarAdminException;
+
+    /**
+     * Set the subscription expiration time in minutes for all the topics within a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>1440</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param expirationTime
+     *            Expiration time values for all subscriptions for all topics in this namespace
+     */
+    CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String namespace, int expirationTime);
+
+    /**
      * Set anti-affinity group name for a namespace.
      * <p/>
      * Request example:

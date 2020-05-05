@@ -17,9 +17,6 @@
 # under the License.
 #
 
-components:
-  pulsar_manager: false
-
 monitoring:
   prometheus: false
   grafana: false
@@ -33,9 +30,10 @@ volumes:
 affinity:
   anti_affinity: false
 
-# disable auto recovery
+# disable auto recovery and pulsar manager
 components:
   autorecovery: false
+  pulsar_manager: false
 
 zookeeper:
   replicaCount: 1
