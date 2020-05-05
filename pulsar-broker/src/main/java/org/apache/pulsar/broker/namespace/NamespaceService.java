@@ -392,7 +392,7 @@ public class NamespaceService {
                         AdvertisedListener listener = nsData.get().getAdvertisedListeners().get(advertisedListenerName);
                         if (listener == null) {
                             future.completeExceptionally(
-                                    new PulsarServerException("the broker do not hava " + advertisedListenerName + " listener"));
+                                    new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
                             return;
                         } else {
                             future.complete(Optional.of(new LookupResult(
@@ -493,7 +493,7 @@ public class NamespaceService {
                             AdvertisedListener listener = ownerInfo.getAdvertisedListeners().get(advertisedListenerName);
                             if (listener == null) {
                                 lookupFuture.completeExceptionally(
-                                        new PulsarServerException("the broker do not hava " + advertisedListenerName + " listener"));
+                                        new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
                                 return;
                             } else {
                                 lookupFuture.complete(Optional.of(new LookupResult(

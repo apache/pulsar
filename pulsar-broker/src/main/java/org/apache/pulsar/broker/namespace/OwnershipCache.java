@@ -379,7 +379,7 @@ public class OwnershipCache {
     public synchronized boolean refreshSelfOwnerInfo() {
         if (selfOwnerInfo.getNativeUrl() == null) {
             this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
-                    pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(), false);
+                    pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
         }
         return selfOwnerInfo.getNativeUrl() != null;
     }

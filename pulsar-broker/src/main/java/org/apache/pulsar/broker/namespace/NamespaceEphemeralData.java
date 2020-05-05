@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Maps;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 import javax.validation.constraints.NotNull;
@@ -49,6 +50,11 @@ public class NamespaceEphemeralData {
         this.httpUrl = httpUrl;
         this.httpUrlTls = httpUrlTls;
         this.disabled = disabled;
+        if (advertisedListeners == null) {
+            this.advertisedListeners = Collections.EMPTY_MAP;
+        } else {
+            this.advertisedListeners = Maps.newHashMap(advertisedListeners);
+        }
     }
 
     public String getNativeUrl() {
@@ -86,6 +92,6 @@ public class NamespaceEphemeralData {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("nativeUrl", nativeUrl).add("httpUrl", httpUrl)
-                .add("disabled", disabled).toString();
+                .add("disabled", disabled).add("advertisedListeners", getAdvertisedListeners()).toString();
     }
 }
