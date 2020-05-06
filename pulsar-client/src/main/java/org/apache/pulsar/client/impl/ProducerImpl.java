@@ -1170,11 +1170,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }).exceptionally((e) -> {
                     Throwable cause = e.getCause();
                     cnx.removeProducer(producerId);
-                    // Close the producer since topic does not exists.
-                    if (getState() == State.Failed
-                            && cause instanceof PulsarClientException.TopicDoesNotExistException) {
-                        setState(State.Closed);
-                    }
                     if (getState() == State.Closing || getState() == State.Closed) {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
                         // drops the producer on its side
@@ -1182,7 +1177,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         return null;
                     }
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
-
+                    // Close the producer since topic does not exists.
+                    if (getState() == State.Failed
+                            && cause instanceof PulsarClientException.TopicDoesNotExistException) {
+                        closeAsync().whenComplete((v, ex) -> {
+                            if (ex != null) {
+                                log.error("Failed to close producer on TopicDoesNotExistException.", ex);
+                            }
+                            producerCreatedFuture.completeExceptionally(cause);
+                            if (getState() == State.Closing || getState() == State.Closed) {
+                                cnx.channel().close();
+                            }
+                        });
+                        return null;
+                    }
                     if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
                         synchronized (this) {
                             log.warn("[{}] [{}] Topic backlog quota exceeded. Throwing Exception on producer.", topic,
