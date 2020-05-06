@@ -61,10 +61,10 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
             SchemaValidator schemaValidator = createSchemaValidator(strategy);
             schemaValidator.validate(toSchema, fromList);
         } catch (SchemaParseException e) {
-            log.error("Error during schema parsing: {}", e.getMessage(), e);
+            log.warn("Error during schema parsing: {}", e.getMessage());
             throw new IncompatibleSchemaException(e);
         } catch (SchemaValidationException e) {
-            log.error("Error during schema compatibility check: {}", e.getMessage(), e);
+            log.warn("Error during schema compatibility check: {}", e.getMessage());
             throw new IncompatibleSchemaException(e);
         }
     }
