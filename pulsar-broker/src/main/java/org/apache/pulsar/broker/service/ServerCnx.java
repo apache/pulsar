@@ -659,9 +659,6 @@ public class ServerCnx extends PulsarHandler {
                 String originalAuthMethod;
                 if (connect.hasOriginalAuthMethod()) {
                     originalAuthMethod = connect.getOriginalAuthMethod();
-                } else if (connect.hasOriginalAuthMethod()) {
-                    // Legacy client is passing enum
-                    originalAuthMethod = connect.getOriginalAuthMethod().substring(10).toLowerCase();
                 } else {
                     originalAuthMethod = "none";
                 }
