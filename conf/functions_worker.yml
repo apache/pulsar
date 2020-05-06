@@ -160,6 +160,10 @@ functionRuntimeFactoryConfigs:
 #   ram: 1073741824
 #   disk: 10737418240
 
+## The full class-name of an instance of RuntimeCustomizer.
+## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
+#runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
+
 ## Config admin CLI
 #configAdminCLI:
 
