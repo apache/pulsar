@@ -67,7 +67,7 @@ void BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
                                                        maxAllowedMessageBatchSizeInBytes_);
     LOG_DEBUG(*this << " After serialization payload size in bytes = " << impl_->payload.readableBytes());
 
-    messagesContainerListPtr_->push_back(MessageContainer(msg, sendCallback, msg.getMessageId()));
+    messagesContainerListPtr_->emplace_back(msg, sendCallback);
 
     LOG_DEBUG(*this << " Number of messages in Batch = " << messagesContainerListPtr_->size());
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);
@@ -105,7 +105,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     if (impl_->payload.readableBytes() > producer_.keepMaxMessageSize_) {
         // At this point the compressed batch is above the overall MaxMessageSize. There
         // can only 1 single message in the batch at this point.
-        batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
+        batchMessageCallBack(ResultMessageTooBig, MessageId{}, messagesContainerListPtr_, nullptr);
         clear();
         return;
     }
@@ -115,7 +115,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
 
     // bind keeps a copy of the parameters
     SendCallback callback = std::bind(&BatchMessageContainer::batchMessageCallBack, std::placeholders::_1,
-                                      messagesContainerListPtr_, flushCallback);
+                                      std::placeholders::_2, messagesContainerListPtr_, flushCallback);
 
     producer_.sendMessage(msg, callback);
     clear();
@@ -144,7 +144,8 @@ void BatchMessageContainer::clear() {
     batchSizeInBytes_ = 0;
 }
 
-void BatchMessageContainer::batchMessageCallBack(Result r, MessageContainerListPtr messagesContainerListPtr,
+void BatchMessageContainer::batchMessageCallBack(Result r, const MessageId& messageId,
+                                                 MessageContainerListPtr messagesContainerListPtr,
                                                  FlushCallback flushCallback) {
     if (!messagesContainerListPtr) {
         if (flushCallback) {
@@ -156,7 +157,8 @@ void BatchMessageContainer::batchMessageCallBack(Result r, MessageContainerListP
               << r << "] [numOfMessages = " << messagesContainerListPtr->size() << "]");
     size_t batch_size = messagesContainerListPtr->size();
     for (size_t i = 0; i < batch_size; i++) {
-        messagesContainerListPtr->operator[](i).callBack(r);
+        MessageId messageIdInBatch(messageId.partition(), messageId.ledgerId(), messageId.entryId(), i);
+        messagesContainerListPtr->operator[](i).callBack(r, messageIdInBatch);
     }
     if (flushCallback) {
         flushCallback(ResultOk);

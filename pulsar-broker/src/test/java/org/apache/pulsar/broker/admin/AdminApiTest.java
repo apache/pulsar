@@ -159,6 +159,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setMessageExpiryCheckIntervalInMinutes(1);
+        conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.internalSetup();
 
@@ -2423,6 +2425,39 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(60000);
 
         Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+    }
+
+    @Test(timeOut = 150000)
+    public void testSubscriptionExpiry() throws Exception {
+        final String namespace1 = "prop-xyz/sub-gc1";
+        final String namespace2 = "prop-xyz/sub-gc2";
+        final String topic1 = "persistent://" + namespace1 + "/testSubscriptionExpiry";
+        final String topic2 = "persistent://" + namespace2 + "/testSubscriptionExpiry";
+        final String sub = "sub1";
+
+        admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
+        admin.topics().createSubscription(topic1, sub, MessageId.latest);
+        admin.topics().createSubscription(topic2, sub, MessageId.latest);
+        admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
+        admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
+
+        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
+        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
+        Thread.sleep(60000);
+        for (int i = 0; i < 60; i++) {
+            if (admin.topics().getSubscriptions(topic2).size() == 0) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
+        Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
+
+        admin.topics().delete(topic1);
+        admin.topics().delete(topic2);
+        admin.namespaces().deleteNamespace(namespace1);
+        admin.namespaces().deleteNamespace(namespace2);
     }
 
     @Test

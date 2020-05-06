@@ -315,7 +315,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
     )
-    private long subscriptionExpirationTimeMinutes = 0;
+    private int subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
@@ -327,7 +327,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"
     )
-    private long subscriptionExpiryCheckIntervalInMinutes = 5;
+    private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -653,6 +653,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int retentionCheckIntervalInSeconds = 120;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The number of partitions per partitioned topic.\n"
+                + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
+    )
+    private int maxNumPartitionsPerPartitionedTopic = 0;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
@@ -908,6 +915,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available."
                 )
     private String bookkeeperClientSecondaryIsolationGroups;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to periodically check bookie info")
+    private int bookkeeperClientGetBookieInfoIntervalSeconds = 60 * 60 * 24; // defaults to 24 hours
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to retry a failed bookie info lookup")
+    private int bookkeeperClientGetBookieInfoRetryIntervalSeconds = 60;
+
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
@@ -978,6 +992,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Other possible options are `CRC32`, `MAC` or `DUMMY` (no checksum)."
     )
     private DigestType managedLedgerDigestType = DigestType.CRC32C;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
+        )
+    private String managedLedgerPassword = "";
 
     @FieldContext(
         minValue = 1,

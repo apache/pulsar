@@ -117,6 +117,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- kafka connect avro converter shaded, because version mismatch    -->
+    <module>kafka-connect-avro-converter-shaded</module>
+
     <!-- examples -->
     <module>examples</module>
 
@@ -208,6 +211,8 @@ flexible messaging model and an intuitive client API.</description>
     <guava.version>25.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
+    <confluent.version>5.3.2</confluent.version>
+    <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -220,6 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
+    <confluent.version>5.2.2</confluent.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -1714,6 +1720,10 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>spring-plugins-release</id>
       <url>https://repo.spring.io/plugins-release/</url>
+    </repository>
+    <repository>
+      <id>confluent</id>
+      <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
 </project>
