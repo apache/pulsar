@@ -97,10 +97,8 @@ public abstract class AbstractTopic implements Topic {
         Policies policies = null;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
-            }
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(() -> new Policies());
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
         }
