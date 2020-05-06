@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -107,6 +108,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setBookkeeperClientExposeStatsToPrometheus(true);
     }
 
     protected final void internalSetup() throws Exception {
