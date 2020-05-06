@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class PulsarMultiListenersTest extends MockedPulsarServiceBaseTest {
+public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
 
     private ExecutorService executorService;
     //
@@ -59,10 +59,20 @@ public class PulsarMultiListenersTest extends MockedPulsarServiceBaseTest {
         this.admin.namespaces().createNamespace("public/default");
         this.lookupService = new BinaryProtoLookupService((PulsarClientImpl) this.pulsarClient, lookupUrl.toString(),
                 "internal", false, this.executorService);
-        CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future = lookupService.getBroker(TopicName.get("persistent://public/default/test"));
-        Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-        Assert.assertEquals(result.getKey().toString(), String.format("%s:6650", this.host));
-        Assert.assertEquals(result.getValue().toString(), String.format("%s:6650", this.host));
+        // test request 1
+        {
+            CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future = lookupService.getBroker(TopicName.get("persistent://public/default/test"));
+            Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(result.getKey().toString(), String.format("%s:6650", this.host));
+            Assert.assertEquals(result.getValue().toString(), String.format("%s:6650", this.host));
+        }
+        // test request 2
+        {
+            CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future = lookupService.getBroker(TopicName.get("persistent://public/default/test"));
+            Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(result.getKey().toString(), String.format("%s:6650", this.host));
+            Assert.assertEquals(result.getValue().toString(), String.format("%s:6650", this.host));
+        }
     }
 
     @AfterMethod
