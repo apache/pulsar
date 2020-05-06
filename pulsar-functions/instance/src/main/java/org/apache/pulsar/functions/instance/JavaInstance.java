@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +45,18 @@ public class JavaInstance implements AutoCloseable {
     private Function function;
     private java.util.function.Function javaUtilFunction;
 
-    public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
+    // for Async function max out standing items
+    private final InstanceConfig instanceConfig;
+    private final Executor executor;
+    @Getter
+    private final LinkedBlockingQueue<CompletableFuture<Void>> pendingAsyncRequests;
+
+    public JavaInstance(ContextImpl contextImpl, Object userClassObject, InstanceConfig instanceConfig) {
 
         this.context = contextImpl;
+        this.instanceConfig = instanceConfig;
+        this.executor = Executors.newSingleThreadExecutor();
+        this.pendingAsyncRequests = new LinkedBlockingQueue<>(this.instanceConfig.getMaxPendingAsyncRequests());
 
         // create the functions
         if (userClassObject instanceof Function) {
@@ -61,40 +74,54 @@ public class JavaInstance implements AutoCloseable {
         final CompletableFuture<JavaExecutionResult> future = new CompletableFuture<>();
         JavaExecutionResult executionResult = new JavaExecutionResult();
 
+        final Object output;
+
         try {
-            Object output;
             if (function != null) {
                 output = function.process(input, context);
             } else {
                 output = javaUtilFunction.apply(input);
             }
-
-            if (output instanceof CompletableFuture) {
-                // Function is in format: Function<I, CompletableFuture<O>>
-                ((CompletableFuture) output).whenComplete((obj, throwable) -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
-                    }
-
-                    if (throwable != null) {
-                        executionResult.setUserException(new Exception((Throwable)throwable));
-                        future.complete(executionResult);
-                        return;
-                    }
-                    executionResult.setResult(obj);
-                    future.complete(executionResult);
-                });
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Got result: object: {}", output);
-                }
-                executionResult.setResult(output);
-                future.complete(executionResult);
-            }
         } catch (Exception ex) {
             executionResult.setUserException(ex);
             future.complete(executionResult);
+            return future;
         }
+
+        if (output instanceof CompletableFuture) {
+            // Function is in format: Function<I, CompletableFuture<O>>
+            try {
+                pendingAsyncRequests.put((CompletableFuture) output);
+            } catch (InterruptedException ie) {
+                log.warn("Exception while put Async requests", ie);
+                executionResult.setUserException(ie);
+                future.complete(executionResult);
+                return future;
+            }
+
+            ((CompletableFuture) output).whenCompleteAsync((obj, throwable) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+                }
+
+                if (throwable != null) {
+                    executionResult.setUserException(new Exception((Throwable)throwable));
+                    pendingAsyncRequests.remove(output);
+                    future.complete(executionResult);
+                    return;
+                }
+                executionResult.setResult(obj);
+                pendingAsyncRequests.remove(output);
+                future.complete(executionResult);
+            }, executor);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Got result: object: {}", output);
+            }
+            executionResult.setResult(output);
+            future.complete(executionResult);
+        }
+
         return future;
     }
 

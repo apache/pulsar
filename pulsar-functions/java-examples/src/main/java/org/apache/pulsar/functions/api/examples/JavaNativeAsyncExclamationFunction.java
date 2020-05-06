@@ -30,11 +30,10 @@ public class JavaNativeAsyncExclamationFunction implements Function<String, Comp
         Executors.newCachedThreadPool().submit(() -> {
             try {
                 Thread.sleep(500);
+                future.complete(String.format("%s-!!", input));
             } catch (Exception e) {
                 future.completeExceptionally(e);
             }
-
-            return String.format("%s!", input);
         });
 
         return future;

@@ -215,7 +215,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(contextImpl, object);
+        return new JavaInstance(contextImpl, object, instanceConfig);
     }
 
     ContextImpl setupContext() {
