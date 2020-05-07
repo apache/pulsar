@@ -91,8 +91,8 @@ function clientVersionUrl(version, type) {
   var minorVersion = parseInt(versions[1])
   if (majorVersion === 2 && minorVersion < 5) {
     return `/api/` + type + `/` + version;
-  } else if (majorVersion === 2 && minorVersion >= 5) {
-    return `/api/` + type + `/` + version + `-SNAPSHOT`
+  } else if (majorVersion >= 2 && minorVersion >= 5) {
+    return `/api/` + type + `/` + majorVersion + `.` + minorVersion + `.0` + `-SNAPSHOT`
   }
 }
 
