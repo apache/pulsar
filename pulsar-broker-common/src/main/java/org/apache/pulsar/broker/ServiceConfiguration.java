@@ -215,6 +215,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerShutdownTimeoutMs = 60000;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, this may need raised."
+    )
+    private long topicLoadTimeoutSeconds = 60;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
