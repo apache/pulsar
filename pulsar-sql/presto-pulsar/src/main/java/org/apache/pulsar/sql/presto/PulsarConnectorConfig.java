@@ -19,13 +19,13 @@
 package org.apache.pulsar.sql.presto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang3.StringUtils;
 import io.airlift.configuration.Config;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -79,8 +79,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @NotNull
     public String getBrokerServiceUrl() {
         if (StringUtils.isEmpty(webServiceUrl)){
-	    return brokerServiceUrl;
-        }else {
+            return brokerServiceUrl;
+        } else {
             return webServiceUrl;
         }
     }
@@ -401,11 +401,11 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        if (StringUtils.isEmpty(webServiceUrl)){         
+        if (StringUtils.isEmpty(webServiceUrl)){        
         return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
-        }else {
+        } else {
             return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + webServiceUrl + '\''
             + '}';
