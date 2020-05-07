@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -401,7 +401,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        if (StringUtils.isEmpty(webServiceUrl)){        
+        if (StringUtils.isEmpty(webServiceUrl)){       
         return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
