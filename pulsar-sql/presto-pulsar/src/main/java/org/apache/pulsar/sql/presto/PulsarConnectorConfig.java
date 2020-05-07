@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * This object handles configuration of the Pulsar connector for the Presto engine.
