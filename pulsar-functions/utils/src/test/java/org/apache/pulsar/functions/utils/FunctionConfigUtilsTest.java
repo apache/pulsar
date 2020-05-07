@@ -416,6 +416,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setInputSpecs(inputSpecs);
         functionConfig.setOutput("test-output");
         functionConfig.setOutputSerdeClassName("test-serde");
+        functionConfig.setOutputSchemaType("json");
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
@@ -502,5 +503,19 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getOutput(), sinkSpec.getTopic());
         assertEquals(functionConfig.getInputSpecs().keySet(), sourceSpec.getInputSpecsMap().keySet());
         assertEquals(functionConfig.getCleanupSubscription().booleanValue(), sourceSpec.getCleanupSubscription());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output Serde mismatch")
+    public void testMergeDifferentSerde() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("outputSerdeClassName", "test-updated-serde");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Output Schema mismatch")
+    public void testMergeDifferentOutputSchemaTypes() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("outputSchemaType", "avro");
+        FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
     }
 }
