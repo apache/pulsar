@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -78,6 +79,11 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
     protected StructSchema(SchemaInfo schemaInfo) {
         this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
         this.schemaInfo = schemaInfo;
+
+        if (schemaInfo.getProperties().containsKey(GenericAvroSchema.OFFSET_PROP)) {
+            this.schema.addProp(GenericAvroSchema.OFFSET_PROP,
+                    schemaInfo.getProperties().get(GenericAvroSchema.OFFSET_PROP));
+        }
     }
 
     public org.apache.avro.Schema getAvroSchema() {

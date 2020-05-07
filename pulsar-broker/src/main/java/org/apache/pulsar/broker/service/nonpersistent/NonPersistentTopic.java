@@ -865,6 +865,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
+    public void checkBackloggedCursors() {
+        // no-op
+    }
+
+    @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,

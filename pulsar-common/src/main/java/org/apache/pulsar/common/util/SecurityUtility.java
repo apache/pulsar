@@ -26,8 +26,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -40,6 +41,7 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.KeySpec;
@@ -87,7 +89,9 @@ public class SecurityUtility {
             Provider provider = Security.getProvider(BC) != null
                     ? Security.getProvider(BC)
                     : Security.getProvider(BC_FIPS);
-            log.info("Already instantiated Bouncy Castle provider {}", provider.getName());
+            if (log.isDebugEnabled()) {
+                log.debug("Already instantiated Bouncy Castle provider {}", provider.getName());
+            }
             return provider;
         }
 
@@ -125,7 +129,9 @@ public class SecurityUtility {
 
         Provider provider = (Provider) clazz.newInstance();
         Security.addProvider(provider);
-        log.info("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
+        }
         return provider;
     }
 
@@ -238,14 +244,29 @@ public class SecurityUtility {
         }
 
         try (FileInputStream input = new FileInputStream(certFilePath)) {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(input);
-            certificates = collection.toArray(new X509Certificate[collection.size()]);
+            certificates = loadCertificatesFromPemStream(input);
         } catch (GeneralSecurityException | IOException e) {
             throw new KeyManagementException("Certificate loading error", e);
         }
 
         return certificates;
+    }
+
+    public static X509Certificate[] loadCertificatesFromPemStream(InputStream inStream) throws KeyManagementException  {
+        if (inStream == null) {
+            return null;
+        }
+        CertificateFactory cf;
+        try {
+            if (inStream.markSupported()) {
+                inStream.reset();
+            }
+            cf = CertificateFactory.getInstance("X.509");
+            Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(inStream);
+            return collection.toArray(new X509Certificate[collection.size()]);
+        } catch (CertificateException | IOException e) {
+            throw new KeyManagementException("Certificate loading error", e);
+        }
     }
 
     public static PrivateKey loadPrivateKeyFromPemFile(String keyFilePath) throws KeyManagementException {
@@ -255,7 +276,26 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(keyFilePath))) {
+        try (FileInputStream input = new FileInputStream(keyFilePath)) {
+            privateKey = loadPrivateKeyFromPemStream(input);
+        } catch (IOException e) {
+            throw new KeyManagementException("Private key loading error", e);
+        }
+
+        return privateKey;
+    }
+
+    public static PrivateKey loadPrivateKeyFromPemStream(InputStream inStream) throws KeyManagementException {
+        PrivateKey privateKey = null;
+
+        if (inStream == null) {
+            return privateKey;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+            if (inStream.markSupported()) {
+                inStream.reset();
+            }
             StringBuilder sb = new StringBuilder();
             String currentLine = null;
 

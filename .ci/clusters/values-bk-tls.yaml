@@ -30,10 +30,10 @@ volumes:
 affinity:
   anti_affinity: false
 
-# disable auto recovery
+# disable auto recovery and pulsar manager
 components:
   autorecovery: false
-  pulsar_manager: fales
+  pulsar_manager: false
 
 zookeeper:
   replicaCount: 1
