@@ -861,7 +861,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
         checkTopicNsOwnership(topic);
-        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
+        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline(pulsar.getConfiguration().getTopicLoadTimeoutSeconds(),
+                TimeUnit.SECONDS, new TimeoutException("Failed to load topic within timeout"));
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load persistent topic {}", topic);

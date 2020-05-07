@@ -224,6 +224,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"
     )
     private boolean skipBrokerShutdownOnOOM = false;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, this may need raised."
+    )
+    private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
