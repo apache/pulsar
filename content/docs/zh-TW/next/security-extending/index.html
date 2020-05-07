@@ -85,7 +85,7 @@
     .authentication(<span class="hljs-keyword">new</span> MyAuthentication())
     .build();
 </code></pre>
-<p>You can use 2 interfaces to implement on the client side: * <code>Authentication</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html">http://pulsar.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html</a> * <code>AuthenticationDataProvider</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html">http://pulsar.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html</a></p>
+<p>You can use 2 interfaces to implement on the client side: * <code>Authentication</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html">http://pulsar.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Authentication.html</a> * <code>AuthenticationDataProvider</code> -&gt; <a href="http://pulsar.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html">http://pulsar.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/AuthenticationDataProvider.html</a></p>
 <p>This in turn needs to provide the client credentials in the form of <code>org.apache.pulsar.client.api.AuthenticationDataProvider</code>. This leaves the chance to return different kinds of authentication token for different types of connection or by passing a certificate chain to use for TLS.</p>
 <p>You can find examples for client authentication providers at:</p>
 <ul>

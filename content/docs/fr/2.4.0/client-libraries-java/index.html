@@ -81,8 +81,8 @@
 <tr><th style="text-align:left">Package</th><th style="text-align:left">Description</th><th style="text-align:left">Artifact Maven</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><a href="/api/client/2.5.1-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">L'API du producteur et du consommateur</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.5.1%7Cjar">org.apache.pulsar:pulsar-client:2.5.1</a></td></tr>
-<tr><td style="text-align:left"><a href="/api/admin/2.5.1-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">L'API d'administration Java <a href="/docs/fr/2.4.0/admin-api-overview"></a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.5.1%7Cjar">org.apache.pulsar:pulsar-client-admin:2.5.1</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/client/2.5.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">L'API du producteur et du consommateur</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.5.1%7Cjar">org.apache.pulsar:pulsar-client:2.5.1</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/admin/2.5.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">L'API d'administration Java <a href="/docs/fr/2.4.0/admin-api-overview"></a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.5.1%7Cjar">org.apache.pulsar:pulsar-client-admin:2.5.1</a></td></tr>
 </tbody>
 </table>
 <p>Ce document ne se concentre que sur l'API de production et de consommation de messages de topics Pulsar. Pour un guide d'utilisation du client d'administration Java, voir <a href="/docs/fr/2.4.0/admin-api-overview">L'interface d'administration Pulsar</a>.</p>
@@ -123,7 +123,7 @@ dependencies {
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="configuration-du-client"></a><a href="#configuration-du-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration du client</h2>
-<p>Vous pouvez instancier un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>Vous pouvez instancier un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  en fournissant simplement l'URL du <a href="/docs/fr/2.4.0/reference-terminology#cluster">cluster</a> Pulsar cible, comme ceci :</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
@@ -138,13 +138,13 @@ dependencies {
 <h4><a class="anchor" aria-hidden="true" id="url-par-défaut-pour-les-clusters-en-mode-standalone"></a><a href="#url-par-défaut-pour-les-clusters-en-mode-standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>URL par défaut pour les clusters en mode standalone</h4>
 <p>Si vous exécutez un cluster en mode <a href="/docs/fr/2.4.0/standalone">standalone</a>, le broker sera disponible à l'URL <code>pulsar://localhost:6650</code> par défaut.</p>
 </blockquote>
-<p>Consultez la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>Consultez la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  pour une liste complète des paramètres configurables.</p>
 <blockquote>
 <p>En plus de la configuration du niveau client, vous pouvez également appliquer une configuration spécifique aux <a href="#configuring-producers">producteurs</a> et aux <a href="#configuring-consumers">consommateurs</a> , comme vous le verrez dans les sections ci-dessous.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
-<p>Dans Pulsar, les producteurs écrivent des messages dans des topics. Une fois que vous avez instancié un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>Dans Pulsar, les producteurs écrivent des messages dans des topics. Une fois que vous avez instancié un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  (comme dans la section <a href="#client-configuration"> ci-dessus</a>), vous pouvez créer une instance de javadoc:Producteur:/client/org/apache/pulsar/client/api/Producer pour un <a href="/docs/fr/2.4.0/reference-terminology#topic">topic</a> Pulsar spécifique.</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -178,7 +178,7 @@ producer.closeAsync()
    });
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuration-des-producteurs"></a><a href="#configuration-des-producteurs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des producteurs</h3>
-<p>Si vous instanciez un objet <code>Producer</code> en spécifiant seulement un nom detopic, comme dans l'exemple ci-dessus, le producteur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. Pour une liste complète, voir la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
+<p>Si vous instanciez un objet <code>Producer</code> en spécifiant seulement un nom detopic, comme dans l'exemple ci-dessus, le producteur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. Pour une liste complète, voir la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
  . Here's an example:</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
     .topic(<span class="hljs-string">"my-topic"</span>)
@@ -196,7 +196,7 @@ producer.closeAsync()
     System.out.printf(<span class="hljs-string">"Message with ID %s successfully sent"</span>, msgId);
 });
 </code></pre>
-<p>Comme vous pouvez le voir à partir de l'exemple ci-dessus, les opérations d'envoi asynchrone retournent un <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+<p>Comme vous pouvez le voir à partir de l'exemple ci-dessus, les opérations d'envoi asynchrone retournent un <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
  enveloppé dans un <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-des-messages"></a><a href="#configuration-des-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des messages</h3>
 <p>En plus d'une valeur, il est possible de définir des éléments supplémentaires sur un message donné :</p>
@@ -209,10 +209,10 @@ producer.closeAsync()
 </code></pre>
 <p>Comme dans le cas précédent, il est également possible de mettre fin à la construction du message avec <code>sendAsync()</code> et d'obtenir une future en retour.</p>
 <h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
-<p>Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau <a href="reference-terminology.md#consumer">consommateur</a> en instanciant d'abord un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau <a href="reference-terminology.md#consumer">consommateur</a> en instanciant d'abord un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  et en lui passant l'URL d'un broker Pulsar (comme <a href="#client-configuration">ci-dessus</a>).</p>
-<p>Une fois que vous avez instancié un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
-, vous pouvez créer un <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+<p>Une fois que vous avez instancié un objet <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+, vous pouvez créer un <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
  en précisant un <a href="reference-terminology.md#topic">topic</a> et un <a href="concepts-messaging.md#subscription-modes">abonnement</a>.</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -237,7 +237,7 @@ producer.closeAsync()
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuration-des-consommateurs"></a><a href="#configuration-des-consommateurs" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration des consommateurs</h3>
-<p>Si vous instanciez un objet <code>Consumer</code> spécifiant seulement un topic et un nom d'abonnement, comme dans l'exemple ci-dessus, le consommateur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. Pour une liste complète, voir la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
+<p>Si vous instanciez un objet <code>Consumer</code> spécifiant seulement un topic et un nom d'abonnement, comme dans l'exemple ci-dessus, le consommateur utilisera la configuration par défaut. Pour utiliser une configuration différente de celle par défaut, il existe une variété de paramètres configurables que vous pouvez définir. Pour une liste complète, voir la javadoc pour la classe <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
  . Here's an example:</p>
 <p>Voici un exemple de configuration :</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
@@ -252,7 +252,7 @@ producer.closeAsync()
 <p>Here's an example:</p>
 <pre><code class="hljs css language-java">CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
 </code></pre>
-<p>Les opérations de réception asynchrone retournent un <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/Message">Message</a>
+<p>Les opérations de réception asynchrone retournent un <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Message">Message</a>
  enveloppé dans un <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="abonnements-multi-topics"></a><a href="#abonnements-multi-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Abonnements multi-topics</h3>
 <p>En plus d'abonner un consommateur à un unique topic Pulsar, vous pouvez également vous abonner à plusieurs topic simultanément en utilisant <a href="concepts-messaging.md#multi-topic-subscriptions">les abonnements multi-topics</a>. Pour utiliser les abonnements multi-topics, vous pouvez fournir une expression régulière (regex) ou une <code>List</code> de topics. Si vous sélectionnez des topics via des regex, tous les topics doivent être dans le même espace de nommage Pulsar.</p>
@@ -449,9 +449,9 @@ Consumer consumer2 = client.newConsumer()
 <p>If the message key is not specified, messages without key will be dispatched to one consumer in order by default.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="reader-interface"></a><a href="#reader-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader interface</h2>
-<p>Avec l'interface <a href="concepts-clients.md#reader-interface">reader</a>, les clients Pulsar peuvent se positionner manuellement dans un topic, en lisant tous les messages à partir d'un message spécifié. L'API Pulsar pour Java vous permet de créer des objets <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
- en spécifiant un topic, un <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
-, et un <a href="https://pulsar.incubator.apache.org/api/client/2.5.1-SNAPSHOT/org/apache/pulsar/client/api/ReaderConfiguration">ReaderConfiguration</a>
+<p>Avec l'interface <a href="concepts-clients.md#reader-interface">reader</a>, les clients Pulsar peuvent se positionner manuellement dans un topic, en lisant tous les messages à partir d'un message spécifié. L'API Pulsar pour Java vous permet de créer des objets <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
+ en spécifiant un topic, un <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+, et un <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ReaderConfiguration">ReaderConfiguration</a>
 .</p>
 <p>Here's an example:</p>
 <pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();
