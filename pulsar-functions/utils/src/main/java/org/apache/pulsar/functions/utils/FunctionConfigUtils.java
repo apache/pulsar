@@ -733,7 +733,7 @@ public class FunctionConfigUtils {
                 mergedConfig.getInputSpecs().put(topicName, consumerConfig);
             });
         }
-        if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
+        if (!StringUtils.isEmpty(newConfig.getOutputSerdeClassName()) && !newConfig.getOutputSerdeClassName().equals(existingConfig.getOutputSerdeClassName())) {
             throw new IllegalArgumentException("Output Serde mismatch");
         }
         if (!StringUtils.isEmpty(newConfig.getOutputSchemaType()) && !newConfig.getOutputSchemaType().equals(existingConfig.getOutputSchemaType())) {
