@@ -1403,10 +1403,6 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1414,14 +1410,18 @@
             "format" : "byte"
           }
         },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "replicatedFrom" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "replicatedFrom" : {
           "type" : "string"
         },
         "data" : {
