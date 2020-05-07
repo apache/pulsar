@@ -320,7 +320,7 @@ Alternatively, we provide a bash script [install-cert-manager.sh](https://github
 
 ```bash
 git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+cd pulsar/deployment/kubernetes/helm
 ./scripts/cert-manager/install-cert-manager.sh
 ```
 
@@ -330,7 +330,7 @@ Once you have install all the dependent charts and collected all of your configu
 
 ```bash
 git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+cd pulsar/deployment/kubernetes/helm
 ./scripts/pulsar/prepare_helm_release.sh -n <k8s-namespace> -k <helm-release-name>
 ```
 
@@ -355,7 +355,7 @@ In this example, we've named our Helm release `pulsar`.
 
 ```bash
 git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+cd pulsar/deployment/kubernetes/helm
 helm upgrade --install pulsar pulsar \
     --timeout 600 \
     --set [your configuration options]
