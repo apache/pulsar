@@ -332,7 +332,7 @@ public class PulsarStandalone implements AutoCloseable {
             createSampleNameSpace(clusterData, cluster);
         } else {
             URL webServiceUrlTls = new URL(
-                    String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
+                    String.format("https://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
             String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d", config.getAdvertisedAddress(),
                     config.getBrokerServicePortTls().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrlTls.toString()).authentication(
