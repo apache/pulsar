@@ -57,6 +57,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String configurationStoreServers;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
+    // ZooKeeper cache expiry time in seconds
+    private int zooKeeperCacheExpirySeconds = 300;
 
     // Port to use to server HTTP request
     private Optional<Integer> webServicePort = Optional.of(8080);
@@ -196,6 +198,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
         this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+    }
+
+    public int getZooKeeperCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
     }
 
     public Optional<Integer> getWebServicePort() {

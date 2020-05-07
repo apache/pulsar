@@ -125,9 +125,18 @@ public class WorkerService {
                     : workerConfig.getWorkerWebAddress();
 
             if (workerConfig.isAuthenticationEnabled()) {
+                // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
+                // otherwise we will use brokerClientTrustCertsFilePath
+                final String pulsarClientTlsTrustCertsFilePath;
+                if (StringUtils.isNotBlank(workerConfig.getBrokerClientTrustCertsFilePath())) {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getBrokerClientTrustCertsFilePath();
+                } else {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getTlsTrustCertsFilePath();
+                }
+
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                     workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
+                    pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
                     workerConfig.isTlsHostnameVerificationEnable());
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
@@ -138,7 +147,7 @@ public class WorkerService {
                 this.client = WorkerUtils.getPulsarClient(this.workerConfig.getPulsarServiceUrl(),
                         workerConfig.getClientAuthenticationPlugin(),
                         workerConfig.getClientAuthenticationParameters(),
-                        workerConfig.isUseTls(), workerConfig.getTlsTrustCertsFilePath(),
+                        workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
                         workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsHostnameVerificationEnable());
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());

@@ -283,7 +283,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 } else if (KeeperException.Code.NODEEXISTS.intValue() == rc) {
                     log.info("[{}] Topic partition {} is exists, doing nothing.", clientAppId(),
                         topicName.getPartition(partition));
-                    result.completeExceptionally(KeeperException.create(KeeperException.Code.NODEEXISTS));
+                    result.complete(null);
                 } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
                     log.warn("[{}] Fail to create topic partition {} with concurrent modification, retry now.",
                             clientAppId(), topicName.getPartition(partition));
@@ -728,6 +728,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
             validateAdminAccessForTenant(topicName.getTenant());
         } catch (Exception e) {
@@ -739,11 +740,16 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
             return;
         }
+        if (maxPartitions > 0 && numPartitions > maxPartitions) {
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions));
+            return;
+        }
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
                 asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
             } else {
+
                 try {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);
                     byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));

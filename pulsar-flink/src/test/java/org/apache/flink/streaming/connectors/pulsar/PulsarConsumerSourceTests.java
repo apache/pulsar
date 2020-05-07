@@ -566,6 +566,38 @@ public class PulsarConsumerSourceTests {
         public CompletableFuture<MessageId> getLastMessageIdAsync() {
             return null;
         }
+
+        @Override
+        public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+            
+        }
+
+        @Override
+        public void reconsumeLater(Messages<?> messages, long delayTime, TimeUnit unit) throws PulsarClientException {
+            
+        }
+
+        @Override
+        public void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit)
+                throws PulsarClientException {
+            
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime,
+                TimeUnit unit) {
+            return null;
+        }
     }
 
     private static List<Message> createMessages(int startIndex, int numMessages) {

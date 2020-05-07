@@ -133,6 +133,7 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
+    private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
@@ -160,6 +161,7 @@ public class KubernetesRuntime implements Runtime {
                       String instanceFile,
                       String extraDependenciesDir,
                       String logDirectory,
+                      String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
                       String pulsarServiceUrl,
@@ -184,6 +186,7 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
+        this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
@@ -804,7 +807,7 @@ public class KubernetesRuntime implements Runtime {
                     && isNotBlank(authConfig.getClientAuthenticationParameters())
                     && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
-                        pulsarRootDir + "/bin/pulsar-admin",
+                        pulsarRootDir + configAdminCLI,
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
@@ -825,7 +828,7 @@ public class KubernetesRuntime implements Runtime {
         }
 
         return Arrays.asList(
-                pulsarRootDir + "/bin/pulsar-admin",
+                pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
                 "functions",

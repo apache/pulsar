@@ -43,8 +43,8 @@ module.exports = [
     },
     {
         name: 'file',
-        longName: 'File sink',
-        type: 'Sink',
+        longName: 'File source',
+        type: 'Source',
         link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/file'
     },
     {

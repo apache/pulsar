@@ -472,6 +472,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
+                                                       Map<String,Long> properties,
+                                                       long delayTime,
+                                                       TimeUnit unit) {
+        MessageId messageId = message.getMessageId();
+        checkArgument(messageId instanceof TopicMessageIdImpl);
+        TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+        if (getState() != State.Ready) {
+            return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
+        }
+
+        if (ackType == AckType.Cumulative) {
+            Consumer individualConsumer = consumers.get(topicMessageId.getTopicPartitionName());
+            if (individualConsumer != null) {
+                MessageId innerId = topicMessageId.getInnerMessageId();
+                return individualConsumer.reconsumeLaterCumulativeAsync(message, delayTime, unit);
+            } else {
+                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+            }
+        } else {
+            ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
+            MessageId innerId = topicMessageId.getInnerMessageId();
+            return consumer.doReconsumeLater(message, ackType, properties, delayTime, unit)
+                     .thenRun(() ->unAckedMessageTracker.remove(topicMessageId));
+        }
+    }
+
+    @Override
     public void negativeAcknowledge(MessageId messageId) {
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
@@ -1107,6 +1135,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 future.complete(null);
                 return future;
             } else if (oldPartitionNumber < currentPartitionNumber) {
+                allTopicPartitionsNumber.compareAndSet(oldPartitionNumber, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
                 // subscribe new added partitions
                 List<CompletableFuture<Consumer<T>>> futureList = newPartitions

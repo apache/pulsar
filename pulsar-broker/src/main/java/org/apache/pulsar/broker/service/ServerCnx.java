@@ -820,7 +820,7 @@ public class ServerCnx extends PulsarHandler {
                                     Topic topic = optTopic.get();
 
                                     boolean rejectSubscriptionIfDoesNotExist = isDurable
-                                        && !service.pulsar().getConfig().isAllowAutoSubscriptionCreation()
+                                        && !service.isAllowAutoSubscriptionCreation(topicName.toString())
                                         && !topic.getSubscriptions().containsKey(subscriptionName);
 
                                     if (rejectSubscriptionIfDoesNotExist) {
@@ -1007,7 +1007,7 @@ public class ServerCnx extends PulsarHandler {
                                 ServerError error = null;
                                 if(!existingProducerFuture.isDone()) {
                                     error = ServerError.ServiceNotReady;
-                                }else {
+                                } else {
                                     error = getErrorCode(existingProducerFuture);
                                     // remove producer with producerId as it's already completed with exception
                                     producers.remove(producerId);
@@ -1091,7 +1091,7 @@ public class ServerCnx extends PulsarHandler {
                                         producerFuture.completeExceptionally(
                                             new IllegalStateException("Producer created after connection was closed"));
                                     }
-                                } catch (BrokerServiceException ise) {
+                                } catch (Exception ise) {
                                     log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
                                         ise.getMessage());
                                     ctx.writeAndFlush(Commands.newError(requestId,

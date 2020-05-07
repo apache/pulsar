@@ -41,7 +41,7 @@ jobs:
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml
+          args: site2 .github deployment .asf.yaml .ci ct.yaml
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
@@ -52,8 +52,8 @@ jobs:
       - name: clean disk
         if: steps.docs.outputs.changed_only == 'no'
         run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
+          sudo swapoff /swapfile
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h
