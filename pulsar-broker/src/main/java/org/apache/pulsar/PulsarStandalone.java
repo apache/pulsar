@@ -351,8 +351,8 @@ public class PulsarStandalone implements AutoCloseable {
                             .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword());
                 } else {
                     builder.tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
-                    builder.allowTlsInsecureConnection(config.isTlsAllowInsecureConnection());
                 }
+                builder.allowTlsInsecureConnection(config.isTlsAllowInsecureConnection());
             }
 
             admin = builder.build();

@@ -1003,8 +1003,8 @@ public class PulsarService implements AutoCloseable {
                                 .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
                     } else {
                         builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
-                        builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                     }
+                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
