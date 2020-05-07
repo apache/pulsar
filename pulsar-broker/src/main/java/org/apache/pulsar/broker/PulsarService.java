@@ -960,10 +960,17 @@ public class PulsarService implements AutoCloseable {
                     .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(
-                        isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
-                            ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
-                            : this.getConfiguration().getTlsCertificateFilePath());
+                    if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(
+                                isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
+                                        ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
+                                        : this.getConfiguration().getTlsCertificateFilePath());
+                    }
                 }
 
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
@@ -989,8 +996,15 @@ public class PulsarService implements AutoCloseable {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
-                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                    if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                        builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                    }
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on

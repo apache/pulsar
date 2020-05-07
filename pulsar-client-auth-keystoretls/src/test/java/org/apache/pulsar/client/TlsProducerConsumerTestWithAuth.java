@@ -63,7 +63,6 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
     protected final String KEYSTORE_TYPE = "JKS";
 
     private final String clusterName = "use";
-    Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 
     @BeforeMethod
     @Override
@@ -97,8 +96,6 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
-        tlsProtocols.add("TLSv1.2");
-        conf.setTlsProtocols(tlsProtocols);
 
         // config for authentication and authorization.
         conf.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
@@ -148,7 +145,7 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
-                .allowTlsInsecureConnection(true)
+                .allowTlsInsecureConnection(false)
                 .authentication(AuthenticationKeyStoreTls.class.getName(), authParams).build());
         admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
@@ -210,16 +207,16 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
 
         internalSetUpForNamespace();
 
-//        // Test 1 - Using TLS on binary protocol without sending certs - expect failure
-//        internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
-//
-//        try {
-//            pulsarClient.newConsumer().topic(topicName)
-//                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-//            Assert.fail("Server should have failed the TLS handshake since client didn't .");
-//        } catch (Exception ex) {
-//            // OK
-//        }
+        // Test 1 - Using TLS on binary protocol without sending certs - expect failure
+        internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
+
+        try {
+            pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+            Assert.fail("Server should have failed the TLS handshake since client didn't .");
+        } catch (Exception ex) {
+            // OK
+        }
 
         // Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());

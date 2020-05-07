@@ -796,8 +796,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
                                     : data.getServiceUrlTls())
                             .enableTls(true)
-                            .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                             .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                    if (pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        clientBuilder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(pulsar.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(pulsar.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(pulsar.getConfiguration()
+                                        .getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        clientBuilder.tlsTrustCertsFilePath(pulsar.getConfiguration()
+                                .getBrokerClientTrustCertsFilePath());
+                    }
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -833,8 +842,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
-                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    }
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on

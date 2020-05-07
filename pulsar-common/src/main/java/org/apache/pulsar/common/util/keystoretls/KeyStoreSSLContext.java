@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.keystoretls;
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
 
 import com.google.common.base.Strings;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -62,25 +63,6 @@ public class KeyStoreSSLContext {
         SERVER
     }
 
-    /**
-     * Supported Key File Types.
-     */
-    public enum KeyStoreType {
-        PKCS12("PKCS12"),
-        JKS("JKS");
-
-        private String str;
-
-        KeyStoreType(String str) {
-            this.str = str;
-        }
-
-        @Override
-        public String toString() {
-            return this.str;
-        }
-    }
-
     @Getter
     private final Mode mode;
 
@@ -102,6 +84,7 @@ public class KeyStoreSSLContext {
     private String kmfAlgorithm = DEFAULT_SSL_KEYMANGER_ALGORITHM;
     private String tmfAlgorithm = DEFAULT_SSL_TRUSTMANAGER_ALGORITHM;
 
+    // only init vars, before using it, need to call createSSLContext to create ssl context.
     public KeyStoreSSLContext(Mode mode,
                               String sslProviderString,
                               String keyStoreTypeString,
@@ -165,11 +148,16 @@ public class KeyStoreSSLContext {
         }
 
         // trust store
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
-        KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
-        char[] passwordChars = trustStorePassword.toCharArray();
-        trustStore.load(new FileInputStream(trustStorePath), passwordChars);
-        trustManagerFactory.init(trustStore);
+        TrustManagerFactory trustManagerFactory;
+        if (this.allowInsecureConnection) {
+            trustManagerFactory = InsecureTrustManagerFactory.INSTANCE;
+        } else {
+            trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
+            KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
+            char[] passwordChars = trustStorePassword.toCharArray();
+            trustStore.load(new FileInputStream(trustStorePath), passwordChars);
+            trustManagerFactory.init(trustStore);
+        }
 
         // init
         sslContext.init(keyManagers, trustManagerFactory.getTrustManagers(), new SecureRandom());
@@ -189,84 +177,6 @@ public class KeyStoreSSLContext {
         } else {
             sslEngine.setUseClientMode(true);
         }
-
-        return sslEngine;
-    }
-
-    // for netty server
-    public static SSLEngine createNettySSLEngineForServer(String sslProviderString,
-                                                          String keyStoreTypeString,
-                                                          String keyStorePath,
-                                                          String keyStorePassword,
-                                                          boolean allowInsecureConnection,
-                                                          String trustStoreTypeString,
-                                                          String trustStorePath,
-                                                          String trustStorePassword,
-                                                          boolean requireTrustedClientCertOnConnect,
-                                                          Set<String> ciphers,
-                                                          Set<String> protocols)
-            throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.SERVER,
-                sslProviderString,
-                keyStoreTypeString,
-                keyStorePath,
-                keyStorePassword,
-                allowInsecureConnection,
-                trustStoreTypeString,
-                trustStorePath,
-                trustStorePassword,
-                requireTrustedClientCertOnConnect,
-                ciphers,
-                protocols);
-
-        SSLContext sslContext = keyStoreSSLContext.createSSLContext();
-
-        SSLEngine sslEngine = sslContext.createSSLEngine();
-        sslEngine.setUseClientMode(false);
-
-        sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
-        sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
-
-        if (keyStoreSSLContext.mode == Mode.SERVER) {
-            sslEngine.setNeedClientAuth(keyStoreSSLContext.needClientAuth);
-        } else {
-            sslEngine.setWantClientAuth(keyStoreSSLContext.needClientAuth);
-        }
-        return sslEngine;
-    }
-
-    // for netty client
-    public static SSLEngine createNettySSLEngineForClient(String sslProviderString,
-                                                           String keyStoreTypeString,
-                                                           String keyStorePath,
-                                                           String keyStorePassword,
-                                                           boolean allowInsecureConnection,
-                                                           String trustStoreTypeString,
-                                                           String trustStorePath,
-                                                           String trustStorePassword,
-                                                           Set<String> ciphers,
-                                                           Set<String> protocols)
-            throws GeneralSecurityException, IOException {
-        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
-                sslProviderString,
-                keyStoreTypeString,
-                keyStorePath,
-                keyStorePassword,
-                allowInsecureConnection,
-                trustStoreTypeString,
-                trustStorePath,
-                trustStorePassword,
-                false,
-                ciphers,
-                protocols);
-
-        SSLContext sslContext = keyStoreSSLContext.createSSLContext();
-
-        SSLEngine sslEngine = sslContext.createSSLEngine();
-        sslEngine.setUseClientMode(true);
-
-        sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
-        sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
 
         return sslEngine;
     }
@@ -367,14 +277,36 @@ public class KeyStoreSSLContext {
                                                     Set<String> ciphers,
                                                     Set<String> protocol)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        SslContextFactory ssl = new SslContextFactory();
-
         KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
                 sslProviderString,
                 keyStoreTypeString,
                 keyStorePath,
                 keyStorePassword,
                 allowInsecureConnection,
+                trustStoreTypeString,
+                trustStorePath,
+                trustStorePassword,
+                false,
+                ciphers,
+                protocol);
+
+        return keyStoreSSLContext.createSSLContext();
+    }
+
+    // for web client
+    public static SSLContext createClientSslContext(String keyStoreTypeString,
+                                                    String keyStorePath,
+                                                    String keyStorePassword,
+                                                    String trustStoreTypeString,
+                                                    String trustStorePath,
+                                                    String trustStorePassword)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        KeyStoreSSLContext keyStoreSSLContext = new KeyStoreSSLContext(Mode.CLIENT,
+                null,
+                keyStoreTypeString,
+                keyStorePath,
+                keyStorePassword,
+                false,
                 trustStoreTypeString,
                 trustStorePath,
                 trustStorePassword,

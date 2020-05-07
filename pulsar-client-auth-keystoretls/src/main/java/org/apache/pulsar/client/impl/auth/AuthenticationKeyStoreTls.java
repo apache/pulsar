@@ -89,7 +89,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
             params = AuthenticationUtil.configureFromJsonString(paramsString);
         } catch (Exception e) {
             // auth-param is not in json format
-            log.info("parameter not in Json format: ", paramsString);
+            log.info("parameter not in Json format: {}", paramsString);
         }
 
         // in ":" "," format.

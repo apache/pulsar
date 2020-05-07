@@ -394,24 +394,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
-    @FieldContext(
-            category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore type configuration for proxy: JKS, PKCS12,"
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
-    )
-    private String brokerClientTlsKeyStoreType = "JKS";
-    @FieldContext(
-            category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore file path configuration for proxy,"
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
-    )
-    private String brokerClientTlsKeyStore = null;
-    @FieldContext(
-            category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore password configuration for proxy,"
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
-    )
-    private String brokerClientTlsKeyStorePassword = null;
+
     // needed when client auth is required
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
