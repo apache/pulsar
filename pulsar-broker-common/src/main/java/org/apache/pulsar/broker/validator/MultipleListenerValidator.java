@@ -33,7 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * the validator for pulsar multiple listeners.
+ * the validator for pulsar multiple  listeners.
  */
 public final class MultipleListenerValidator {
 
