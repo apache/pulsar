@@ -1510,6 +1510,27 @@ Options
 |`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
 |`-d`, `--disabled`|Disable automatic schema updates.|false|
 
+### `get-publish-rate`
+Get the message publish rate for each topic in a namespace, in bytes as well as messages per second 
+
+Usage
+```bash
+$ pulsar-admin namespaces get-publish-rate tenant/namespace
+```
+
+### `set-publish-rate`
+Set the message publish rate for each topic in a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-publish-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
+|`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.
