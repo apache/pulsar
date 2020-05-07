@@ -1587,7 +1587,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider"
+            doc = "TLS Provider for KeyStore type"
     )
     private String tlsProvider = null;
 
@@ -1605,7 +1605,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore password in broker"
+            doc = "TLS KeyStore password for broker"
     )
     private String tlsKeyStorePassword = null;
 
@@ -1623,46 +1623,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password in broker"
+            doc = "TLS TrustStore password for broker"
     )
     private String tlsTrustStorePassword = null;
 
     /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker--- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "Whether the Pulsar proxy use KeyStore type to authenticate with Pulsar brokers"
+            doc = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
     )
     private boolean brokerClientTlsEnabledWithKeyStore = false;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
+            doc = "The TLS Provider used by internal client to authenticate with other Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
     // needed when client auth is required
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore type configuration for proxy: JKS, PKCS12 "
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+            doc = "TLS TrustStore type configuration for internal client: JKS, PKCS12 "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStoreType = "JKS";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore path for proxy, "
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+            doc = "TLS TrustStore path for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for proxy, "
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+            doc = "TLS TrustStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "Specify the tls cipher the proxy will use to negotiate during TLS Handshake"
+            doc = "Specify the tls cipher the internal client will use to negotiate during TLS Handshake"
                   + " (a comma-separated list of ciphers).\n\n"
                   + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
     @FieldContext(
@@ -1670,7 +1670,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
                   + " (a comma-separated list of protocol names).\n\n"
                   + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
-                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
 

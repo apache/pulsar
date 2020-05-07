@@ -524,9 +524,9 @@ public class PulsarService implements AutoCloseable {
 
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
-                    + (config.getWebServicePortTls().isPresent() ? "tls-port = " + config.getWebServicePortTls() : "")
-                    + (config.getBrokerServicePort().isPresent() ? "broker url= " + brokerServiceUrl : "")
-                    + (config.getBrokerServicePortTls().isPresent() ? "broker url= " + brokerServiceUrlTls : "");
+                    + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
+                    + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
+                    + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready");
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
@@ -996,11 +996,11 @@ public class PulsarService implements AutoCloseable {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
                     } else {
                         builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                         builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());

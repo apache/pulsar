@@ -116,10 +116,6 @@ public class AdminApiTlsAuthTest extends ProducerConsumerBase {
         conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
 
         super.init();
-
-        PulsarAdmin admin = buildAdminClient();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
-        admin.close();
     }
 
     @AfterMethod
@@ -169,6 +165,7 @@ public class AdminApiTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("foobar"),
                                                         ImmutableSet.of("test")));
@@ -179,6 +176,7 @@ public class AdminApiTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCantListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("proxy"),
                                                         ImmutableSet.of("test")));
@@ -190,6 +188,7 @@ public class AdminApiTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                                          new TenantInfo(ImmutableSet.of("proxy", "user1"),
                                                         ImmutableSet.of("test")));
@@ -207,8 +206,8 @@ public class AdminApiTlsAuthTest extends ProducerConsumerBase {
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient()) {
+            admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
             admin.tenants().createTenant("tenant1",
                     new TenantInfo(ImmutableSet.of("foobar"),
                             ImmutableSet.of("test")));
