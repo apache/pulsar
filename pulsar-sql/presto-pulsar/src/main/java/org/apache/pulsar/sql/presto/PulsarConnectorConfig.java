@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import org.apache.commons.lang3.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
 import java.io.IOException;
@@ -31,7 +32,6 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This object handles configuration of the Pulsar connector for the Presto engine.
