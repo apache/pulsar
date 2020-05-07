@@ -23,11 +23,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-public class JsonWriter<T> implements SchemaWriter<T> {
+public class JacksonJsonWriter<T> implements SchemaWriter<T> {
 
     private final ObjectMapper objectMapper;
 
-    public JsonWriter(ObjectMapper objectMapper) {
+    public JacksonJsonWriter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

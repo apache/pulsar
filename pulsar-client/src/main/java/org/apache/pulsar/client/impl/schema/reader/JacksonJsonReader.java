@@ -27,11 +27,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class JsonReader<T> implements SchemaReader<T> {
+public class JacksonJsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectMapper objectMapper;
 
-    public JsonReader(ObjectMapper objectMapper, Class<T> pojo) {
+    public JacksonJsonReader(ObjectMapper objectMapper, Class<T> pojo) {
         this.pojo = pojo;
         this.objectMapper = objectMapper;
     }
@@ -60,5 +60,5 @@ public class JsonReader<T> implements SchemaReader<T> {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(JsonReader.class);
+    private static final Logger log = LoggerFactory.getLogger(JacksonJsonReader.class);
 }
