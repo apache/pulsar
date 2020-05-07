@@ -317,8 +317,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     Collections.emptyList());
         }
 
-        log.info("Initialize function class loader for function {} at function cache manager",
-                instanceConfig.getFunctionDetails().getName());
+        log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
+                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(instanceConfig.getFunctionId()));
 
         fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {

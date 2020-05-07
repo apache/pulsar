@@ -33,7 +33,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -41,9 +43,14 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
+import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -56,24 +63,31 @@ import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -133,18 +147,24 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     @Test(groups = "source")
-    public void testDebeziumMySqlSource() throws Exception {
-        testDebeziumMySqlConnect();
+    public void testDebeziumMySqlSourceJson() throws Exception {
+        testDebeziumMySqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumMySqlSourceAvro() throws Exception {
+        testDebeziumMySqlConnect(
+                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false);
     }
 
     @Test(groups = "source")
     public void testDebeziumPostgreSqlSource() throws Exception {
-        testDebeziumPostgreSqlConnect();
+        testDebeziumPostgreSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
-        testDebeziumMongoDbConnect();
+        testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -1068,15 +1088,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 break;
             }
             String msgStr = new String(msg.getData());
-            log.info("i: {} RECV: {}", i, msgStr);
+            log.info("[testWindowFunction] i: {} RECV: {}", i, msgStr);
             String result = msgStr.split(":")[0];
             assertThat(result).contains(expectedResults[i]);
             i++;
         }
-        // in case last commit is not updated
-        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+
+        // in case last commit is not updated
+        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         deleteFunction(functionName);
 
@@ -2137,15 +2158,134 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    private  void testDebeziumMySqlConnect()
-        throws Exception {
+    @Test(groups = "function")
+    public void testAvroSchemaFunction() throws Exception {
+        log.info("testAvroSchemaFunction start ...");
+        final String inputTopic = "test-avroschema-input-" + randomName(8);
+        final String outputTopic = "test-avroschema-output-" + randomName(8);
+        final String functionName = "test-avroschema-fn-202003241756";
+        final int numMessages = 10;
+
+        if (pulsarCluster == null) {
+            log.info("pulsarClient is null");
+            this.setupCluster();
+            this.setupFunctionWorkers();
+        }
+
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        log.info("pulsar client init - input: {}, output: {}", inputTopic, outputTopic);
+
+        @Cleanup Producer<AvroTestObject> producer = pulsarClient
+                .newProducer(Schema.AVRO(AvroTestObject.class))
+                .topic(inputTopic).create();
+        log.info("pulsar producer init - {}", inputTopic);
+
+        @Cleanup Consumer<AvroTestObject> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(AvroTestObject.class))
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-avro-schema")
+                .topic(outputTopic)
+                .subscribe();
+        log.info("pulsar consumer init - {}", outputTopic);
+
+        CompletableFuture<Optional<SchemaInfo>> inputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(inputTopic);
+        inputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (schemaInfo.isPresent()) {
+                log.info("inputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("input schema is not present!");
+            }
+        });
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
+
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                AvroSchemaTestFunction.class.getName(),
+                Schema.AVRO(AvroTestObject.class));
+        log.info("pulsar submitFunction");
+
+        getFunctionInfoSuccess(functionName);
+
+        AvroSchemaTestFunction function = new AvroSchemaTestFunction();
+        Set<Object> expectedSet = new HashSet<>();
+
+        log.info("test-avro-schema producer connected: " + producer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            AvroTestObject inputObject = new AvroTestObject();
+            inputObject.setBaseValue(i);
+            MessageId messageId = producer.send(inputObject);
+            log.info("test-avro-schema messageId: {}", messageId.toString());
+            expectedSet.add(function.process(inputObject, null));
+            log.info("test-avro-schema expectedSet size: {}", expectedSet.size());
+        }
+        getFunctionStatus(functionName, numMessages, false);
+        log.info("test-avro-schema producer send message finish");
+
+        CompletableFuture<Optional<SchemaInfo>> outputSchemaFuture2 =
+                ((PulsarClientImpl) pulsarClient).getSchema(outputTopic);
+        outputSchemaFuture2.whenComplete((schemaInfo, throwable) -> {
+            if (throwable != null) {
+                log.error("get output schemaInfo error", throwable);
+                throwable.printStackTrace();
+                return;
+            }
+            if (schemaInfo.isPresent()) {
+                log.info("outputSchemaInfo: {}", schemaInfo.get().toString());
+            } else {
+                log.error("output schema is not present!");
+            }
+        });
+
+        log.info("test-avro-schema consumer connected: " + consumer.isConnected());
+        for (int i = 0 ; i < numMessages ; i++) {
+            log.info("test-avro-schema consumer receive [{}] start", i);
+            Message<AvroTestObject> message = consumer.receive();
+            log.info("test-avro-schema consumer receive [{}] over", i);
+            AvroTestObject outputObject = message.getValue();
+            assertTrue(expectedSet.contains(outputObject));
+            expectedSet.remove(outputObject);
+            consumer.acknowledge(message);
+        }
+        log.info("test-avro-schema consumer receive message finish");
+
+        assertEquals(expectedSet.size(), 0);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
-        final String sourceName = "test-source-connector-"
-            + functionRuntimeType + "-name-" + randomName(8);
+        boolean isJsonConverter = converterClassName.endsWith("JsonConverter");
+        final String consumeTopicName = "debezium/mysql-"
+                + (isJsonConverter ? "json" : "avro")
+                + "/dbserver1.inventory.products";
+        final String sourceName = "test-source-debezium-mysql" + (isJsonConverter ? "json" : "avro")
+                + "-" + functionRuntimeType + "-" + randomName(8);
 
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
@@ -2162,28 +2302,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
+
         try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
+            SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
+            log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
+        } catch (Exception e) {
+            log.warn("failed to get schemaInfo for topic: {}, exceptions message: {}",
                     consumeTopicName, e.getMessage());
         }
-        admin.topics().createNonPartitionedTopic(consumeTopicName);
+
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
-            .topic(consumeTopicName)
-            .subscriptionName("debezium-source-tester")
-            .subscriptionType(SubscriptionType.Exclusive)
-            .subscribe();
-
-        @Cleanup
-        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster);
+        DebeziumMySqlSourceTester sourceTester = new DebeziumMySqlSourceTester(pulsarCluster, converterClassName);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
@@ -2205,26 +2338,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         Failsafe.with(statusRetryPolicy).run(() ->
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
+        @Cleanup
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
+
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2233,14 +2375,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumPostgreSqlConnect() throws Exception {
+    private  void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
-        final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+        final String consumeTopicName = "debezium/postgresql/dbserver1.inventory.products";
+        final String sourceName = "test-source-debezium-postgersql-" + functionRuntimeType + "-" + randomName(8);
+
 
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
@@ -2257,21 +2399,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
-                    consumeTopicName, e.getMessage());
-        }
+        initNamespace(admin);
+
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2279,6 +2413,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium postgresql server
         DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
@@ -2301,25 +2436,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -2328,12 +2463,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumMongoDbConnect() throws Exception {
+    private  void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name";
-        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String consumeTopicName = "debezium/mongodb/dbserver1.inventory.products";
         final String sourceName = "test-source-connector-"
                 + functionRuntimeType + "-name-" + randomName(8);
 
@@ -2352,21 +2487,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        try {
-            // If topic already exists, we should delete it so as not to affect the following tests.
-            admin.topics().getStats(consumeTopicName);
-            admin.topics().delete(consumeTopicName);
-            admin.schemas().deleteSchema(consumeTopicName);
-        } catch (PulsarAdminException e) {
-            // Expected results, ignoring the exception
-            log.info("Topic: {} does not exist, we can continue the following tests. Exceptions message: {}",
-                    consumeTopicName, e.getMessage());
-        }
+        initNamespace(admin);
+
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
-        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
                 .topic(consumeTopicName)
                 .subscriptionName("debezium-source-tester")
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -2374,6 +2501,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         @Cleanup
         DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
@@ -2395,31 +2523,54 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null);
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
 
         // prepare insert event
         sourceTester.prepareInsertEvent();
 
         // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE);
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private void initNamespace(PulsarAdmin admin) {
+        log.info("[initNamespace] start.");
+        try {
+            admin.tenants().createTenant("debezium", new TenantInfo(Sets.newHashSet(),
+                    Sets.newHashSet(pulsarCluster.getClusterName())));
+            admin.namespaces().createNamespace("debezium/mysql-json");
+            admin.namespaces().createNamespace("debezium/mysql-avro");
+            admin.namespaces().createNamespace("debezium/mongodb");
+            admin.namespaces().createNamespace("debezium/postgresql");
+        } catch (Exception e) {
+            log.info("[initNamespace] msg: {}", e.getMessage());
+        }
+        log.info("[initNamespace] finish.");
+    }
+
+    private Schema getSchema(boolean jsonWithEnvelope) {
+        if (jsonWithEnvelope) {
+            return KeyValueSchema.kvBytes();
+        } else {
+            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
+        }
     }
 
 }

@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.jdbc;
 
 import java.sql.PreparedStatement;
+import java.sql.Types;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -60,12 +61,44 @@ public class JdbcAutoSchemaSink extends JdbcAbstractSink<GenericRecord> {
         int index = 1;
         for (ColumnId columnId : columns) {
             String colName = columnId.getName();
-            Object obj = record.getField(colName);
-            setColumnValue(statement, index++, obj);
+            int colType = columnId.getType();
+            if (log.isDebugEnabled()) {
+                log.debug("colName: {} colType: {}", colName, colType);
+            }
+            try {
+                Object obj = record.getField(colName);
+                if (obj != null) {
+                    setColumnValue(statement, index++, obj);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Column {} is null", colName);
+                    }
+                    setColumnNull(statement, index++, colType);
+                }
+            } catch (NullPointerException e) {
+                // With JSON schema field is omitted, so get NPE
+                // In this case we want to set column to Null
+                if (log.isDebugEnabled()) {
+                    log.debug("Column {} is null", colName);
+                }
+                setColumnNull(statement, index++, colType);
+            }
+            
         }
     }
 
+    private static void setColumnNull(PreparedStatement statement, int index, int type) throws Exception {
+        if (log.isDebugEnabled()) {
+            log.debug("Setting column value to null, statement: {}, index: {}, value: {}", statement.toString(), index);
+        }
+        statement.setNull(index, type);
+
+    }
+
     private static void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
+
+        log.debug("Setting column value, statement: {}, index: {}, value: {}", statement.toString(), index, value.toString());
+
         if (value instanceof Integer) {
             statement.setInt(index, (Integer) value);
         } else if (value instanceof Long) {

@@ -221,6 +221,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             pulsar.getConfiguration().getZookeeperServers(),
             pulsar.getConfiguration().getConfigurationStoreServers(),
             new ClientConfiguration().getZkLedgersRootPath(),
+            pulsar.getMetadataServiceUri(),
             pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);

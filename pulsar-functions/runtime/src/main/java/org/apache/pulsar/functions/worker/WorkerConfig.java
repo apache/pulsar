@@ -125,6 +125,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
@@ -263,7 +268,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String tlsKeyFilePath;
     @FieldContext(
-        category = CATEGORY_SECURITY,
+        category = CATEGORY_WORKER_SECURITY,
         doc = "Path for the trusted TLS certificate file"
     )
     private String tlsTrustCertsFilePath = "";
@@ -327,6 +332,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
+
+    /******** security settings for pulsar broker client **********/
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTrustCertsFilePath;
 
 
     /******** Function Runtime configurations **********/

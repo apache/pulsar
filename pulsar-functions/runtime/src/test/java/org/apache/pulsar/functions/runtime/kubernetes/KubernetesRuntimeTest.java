@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -43,6 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -630,6 +632,17 @@ public class KubernetesRuntimeTest {
             tolerations.add(toleration);
             configObj.add("tolerations", tolerations);
 
+            JsonObject resourceRequirements = new JsonObject();
+            JsonObject requests = new JsonObject();
+            JsonObject limits = new JsonObject();
+            requests.addProperty("cpu", 1);
+            requests.addProperty("memory", "4G");
+            limits.addProperty("cpu", 2);
+            limits.addProperty("memory", "8G");
+            resourceRequirements.add("requests", requests);
+            resourceRequirements.add("limits", limits);
+            configObj.add("resourceRequirements", resourceRequirements);
+
             return fb.setCustomRuntimeOptions(configObj.toString());
         }));
 
@@ -652,6 +665,17 @@ public class KubernetesRuntimeTest {
         assertEquals(serviceSpec.getMetadata().getNamespace(), "custom-ns");
         assertEquals(serviceSpec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(serviceSpec.getMetadata().getLabels().get("label"), "test");
+
+        List<V1Container> containers = spec.getSpec().getTemplate().getSpec().getContainers();
+        containers.forEach(c -> {
+            V1ResourceRequirements resources = c.getResources();
+            Map<String, Quantity> limits = resources.getLimits();
+            Map<String, Quantity> requests = resources.getRequests();
+            assertEquals(requests.get("cpu").getNumber(), new BigDecimal(1) );
+            assertEquals(limits.get("cpu").getNumber(), new BigDecimal(2) );
+            assertEquals(requests.get("memory").getNumber(), new BigDecimal(4000000000L) );
+            assertEquals(limits.get("memory").getNumber(), new BigDecimal(8000000000L) );
+        });
 
     }
 

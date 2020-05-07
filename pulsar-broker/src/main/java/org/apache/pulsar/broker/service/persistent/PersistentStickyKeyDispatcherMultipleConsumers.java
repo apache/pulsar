@@ -73,7 +73,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
         final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
         for (Entry entry : entries) {
-            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
+            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer())) % selector.getRangeSize();
             groupedEntries.putIfAbsent(key, new ArrayList<>());
             groupedEntries.get(key).add(entry);
         }
@@ -82,7 +82,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
             //TODO: None key policy
-            Consumer consumer = selector.select(entriesWithSameKey.getKey());
+            Consumer consumer = selector.selectByIndex(entriesWithSameKey.getKey());
             if (consumer == null) {
                 // Do nothing, cursor will be rewind at reconnection
                 log.info("[{}] rewind because no available consumer found for key {} from total {}", name,
@@ -92,7 +92,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 return;
             }
 
-            int messagesForC = Math.min(entriesWithSameKey.getValue().size(), consumer.getAvailablePermits());
+            int availablePermits = consumer.isWritable() ? consumer.getAvailablePermits() : 1;
+            if (log.isDebugEnabled() && !consumer.isWritable()) {
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
+                        consumer);
+            }
+            int messagesForC = Math.min(entriesWithSameKey.getValue().size(), availablePermits);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
                         name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);
