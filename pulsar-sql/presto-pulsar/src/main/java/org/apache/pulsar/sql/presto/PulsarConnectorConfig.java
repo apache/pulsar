@@ -401,8 +401,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        if (StringUtils.isEmpty(webServiceUrl)){       
-        return "PulsarConnectorConfig{"
+       if (StringUtils.isEmpty(webServiceUrl)){
+           return "PulsarConnectorConfig{"
             + "brokerServiceUrl='" + brokerServiceUrl + '\''
             + '}';
         } else {
