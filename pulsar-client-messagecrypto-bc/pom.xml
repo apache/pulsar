@@ -47,6 +47,7 @@
       <version>${project.parent.version}</version>
     </dependency>
 
+    <!--
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
@@ -67,5 +68,6 @@
       <version>1.59</version>
       <scope>compile</scope>
     </dependency>
+    -->
   </dependencies>
 </project>
