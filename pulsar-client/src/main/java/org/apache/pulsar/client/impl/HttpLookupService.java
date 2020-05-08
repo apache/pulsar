@@ -57,8 +57,7 @@ public class HttpLookupService implements LookupService {
 
     public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf.getServiceUrl(), conf.getAuthentication(),
-                eventLoopGroup, conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
+        this.httpClient = new HttpClient(conf, eventLoopGroup);
         this.useTls = conf.isUseTls();
     }
 

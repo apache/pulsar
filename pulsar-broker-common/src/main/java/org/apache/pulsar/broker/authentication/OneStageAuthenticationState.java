@@ -42,7 +42,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
                                        SSLSession sslSession,
                                        AuthenticationProvider provider) throws AuthenticationException {
         this.authenticationDataSource = new AuthenticationDataCommand(
-            new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);;
+            new String(authData.getBytes(), UTF_8), remoteAddress, sslSession);
         this.authRole = provider.authenticate(authenticationDataSource);
     }
 
