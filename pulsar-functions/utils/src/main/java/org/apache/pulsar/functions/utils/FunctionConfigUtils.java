@@ -34,7 +34,11 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
