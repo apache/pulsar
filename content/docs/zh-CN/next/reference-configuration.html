@@ -220,6 +220,18 @@
 <tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client</td><td>false</td></tr>
 <tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code></td><td></td></tr>
 <tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
+<tr><td>tlsEnabledWithKeyStore</td><td>Enable TLS with KeyStore type configuration in broker</td><td>false</td></tr>
+<tr><td>tlsProvider</td><td>TLS Provider for KeyStore type</td><td></td></tr>
+<tr><td>tlsKeyStoreType</td><td>LS KeyStore type configuration in broker: JKS, PKCS12</td><td>JKS</td></tr>
+<tr><td>tlsKeyStore</td><td>TLS KeyStore path in broker</td><td></td></tr>
+<tr><td>tlsKeyStorePassword</td><td>TLS KeyStore password for broker</td><td></td></tr>
+<tr><td>brokerClientTlsEnabledWithKeyStore</td><td>Whether internal client use KeyStore type to authenticate with Pulsar brokers</td><td>false</td></tr>
+<tr><td>brokerClientSslProvider</td><td>The TLS Provider used by internal client to authenticate with other Pulsar brokers</td><td></td></tr>
+<tr><td>brokerClientTlsTrustStoreType</td><td>TLS TrustStore type configuration for internal client: JKS, PKCS12, used by the internal client to authenticate with Pulsar brokers</td><td>JKS</td></tr>
+<tr><td>brokerClientTlsTrustStore</td><td>TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers</td><td></td></tr>
+<tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers</td><td></td></tr>
+<tr><td>brokerClientTlsCiphers</td><td>Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g. [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]</td><td></td></tr>
+<tr><td>brokerClientTlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g. [TLSv1.2, TLSv1.1, TLSv1]</td><td></td></tr>
 <tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
 <tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>

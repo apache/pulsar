@@ -188,6 +188,10 @@ Options:
  2       | http://192.168.2.3:8081 | testversion  | <span class="hljs-literal">false</span>       | active 
 </code></pre>
 <p>关于Presto部署的更多信息，请参阅 <a href="https://prestodb.io/docs/current/installation/deployment.html">Presto部署</a>。</p>
+<blockquote>
+<p>Note<br>
+The broker does not advance LAC, so when Pulsar SQL bypass broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting &quot;bookkeeperExplicitLacIntervalInMills&quot; in the broker.conf.</p>
+</blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/sql-getting-started"><span class="arrow-prev">← </span><span>Query data</span></a><a class="docs-next button" href="/docs/zh-CN/next/sql-rest-api"><span>REST API</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置-presto-pulsar-连接器">配置 Presto Pulsar 连接器</a></li><li><a href="#从现有-presto-集群查询数据">从现有 Presto 集群查询数据</a></li><li><a href="#部署一个新的分组">部署一个新的分组</a><ul class="toc-headings"><li><a href="#在多个节点上部署一个分组">在多个节点上部署一个分组</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
