@@ -34,6 +34,12 @@ public class SubscriptionStats {
     /** Total throughput delivered on this subscription (bytes/s). */
     public double msgThroughputOut;
 
+    /** Total bytes delivered to consumer (bytes) */
+    public long bytesOutCounter;
+
+    /** Total messages delivered to consumer (msg) */
+    public long msgOutCounter;
+
     /** Total rate of messages redelivered on this subscription (msg/s). */
     public double msgRateRedeliver;
 
@@ -86,6 +92,8 @@ public class SubscriptionStats {
     public void reset() {
         msgRateOut = 0;
         msgThroughputOut = 0;
+        bytesOutCounter = 0;
+        msgOutCounter = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
         msgBacklogNoDelayed = 0;
@@ -101,6 +109,8 @@ public class SubscriptionStats {
         checkNotNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
+        this.bytesOutCounter += stats.bytesOutCounter;
+        this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
