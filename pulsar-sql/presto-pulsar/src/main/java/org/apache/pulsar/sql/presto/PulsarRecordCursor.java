@@ -521,9 +521,7 @@ public class PulsarRecordCursor implements RecordCursor {
     }
 
     private byte[] toBytes(Object record) {
-        if (record instanceof byte[]) {
-            return (byte[]) record;
-        } else if (record instanceof ByteBuffer) {
+        if (record instanceof ByteBuffer) {
             ByteBuffer byteBuffer = (ByteBuffer) record;
             if (byteBuffer.hasArray()) {
                 return byteBuffer.array();
@@ -532,8 +530,20 @@ public class PulsarRecordCursor implements RecordCursor {
             byteBuffer.flip();
             byteBuffer.get(bytes);
             return bytes;
+        } else if (record instanceof ByteBuf) {
+            ByteBuf byteBuf = (ByteBuf) record;
+            if (byteBuf.hasArray()) {
+                return byteBuf.array();
+            }
+            byte[] bytes = new byte[byteBuf.readableBytes()];
+            byteBuf.readBytes(bytes);
+            return bytes;
         } else {
-            throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + record.getClass().getName());
+            try {
+                return (byte[]) record;
+            } catch (Exception e) {
+                throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + record.getClass().getName());
+            }
         }
     }
 
