@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client;
+package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.spy;
 
@@ -46,23 +46,27 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-// TLS authentication and authorization based on KeyStore type config.
+// TLS test without authentication and authorization based on KeyStore type config.
 @Slf4j
-public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
-    protected final String BROKER_KEYSTORE_FILE_PATH = "./src/test/resources/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH = "./src/test/resources/broker.truststore.jks";
+public class KeyStoreTlsProducerConsumerTestWithoutAuth extends ProducerConsumerBase {
+    protected final String BROKER_KEYSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
+    protected final String BROKER_TRUSTSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
     protected final String BROKER_KEYSTORE_PW = "111111";
     protected final String BROKER_TRUSTSTORE_PW = "111111";
 
-    protected final String CLIENT_KEYSTORE_FILE_PATH = "./src/test/resources/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH = "./src/test/resources/client.truststore.jks";
+    protected final String CLIENT_KEYSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
+    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
     protected final String CLIENT_KEYSTORE_PW = "111111";
     protected final String CLIENT_TRUSTSTORE_PW = "111111";
 
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
     protected final String KEYSTORE_TYPE = "JKS";
 
     private final String clusterName = "use";
+    Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 
     @BeforeMethod
     @Override
@@ -71,7 +75,6 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
         internalSetUpForBroker();
 
         // Start Broker
-
         super.init();
     }
 
@@ -96,14 +99,8 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
-
-        // config for authentication and authorization.
-        conf.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
-        conf.setAuthenticationProviders(providers);
+        tlsProtocols.add("TLSv1.2");
+        conf.setTlsProtocols(tlsProtocols);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
@@ -111,16 +108,12 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
             pulsarClient.close();
         }
 
-        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
-        tlsProtocols.add("TLSv1.2");
-
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
                 .enableTls(true)
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
                 .allowTlsInsecureConnection(false)
-                .tlsProtocols(tlsProtocols)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
@@ -145,7 +138,7 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
-                .allowTlsInsecureConnection(false)
+                .allowTlsInsecureConnection(true)
                 .authentication(AuthenticationKeyStoreTls.class.getName(), authParams).build());
         admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
@@ -218,9 +211,8 @@ public class TlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
             // OK
         }
 
-        // Using TLS on binary protocol - sending certs
+        // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
-
         try {
             pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();

@@ -108,8 +108,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-auth-sasl</module>
     <module>pulsar-client-auth-sasl</module>
 
-    <module>pulsar-client-auth-keystoretls</module>
-
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
 
