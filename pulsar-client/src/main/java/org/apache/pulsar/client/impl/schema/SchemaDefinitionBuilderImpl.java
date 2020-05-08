@@ -123,13 +123,13 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader) {
         this.reader=reader;
-        return null;
+        return this;
     }
 
     @Override
     public SchemaDefinitionBuilder<T> withSchemaWriter(SchemaWriter<T> writer) {
         this.writer = writer;
-        return null;
+        return this;
     }
 
     @Override

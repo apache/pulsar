@@ -27,12 +27,14 @@ import org.apache.pulsar.client.api.schema.SchemaWriter;
  * Writer implementation for writing objects as JSON.
  *
  * @param <T>
+ * @deprecated use {@link JacksonJsonWriter} instead.
  */
-public class JacksonJsonWriter<T> implements SchemaWriter<T> {
+@Deprecated
+public class JsonWriter<T> implements SchemaWriter<T> {
 
     private final ObjectMapper objectMapper;
 
-    public JacksonJsonWriter(ObjectMapper objectMapper) {
+    public JsonWriter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

@@ -31,12 +31,14 @@ import java.io.InputStream;
  * Reader implementation for reading objects from JSON.
  *
  * @param <T> object type to read
+ * @deprecated use {@link JacksonJsonReader} instead.
  */
-public class JacksonJsonReader<T> implements SchemaReader<T> {
+@Deprecated
+public class JsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectMapper objectMapper;
 
-    public JacksonJsonReader(ObjectMapper objectMapper, Class<T> pojo) {
+    public JsonReader(ObjectMapper objectMapper, Class<T> pojo) {
         this.pojo = pojo;
         this.objectMapper = objectMapper;
     }
@@ -65,5 +67,5 @@ public class JacksonJsonReader<T> implements SchemaReader<T> {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(JacksonJsonReader.class);
+    private static final Logger log = LoggerFactory.getLogger(JsonReader.class);
 }
