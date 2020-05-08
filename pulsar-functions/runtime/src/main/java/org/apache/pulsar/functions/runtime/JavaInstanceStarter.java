@@ -125,6 +125,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
     public String clusterName;
 
+    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance", required = false)
+    public int maxPendingAsyncRequests = 1000;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -147,6 +150,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
+        instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
