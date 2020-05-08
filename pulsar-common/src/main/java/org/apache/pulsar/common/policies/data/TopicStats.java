@@ -43,16 +43,16 @@ public class TopicStats {
     /** Total throughput of messages dispatched for the topic (byte/s). */
     public double msgThroughputOut;
 
-    /** Total bytes published to the topic (bytes) */
+    /** Total bytes published to the topic (bytes). */
     public long bytesInCounter;
 
-    /** Total messages published to the topic (msg) */
+    /** Total messages published to the topic (msg). */
     public long msgInCounter;
 
-    /** Total bytes delivered to consumer (bytes) */
+    /** Total bytes delivered to consumer (bytes). */
     public long bytesOutCounter;
 
-    /** Total messages delivered to consumer (msg) */
+    /** Total messages delivered to consumer (msg). */
     public long msgOutCounter;
 
     /** Average size of published messages (bytes). */

@@ -32,10 +32,10 @@ public class ConsumerStats {
     /** Total throughput delivered to the consumer (bytes/s). */
     public double msgThroughputOut;
 
-    /** Total bytes delivered to consumer (bytes) */
+    /** Total bytes delivered to consumer (bytes). */
     public long bytesOutCounter;
 
-    /** Total messages delivered to consumer (msg) */
+    /** Total messages delivered to consumer (msg). */
     public long msgOutCounter;
 
     /** Total rate of messages redelivered by this consumer (msg/s). */

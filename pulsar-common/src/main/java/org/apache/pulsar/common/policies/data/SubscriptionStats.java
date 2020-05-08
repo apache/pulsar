@@ -34,10 +34,10 @@ public class SubscriptionStats {
     /** Total throughput delivered on this subscription (bytes/s). */
     public double msgThroughputOut;
 
-    /** Total bytes delivered to consumer (bytes) */
+    /** Total bytes delivered to consumer (bytes). */
     public long bytesOutCounter;
 
-    /** Total messages delivered to consumer (msg) */
+    /** Total messages delivered to consumer (msg). */
     public long msgOutCounter;
 
     /** Total rate of messages redelivered on this subscription (msg/s). */
