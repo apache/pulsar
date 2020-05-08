@@ -41,5 +41,9 @@ public class AggregatedSubscriptionStats {
 
     public long msgDelayed;
 
+    long msgOutCounter;
+
+    long bytesOutCounter;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

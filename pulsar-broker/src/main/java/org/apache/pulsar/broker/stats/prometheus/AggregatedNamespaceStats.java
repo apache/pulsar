@@ -34,6 +34,11 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
+    public long bytesInCounter;
+    public long msgInCounter;
+    public long bytesOutCounter;
+    public long msgOutCounter;
+
     public long storageSize;
     public long msgBacklog;
     public long msgDelayed;
@@ -64,6 +69,11 @@ public class AggregatedNamespaceStats {
         rateOut += stats.rateOut;
         throughputIn += stats.throughputIn;
         throughputOut += stats.throughputOut;
+
+        bytesInCounter += stats.bytesInCounter;
+        msgInCounter += stats.msgInCounter;
+        bytesOutCounter += stats.bytesOutCounter;
+        msgOutCounter += stats.msgOutCounter;
 
         storageSize += stats.storageSize;
         backlogSize += stats.backlogSize;
