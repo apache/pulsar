@@ -404,6 +404,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
 
+    @FieldContext(
+            doc = "Max pending async requests per instance to avoid large number of concurrent requests."
+                  + "Only used in AsyncFunction. Default: 1000"
+    )
+    private int maxPendingAsyncRequests = 1000;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }
