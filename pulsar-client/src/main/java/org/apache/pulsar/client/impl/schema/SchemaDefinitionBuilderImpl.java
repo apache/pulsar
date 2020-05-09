@@ -140,6 +140,9 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         checkArgument(!(StringUtils.isNotBlank(jsonDef) && clazz != null),
                 "Not allowed to set pojo and jsonDef both for the schema definition.");
 
+        checkArgument((reader != null && writer != null) || (reader == null && writer == null),
+                "Must specify reader and writer or none of them.");
+
         properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
         properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
         return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning,
