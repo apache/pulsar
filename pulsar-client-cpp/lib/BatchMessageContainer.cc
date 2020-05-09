@@ -49,16 +49,14 @@ bool BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
                     << "]");
     if (!(disableCheck || hasSpaceInBatch(msg))) {
         LOG_DEBUG(*this << " Batch is full");
-        if (messagesContainerListPtr_->size() > 0) {
-            // Batch is full means a spot has been reserved before but unused until now. So if
-            // sendMessage(NULL) failed we also need to return false to release the unused spot in
-            // ProducerImpl::sendAsync().
-            bool sendMessageSuccess = sendMessage(NULL);
-            return add(msg, sendCallback, true) && sendMessageSuccess;  // avoid short-circuit
-        } else {
-            // hasSpaceInBatch returns false just because `msg` is too big
-            return add(msg, sendCallback, true);
+        bool pushedToPendingQueue = sendMessage(NULL);
+        bool result = add(msg, sendCallback, true);
+        if (!pushedToPendingQueue) {
+            // The msg failed to be pushed to the producer's queue, so the reserved spot before won't be
+            // released and we must return false to notify producer to release the spot
+            return false;
         }
+        return result;
     }
     if (messagesContainerListPtr_->empty()) {
         // First message to be added
@@ -80,7 +78,8 @@ bool BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);
     if (isFull()) {
         LOG_DEBUG(*this << " Batch is full.");
-        return sendMessage(NULL);
+        sendMessage(NULL);
+        return false;
     }
     // A batch of messages only need one spot, so returns false when more messages were added to the batch,
     // then outer ProducerImpl::sendAsync() will release unnecessary reserved spots

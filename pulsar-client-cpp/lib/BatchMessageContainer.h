@@ -58,8 +58,10 @@ class BatchMessageContainer {
 
     ~BatchMessageContainer();
 
-    // Returns true if a batch of messages was sent to producer's pending message queue or `msg` was the first
-    // message of batch
+    // Returns true only if the first message arrived and wasn't sent immediately.
+    // If returns true, the outer ProducerImpl::sendAync won't release the spot which was reserved before. The
+    // spot will be released until the batch message was passed to ProducerImpl::sendMessage,
+    // then pendingMessagesQueue_.push will release the spot.
     bool add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
 
     SharedBuffer getBatchedPayload();
