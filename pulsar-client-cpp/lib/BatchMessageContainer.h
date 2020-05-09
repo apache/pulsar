@@ -58,7 +58,9 @@ class BatchMessageContainer {
 
     ~BatchMessageContainer();
 
-    void add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
+    // Returns true if a batch of messages was sent to producer's pending message queue or `msg` was the first
+    // message of batch
+    bool add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
 
     SharedBuffer getBatchedPayload();
 
@@ -109,7 +111,8 @@ class BatchMessageContainer {
 
     void startTimer();
 
-    void sendMessage(FlushCallback callback);
+    // Returns true if a batch of messages was sent to producer's pending message queue
+    bool sendMessage(FlushCallback callback);
 };
 
 bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {

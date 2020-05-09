@@ -43,15 +43,22 @@ BatchMessageContainer::BatchMessageContainer(ProducerImpl& producer)
     LOG_INFO(*this << " BatchMessageContainer constructed");
 }
 
-void BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, bool disableCheck) {
+bool BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, bool disableCheck) {
     // disableCheck is needed to avoid recursion in case the batchSizeInKB < IndividualMessageSizeInKB
     LOG_DEBUG(*this << " Called add function for [message = " << msg << "] [disableCheck = " << disableCheck
                     << "]");
     if (!(disableCheck || hasSpaceInBatch(msg))) {
         LOG_DEBUG(*this << " Batch is full");
-        sendMessage(NULL);
-        add(msg, sendCallback, true);
-        return;
+        if (messagesContainerListPtr_->size() > 0) {
+            // Batch is full means a spot has been reserved before but unused until now. So if
+            // sendMessage(NULL) failed we also need to return false to release the unused spot in
+            // ProducerImpl::sendAsync().
+            bool sendMessageSuccess = sendMessage(NULL);
+            return add(msg, sendCallback, true) && sendMessageSuccess;  // avoid short-circuit
+        } else {
+            // hasSpaceInBatch returns false just because `msg` is too big
+            return add(msg, sendCallback, true);
+        }
     }
     if (messagesContainerListPtr_->empty()) {
         // First message to be added
@@ -73,8 +80,11 @@ void BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);
     if (isFull()) {
         LOG_DEBUG(*this << " Batch is full.");
-        sendMessage(NULL);
+        return sendMessage(NULL);
     }
+    // A batch of messages only need one spot, so returns false when more messages were added to the batch,
+    // then outer ProducerImpl::sendAsync() will release unnecessary reserved spots
+    return messagesContainerListPtr_->size() == 1;
 }
 
 void BatchMessageContainer::startTimer() {
@@ -85,7 +95,7 @@ void BatchMessageContainer::startTimer() {
         std::bind(&pulsar::ProducerImpl::batchMessageTimeoutHandler, &producer_, std::placeholders::_1));
 }
 
-void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
+bool BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
     // Call this function after acquiring the ProducerImpl lock
     LOG_DEBUG(*this << "Sending the batch message container");
     if (isEmpty()) {
@@ -93,13 +103,17 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
         if (flushCallback) {
             flushCallback(ResultOk);
         }
-        return;
+        return false;
     }
     impl_->metadata.set_num_messages_in_batch(messagesContainerListPtr_->size());
     compressPayLoad();
 
     SharedBuffer encryptedPayload;
-    producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload);
+    if (!producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload)) {
+        batchMessageCallBack(ResultCryptoError, MessageId{}, messagesContainerListPtr_, nullptr);
+        clear();
+        return false;
+    }
     impl_->payload = encryptedPayload;
 
     if (impl_->payload.readableBytes() > producer_.keepMaxMessageSize_) {
@@ -107,7 +121,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
         // can only 1 single message in the batch at this point.
         batchMessageCallBack(ResultMessageTooBig, MessageId{}, messagesContainerListPtr_, nullptr);
         clear();
-        return;
+        return false;
     }
 
     Message msg;
@@ -119,6 +133,7 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
 
     producer_.sendMessage(msg, callback);
     clear();
+    return true;
 }
 
 void BatchMessageContainer::compressPayLoad() {

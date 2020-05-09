@@ -425,7 +425,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     if (batchMessageContainer && !msg.impl_->metadata.has_deliver_at_time()) {
         // Batching is enabled and the message is not delayed
-        batchMessageContainer->add(msg, cb);
+        if (!batchMessageContainer->add(msg, cb)) {
+            pendingMessagesQueue_.release(1);
+        }
         return;
     }
     sendMessage(msg, cb);
