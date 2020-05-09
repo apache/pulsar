@@ -655,9 +655,23 @@ public class ServerCnx extends PulsarHandler {
             //  2. we require to validate the original credentials
             //  3. no credentials were passed
             if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                // init authentication
+                String originalAuthMethod;
+                if (connect.hasOriginalAuthMethod()) {
+                    originalAuthMethod = connect.getOriginalAuthMethod();
+                } else {
+                    originalAuthMethod = "none";
+                }
+
                 AuthenticationProvider originalAuthenticationProvider = getBrokerService()
                         .getAuthenticationService()
-                        .getAuthenticationProvider(authMethod);
+                        .getAuthenticationProvider(originalAuthMethod);
+
+                if (originalAuthenticationProvider == null) {
+                    throw new AuthenticationException(String.format("Can't find AuthenticationProvider for original role" +
+                            " using auth method [%s] is not available", originalAuthMethod));
+                }
+
                 originalAuthState = originalAuthenticationProvider.newAuthState(
                         AuthData.of(connect.getOriginalAuthData().getBytes()),
                         remoteAddress,
