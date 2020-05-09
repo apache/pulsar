@@ -993,10 +993,10 @@ TEST(BatchMessageTest, testSendCallback) {
     constexpr int numMessagesOfBatch = 3;
 
     ProducerConfiguration producerConfig;
-    producerConfig.setBatchingEnabled(5);
+    producerConfig.setBatchingEnabled(true);
     producerConfig.setBatchingMaxMessages(numMessagesOfBatch);
     producerConfig.setBatchingMaxPublishDelayMs(1000);  // 1 s, it's long enough for 3 messages batched
-    producerConfig.setMaxPendingMessages(numMessagesOfBatch);
+    producerConfig.setMaxPendingMessages(2);            // only 1 spot is actually used
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfig, producer));
@@ -1022,6 +1022,7 @@ TEST(BatchMessageTest, testSendCallback) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg));
         receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
     }
 
     latch.wait();
