@@ -59,22 +59,24 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private String storageServiceUrl;
     private SecretsProvider secretsProvider;
     private CollectorRegistry collectorRegistry;
+    private String narExtractionDirectory;
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
+                                CollectorRegistry collectorRegistry, String narExtractionDirectory,
+                                ClassLoader rootClassLoader) throws Exception {
         initialize(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
-                storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
+                storageServiceUrl, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                                ClassLoader rootClassLoader) {
+                                String narExtractionDirectory, ClassLoader rootClassLoader) {
 
         initialize(threadGroupName, pulsarClient, storageServiceUrl,
-                secretsProvider, collectorRegistry, rootClassLoader);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
@@ -100,7 +102,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
     private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                             SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                            ClassLoader rootClassLoader) {
+                            String narExtractionDirectory, ClassLoader rootClassLoader) {
         if (rootClassLoader == null) {
             rootClassLoader = Thread.currentThread().getContextClassLoader();
         }
@@ -111,6 +113,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
+        this.narExtractionDirectory = narExtractionDirectory;
     }
 
     @Override
@@ -124,7 +127,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         initialize(factoryConfig.getThreadGroupName(),
                 createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
                 workerConfig.getStateStorageServiceUrl(), new ClearTextSecretsProvider(),
-                null, null);
+                null, workerConfig.getNarExtractionDirectory(), null);
     }
 
     @Override
@@ -139,7 +142,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             pulsarClient,
             storageServiceUrl,
             secretsProvider,
-            collectorRegistry);
+            collectorRegistry,
+            narExtractionDirectory);
     }
 
     @Override

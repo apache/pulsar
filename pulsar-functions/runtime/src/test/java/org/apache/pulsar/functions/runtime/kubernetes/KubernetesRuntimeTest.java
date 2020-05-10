@@ -71,6 +71,7 @@ public class KubernetesRuntimeTest {
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     private static final Function.Resources RESOURCES = Function.Resources.newBuilder()
             .setRam(1000L).setCpu(1).setDisk(10000L).build();
+    private static final String narExtractionDirectory = "/tmp/foo";
 
     static {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
@@ -201,6 +202,7 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setChangeConfigMap(null);
         kubernetesRuntimeFactoryConfig.setGrpcPort(4332);
         kubernetesRuntimeFactoryConfig.setMetricsPort(4331);
+        kubernetesRuntimeFactoryConfig.setNarExtractionDirectory(narExtractionDirectory);
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
@@ -358,14 +360,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 35;
+            totalArgs = 37;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 34;
+            totalArgs = 36;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -394,7 +396,7 @@ public class KubernetesRuntimeTest {
             expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
-        expectedArgs += " --cluster_name standalone";
+        expectedArgs += " --cluster_name standalone --nar_extraction_directory \" + narExtractionDirectory";
 
         assertEquals(String.join(" ", args), expectedArgs);
 

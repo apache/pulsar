@@ -838,7 +838,7 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory());
+                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
                 LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
