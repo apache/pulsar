@@ -122,5 +122,5 @@ public class FunctionConfig {
     private String customRuntimeOptions;
     // Max pending async requests per instance to avoid large number of concurrent requests.
     // Only used in AsyncFunction. Default: 1000.
-    private Integer maxPendingAsyncRequests = 1000;
+    private Integer maxPendingAsyncRequests;
 }
