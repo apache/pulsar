@@ -180,6 +180,8 @@ All the topic metrics are labelled with the following labels:
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
 | pulsar_in_messages_total | Counter | The total number of messages received for this topic |
+| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
 
 #### Replication metrics
 
