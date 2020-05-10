@@ -367,6 +367,10 @@ public class FunctionConfigUtils {
         if (functionConfig.getParallelism() == null) {
             functionConfig.setParallelism(1);
         }
+        
+        if (functionConfig.getMaxPendingAsyncRequests() == null) {
+        	functionConfig.setMaxPendingAsyncRequests(Integer.valueOf(1000));
+        }
 
         if (functionConfig.getJar() != null) {
             functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
