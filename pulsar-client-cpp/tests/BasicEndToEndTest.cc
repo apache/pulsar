@@ -620,6 +620,10 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
 
+    for (const auto &q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
+
     delete[] content;
 }
 
