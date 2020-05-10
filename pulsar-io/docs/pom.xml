@@ -89,12 +89,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-jdbc-mysql</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-jdbc-postgresql</artifactId>
+      <artifactId>pulsar-io-jdbc-postgres</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

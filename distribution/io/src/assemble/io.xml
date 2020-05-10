@@ -50,7 +50,6 @@
     <file><source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/mysql/target/pulsar-io-jdbc-mysql-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/sqlite/target/pulsar-io-jdbc-sqlite-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/mariadb/target/pulsar-io-jdbc-mariadb-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/clickhouse/target/pulsar-io-jdbc-clickhouse-${project.version}.nar</source></file>

@@ -45,7 +45,6 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
@@ -65,8 +64,8 @@ import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
 import org.apache.pulsar.tests.integration.io.DebeziumPostgreSqlSourceTester;
 import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
 import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
-import org.apache.pulsar.tests.integration.io.JdbcMySqlSinkTester;
-import org.apache.pulsar.tests.integration.io.JdbcMySqlSinkTester.Foo;
+import org.apache.pulsar.tests.integration.io.JdbcPostgresSinkTester;
+import org.apache.pulsar.tests.integration.io.JdbcPostgresSinkTester.Foo;
 import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
 import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
 import org.apache.pulsar.tests.integration.io.RabbitMQSinkTester;
@@ -82,11 +81,9 @@ import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -96,7 +93,6 @@ import java.util.concurrent.TimeUnit;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -141,7 +137,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "sink")
     public void testJdbcSink() throws Exception {
-        testSink(new JdbcMySqlSinkTester(), true);
+        testSink(new JdbcPostgresSinkTester(), true);
     }
 
     @Test(enabled = false, groups = "sink")
@@ -237,8 +233,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // produce messages
         Map<String, String> kvs;
-        if (tester instanceof JdbcMySqlSinkTester) {
-            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcMySqlSinkTester.Foo.class));
+        if (tester instanceof JdbcPostgresSinkTester) {
+            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
                     waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
@@ -246,7 +242,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             // validate the sink result
             tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcMySqlSinkTester.Foo.class));
+            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
@@ -255,7 +251,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             // validate the sink result
             tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcMySqlSinkTester.Foo.class));
+            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
@@ -442,7 +438,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcMySqlSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaInsertMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -460,7 +456,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcMySqlSinkTester.Foo obj = new JdbcMySqlSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_insert_" + i);
             obj.setField3(i);
@@ -479,7 +475,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcMySqlSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaUpdateMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -498,7 +494,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcMySqlSinkTester.Foo obj = new JdbcMySqlSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_update_" + i);
             obj.setField3(i);
@@ -518,7 +514,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcMySqlSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaDeleteMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -536,7 +532,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcMySqlSinkTester.Foo obj = new JdbcMySqlSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_update_" + i);
             obj.setField3(i);

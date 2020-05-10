@@ -73,7 +73,7 @@ For more information about **how to install a standalone Pulsar and built-in con
     curl -s http://localhost:8080/admin/v2/functions/connectors
     ```
 
-    **Example outoupt**
+    **Example output**
 
     ```json
     [{"name":"aerospike","description":"Aerospike database sink","sinkClass":"org.apache.pulsar.io.aerospike.AerospikeStringSink"},{"name":"cassandra","description":"Writes data into Cassandra","sinkClass":"org.apache.pulsar.io.cassandra.CassandraStringSink"},{"name":"kafka","description":"Kafka source and sink connector","sourceClass":"org.apache.pulsar.io.kafka.KafkaStringSource","sinkClass":"org.apache.pulsar.io.kafka.KafkaBytesSink"},{"name":"kinesis","description":"Kinesis sink connector","sinkClass":"org.apache.pulsar.io.kinesis.KinesisSink"},{"name":"rabbitmq","description":"RabbitMQ source connector","sourceClass":"org.apache.pulsar.io.rabbitmq.RabbitMQSource"},{"name":"twitter","description":"Ingest data from Twitter firehose","sourceClass":"org.apache.pulsar.io.twitter.TwitterFireHose"}]
@@ -84,7 +84,7 @@ For more information about **how to install a standalone Pulsar and built-in con
 
 ## Connect Pulsar to Cassandra
 
-This section demonstrates how to connector Pulsar to Cassandra.
+This section demonstrates how to connect Pulsar to Cassandra.
 
 > #### Tip
 > 

@@ -28,8 +28,8 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>pulsar-io-jdbc-postgresql</artifactId>
-  <name>Pulsar IO :: Jdbc :: Postgresql</name>
+  <artifactId>pulsar-io-jdbc-postgres</artifactId>
+  <name>Pulsar IO :: Jdbc :: Postgres</name>
 
   <dependencies>
     <dependency>

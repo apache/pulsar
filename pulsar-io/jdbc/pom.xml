@@ -24,7 +24,6 @@
   <packaging>pom</packaging>
   <modules>
     <module>core</module>
-    <module>mysql</module>
     <module>clickhouse</module>
     <module>mariadb</module>
     <module>postgres</module>
