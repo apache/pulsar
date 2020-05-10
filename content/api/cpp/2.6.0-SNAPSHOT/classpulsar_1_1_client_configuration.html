@@ -164,6 +164,10 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isValidateHostName</b
 <tr class="memitem:acaa72b0f7e43d1f5cdc633946d26f51b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="acaa72b0f7e43d1f5cdc633946d26f51b"></a>
 const unsigned int &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getStatsIntervalInSeconds</b> () const </td></tr>
 <tr class="separator:acaa72b0f7e43d1f5cdc633946d26f51b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a97191cb58954268cdbb7cc69a7b8cdba"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a97191cb58954268cdbb7cc69a7b8cdba">setPartititionsUpdateInterval</a> (unsigned int intervalInSeconds)</td></tr>
+<tr class="separator:a97191cb58954268cdbb7cc69a7b8cdba"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8e2c09b124d43c857e8d58ab83800030"><td class="memItemLeft" align="right" valign="top">unsigned int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a8e2c09b124d43c857e8d58ab83800030">getPartitionsUpdateInterval</a> () const </td></tr>
+<tr class="separator:a8e2c09b124d43c857e8d58ab83800030"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -268,6 +272,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the client operations timeout in seconds </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a8e2c09b124d43c857e8d58ab83800030"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">unsigned int pulsar::ClientConfiguration::getPartitionsUpdateInterval </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get partitions update interval in seconds. </p>
 
 </div>
 </div>
@@ -423,6 +443,29 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">timeout</td><td>the timeout after which the operation will be considered as failed </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a97191cb58954268cdbb7cc69a7b8cdba"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a>&amp; pulsar::ClientConfiguration::setPartititionsUpdateInterval </td>
+          <td>(</td>
+          <td class="paramtype">unsigned int&#160;</td>
+          <td class="paramname"><em>intervalInSeconds</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set partitions update interval in seconds. If a partitioned topic is produced or subscribed and <code>intervalInSeconds</code> is not 0, every <code>intervalInSeconds</code> seconds the partition number will be retrieved by sending lookup requests. If partition number has been increased, more producer/consumer of increased partitions will be created. Default is 60 seconds.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">intervalInSeconds</td><td>the seconds between two lookup request for partitioned topic's metadata </td></tr>
   </table>
   </dd>
 </dl>
