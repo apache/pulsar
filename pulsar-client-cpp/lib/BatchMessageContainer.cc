@@ -49,11 +49,15 @@ bool BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
                     << "]");
     if (!(disableCheck || hasSpaceInBatch(msg))) {
         LOG_DEBUG(*this << " Batch is full");
+        bool hasMessages = !messagesContainerListPtr_->empty();
         bool pushedToPendingQueue = sendMessage(NULL);
         bool result = add(msg, sendCallback, true);
-        if (!pushedToPendingQueue) {
+        if (hasMessages && !pushedToPendingQueue) {
             // The msg failed to be pushed to the producer's queue, so the reserved spot before won't be
-            // released and we must return false to notify producer to release the spot
+            // released and we must return false to tell the producer to release the spot.
+            // Exceptionally, `hasSpaceInBatch` returns false just because `msg` is too big before compressed,
+            // while there're no messages before. In this case, the spots have already been released so we
+            // can't return false simply.
             return false;
         }
         return result;
@@ -76,14 +80,18 @@ bool BatchMessageContainer::add(const Message& msg, SendCallback sendCallback, b
 
     LOG_DEBUG(*this << " Number of messages in Batch = " << messagesContainerListPtr_->size());
     LOG_DEBUG(*this << " Batch Payload Size In Bytes = " << batchSizeInBytes_);
+    bool hasOnlyOneMessage = (messagesContainerListPtr_->size() == 1);
     if (isFull()) {
         LOG_DEBUG(*this << " Batch is full.");
-        sendMessage(NULL);
-        return false;
+        // If there're more than one messages in the batch, even if it was pushed to the queue successfully,
+        // we also returns false to release one spot, because there're two spots to be released. One is
+        // reserved when the first message arrived, another is reserved when the current message arrived.
+        bool pushedToPendingQueue = sendMessage(NULL);
+        return hasOnlyOneMessage && pushedToPendingQueue;
     }
     // A batch of messages only need one spot, so returns false when more messages were added to the batch,
     // then outer ProducerImpl::sendAsync() will release unnecessary reserved spots
-    return messagesContainerListPtr_->size() == 1;
+    return hasOnlyOneMessage;
 }
 
 void BatchMessageContainer::startTimer() {
