@@ -396,7 +396,7 @@ public class KubernetesRuntimeTest {
             expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
-        expectedArgs += " --cluster_name standalone --nar_extraction_directory \" + narExtractionDirectory";
+        expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
 
         assertEquals(String.join(" ", args), expectedArgs);
 

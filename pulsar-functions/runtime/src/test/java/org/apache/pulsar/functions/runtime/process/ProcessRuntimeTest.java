@@ -305,7 +305,7 @@ public class ProcessRuntimeTest {
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                 + " --secrets_provider_config '{\"Config\":\"Value\"}'"
-                + " --cluster_name standalone --nar_extraction_directory \" + narExtractionDirectory";
+                + " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
