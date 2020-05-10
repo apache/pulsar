@@ -19,4 +19,4 @@
 
 name: jdbc-postgres
 description: JDBC sink for PostgreSQL
-sinkClass: org.apache.pulsar.io.jdbc.PostgresqlJdbcAutoSchemaSink
+sinkClass: org.apache.pulsar.io.jdbc.PostgresJdbcAutoSchemaSink

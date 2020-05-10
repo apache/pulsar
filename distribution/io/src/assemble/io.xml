@@ -54,7 +54,7 @@
     <file><source>${basedir}/../../pulsar-io/jdbc/sqlite/target/pulsar-io-jdbc-sqlite-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/mariadb/target/pulsar-io-jdbc-mariadb-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/jdbc/clickhouse/target/pulsar-io-jdbc-clickhouse-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/jdbc/postgresql/target/pulsar-io-jdbc-postgresql-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/jdbc/postgres/target/pulsar-io-jdbc-postgres-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/elastic-search/target/pulsar-io-elastic-search-${project.version}.nar</source></file>

@@ -27,8 +27,8 @@
     <module>mysql</module>
     <module>clickhouse</module>
     <module>mariadb</module>
+    <module>postgres</module>
     <module>sqlite</module>
-    <module>postgresql</module>
   </modules>
   <parent>
     <groupId>org.apache.pulsar</groupId>
