@@ -27,6 +27,6 @@ import org.apache.pulsar.io.core.annotations.IOType;
     help = "A simple JDBC sink for ClickHouse that writes pulsar messages to a database table",
     configClass = JdbcSinkConfig.class
 )
-public class ClickhouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
+public class ClickHouseJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
 }
