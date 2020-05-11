@@ -521,8 +521,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void createSubscription(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String topic, @PathParam("subscriptionName") String encodedSubName,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("messageId") MessageIdImpl messageId,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
             @QueryParam("replicated") boolean replicated) {
         try {
             validateTopicName(property, cluster, namespace, topic);
