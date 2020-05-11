@@ -302,7 +302,7 @@ public class SinkConfigUtils {
     }
 
     public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
-                                          File sinkPackageFile) {
+                                          File sinkPackageFile, String narExtractionDirectory) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -356,7 +356,7 @@ public class SinkConfigUtils {
             jarClassLoaderException = e;
         }
         try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile);
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile, narExtractionDirectory);
         } catch (Exception e) {
             narClassLoaderException = e;
         }

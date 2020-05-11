@@ -208,7 +208,8 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath,
+                                                  File sourcePackageFile, String narExtractionDirectory) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -249,7 +250,7 @@ public class SourceConfigUtils {
             jarClassLoaderException = e;
         }
         try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile, narExtractionDirectory);
         } catch (Exception e) {
             narClassLoaderException = e;
         }
