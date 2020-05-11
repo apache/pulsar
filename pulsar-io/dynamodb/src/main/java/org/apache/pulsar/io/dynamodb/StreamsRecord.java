@@ -26,10 +26,15 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.amazonaws.services.dynamodbv2.streamsadapter.model.RecordAdapter;
+import lombok.Getter;
 import org.apache.pulsar.functions.api.Record;
 import software.amazon.awssdk.utils.StringUtils;
 
-// This is a direct adaptation of the kinesis record for kcl v1; no dynamo-specific logic
+/**
+ *  This is a direct adaptation of the kinesis record for kcl v1,
+ *  with a little branching added for dynamo-specific logic.
+ */
+
 public class StreamsRecord implements Record<byte[]> {
     
     public static final String ARRIVAL_TIMESTAMP = "ARRIVAL_TIMESTAMP";
@@ -39,12 +44,14 @@ public class StreamsRecord implements Record<byte[]> {
     public static final String EVENT_NAME = "EVENT_NAME";
 
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+    @Getter
     private final Optional<String> key;
+    @Getter
     private final byte[] value;
+    @Getter
     private final HashMap<String, String> userProperties = new HashMap<String, String> ();
     
     public StreamsRecord(com.amazonaws.services.kinesis.model.Record record) {
-//        special-case the handling of dynamo records
         if (record instanceof RecordAdapter) {
             com.amazonaws.services.dynamodbv2.model.Record dynamoRecord = ((RecordAdapter) record).getInternalObject();
             this.key = Optional.of(dynamoRecord.getEventID());
@@ -56,7 +63,6 @@ public class StreamsRecord implements Record<byte[]> {
             setProperty(ENCRYPTION_TYPE, record.getEncryptionType());
             setProperty(PARTITION_KEY, record.getPartitionKey());
             setProperty(SEQUENCE_NUMBER, record.getSequenceNumber());
-
         }
 
         if (StringUtils.isBlank(record.getEncryptionType())) {
@@ -71,20 +77,6 @@ public class StreamsRecord implements Record<byte[]> {
             // Who knows?
             this.value = null;
         }
-    }
-
-    @Override
-    public Optional<String> getKey() {
-        return key;
-    }
-
-    @Override
-    public byte[] getValue() {
-        return value;
-    }
-
-    public Map<String, String> getProperties() {
-        return userProperties;
     }
 
     public void setProperty(String key, String value) {

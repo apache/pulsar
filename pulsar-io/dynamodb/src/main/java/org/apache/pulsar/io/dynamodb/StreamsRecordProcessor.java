@@ -89,7 +89,7 @@ public class StreamsRecordProcessor implements IRecordProcessor {
     @Override
     public void processRecords(ProcessRecordsInput processRecordsInput) {
 
-        log.info("Processing {} records from {}", processRecordsInput.getRecords().size(), kinesisShardId);
+        log.debug("Processing {} records from {}", processRecordsInput.getRecords().size(), kinesisShardId);
 
         for (Record record : processRecordsInput.getRecords()) {
             try {

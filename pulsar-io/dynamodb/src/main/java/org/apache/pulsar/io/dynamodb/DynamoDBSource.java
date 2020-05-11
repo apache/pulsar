@@ -43,10 +43,6 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-/**
- * 
- * @see KinesisClientLibConfiguration
- */
 @Connector(
         name = "dynamodb",
         type = IOType.SOURCE,
