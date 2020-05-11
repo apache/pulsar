@@ -837,7 +837,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -907,7 +907,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1001,7 +1001,7 @@ public class SourceApiV3ResourceTest {
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);

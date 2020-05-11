@@ -34,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
@@ -1562,6 +1563,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The directory where nar Extraction of offloaders happens"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
