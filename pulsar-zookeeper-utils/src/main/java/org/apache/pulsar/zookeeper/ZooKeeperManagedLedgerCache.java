@@ -65,7 +65,7 @@ public class ZooKeeperManagedLedgerCache implements Watcher {
         String watchedEventPath = watchedEvent.getPath();
         if (watchedEventPath != null) {
             LOG.info("invalidate called in zookeeperChildrenCache for path {}", watchedEventPath);
-            cache.invalidate(path);
+            cache.invalidate(watchedEventPath);
         }
     }
 }
