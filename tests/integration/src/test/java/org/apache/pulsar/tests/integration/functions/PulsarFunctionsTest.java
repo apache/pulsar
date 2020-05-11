@@ -296,7 +296,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,
-                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName
             };
@@ -333,7 +333,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,
-                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
                     "--parallelism", "2"
