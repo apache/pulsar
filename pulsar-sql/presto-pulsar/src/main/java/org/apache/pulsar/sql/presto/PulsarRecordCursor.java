@@ -124,7 +124,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 pulsarConnectorCache.getManagedLedgerFactory(),
                 pulsarConnectorCache.getManagedLedgerConfig(
                         TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies),
+                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies,
+                        pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
