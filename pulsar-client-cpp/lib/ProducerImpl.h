@@ -63,7 +63,7 @@ class ProducerImpl : public HandlerBase,
                      public ProducerImplBase {
    public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,
-                 const ProducerConfiguration& producerConfiguration);
+                 const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
 
     int keepMaxMessageSize_;
@@ -150,6 +150,7 @@ class ProducerImpl : public HandlerBase,
 
     MessageQueue pendingMessagesQueue_;
 
+    int32_t partition_;  // -1 if topic is non-partitioned
     std::string producerName_;
     std::string producerStr_;
     uint64_t producerId_;
