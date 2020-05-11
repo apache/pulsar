@@ -2293,11 +2293,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            if (e.getCause() instanceof BrokerServiceException.TopicNotFoundException) {
-                throw topicNotFoundReason(topicName);
-            } else {
-                throw new RestException(e);
-            }
+            throw new RestException(e);
         }
     }
 

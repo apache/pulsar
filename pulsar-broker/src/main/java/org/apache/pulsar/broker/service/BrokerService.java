@@ -947,8 +947,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
-                                topicFuture.completeExceptionally(
-                                        new BrokerServiceException.TopicNotFoundException("Topic [" + topic + "] Not Found."));
+                                // We were just trying to load a topic and the topic doesn't exist
+                                topicFuture.complete(Optional.empty());
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
