@@ -89,8 +89,10 @@ public class SearchBcNarUtils {
                         }
 
                         Provider provider = ((BCLoader) loader).getProvider();
-                        log.info("Found Bouncy Castle loader {} from {}, provider: {}",
-                                loader.getClass().getCanonicalName(), path, provider.getName());
+                        if (log.isDebugEnabled()) {
+                            log.debug("Found Bouncy Castle loader {} from {}, provider: {}",
+                                    loader.getClass().getCanonicalName(), path, provider.getName());
+                        }
                         loadFuture.complete(provider);
                     } catch (Throwable t) {
                         log.error("Failed to load Bouncy Castle Provider ", t);

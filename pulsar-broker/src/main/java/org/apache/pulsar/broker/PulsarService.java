@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
@@ -523,9 +524,9 @@ public class PulsarService implements AutoCloseable {
 
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
-                    + (config.getWebServicePortTls().isPresent() ? "tls-port = " + config.getWebServicePortTls() : "")
-                    + (config.getBrokerServicePort().isPresent() ? "broker url= " + brokerServiceUrl : "")
-                    + (config.getBrokerServicePortTls().isPresent() ? "broker url= " + brokerServiceUrlTls : "");
+                    + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
+                    + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
+                    + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready");
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
@@ -719,6 +720,29 @@ public class PulsarService implements AutoCloseable {
 
     public ZooKeeper getZkClient() {
         return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
+    }
+
+    /**
+     * Get default bookkeeper metadata service uri.
+     */
+    public String getMetadataServiceUri() {
+        return bookieMetadataServiceUri(this.getConfiguration());
+    }
+
+    public InternalConfigurationData getInternalConfigurationData() {
+
+        String metadataServiceUri = getMetadataServiceUri();
+
+        if (StringUtils.isNotBlank(config.getBookkeeperMetadataServiceUri())) {
+            metadataServiceUri = this.getConfiguration().getBookkeeperMetadataServiceUri();
+        }
+
+        return new InternalConfigurationData(
+            this.getConfiguration().getZookeeperServers(),
+            this.getConfiguration().getConfigurationStoreServers(),
+            new ClientConfiguration().getZkLedgersRootPath(),
+            metadataServiceUri,
+            this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
     public ConfigurationCacheService getConfigurationCache() {
@@ -936,10 +960,17 @@ public class PulsarService implements AutoCloseable {
                     .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(
-                        isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
-                            ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
-                            : this.getConfiguration().getTlsCertificateFilePath());
+                    if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(
+                                isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
+                                        ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
+                                        : this.getConfiguration().getTlsCertificateFilePath());
+                    }
                 }
 
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
@@ -965,7 +996,14 @@ public class PulsarService implements AutoCloseable {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    }
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
 
@@ -1064,6 +1102,26 @@ public class PulsarService implements AutoCloseable {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
 
+    /**
+     * Get bookkeeper metadata service uri.
+     *
+     * @param config broker configuration
+     * @return the metadata service uri that bookkeeper is used
+     */
+    public static String bookieMetadataServiceUri(ServiceConfiguration config) {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        // init bookkeeper metadata service uri
+        String metadataServiceUri = null;
+        try {
+            String zkServers = config.getZookeeperServers();
+            bkConf.setZkServers(zkServers);
+            metadataServiceUri = bkConf.getMetadataServiceUri();
+        } catch (ConfigurationException e) {
+            LOG.error("Failed to get bookkeeper metadata service uri", e);
+        }
+        return metadataServiceUri;
+    }
+
     private void startWorkerService(AuthenticationService authenticationService,
                                     AuthorizationService authorizationService)
             throws InterruptedException, IOException, KeeperException {
@@ -1153,21 +1211,15 @@ public class PulsarService implements AutoCloseable {
                 throw e;
             }
 
-            InternalConfigurationData internalConf = new InternalConfigurationData(
-                    this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getConfigurationStoreServers(),
-                    new ClientConfiguration().getZkLedgersRootPath(),
-                    this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+            InternalConfigurationData internalConf = this.getInternalConfigurationData();
 
             URI dlogURI;
             try {
                 // initializing dlog namespace for function worker
-                dlogURI = WorkerUtils.initializeDlogNamespace(
-                        internalConf.getZookeeperServers(),
-                        internalConf.getLedgersRootPath());
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                        internalConf.getZookeeperServers(), ioe);
+                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
+                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");

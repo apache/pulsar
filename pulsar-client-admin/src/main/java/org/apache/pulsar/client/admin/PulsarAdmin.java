@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.ProxyStatsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.admin.internal.SchemasImpl;
@@ -75,6 +76,7 @@ public class PulsarAdmin implements Closeable {
     private final Clusters clusters;
     private final Brokers brokers;
     private final BrokerStats brokerStats;
+    private final ProxyStats proxyStats;
     private final Tenants tenants;
     private final Properties properties;
     private final Namespaces namespaces;
@@ -191,6 +193,7 @@ public class PulsarAdmin implements Closeable {
         this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
         this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
         this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
+        this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
         this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
         this.properties = new TenantsImpl(root, auth, readTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
@@ -386,6 +389,13 @@ public class PulsarAdmin implements Closeable {
      */
     public BrokerStats brokerStats() {
         return brokerStats;
+    }
+
+    /**
+     * @return the proxy statics
+     */
+    public ProxyStats proxyStats() {
+        return proxyStats;
     }
 
     /**

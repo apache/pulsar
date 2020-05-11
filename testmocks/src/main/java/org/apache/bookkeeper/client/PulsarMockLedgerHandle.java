@@ -166,7 +166,6 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
-        data.retain();
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
                 try {
                     Thread.sleep(1);
