@@ -86,7 +86,7 @@ public class FunctionConfig {
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
-    private Boolean forwardSourceMessageProperty = true;
+    private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
