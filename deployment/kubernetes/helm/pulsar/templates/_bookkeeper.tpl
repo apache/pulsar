@@ -48,7 +48,7 @@ Define bookie tls certs volumes
 {{- if and .Values.tls.enabled (or .Values.tls.bookie.enabled .Values.tls.zookeeper.enabled) }}
 - name: bookie-certs
   secret:
-    secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.bookie.cert_name }}"
+    secretName: "{{ .Release.Name }}-{{ .Values.tls.bookie.cert_name }}"
     items:
     - key: tls.crt
       path: tls.crt
@@ -56,7 +56,7 @@ Define bookie tls certs volumes
       path: tls.key
 - name: ca
   secret:
-    secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+    secretName: "{{ .Release.Name }}-ca-tls"
     items:
     - key: ca.crt
       path: ca.crt

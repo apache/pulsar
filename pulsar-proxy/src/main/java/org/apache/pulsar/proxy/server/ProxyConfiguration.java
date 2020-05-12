@@ -60,6 +60,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_TLS = "TLS";
     @Category
+    private static final String CATEGORY_KEYSTORE_TLS = "KeyStoreTLS";
+    @Category
     private static final String CATEGORY_TOKEN_AUTH = "Token Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
@@ -88,6 +90,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "ZooKeeper session timeout (in milliseconds)"
     )
     private int zookeeperSessionTimeoutMs = 30_000;
+    @FieldContext(
+            category = CATEGORY_BROKER_DISCOVERY,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -314,7 +321,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> tlsProtocols = Sets.newTreeSet();
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Specify the tls cipher the broker will use to negotiate during TLS Handshake"
+        doc = "Specify the tls cipher the proxy will use to negotiate during TLS Handshake"
             + " (a comma-separated list of ciphers).\n\n"
             + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
@@ -325,6 +332,106 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " Connections are rejected if the client certificate isn't trusted"
     )
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+
+    /**** --- KeyStore TLS config variables --- ****/
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Enable TLS with KeyStore type configuration for proxy"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS Provider"
+    )
+    private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration for proxy: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path for proxy"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for proxy"
+    )
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore type configuration for proxy: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore path for proxy"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore password for proxy"
+    )
+    private String tlsTrustStorePassword = null;
+
+    /**** --- KeyStore TLS config variables used for proxy to auth with broker--- ****/
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Whether the Pulsar proxy use KeyStore type to authenticate with Pulsar brokers"
+    )
+    private boolean brokerClientTlsEnabledWithKeyStore = false;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientSslProvider = null;
+
+    // needed when client auth is required
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore type configuration for proxy: JKS, PKCS12 "
+                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore path for proxy, "
+                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore password for proxy, "
+                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStorePassword = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the tls cipher the proxy will use to negotiate during TLS Handshake"
+                  + " (a comma-separated list of ciphers).\n\n"
+                  + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
+                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
+                  + " (a comma-separated list of protocol names).\n\n"
+                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+
+    /***** --- HTTP --- ****/
 
     @FieldContext(
         category = CATEGORY_HTTP,

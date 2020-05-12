@@ -39,13 +39,15 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
       sequenceId_(sequenceId),
       timeout_(TimeUtils::now() + milliseconds(conf.getSendTimeout())) {}
 
-ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf)
+ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf,
+                           int32_t partition)
     : HandlerBase(
           client, topic,
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
       executor_(client->getIOExecutorProvider()->get()),
       pendingMessagesQueue_(conf_.getMaxPendingMessages()),
+      partition_(partition),
       producerName_(conf_.getProducerName()),
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
@@ -259,7 +261,7 @@ void ProducerImpl::failPendingMessages(Result result) {
     }
 
     // this function can handle null pointer
-    BatchMessageContainer::batchMessageCallBack(result, messageContainerListPtr, NULL);
+    BatchMessageContainer::batchMessageCallBack(result, MessageId{}, messageContainerListPtr, NULL);
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -627,7 +629,9 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
     }
 }
 
-bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& messageId) {
+bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
+    MessageId messageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
+                        rawMessageId.batchIndex());
     OpSendMsg op;
     Lock lock(mutex_);
     bool havePendingAck = pendingMessagesQueue_.peek(op);

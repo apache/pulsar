@@ -654,6 +654,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected void completeOpBatchReceive(OpBatchReceive<T> op) {
         notifyPendingBatchReceivedCallBack(op);
+        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override
@@ -670,7 +671,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             seekAsync(timestamp).get();
         } catch (Exception e) {
-            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -1135,6 +1135,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 future.complete(null);
                 return future;
             } else if (oldPartitionNumber < currentPartitionNumber) {
+                allTopicPartitionsNumber.compareAndSet(oldPartitionNumber, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
                 // subscribe new added partitions
                 List<CompletableFuture<Consumer<T>>> futureList = newPartitions

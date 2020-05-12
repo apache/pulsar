@@ -516,7 +516,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -546,7 +546,7 @@ public class ServerCnxTest {
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(TopicName.class), Mockito.anyString(),
                 any(AuthAction.class));
 
@@ -574,7 +574,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -1288,6 +1288,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1316,6 +1319,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1346,6 +1352,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1381,6 +1390,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();

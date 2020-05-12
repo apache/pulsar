@@ -29,8 +29,6 @@ FUNCTION=${FUNCTION:-"false"}
 
 source ${PULSAR_HOME}/.ci/helm.sh
 
-CHARTS_HOME="${PULSAR_HOME}/deployment/kubernetes/helm"
-
 # create cluster
 ci::create_cluster
 
@@ -52,3 +50,6 @@ if [[ "x${FUNCTION}" == "xtrue" ]]; then
     # install cert manager
     ci::test_pulsar_function
 fi
+
+# delete the cluster
+ci::delete_cluster

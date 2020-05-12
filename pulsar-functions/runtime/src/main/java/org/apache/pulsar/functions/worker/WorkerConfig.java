@@ -46,6 +46,7 @@ import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
@@ -125,10 +126,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
     private String connectorsDirectory = "./connectors";
+    @FieldContext(
+        category = CATEGORY_CONNECTORS,
+        doc = "The directory where nar packages are extractors"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"
@@ -263,7 +274,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String tlsKeyFilePath;
     @FieldContext(
-        category = CATEGORY_SECURITY,
+        category = CATEGORY_WORKER_SECURITY,
         doc = "Path for the trusted TLS certificate file"
     )
     private String tlsTrustCertsFilePath = "";
@@ -327,6 +338,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
+
+    /******** security settings for pulsar broker client **********/
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTrustCertsFilePath;
 
 
     /******** Function Runtime configurations **********/
@@ -395,6 +414,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     " as this config is the the same across all functions"
     )
     private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
+
+    @FieldContext(
+            doc = "Max pending async requests per instance to avoid large number of concurrent requests."
+                  + "Only used in AsyncFunction. Default: 1000"
+    )
+    private int maxPendingAsyncRequests = 1000;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

@@ -34,7 +34,7 @@ metadata:
   name: "{{ template "pulsar.fullname" . }}-ca"
   namespace: {{ .Values.namespace }}
 spec:
-  secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+  secretName: "{{ .Release.Name }}-ca-tls"
   commonName: "{{ .Values.namespace }}.svc.cluster.local"
   usages:
     - server auth
@@ -57,6 +57,6 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   ca:
-    secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+    secretName: "{{ .Release.Name }}-ca-tls"
 {{- end }}
 {{- end }}

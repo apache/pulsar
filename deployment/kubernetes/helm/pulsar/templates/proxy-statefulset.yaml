@@ -217,13 +217,13 @@ spec:
         {{- if .Values.tls.proxy.enabled }}
         - name: ca
           secret:
-            secretName: "{{ template "pulsar.fullname" . }}-ca-tls"
+            secretName: "{{ .Release.Name }}-ca-tls"
             items:
               - key: ca.crt
                 path: ca.crt
         - name: proxy-certs
           secret:
-            secretName: "{{ template "pulsar.fullname" . }}-{{ .Values.tls.proxy.cert_name }}"
+            secretName: "{{ .Release.Name }}-{{ .Values.tls.proxy.cert_name }}"
             items:
               - key: tls.crt
                 path: tls.crt

@@ -98,15 +98,15 @@ public class ConnectorUtils {
         return conf.getSinkClass();
     }
 
-    public static ConnectorDefinition getConnectorDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+    public static ConnectorDefinition getConnectorDefinition(String narPath, String narExtractionDirectory) throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
         }
     }
 
-    public static Connectors searchForConnectors(String connectorsDirectory) throws IOException {
+    public static Connectors searchForConnectors(String connectorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
@@ -120,7 +120,7 @@ public class ConnectorUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toString());
+                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found connector {} from {}", cntDef, archive);
 
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {

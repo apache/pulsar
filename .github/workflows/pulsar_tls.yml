@@ -29,16 +29,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Run chart-testing (lint)
-        id: lint
-        uses: helm/chart-testing-action@master
+        uses: actions/checkout@v2
         with:
-          command: lint
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Run chart-testing (install)
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 .asf.yaml ct.yaml
+
+      - name: Install chart
         run: |
           .ci/chart_test.sh .ci/clusters/values-tls.yaml
         # Only build a kind cluster if there are chart changes to test.
-        if: steps.lint.outputs.changed == 'true'
+        if: steps.docs.outputs.changed_only == 'no'

@@ -123,6 +123,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -438,7 +439,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
 
         // Inactive subscriber checker
-        if (pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() > 0) {
+        if (pulsar().getConfiguration().getSubscriptionExpiryCheckIntervalInMinutes() > 0) {
             long subscriptionExpiryCheckIntervalInSeconds =
                     TimeUnit.MINUTES.toSeconds(pulsar().getConfiguration().getSubscriptionExpiryCheckIntervalInMinutes());
             inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
@@ -795,8 +796,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
                                     : data.getServiceUrlTls())
                             .enableTls(true)
-                            .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                             .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                    if (pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        clientBuilder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(pulsar.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(pulsar.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(pulsar.getConfiguration()
+                                        .getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        clientBuilder.tlsTrustCertsFilePath(pulsar.getConfiguration()
+                                .getBrokerClientTrustCertsFilePath());
+                    }
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -832,8 +842,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
-                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    }
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
@@ -860,7 +877,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
         checkTopicNsOwnership(topic);
-        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline();
+        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline(pulsar.getConfiguration().getTopicLoadTimeoutSeconds(),
+                TimeUnit.SECONDS, new TimeoutException("Failed to load topic within timeout"));
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load persistent topic {}", topic);
@@ -1016,6 +1034,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
             managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
+            managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
 
             managedLedgerConfig.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
             managedLedgerConfig.setMaxUnackedRangesToPersistInZk(serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInZooKeeper());
@@ -1881,6 +1900,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 // If topic is already exist, creating partitioned topic is not allowed.
                                 if (metadata.partitions == 0
                                         && !topicExists
+                                        && !topicName.isPartitioned()
                                         && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
                                         && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
                                     return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
@@ -1893,8 +1913,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
+        final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
+        checkArgument(maxPartitions <= 0 || defaultNumPartitions <= maxPartitions, "Number of partitions should be less than or equal to " + maxPartitions);
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
@@ -2173,6 +2195,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return null;
         }
         log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        return null;
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return isAllowAutoSubscriptionCreation(topicName);
+    }
+
+    public boolean isAllowAutoSubscriptionCreation(final TopicName topicName) {
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = getAutoSubscriptionCreationOverride(topicName);
+        if (autoSubscriptionCreationOverride != null) {
+            return autoSubscriptionCreationOverride.allowAutoSubscriptionCreation;
+        } else {
+            return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+        }
+    }
+
+    private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
+        try {
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            // If namespace policies have the field set, it will override the broker-level setting
+            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                return policies.get().autoSubscriptionCreationOverride;
+            }
+        } catch (Throwable t) {
+            // Ignoring since if we don't have policies, we fallback on the default
+            log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
+            return null;
+        }
+        log.warn("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
 }

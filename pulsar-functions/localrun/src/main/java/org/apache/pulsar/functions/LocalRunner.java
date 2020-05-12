@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -67,6 +68,7 @@ public class LocalRunner {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<RuntimeSpawner> spawners = new LinkedList<>();
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
     public enum RuntimeEnv {
         THREAD,
@@ -256,14 +258,14 @@ public class LocalRunner {
 
                 if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
+                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory));
 
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
-                        throw new RuntimeException("Source archive does not exist");
+                        throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
                     }
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
+                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory));
                 }
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
@@ -284,13 +286,13 @@ public class LocalRunner {
 
                 if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
+                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory));
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Sink archive does not exist");
                     }
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
+                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
@@ -346,6 +348,7 @@ public class LocalRunner {
                 null, /* python instance file */
                 null, /* log directory */
                 null, /* extra dependencies dir */
+                narExtractionDirectory, /* nar extraction dir */
                 new DefaultSecretsProviderConfigurator(), false, Optional.empty(), Optional.empty())) {
 
             for (int i = 0; i < parallelism; ++i) {
@@ -358,6 +361,7 @@ public class LocalRunner {
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(FunctionCommon.findAvailablePort());
                 instanceConfig.setClusterName("local");
+                instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                         instanceConfig,
                         userCodeFile,
@@ -406,7 +410,7 @@ public class LocalRunner {
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                new ClearTextSecretsProvider(), null, null);
+                new ClearTextSecretsProvider(), null, narExtractionDirectory, null);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
@@ -417,6 +421,7 @@ public class LocalRunner {
             instanceConfig.setMaxBufferedTuples(1024);
             instanceConfig.setPort(FunctionCommon.findAvailablePort());
             instanceConfig.setClusterName("local");
+            instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
@@ -459,6 +464,6 @@ public class LocalRunner {
             pulsarHome = Paths.get("").toAbsolutePath().toString();
         }
         String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-        return ConnectorUtils.searchForConnectors(connectorsDir);
+        return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory);
     }
 }

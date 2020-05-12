@@ -37,6 +37,7 @@ import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -655,9 +656,23 @@ public class ServerCnx extends PulsarHandler {
             //  2. we require to validate the original credentials
             //  3. no credentials were passed
             if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                // init authentication
+                String originalAuthMethod;
+                if (connect.hasOriginalAuthMethod()) {
+                    originalAuthMethod = connect.getOriginalAuthMethod();
+                } else {
+                    originalAuthMethod = "none";
+                }
+
                 AuthenticationProvider originalAuthenticationProvider = getBrokerService()
                         .getAuthenticationService()
-                        .getAuthenticationProvider(authMethod);
+                        .getAuthenticationProvider(originalAuthMethod);
+
+                if (originalAuthenticationProvider == null) {
+                    throw new AuthenticationException(String.format("Can't find AuthenticationProvider for original role" +
+                            " using auth method [%s] is not available", originalAuthMethod));
+                }
+
                 originalAuthState = originalAuthenticationProvider.newAuthState(
                         AuthData.of(connect.getOriginalAuthData().getBytes()),
                         remoteAddress,
@@ -820,7 +835,7 @@ public class ServerCnx extends PulsarHandler {
                                     Topic topic = optTopic.get();
 
                                     boolean rejectSubscriptionIfDoesNotExist = isDurable
-                                        && !service.pulsar().getConfig().isAllowAutoSubscriptionCreation()
+                                        && !service.isAllowAutoSubscriptionCreation(topicName.toString())
                                         && !topic.getSubscriptions().containsKey(subscriptionName);
 
                                     if (rejectSubscriptionIfDoesNotExist) {
@@ -1007,7 +1022,7 @@ public class ServerCnx extends PulsarHandler {
                                 ServerError error = null;
                                 if(!existingProducerFuture.isDone()) {
                                     error = ServerError.ServiceNotReady;
-                                }else {
+                                } else {
                                     error = getErrorCode(existingProducerFuture);
                                     // remove producer with producerId as it's already completed with exception
                                     producers.remove(producerId);
@@ -1091,7 +1106,7 @@ public class ServerCnx extends PulsarHandler {
                                         producerFuture.completeExceptionally(
                                             new IllegalStateException("Producer created after connection was closed"));
                                     }
-                                } catch (BrokerServiceException ise) {
+                                } catch (Exception ise) {
                                     log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
                                         ise.getMessage());
                                     ctx.writeAndFlush(Commands.newError(requestId,
@@ -1103,6 +1118,11 @@ public class ServerCnx extends PulsarHandler {
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
+
+                            if (cause instanceof NoSuchElementException) {
+                                cause = new TopicNotFoundException("Topic Not Found.");
+                            }
+
                             if (!(cause instanceof ServiceUnitNotReadyException)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}", remoteAddress, topicName, exception);

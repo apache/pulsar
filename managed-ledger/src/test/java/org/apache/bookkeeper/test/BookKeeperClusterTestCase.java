@@ -93,6 +93,8 @@ public abstract class BookKeeperClusterTestCase {
 
     @BeforeMethod
     public void setUp() throws Exception {
+        // enable zookeeper `zookeeper.4lw.commands.whitelist`
+        System.setProperty("zookeeper.4lw.commands.whitelist", "*");
         executor = Executors.newCachedThreadPool();
         InMemoryMetaStore.reset();
         setMetastoreImplClass(baseConf);

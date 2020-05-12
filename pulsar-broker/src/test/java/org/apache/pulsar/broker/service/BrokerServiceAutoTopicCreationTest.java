@@ -141,48 +141,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 
-    @Test
-    public void testAutoSubscriptionCreationDisable() throws Exception{
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
-
-        final String topicName = "persistent://prop/ns-abc/test-subtopic";
-        final String subscriptionName = "test-subtopic-sub";
-
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        try {
-            pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
-            fail("Subscribe operation should have failed");
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException);
-        }
-        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
-
-        // Reset to default
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
-    }
-
-    @Test
-    public void testSubscriptionCreationWithAutoCreationDisable() throws Exception{
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
-
-        final String topicName = "persistent://prop/ns-abc/test-subtopic";
-        final String subscriptionName = "test-subtopic-sub";
-
-        admin.topics().createNonPartitionedTopic(topicName);
-        assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
-
-        // Create the subscription by PulsarAdmin
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        assertTrue(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
-
-        // Subscribe operation should be successful
-        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
-
-        // Reset to default
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
-    }
-
     /**
      * CheckAllowAutoCreation's default value is false.
      * So using getPartitionedTopicMetadata() directly will not produce partitioned topic
@@ -363,5 +321,23 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             fail("should success to create subscription once topic created");
         }
 
+    }
+
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(2);
+
+        final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-11";
+        final String subscriptionName = "test-topic-sub-11";
+
+        try {
+            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+            fail("should throw exception when number of partitions exceed than max partitions");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
     }
 }

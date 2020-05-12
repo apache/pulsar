@@ -342,11 +342,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
-        if (!isValidProducerState(callback)) {
+        if (!isValidProducerState(callback, message.getSequenceId())) {
             return;
         }
 
-        if (!canEnqueueRequest(callback)) {
+        if (!canEnqueueRequest(callback, message.getSequenceId())) {
             return;
         }
 
@@ -381,7 +381,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!msg.isReplicated() && msgMetadataBuilder.hasProducerName()) {
             PulsarClientException.InvalidMessageException invalidMessageException =
                 new PulsarClientException.InvalidMessageException(
-                    format("The producer %s of the topic %s can not reuse the same message", producerName, topic));
+                    format("The producer %s of the topic %s can not reuse the same message", producerName, topic), msg.getSequenceId());
             completeCallbackAndReleaseSemaphore(callback, invalidMessageException);
             compressedPayload.release();
             return;
@@ -477,9 +477,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             }
         } catch (PulsarClientException e) {
+            e.setSequenceId(msg.getSequenceId());
             completeCallbackAndReleaseSemaphore(callback, e);
         } catch (Throwable t) {
-            completeCallbackAndReleaseSemaphore(callback, new PulsarClientException(t));
+            completeCallbackAndReleaseSemaphore(callback, new PulsarClientException(t, msg.getSequenceId()));
         }
     }
 
@@ -492,7 +493,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         if (!isMultiSchemaEnabled(true)) {
             PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
-                    format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic));
+                    format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)
+                    , msg.getSequenceId());
             completeCallbackAndReleaseSemaphore(callback, e);
             return false;
         }
@@ -626,7 +628,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean isValidProducerState(SendCallback callback) {
+    private boolean isValidProducerState(SendCallback callback, long sequenceId) {
         switch (getState()) {
         case Ready:
             // OK
@@ -637,32 +639,32 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return true;
         case Closing:
         case Closed:
-            callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            callback.sendComplete(new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId));
             return false;
         case Terminated:
-            callback.sendComplete(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
+            callback.sendComplete(new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId));
             return false;
         case Failed:
         case Uninitialized:
         default:
-            callback.sendComplete(new PulsarClientException.NotConnectedException());
+            callback.sendComplete(new PulsarClientException.NotConnectedException(sequenceId));
             return false;
         }
     }
 
-    private boolean canEnqueueRequest(SendCallback callback) {
+    private boolean canEnqueueRequest(SendCallback callback, long sequenceId) {
         try {
             if (conf.isBlockIfQueueFull()) {
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
-                    callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError("Producer send queue is full"));
+                    callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError("Producer send queue is full", sequenceId));
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            callback.sendComplete(new PulsarClientException(e));
+            callback.sendComplete(new PulsarClientException(e, sequenceId));
             return false;
         }
 
@@ -1175,7 +1177,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         return null;
                     }
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
-
+                    // Close the producer since topic does not exists.
+                    if (getState() == State.Failed
+                            && cause instanceof PulsarClientException.TopicDoesNotExistException) {
+                        closeAsync().whenComplete((v, ex) -> {
+                            if (ex != null) {
+                                log.error("Failed to close producer on TopicDoesNotExistException.", ex);
+                            }
+                            producerCreatedFuture.completeExceptionally(cause);
+                            if (getState() == State.Closing || getState() == State.Closed) {
+                                cnx.channel().close();
+                            }
+                        });
+                        return null;
+                    }
                     if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
                         synchronized (this) {
                             log.warn("[{}] [{}] Topic backlog quota exceeded. Throwing Exception on producer.", topic,
@@ -1352,7 +1367,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                     PulsarClientException te = new PulsarClientException.TimeoutException(
                         format("The producer %s can not send message to the topic %s within given timeout",
-                            producerName, topic));
+                            producerName, topic), firstMsg.sequenceId);
                     failPendingMessages(cnx(), te);
                     stats.incrementSendFailed(pendingMessages.size());
                     // Since the pending queue is cleared now, set timer to expire after configured value.
@@ -1380,6 +1395,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
+                    ex.setSequenceId(op.sequenceId);
                     op.callback.sendComplete(ex);
                 } catch (Throwable t) {
                     log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic, producerName,
@@ -1529,13 +1545,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             Thread.currentThread().interrupt();
             releaseSemaphoreForSendOp(op);
             if (op != null) {
-                op.callback.sendComplete(new PulsarClientException(ie));
+                op.callback.sendComplete(new PulsarClientException(ie, op.sequenceId));
             }
         } catch (Throwable t) {
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             if (op != null) {
-                op.callback.sendComplete(new PulsarClientException(t));
+                op.callback.sendComplete(new PulsarClientException(t, op.sequenceId));
             }
         }
     }

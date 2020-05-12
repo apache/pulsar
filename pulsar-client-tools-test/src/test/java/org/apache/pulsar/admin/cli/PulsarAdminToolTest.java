@@ -45,6 +45,7 @@ import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
+import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -354,6 +356,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 300"));
         verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 300);
 
+        namespaces.run(split("set-subscription-expiration-time myprop/clust/ns1 -t 60"));
+        verify(mockNamespaces).setSubscriptionExpirationTime("myprop/clust/ns1", 60);
+
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
 
@@ -364,8 +369,18 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-auto-topic-creation myprop/clust/ns1"));
         verify(mockNamespaces).removeAutoTopicCreation("myprop/clust/ns1");
 
+        namespaces.run(split("set-auto-subscription-creation myprop/clust/ns1 -e"));
+        verify(mockNamespaces).setAutoSubscriptionCreation("myprop/clust/ns1",
+                new AutoSubscriptionCreationOverride(true));
+
+        namespaces.run(split("remove-auto-subscription-creation myprop/clust/ns1"));
+        verify(mockNamespaces).removeAutoSubscriptionCreation("myprop/clust/ns1");
+
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
+
+        namespaces.run(split("get-subscription-expiration-time myprop/clust/ns1"));
+        verify(mockNamespaces).getSubscriptionExpirationTime("myprop/clust/ns1");
 
         namespaces.run(split("set-anti-affinity-group myprop/clust/ns1 -g group"));
         verify(mockNamespaces).setNamespaceAntiAffinityGroup("myprop/clust/ns1", "group");
@@ -892,6 +907,21 @@ public class PulsarAdminToolTest {
         atuh = (AuthenticationTls) conf.getAuthentication();
         assertNull(atuh.getCertFilePath());
         assertNull(atuh.getKeyFilePath());
+    }
+
+    @Test
+    void proxy() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ProxyStats mockProxyStats = mock(ProxyStats.class);
+        doReturn(mockProxyStats).when(admin).proxyStats();
+
+        CmdProxyStats proxyStats = new CmdProxyStats(admin);
+
+        proxyStats.run(split("connections"));
+        verify(mockProxyStats).getConnections();
+
+        proxyStats.run(split("topics"));
+        verify(mockProxyStats).getTopics();
     }
 
     String[] split(String s) {

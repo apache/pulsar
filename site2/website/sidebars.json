@@ -4,6 +4,7 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
+      "kubernetes-helm",
       "client-libraries"
     ],
     "Concepts and Architecture": [
@@ -48,6 +49,14 @@
       "sql-deployment-configurations",
       "sql-rest-api"
     ],
+    "Kubernetes (Helm)": [
+      "helm-overview",
+      "helm-prepare",
+      "helm-install",
+      "helm-deploy",
+      "helm-upgrade",
+      "helm-tools"
+    ],
     "Deployment": [
       "deploy-aws",
       "deploy-kubernetes",
@@ -69,6 +78,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-tls-keystore",
       "security-jwt",
       "security-athenz",
       "security-kerberos",
