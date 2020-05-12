@@ -2503,4 +2503,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.backlogSize, 0);
     }
+
+    @Test
+    public void testGetTtlDurationDefaultInSeconds() throws Exception {
+        conf.setTtlDurationDefaultInSeconds(3600);
+        int seconds = admin.namespaces().getPolicies("prop-xyz/ns1").message_ttl_in_seconds;
+        assertEquals(seconds, 3600);
+    }
 }
