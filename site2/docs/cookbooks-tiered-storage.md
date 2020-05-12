@@ -168,15 +168,15 @@ a Json file, containing the GCS credentials of a service account.
 more information of how to create this key file for authentication. More information about google cloud IAM
 is available [here](https://cloud.google.com/storage/docs/access-control/iam).
 
-To generate service-account credentials, or to view the public credentials that you've already generated, do the following:
+To generate service account credentials or view the public credentials that you've already generated, follow the following steps:
 
 1. Open the [Service accounts page](https://console.developers.google.com/iam-admin/serviceaccounts).
-2. If prompted, select a project, or create a new one.
+2. Select a project or create a new one.
 3. Click **Create service account**.
 4. In the **Create service account** window, type a name for the service account, and select **Furnish a new private key**. If you want to [grant G Suite domain-wide authority](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority) to the service account, also select **Enable G Suite Domain-wide Delegation**.
 5. Click **Create**.
 
-> Notes: Make ensure that the service account you create has permission to operate gcs, please assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam)
+> Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
 
 ```conf
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
