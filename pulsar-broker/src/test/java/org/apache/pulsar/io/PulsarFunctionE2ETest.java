@@ -1417,11 +1417,8 @@ public class PulsarFunctionE2ETest {
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
-                // should check `getFunction` result is not null and `cleanupSubscription` is not null,
-                // previously, `getCleanupSubscription()` result is always false, because the false is the right result.
                 FunctionConfig configure = admin.functions().getFunction(tenant, namespacePortion, functionName);
                 return configure != null && configure.getCleanupSubscription() != null;
-                // return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1513,9 +1510,8 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                // should remove `result.getParallelism() == 2` because the parallelism here should 1
                 FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return /*result.getParallelism() == 2 &&*/ result.getCleanupSubscription() == false;
+                return result.getCleanupSubscription() == false;
             } catch (PulsarAdminException e) {
                 return false;
             }
