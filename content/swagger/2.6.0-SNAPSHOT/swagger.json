@@ -6145,7 +6145,7 @@
     "/non-persistent/{tenant}/{namespace}/{topic}/subscription/{subscriptionName}" : {
       "put" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Reset subscription to message position closest to given position.",
+        "summary" : "Create a subscription on the topic.",
         "description" : "Creates a subscription on the topic at the specified message id",
         "operationId" : "createSubscription",
         "produces" : [ "application/json" ],
@@ -6176,15 +6176,22 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
-          "default" : "latest",
-          "enum" : [ "latest", "earliest", "ledgerId:entryId" ]
+          "default" : false
+        }, {
+          "in" : "body",
+          "name" : "messageId",
+          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/MessageIdImpl"
+          }
         }, {
           "name" : "replicated",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Is replicated required to perform this operation",
           "required" : false,
           "type" : "boolean"
         } ],
@@ -8389,7 +8396,7 @@
     "/persistent/{tenant}/{namespace}/{topic}/subscription/{subscriptionName}" : {
       "put" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Reset subscription to message position closest to given position.",
+        "summary" : "Create a subscription on the topic.",
         "description" : "Creates a subscription on the topic at the specified message id",
         "operationId" : "createSubscription",
         "produces" : [ "application/json" ],
@@ -8420,15 +8427,22 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
-          "default" : "latest",
-          "enum" : [ "latest", "earliest", "ledgerId:entryId" ]
+          "default" : false
+        }, {
+          "in" : "body",
+          "name" : "messageId",
+          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/MessageIdImpl"
+          }
         }, {
           "name" : "replicated",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Is replicated required to perform this operation",
           "required" : false,
           "type" : "boolean"
         } ],
@@ -9689,10 +9703,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -10067,11 +10081,8 @@
         "underLoaded" : {
           "type" : "boolean"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -10079,26 +10090,29 @@
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -10266,13 +10280,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -11123,13 +11137,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
