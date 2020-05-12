@@ -78,6 +78,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-tls-keystore",
       "security-jwt",
       "security-athenz",
       "security-kerberos",
