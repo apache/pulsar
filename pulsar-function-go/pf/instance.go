@@ -496,7 +496,7 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelP
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
 	metricFamilies, err := reg.Gather()
 	if err != nil {
-		log.Errorf("Something went wrong when calling reg.Gather() in getMatchingMetricFromRegistry(..) for metricName: %s", metricName)
+		log.Errorf("Something went wrong when calling reg.Gather(), the metricName is: %s", metricName)
 	}
 	matchFamilyFunc := func(vect *prometheus_client.MetricFamily) bool {
 		return *vect.Name == metricName
