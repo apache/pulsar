@@ -3214,9 +3214,63 @@ TEST(BasicEndToEndTest, testSendCallback) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg));
         receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
     }
 
     latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    consumer.close();
+    producer.close();
+
+    const std::string partitionedTopicName = topicName + "-" + std::to_string(time(nullptr));
+    const std::string url = adminUrl + "admin/v2/persistent/" +
+                            partitionedTopicName.substr(partitionedTopicName.find("://") + 3) + "/partitions";
+    const int numPartitions = 3;
+
+    int res = makePutRequest(url, std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopicName, producerConfig, producer));
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopicName, "SubscriptionName", consumer));
+
+    sentIdSet.clear();
+    receivedIdSet.clear();
+
+    const int numMessages = numPartitions * 2;
+    latch = Latch(numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+            ASSERT_EQ(ResultOk, result);
+            sentIdSet.emplace(id);
+            latch.countdown();
+        });
+    }
+
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    std::set<int> partitionIndexSet;
+    for (const auto &id : sentIdSet) {
+        partitionIndexSet.emplace(id.partition());
+    }
+    std::set<int> expectedPartitionIndexSet;
+    for (int i = 0; i < numPartitions; i++) {
+        expectedPartitionIndexSet.emplace(i);
+    }
     ASSERT_EQ(sentIdSet, receivedIdSet);
 
     consumer.close();

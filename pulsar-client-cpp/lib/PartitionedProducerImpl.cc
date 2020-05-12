@@ -90,7 +90,7 @@ unsigned int PartitionedProducerImpl::getNumPartitionsWithLock() const {
 ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition) const {
     using namespace std::placeholders;
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
-    auto producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
+    auto producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_, partition);
     producer->getProducerCreatedFuture().addListener(
         std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated,
                   const_cast<PartitionedProducerImpl*>(this)->shared_from_this(), _1, _2, partition));
