@@ -3033,6 +3033,42 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
     }
 }
 
+TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+
+    std::string topicName =
+        "persistent://public/default/test-regex-initial-position-" + std::to_string(time(NULL));
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    for (int i = 0; i < 10; i++) {
+        producer.send(MessageBuilder().setContent("test-" + std::to_string(i)).build());
+    }
+
+    std::string subsName = "testRegexTopicsWithMessageListener-sub";
+    std::string pattern = topicName + ".*";
+
+    // Subscription gets created after messages are produced but it will start from the beginning of the topic
+    ConsumerConfiguration consumerConf;
+    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+
+    Consumer consumer;
+    result = client.subscribeWithRegex(pattern, subsName, consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subsName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        Result res = consumer.receive(msg);
+        ASSERT_EQ(ResultOk, result);
+    }
+
+    client.close();
+}
+
 TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     ClientConfiguration config;
     Client client(lookupUrl);
