@@ -49,7 +49,7 @@ volumes:
   local_storage: false
 ```
 
-To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in your `helm install` command. 
+To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in the `helm install` command. 
 
 ```bash
 --set volumes.local_storage=true
@@ -167,11 +167,11 @@ images:
 
 ### TLS
 
-The Pulsar Helm chart can be configured to enable TLS to protect all the traffic between components. Before enabling TLS, you have to provision TLS certificates for the required components.
+The Pulsar Helm chart can be configured to enable TLS (Transport Layer Security) to protect all the traffic between components. Before enabling TLS, you have to provision TLS certificates for the required components.
 
 #### Provision TLS certificates using cert-manager
 
-To use the `cert-manager` to provision the TLS (Transport Layer Security) certificates, you have to install the [cert-manager](#install-cert-manager) before installing the Pulsar Helm chart. After successfully installing the cert-manager, you can set `certs.internal_issuer.enabled` to `true`. Therefore, the Pulsar Helm chart can use the `cert-manager` to generate `selfsigning` TLS certificates for the configured components.
+To use the `cert-manager` to provision the TLS certificates, you have to install the [cert-manager](#install-cert-manager) before installing the Pulsar Helm chart. After successfully installing the cert-manager, you can set `certs.internal_issuer.enabled` to `true`. Therefore, the Pulsar Helm chart can use the `cert-manager` to generate `selfsigning` TLS certificates for the configured components.
 
 ```yaml
 certs:

@@ -39,4 +39,4 @@ For more information about how all the inner workings behave, check these docume
 
 ### Tips and tricks
 
- For additional information on developing with Helm, check [tips and tricks section](https://helm.sh/docs/howto/charts_tips_and_tricks/) in the Helm repository.
+For additional information on developing with Helm, check [tips and tricks section](https://helm.sh/docs/howto/charts_tips_and_tricks/) in the Helm repository.

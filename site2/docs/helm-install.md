@@ -37,4 +37,4 @@ Once the environment is set up and configuration is generated, you can now proce
 
 ## Pulsar upgrade
 
-If you upgrade an existing Kubernetes installation, follow the [upgrade documentation](helm-upgrade.md).
+To upgrade an existing Kubernetes installation, follow the [upgrade documentation](helm-upgrade.md).

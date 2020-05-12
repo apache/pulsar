@@ -27,7 +27,7 @@ This chart includes all the components for a complete experience, but each part 
 It includes support for:
 
 - Security
-    - Automatically provisioned TLS certs, using [Jetstack](https://www.jetstack.io/)'s [cert-manager](https://cert-manager.io/docs/)
+    - Automatically provisioned TLS certificates, using [Jetstack](https://www.jetstack.io/)'s [cert-manager](https://cert-manager.io/docs/)
         - self-signed
         - [Let's Encrypt](https://letsencrypt.org/)
     - TLS Encryption
@@ -58,7 +58,7 @@ This guide walks the user through deploying these charts with default values and
 
 ## Troubleshooting
 
-We have done our best to make these charts as seamless as possible. Occasionally, troubles do go outside of our control. We have collected tips and tricks for troubleshooting common issues. Please check them first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add to them by raising a [Pull Request](https://github.com/apache/pulsar/compare)!
+We have done our best to make these charts as seamless as possible. Occasionally, troubles do go outside of our control. We have collected tips and tricks for troubleshooting common issues. Please check them first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add to them by raising a [Pull Request](https://github.com/apache/pulsar/compare).
 
 ## Installation
 
@@ -91,7 +91,7 @@ helm delete <pulsar-release-name>
 ```
 
 For the purposes of continuity, these charts have some Kubernetes objects that cannot be removed when performing `helm delete`.
-It is recommended to *conciously* remove these items, as they affect re-deployment should you choose to.
+It is recommended to *conciously* remove these items, as they affect re-deployment.
 
 * PVCs for stateful data: *consciously* remove these items.
     - ZooKeeper: This is your metadata.
