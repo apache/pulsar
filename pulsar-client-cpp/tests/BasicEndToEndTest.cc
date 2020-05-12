@@ -3037,7 +3037,7 @@ TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
     ClientConfiguration config;
     Client client(lookupUrl);
 
-    std::string topicName = "persistent://public/default/test-regex-initial-position-" + unique_str();
+    std::string topicName = "persistent://public/default/test-regex-initial-position-" + std::to_string(time(NULL));
 
     Producer producer;
     Result result = client.createProducer(topicName, producer);
