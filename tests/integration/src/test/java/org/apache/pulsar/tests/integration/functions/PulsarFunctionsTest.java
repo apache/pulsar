@@ -123,7 +123,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test(groups = "sink")
     public void testJdbcSink() throws Exception {
         testSink(new JdbcSinkTester(), true);
     }
