@@ -68,7 +68,7 @@ func TestExampleSummaryVec(t *testing.T) {
 		t.Fatal("Too many metric families")
 	}
 	// Then, we need to filter the metrics in the family to one that matches our label.
-	expectedValue:="name: \"pond_temperature_celsius\"\n" +
+	expectedValue := "name: \"pond_temperature_celsius\"\n" +
 		"help: \"The temperature of the frog pond.\"\n" +
 		"type: SUMMARY\n" +
 		"metric: <\n" +
