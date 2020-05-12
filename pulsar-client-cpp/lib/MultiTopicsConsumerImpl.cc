@@ -157,13 +157,9 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     }
 
     std::shared_ptr<ConsumerImpl> consumer;
-    ConsumerConfiguration config;
+    ConsumerConfiguration config = conf_.clone();
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
 
-    // all the consumers should have same name.
-    config.setConsumerName(conf_.getConsumerName());
-    config.setConsumerType(conf_.getConsumerType());
-    config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
     config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
                                         std::placeholders::_1, std::placeholders::_2));
 
