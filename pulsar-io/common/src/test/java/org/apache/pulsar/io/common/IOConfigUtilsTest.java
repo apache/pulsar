@@ -20,6 +20,9 @@ package org.apache.pulsar.io.common;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -177,6 +180,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
+        }
+
+        @Override
+        public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
             return null;
         }
     }

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
@@ -160,4 +163,15 @@ public interface SourceContext {
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+
+    /**
+     * New output message using schema for serializing to the topic
+     *
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
 }
