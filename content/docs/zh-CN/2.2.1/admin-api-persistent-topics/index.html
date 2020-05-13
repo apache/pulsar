@@ -204,7 +204,7 @@ admin.persistentTopics().unload(topic);
 <li><p><strong>msgRateExpired</strong>: 由于TTL，此订阅下没有被发送而是被丢弃的比例。</p></li>
 <li><p>** consumers **：此订阅连接的consumer列表</p></li>
 <li><p>** consumerName **：客户端类库生成的此consumer的内部标识符</p></li>
-<li><p><strong>availablePermits</strong>: 此consumer在客户端类库的监听队列中可以容纳的消息数量。 值为0意味着客户端类库的队列已经满了，receive()不再被调用。 A nonzero value means this consumer is ready to be dispatched messages.</p></li>
+<li><p><strong>availablePermits</strong>: 此consumer在客户端类库的监听队列中可以容纳的消息数量。 值为0意味着客户端类库的队列已经满了，receive()不再被调用。 非零值意味着该消费者已经准备好接收消息。</p></li>
 <li><p>** replication **: 该topic交叉复制的统计信息。</p></li>
 <li><p><strong>replicationBacklog</strong>: 消息对外复制的backlog</p></li>
 <li><p><strong>connected</strong>: 外部复制器是否已经连接</p></li>

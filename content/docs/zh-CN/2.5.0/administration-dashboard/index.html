@@ -21,18 +21,18 @@
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar dashboard</h1></header><article><div><span><blockquote>
 <p>Note Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use <a href="/docs/zh-CN/2.5.0/administration-pulsar-manager">Pulsar Manager</a>.</p>
 </blockquote>
-<p>Pulsar dashboard is a web application that enables users to monitor current stats for all <a href="/docs/zh-CN/2.5.0/reference-terminology#topic">topics</a> in tabular form.</p>
-<p>The dashboard is a data collector that polls stats from all the brokers in a Pulsar instance (across multiple clusters) and stores all the information in a <a href="https://www.postgresql.org/">PostgreSQL</a> database.</p>
-<p>You can use the <a href="https://www.djangoproject.com">Django</a> web app to render the collected data.</p>
-<h2><a class="anchor" aria-hidden="true" id="install"></a><a href="#install" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install</h2>
+<p>Pulsar dashboard 是一个 web 应用程序，它能让用户以表格形式监控所有<a href="/docs/zh-CN/2.5.0/reference-terminology#topic">主题</a>的当前统计信息。</p>
+<p>dashboard 是一个数据收集器，它能从单个 Pulsar 实例（跨越多个集群）的所有 broker 中轮询统计信息，并将所有信息存储在 <a href="https://www.postgresql.org/">PostgreSQL</a> 数据库中。</p>
+<p>你可以使用 <a href="https://www.djangoproject.com">Django</a> 这个 web 应用来渲染收集到的数据。</p>
+<h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
 <p>使用dashboard的最简单方法是在 <a href="https://www.docker.com/products/docker">Docker</a> 容器中运行它。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> SERVICE_URL=http://broker.example.com:8080/</span>
 <span class="hljs-meta">$</span><span class="bash"> docker run -p 80:80 \</span>
   -e SERVICE_URL=$SERVICE_URL \
   apachepulsar/pulsar-dashboard:2.5.1
 </code></pre>
-<p>You can find the <a href="https://github.com/apache/incubator-pulsar/tree/master//dashboard/Dockerfile"><code>Dockerfile</code></a>
- in the <code>dashboard</code> directory and build an image from scratch as well:</p>
+<p>你可以在 <code>dashboard</code> 目录中找到 <a href="https://github.com/apache/incubator-pulsar/tree/master//dashboard/Dockerfile"><code>Dockerfile</code></a>
+ 并从头生成一张图像：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> docker build -t apachepulsar/pulsar-dashboard dashboard</span>
 </code></pre>
 <p>If token authentication is enabled:</p>
@@ -46,18 +46,18 @@
   -e JWT_TOKEN=$JWT_TOKEN \
   apachepulsar/pulsar-dashboard
 </code></pre>
-<p>You need to specify only one service URL for a Pulsar cluster. Internally, the collector figures out all the existing clusters and the brokers from where it needs to pull the metrics. If you connect the dashboard to Pulsar running in standalone mode, the URL is <code>http://&lt;broker-ip&gt;:8080</code> by default. <code>&lt;broker-ip&gt;</code> is the ip address or hostname of the machine running Pulsar standalone. The ip address or hostname should be accessible from the docker instance running dashboard.</p>
-<p>Once the Docker container runs, the web dashboard is accessible via <code>localhost</code> or whichever host that Docker uses.</p>
+<p>You need to specify only one service URL for a Pulsar cluster. 在内部实现中，收集器会理清当前所有的集群和 broker，也就是它的数据指标来源。 如果你将 dashboard 连接到以 standalone 模式运行的 Pulsar，默认情况下 URL 是 <code>http://&lt;broker-ip&gt;:8080</code> <code>&lt;broker-ip&gt;</code> is the ip address or hostname of the machine running Pulsar standalone. The ip address or hostname should be accessible from the docker instance running dashboard.</p>
+<p>Docker 容器运行后，可以通过 <code>localhost</code> 或 Docker 使用的主机来访问 dashboard</p>
 <blockquote>
 <p>dashboard所使用的broker<code>SERVICE_URL</code> 必须可以在Docker容器内进行访问.</p>
 </blockquote>
-<p>If the Pulsar service runs in standalone mode in <code>localhost</code>, the <code>SERVICE_URL</code> has to be the IP of the machine.</p>
+<p>如果 Pulsar 服务在 <code>localhost</code> 中以 standalone 模式运行， <code>SERVICE_URL</code> 必须为机器的IP。</p>
 <p>Similarly, given the Pulsar standalone advertises itself with localhost by default, you need to explicitely set the advertise address to the host IP. 例如:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar standalone --advertised-address 1.2.3.4</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="known-issues"></a><a href="#known-issues" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Known issues</h3>
-<p>Currently, only Pulsar Token <a href="/docs/zh-CN/2.5.0/security-overview#authentication-providers">authentication</a> is supported.</p>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#install">Install</a><ul class="toc-headings"><li><a href="#known-issues">Known issues</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h3><a class="anchor" aria-hidden="true" id="已知的问题"></a><a href="#已知的问题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>已知的问题</h3>
+<p>目前只支持 Pulsar Token <a href="/docs/zh-CN/2.5.0/security-overview#authentication-providers">认证</a>。</p>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#已知的问题">已知的问题</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
