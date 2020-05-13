@@ -2611,10 +2611,14 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             policies.offload_policies = offloadPolicies;
+            String updatedOffloadPolicies = jsonMapper().writeValueAsString(policies.offload_policies);
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion(),
                     (rc, path1, ctx, stat) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+                            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
+                                    namespaceName, updatedOffloadPolicies);
+                            asyncResponse.resume(Response.noContent().build());
                         } else {
                             String errorMsg = String.format(
                                     "[%s] Failed to update offload configuration for namespace %s",
@@ -2630,9 +2634,6 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                         }
                     }, null);
-            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(policies.offload_policies));
-            asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
             log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
                     e);
