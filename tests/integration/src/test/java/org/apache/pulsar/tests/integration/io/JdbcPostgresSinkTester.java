@@ -109,7 +109,9 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
             // backend flush may not complete.
             Thread.sleep(1000);
 
-            PreparedStatement statement = connection.prepareStatement(querySql);
+            PreparedStatement statement = connection.prepareStatement(querySql,
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_UPDATABLE);
             rs = statement.executeQuery();
 
             if (kvs.get("ACTION").equals("DELETE")) {
