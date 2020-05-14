@@ -357,7 +357,7 @@ In this example, we've named our Helm release `pulsar`.
 git clone https://github.com/apache/pulsar
 cd pulsar/deployment/kubernetes/helm
 helm upgrade --install pulsar pulsar \
-    --timeout 600 \
+    --timeout 10m \
     --set [your configuration options]
 ```
 
