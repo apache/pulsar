@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
@@ -67,6 +69,11 @@ public class IOConfigUtilsTest {
                 help = ""
         )
         protected long sensitiveLong;
+
+        public static TestConfig load(Map<String, Object> map) throws IOException {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(new ObjectMapper().writeValueAsString(map), TestConfig.class);
+        }
     }
 
     @Data
@@ -78,6 +85,11 @@ public class IOConfigUtilsTest {
                 help = ""
         )
         protected String moreSensitiveStuff;
+
+        public static DerivedConfig load(Map<String, Object> map) throws IOException {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(new ObjectMapper().writeValueAsString(map), DerivedConfig.class);
+        }
     }
 
     @Data
@@ -89,6 +101,11 @@ public class IOConfigUtilsTest {
                 help = ""
         )
         protected String derivedDerivedSensitive;
+
+        public static DerivedDerivedConfig load(Map<String, Object> map) throws IOException {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(new ObjectMapper().writeValueAsString(map), DerivedDerivedConfig.class);
+        }
     }
 
     static class TestSourceContext implements SourceContext {
@@ -190,10 +207,11 @@ public class IOConfigUtilsTest {
     }
 
     @Test
-    public void testSourceLoadWithSecrets() {
+    public void testSourceLoadWithSecrets() throws Exception {
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
-        TestConfig testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSourceContext());
+        TestConfig testConfig = TestConfig.load(configMap);
+        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-source-password");
@@ -203,7 +221,8 @@ public class IOConfigUtilsTest {
         configMap.put("password", "another-password");
         configMap.put("sensitiveLong", 5L);
 
-        testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSourceContext());
+        testConfig = TestConfig.load(configMap);
+        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-source-password");
@@ -214,7 +233,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSourceContext());
+        DerivedConfig derivedConfig = DerivedConfig.load(configMap);
+        derivedConfig = IOConfigUtils.loadWithSecrets(derivedConfig, DerivedConfig.class, new TestSourceContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-source-password");
@@ -225,7 +245,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSourceContext());
+        DerivedDerivedConfig derivedDerivedConfig = DerivedDerivedConfig.load(configMap);
+        derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(derivedDerivedConfig, DerivedDerivedConfig.class, new TestSourceContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-source-password");
@@ -328,11 +349,12 @@ public class IOConfigUtilsTest {
     }
 
     @Test
-    public void testSinkLoadWithSecrets() {
+    public void testSinkLoadWithSecrets() throws Exception {
 
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
-        TestConfig testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSinkContext());
+        TestConfig testConfig = TestConfig.load(configMap);
+        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSinkContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-sink-password");
@@ -342,7 +364,8 @@ public class IOConfigUtilsTest {
         configMap.put("password", "another-password");
         configMap.put("sensitiveLong", 5L);
 
-        testConfig = IOConfigUtils.loadWithSecrets(configMap, TestConfig.class, new TestSinkContext());
+        testConfig = TestConfig.load(configMap);
+        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSinkContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-sink-password");
@@ -353,7 +376,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSinkContext());
+        DerivedConfig derivedConfig = DerivedConfig.load(configMap);
+        derivedConfig = IOConfigUtils.loadWithSecrets(derivedConfig, DerivedConfig.class, new TestSinkContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-sink-password");
@@ -364,7 +388,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSinkContext());
+        DerivedDerivedConfig derivedDerivedConfig = DerivedDerivedConfig.load(configMap);
+        derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(derivedDerivedConfig, DerivedDerivedConfig.class, new TestSinkContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-sink-password");

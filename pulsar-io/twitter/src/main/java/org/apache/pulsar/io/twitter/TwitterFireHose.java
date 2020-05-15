@@ -72,7 +72,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
+        TwitterFireHoseConfig hoseConfigWithoutSecrets = TwitterFireHoseConfig.load(config);
+        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(hoseConfigWithoutSecrets, TwitterFireHoseConfig.class, sourceContext);
         hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);

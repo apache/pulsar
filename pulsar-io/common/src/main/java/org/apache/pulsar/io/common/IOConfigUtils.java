@@ -35,12 +35,12 @@ import java.util.function.Function;
 
 @Slf4j
 public class IOConfigUtils {
-    public static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, SourceContext sourceContext) {
-        return loadWithSecrets(map, clazz, secretName -> sourceContext.getSecret(secretName));
+    public static <T> T loadWithSecrets(T object, Class<T> clazz, SourceContext sourceContext) {
+        return loadWithSecrets(object, clazz, secretName -> sourceContext.getSecret(secretName));
     }
 
-    public static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, SinkContext sinkContext) {
-        return loadWithSecrets(map, clazz, secretName -> sinkContext.getSecret(secretName));
+    public static <T> T loadWithSecrets(T object, Class<T> clazz, SinkContext sinkContext) {
+        return loadWithSecrets(object, clazz, secretName -> sinkContext.getSecret(secretName));
     }
 
 
@@ -55,9 +55,7 @@ public class IOConfigUtils {
         return fields;
     }
 
-    private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, Function<String, String> secretsGetter) {
-        Map<String, Object> configs = new HashMap<>(map);
-
+    private static <T> T loadWithSecrets(T object, Class<T> clazz, Function<String, String> secretsGetter) {
         for (Field field : getAllFields(clazz)) {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {
@@ -71,13 +69,17 @@ public class IOConfigUtils {
                             break;
                         }
                         if (secret != null) {
-                            configs.put(field.getName(), secret);
+                            try {
+                                field.set(object, secret);
+                            } catch (Exception e) {
+                                log.warn("Failed to set field {}", field.getName(), e);
+                                break;
+                            }
                         }
                     }
                 }
-
             }
         }
-        return new ObjectMapper().convertValue(configs, clazz);
+        return object;
     }
 }
