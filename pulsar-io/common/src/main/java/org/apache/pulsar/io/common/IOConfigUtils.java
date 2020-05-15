@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.common;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
@@ -27,20 +26,18 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
 public class IOConfigUtils {
-    public static <T> T loadWithSecrets(T object, Class<T> clazz, SourceContext sourceContext) {
-        return loadWithSecrets(object, clazz, secretName -> sourceContext.getSecret(secretName));
+    public static <T> T fillWithSecrets(T object, SourceContext sourceContext) {
+        return fillWithSecrets(object, secretName -> sourceContext.getSecret(secretName));
     }
 
-    public static <T> T loadWithSecrets(T object, Class<T> clazz, SinkContext sinkContext) {
-        return loadWithSecrets(object, clazz, secretName -> sinkContext.getSecret(secretName));
+    public static <T> T fillWithSecrets(T object, SinkContext sinkContext) {
+        return fillWithSecrets(object, secretName -> sinkContext.getSecret(secretName));
     }
 
 
@@ -55,7 +52,8 @@ public class IOConfigUtils {
         return fields;
     }
 
-    private static <T> T loadWithSecrets(T object, Class<T> clazz, Function<String, String> secretsGetter) {
+    private static <T> T fillWithSecrets(T object, Function<String, String> secretsGetter) {
+        Class clazz = object.getClass();
         for (Field field : getAllFields(clazz)) {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {

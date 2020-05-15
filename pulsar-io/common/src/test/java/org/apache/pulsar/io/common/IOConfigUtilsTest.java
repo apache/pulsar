@@ -211,7 +211,7 @@ public class IOConfigUtilsTest {
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
         TestConfig testConfig = TestConfig.load(configMap);
-        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSourceContext());
+        testConfig = IOConfigUtils.fillWithSecrets(testConfig, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-source-password");
@@ -222,7 +222,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         testConfig = TestConfig.load(configMap);
-        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSourceContext());
+        testConfig = IOConfigUtils.fillWithSecrets(testConfig, new TestSourceContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-source-password");
@@ -234,7 +234,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         DerivedConfig derivedConfig = DerivedConfig.load(configMap);
-        derivedConfig = IOConfigUtils.loadWithSecrets(derivedConfig, DerivedConfig.class, new TestSourceContext());
+        derivedConfig = IOConfigUtils.fillWithSecrets(derivedConfig, new TestSourceContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-source-password");
@@ -246,7 +246,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         DerivedDerivedConfig derivedDerivedConfig = DerivedDerivedConfig.load(configMap);
-        derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(derivedDerivedConfig, DerivedDerivedConfig.class, new TestSourceContext());
+        derivedDerivedConfig  = IOConfigUtils.fillWithSecrets(derivedDerivedConfig, new TestSourceContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-source-password");
@@ -354,7 +354,7 @@ public class IOConfigUtilsTest {
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
         TestConfig testConfig = TestConfig.load(configMap);
-        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSinkContext());
+        testConfig = IOConfigUtils.fillWithSecrets(testConfig, new TestSinkContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-sink-password");
@@ -365,7 +365,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         testConfig = TestConfig.load(configMap);
-        testConfig = IOConfigUtils.loadWithSecrets(testConfig, TestConfig.class, new TestSinkContext());
+        testConfig = IOConfigUtils.fillWithSecrets(testConfig, new TestSinkContext());
 
         Assert.assertEquals(testConfig.notSensitive, "foo");
         Assert.assertEquals(testConfig.password, "my-sink-password");
@@ -377,7 +377,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         DerivedConfig derivedConfig = DerivedConfig.load(configMap);
-        derivedConfig = IOConfigUtils.loadWithSecrets(derivedConfig, DerivedConfig.class, new TestSinkContext());
+        derivedConfig = IOConfigUtils.fillWithSecrets(derivedConfig, new TestSinkContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-sink-password");
@@ -389,7 +389,7 @@ public class IOConfigUtilsTest {
         configMap.put("sensitiveLong", 5L);
 
         DerivedDerivedConfig derivedDerivedConfig = DerivedDerivedConfig.load(configMap);
-        derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(derivedDerivedConfig, DerivedDerivedConfig.class, new TestSinkContext());
+        derivedDerivedConfig  = IOConfigUtils.fillWithSecrets(derivedDerivedConfig, new TestSinkContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-sink-password");
