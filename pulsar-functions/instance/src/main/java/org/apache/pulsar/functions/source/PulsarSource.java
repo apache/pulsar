@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -166,7 +165,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
             } else if (typeArg == KeyValue.class) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg,
-                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), pulsarSourceConfig.getKeyValueSchemaGenericType());
+                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), pulsarSourceConfig.getFunctionGenericType());
             } else {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }

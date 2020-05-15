@@ -45,7 +45,7 @@ public class PulsarSourceConfig {
     private String deadLetterTopic;
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
-    private Type keyValueSchemaGenericType;
+    private Type functionGenericType;
 
     private String typeClassName;
     private Long timeoutMs;

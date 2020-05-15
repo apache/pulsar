@@ -347,7 +347,7 @@ public class PulsarSink<T> implements Sink<T> {
         } else {
             if(typeArg == KeyValue.class){
                 return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, pulsarSinkConfig.getKeyValueSchemaGenericType());
+                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, pulsarSinkConfig.getFunctionGenericType());
             }
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader);
