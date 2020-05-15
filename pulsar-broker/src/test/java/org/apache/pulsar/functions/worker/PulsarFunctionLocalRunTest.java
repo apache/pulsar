@@ -485,33 +485,51 @@ public class PulsarFunctionLocalRunTest {
 
     @Test(timeOut = 30000)
     public void testPulsarFunctionSchema() throws Exception {
+        testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
+        testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction$KeyValueStudentFunction");
+    }
 
-        final String namespacePortion = "io";
+    public void testFunctionSchema(String classPath) throws Exception {
+        final long timeStamp = System.currentTimeMillis();
+        final String namespacePortion = "io" + timeStamp;
         final String replNamespace = tenant + "/" + namespacePortion;
-        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
-        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1" + timeStamp;
+        final String sinkTopic = "persistent://" + replNamespace + "/output" + timeStamp;
         final String propertyKey = "key";
         final String propertyValue = "value";
-        final String functionName = "PulsarFunction-test";
-        final String subscriptionName = "test-sub";
+        final String functionName = "PulsarFunction-test" + timeStamp;
+        final String subscriptionName = "test-sub" + timeStamp;
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // 1）create producer and consumer
-        Producer<KeyValue<String, KeyValue<String, Map>>> producer = pulsarClient
-                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
-                .topic(sourceTopic).create();
-        Consumer<KeyValue<String, KeyValue<String, Map>>> consumer = pulsarClient
-                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
-                .topic(sinkTopic).subscriptionName("sub").subscribe();
+        Producer producer;
+        Consumer consumer;
+        if ("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction".equals(classPath)) {
+            producer = pulsarClient.newProducer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
+                    .topic(sourceTopic).create();
+            consumer = pulsarClient
+                    .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
+                    .topic(sinkTopic).subscriptionName("sub").subscribe();
+        }else {
+            producer = pulsarClient
+                    .newProducer(KeyValueSchema.of(Schema.JSON(KeyValueNestedGenericsFunction.Student.class)
+                            , Schema.JSON(KeyValueNestedGenericsFunction.Student.class)))
+                    .topic(sourceTopic).create();
+            consumer = pulsarClient
+                    .newConsumer(KeyValueSchema.of(Schema.JSON(KeyValueNestedGenericsFunction.Student.class)
+                            , Schema.JSON(KeyValueNestedGenericsFunction.Student.class)))
+                    .topic(sinkTopic).subscriptionName("sub").subscribe();
+        }
+
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         // 2） set nested generics function class
-        functionConfig.setClassName("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
+        functionConfig.setClassName(classPath);
 
         // 3）start local runner
         LocalRunner localRunner = LocalRunner.builder()
@@ -542,10 +560,15 @@ public class PulsarFunctionLocalRunTest {
 
         // 5） send message
         int totalMsgs = 10;
-        KeyValue keyValue = new KeyValue("1", new HashMap<>());
         for (int i = 0; i < totalMsgs; i++) {
-            producer.newMessage().property(propertyKey, propertyValue)
-                    .value(new KeyValue("" + i, keyValue)).send();
+            if ("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction".equals(classPath)) {
+                KeyValue keyValue = new KeyValue("1", new HashMap<>());
+                producer.newMessage().property(propertyKey, propertyValue).value(new KeyValue(String.valueOf(i), keyValue)).send();
+            } else {
+                KeyValueNestedGenericsFunction.Student student = new KeyValueNestedGenericsFunction.Student(String.valueOf(i), String.valueOf(i + 1));
+                KeyValue keyValue = new KeyValue(student, student);
+                producer.newMessage().property(propertyKey, propertyValue).value(keyValue).send();
+            }
         }
         retryStrategically((test) -> {
             try {
@@ -558,9 +581,18 @@ public class PulsarFunctionLocalRunTest {
 
         // 6）The function should be able to correctly handle generic messages, so consumers can consume the message
         for (int i = 0; i < totalMsgs; i++) {
-            Message<KeyValue<String, KeyValue<String, Map>>> msg = consumer.receive(1, TimeUnit.SECONDS);
-            assertEquals(String.valueOf(i), msg.getValue().getKey());
-            assertEquals("1", msg.getValue().getValue().getKey());
+            if ("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction".equals(classPath)) {
+                Message<KeyValue<String, KeyValue<String, Map>>> msg = consumer.receive(1, TimeUnit.SECONDS);
+                assertEquals(String.valueOf(i), msg.getValue().getKey());
+                assertEquals("1", msg.getValue().getValue().getKey());
+            } else {
+                Message<KeyValue<KeyValueNestedGenericsFunction.Student, KeyValueNestedGenericsFunction.Student>> msg
+                        = consumer.receive(1, TimeUnit.SECONDS);
+                assertEquals(msg.getValue().getKey().getName(), String.valueOf(i));
+                assertEquals(msg.getValue().getKey().getAddress(), String.valueOf(i + 1));
+                assertEquals(msg.getValue().getValue().getName(), String.valueOf(i));
+                assertEquals(msg.getValue().getValue().getAddress(), String.valueOf(i + 1));
+            }
         }
 
         assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,

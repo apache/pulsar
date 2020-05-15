@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -29,5 +32,20 @@ public class KeyValueNestedGenericsFunction implements Function<KeyValue<String,
     @Override
     public KeyValue<String, KeyValue<String, Map<String, Integer>>> process(KeyValue<String, KeyValue<String, Map<String, Integer>>> input, Context context) throws Exception {
         return input;
+    }
+
+    public static class KeyValueStudentFunction implements Function<KeyValue<Student, Student>, KeyValue<Student, Student>>{
+        @Override
+        public KeyValue<Student, Student> process(KeyValue<Student, Student> input, Context context) throws Exception {
+            return input;
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Student{
+        private String name;
+        private String address;
     }
 }
