@@ -710,6 +710,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
+            //Function<T, R> . Source should base on the type of T，so use the data at position 0
+            pulsarSourceConfig.setKeyValueSchemaGenericType(
+                    FunctionCommon.getFunctionGenericTypeArg(instanceConfig.getFunctionDetails().getClassName(), functionClassLoader)[0]
+            );
             object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
         } else {
             object = Reflections.createInstance(
@@ -768,6 +772,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                //Function<T, R> . Sink should base on the type of R，so use the data at position 1
+                pulsarSinkConfig.setKeyValueSchemaGenericType(
+                        FunctionCommon.getFunctionGenericTypeArg(instanceConfig.getFunctionDetails().getClassName(), functionClassLoader)[1]
+                );
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }

@@ -31,7 +31,6 @@ import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -399,6 +398,19 @@ public class FunctionCommon {
                     String.format("class %s is not type of %s", className, funClass.getName()));
         }
         return TypeResolver.resolveRawArgument(funClass, loadedClass);
+    }
+
+    public static Type[] getFunctionGenericTypeArg(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        Class<?> loadedClass = classLoader.loadClass(className);
+        Type functionGenericType = null;
+        if (java.util.function.Function.class.isAssignableFrom(loadedClass)) {
+            functionGenericType = TypeResolver.resolveGenericType(java.util.function.Function.class, loadedClass);
+        } else if (Function.class.isAssignableFrom(loadedClass)) {
+            functionGenericType = TypeResolver.resolveGenericType(Function.class, loadedClass);
+        } else {
+            throw new IllegalArgumentException(String.format("class %s is not type of function", className));
+        }
+        return ((ParameterizedType) functionGenericType).getActualTypeArguments();
     }
 
     public static double roundDecimal(double value, int places) {

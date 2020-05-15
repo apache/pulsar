@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.source;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -44,6 +45,7 @@ public class PulsarSourceConfig {
     private String deadLetterTopic;
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
+    private Type keyValueSchemaGenericType;
 
     private String typeClassName;
     private Long timeoutMs;

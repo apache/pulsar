@@ -19,8 +19,13 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
+
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
-import java.util.Collections;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +87,10 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
     }
 
+    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader, Type kvSchemaGenericType) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader, kvSchemaGenericType));
+    }
+
 
     /**
      * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
@@ -128,8 +137,44 @@ public class TopicSchema {
         }
     }
 
+    public static Schema getDefaultSchema(Class<?> clazz) {
+        if (Byte[].class.equals(clazz)) {
+            return Schema.BYTES;
+        } else if (ByteBuffer.class.equals(clazz)) {
+            return Schema.BYTEBUFFER;
+        } else if (String.class.equals(clazz)) {
+            return Schema.STRING;
+        } else if (Byte.class.equals(clazz)) {
+            return Schema.INT8;
+        } else if (Short.class.equals(clazz)) {
+            return Schema.INT16;
+        } else if (Integer.class.equals(clazz)) {
+            return Schema.INT32;
+        } else if (Long.class.equals(clazz)) {
+            return Schema.INT64;
+        } else if (Boolean.class.equals(clazz)) {
+            return Schema.BOOL;
+        } else if (Float.class.equals(clazz)) {
+            return Schema.FLOAT;
+        } else if (Double.class.equals(clazz)) {
+            return Schema.DOUBLE;
+        } else if (Date.class.equals(clazz)) {
+            return Schema.DATE;
+        } else if (Time.class.equals(clazz)) {
+            return Schema.TIME;
+        } else if (Timestamp.class.equals(clazz)) {
+            return Schema.TIMESTAMP;
+        }
+        throw new IllegalArgumentException("Schema class type is incorrect");
+    }
+
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type) {
+        return newSchemaInstance(clazz, type, null, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, Type kvSchemaGenericType, ClassLoader classLoader) {
         switch (type) {
         case NONE:
             return (Schema<T>) Schema.BYTES;
@@ -148,7 +193,7 @@ public class TopicSchema {
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES();
+            return buildKeyValueSchema(kvSchemaGenericType);
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
@@ -156,6 +201,52 @@ public class TopicSchema {
         default:
             throw new RuntimeException("Unsupported schema type" + type);
         }
+    }
+
+    /**
+     * According to the generic parameters of function, get the corresponding schema.
+     * @param kvSchemaGenericType
+     * @return
+     */
+    private static Schema buildKeyValueSchema(Type kvSchemaGenericType) {
+        if(!(kvSchemaGenericType instanceof ParameterizedType)){
+            return Schema.KV_BYTES();
+        }
+        return doBuildKvSchema(((ParameterizedType) kvSchemaGenericType).getActualTypeArguments());
+    }
+
+    /**
+     * Traverse keyvalue recursively and generate schema
+     * @param kvType
+     * @return
+     */
+    private static Schema doBuildKvSchema(Type[] kvType) {
+        if (kvType == null || kvType.length < 2) {
+            return Schema.KV_BYTES();
+        }
+        if (isInstanceOfKeyValue(kvType[0]) && isInstanceOfKeyValue(kvType[1])) {
+            return Schema.KeyValue(doBuildKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments()), doBuildKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+        } else if (isInstanceOfKeyValue(kvType[0])) {
+            return Schema.KeyValue(doBuildKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments()), getDefaultSchema((Class<?>) kvType[1]));
+        } else if (isInstanceOfKeyValue(kvType[1])) {
+            return Schema.KeyValue(getDefaultSchema((Class<?>) kvType[0]), doBuildKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+        } else {
+            return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));
+        }
+    }
+
+    private static Class<?> convertTypeToClass(Type type) {
+        if (type instanceof ParameterizedType) {
+            return (Class<?>) ((ParameterizedType) type).getRawType();
+        }
+        return (Class<?>) type;
+    }
+
+    private static boolean isInstanceOfKeyValue(Type type) {
+        if (!(type instanceof ParameterizedType)) {
+            return false;
+        }
+        return ((ParameterizedType) type).getRawType() == KeyValue.class;
     }
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
@@ -167,15 +258,18 @@ public class TopicSchema {
             return false;
         }
     }
-
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader){
+        return newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader, null);
+    }
+    @SuppressWarnings("unchecked")
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader, Type kvSchemaGenericType) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
 
         if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
-            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz));
+            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz), kvSchemaGenericType, classLoader);
         }
 
         SchemaType schemaType = null;

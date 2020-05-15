@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -163,6 +164,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             Schema<T> schema;
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
+            } else if (typeArg == KeyValue.class) {
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg,
+                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), pulsarSourceConfig.getKeyValueSchemaGenericType());
             } else {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }

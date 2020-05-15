@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
@@ -344,6 +345,10 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     pulsarSinkConfig.getSchemaType(), false);
         } else {
+            if(typeArg == KeyValue.class){
+                return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
+                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, pulsarSinkConfig.getKeyValueSchemaGenericType());
+            }
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader);
         }

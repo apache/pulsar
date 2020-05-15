@@ -16,24 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.sink;
+package org.apache.pulsar.functions.worker;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
-import java.lang.reflect.Type;
+import java.util.Map;
 
-@Getter
-@Setter
-@ToString
-public class PulsarSinkConfig {
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private String topic;
-    private String serdeClassName;
-    private String schemaType;
-    private Type keyValueSchemaGenericType;
-    private String typeClassName;
-    private boolean forwardSourceMessageProperty;
+public class KeyValueNestedGenericsFunction implements Function<KeyValue<String, KeyValue<String, Map<String, Integer>>>
+        , KeyValue<String, KeyValue<String, Map<String, Integer>>>> {
+    @Override
+    public KeyValue<String, KeyValue<String, Map<String, Integer>>> process(KeyValue<String, KeyValue<String, Map<String, Integer>>> input, Context context) throws Exception {
+        return input;
+    }
 }

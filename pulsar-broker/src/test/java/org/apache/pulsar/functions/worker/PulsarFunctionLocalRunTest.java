@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
@@ -70,6 +71,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
@@ -445,6 +447,126 @@ public class PulsarFunctionLocalRunTest {
                 totalMsgs);
 
         // stop functions
+        localRunner.stop();
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                return topicStats.subscriptions.get(subscriptionName) != null
+                        && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 20, 150);
+
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
+        assertTrue(topicStats.subscriptions.get(subscriptionName) != null
+                && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
+
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
+            } catch (PulsarAdminException e) {
+                if (e.getStatusCode() == 404) {
+                    return true;
+                }
+                return false;
+            }
+        }, 10, 150);
+
+        try {
+            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() != 404) {
+                fail();
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testPulsarFunctionSchema() throws Exception {
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // 1）create producer and consumer
+        Producer<KeyValue<String, KeyValue<String, Map>>> producer = pulsarClient
+                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
+                .topic(sourceTopic).create();
+        Consumer<KeyValue<String, KeyValue<String, Map>>> consumer = pulsarClient
+                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
+                .topic(sinkTopic).subscriptionName("sub").subscribe();
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        // 2） set nested generics function class
+        functionConfig.setClassName("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
+
+        // 3）start local runner
+        LocalRunner localRunner = LocalRunner.builder()
+                .functionConfig(functionConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        localRunner.start(false);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats stats = admin.topics().getStats(sourceTopic);
+                return stats.subscriptions.get(subscriptionName) != null
+                        && !stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // 4） validate pulsar sink consumer has started on the topic
+        TopicStats stats = admin.topics().getStats(sourceTopic);
+        assertTrue(stats.subscriptions.get(subscriptionName) != null
+                && !stats.subscriptions.get(subscriptionName).consumers.isEmpty());
+
+        // 5） send message
+        int totalMsgs = 10;
+        KeyValue keyValue = new KeyValue("1", new HashMap<>());
+        for (int i = 0; i < totalMsgs; i++) {
+            producer.newMessage().property(propertyKey, propertyValue)
+                    .value(new KeyValue("" + i, keyValue)).send();
+        }
+        retryStrategically((test) -> {
+            try {
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
+                return subStats.unackedMessages == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // 6）The function should be able to correctly handle generic messages, so consumers can consume the message
+        for (int i = 0; i < totalMsgs; i++) {
+            Message<KeyValue<String, KeyValue<String, Map>>> msg = consumer.receive(1, TimeUnit.SECONDS);
+            assertEquals(String.valueOf(i), msg.getValue().getKey());
+            assertEquals("1", msg.getValue().getValue().getKey());
+        }
+
+        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+                totalMsgs);
+
+        // 7）stop functions
         localRunner.stop();
 
         retryStrategically((test) -> {
