@@ -338,7 +338,7 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar
 <span class="hljs-built_in">cd</span> pulsar/deployment/kubernetes/helm
 helm upgrade --install pulsar pulsar \
-    --timeout 600 \
+    --timeout 10m \
     --<span class="hljs-built_in">set</span> [your configuration options]
 </code></pre>
 <p>You can also use <code>--version &lt;installation version&gt;</code> option if you would like to install a specific version of Pulsar Helm chart.</p>
