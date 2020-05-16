@@ -27,13 +27,13 @@ public class ConfigValidationTest {
 
     private final List<String> testStringList = Arrays.asList(new String[]{"foo", "bar"});
     private final List<Integer> testIntegerList = Arrays.asList(new Integer[]{0, 1});
-    private final Map<String, Integer> testStringIntegerMap = new HashMap<String, Integer>() {
+    private final Map testStringIntegerMap = new HashMap<String, Integer>() {
         {
             put("one", 1);
             put("two", 2);
         }
     };
-    private final Map<String, String> testStringStringMap = new HashMap<String, String>() {
+    private final Map testStringStringMap = new HashMap<String, String>() {
         {
             put("one", "one");
             put("two", "two");
@@ -58,17 +58,17 @@ public class ConfigValidationTest {
     class TestConfig {
         @ConfigValidationAnnotations.NotNull
         public String stringValue;
-        @ConfigValidationAnnotations.isPositiveNumber
+        @ConfigValidationAnnotations.PositiveNumber
         public Integer positiveNumber;
-        @ConfigValidationAnnotations.isListEntryType(type = Integer.class)
+        @ConfigValidationAnnotations.List(type = Integer.class)
         public List integerList;
-        @ConfigValidationAnnotations.isMapEntryType(keyType = String.class, valueType = Integer.class)
+        @ConfigValidationAnnotations.Map(keyType = String.class, valueType = Integer.class)
         public Map stringIntegerMap;
-        @ConfigValidationAnnotations.isStringList
+        @ConfigValidationAnnotations.StringList
         public List stringList;
-        @ConfigValidationAnnotations.isValidTopicName
+        @ConfigValidationAnnotations.TopicName
         public String topic;
-        @ConfigValidationAnnotations.isCustomFormat(validatorClass = TestValidator.class)
+        @ConfigValidationAnnotations.CustomType(validatorClass = TestValidator.class)
         public String customString;
     }
 

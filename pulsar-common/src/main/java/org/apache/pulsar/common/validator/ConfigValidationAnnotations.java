@@ -28,8 +28,6 @@ import java.lang.annotation.Target;
  */
 public class ConfigValidationAnnotations {
 
-    // CHECKSTYLE.OFF: TypeNameCheck
-
     /**
      * Validates on object is not null.
      */
@@ -44,7 +42,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isPositiveNumber {
+    public @interface PositiveNumber {
         Class<?> validatorClass() default ValidatorImpls.PositiveNumberValidator.class;
 
         boolean includeZero() default false;
@@ -55,7 +53,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isCustomFormat {
+    public @interface CustomType {
         Class<?> validatorClass();
     }
 
@@ -64,7 +62,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isListEntryType {
+    public @interface List {
         Class<?> validatorClass() default ValidatorImpls.ListEntryTypeValidator.class;
 
         Class<?> type();
@@ -75,7 +73,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isStringList {
+    public @interface StringList {
         Class<?> validatorClass() default ValidatorImpls.ListEntryTypeValidator.class;
 
         Class<?> type() default String.class;
@@ -87,7 +85,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isListEntryCustom {
+    public @interface CustomList {
         Class<?> validatorClass() default ValidatorImpls.ListEntryCustomValidator.class;
 
         Class<?>[] entryValidatorClasses();
@@ -100,7 +98,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isMapEntryType {
+    public @interface Map {
         Class<?> validatorClass() default ValidatorImpls.MapEntryTypeValidator.class;
 
         Class<?> keyType();
@@ -113,21 +111,10 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isImplementationOfClass {
+    public @interface Implements {
         Class<?> validatorClass() default ValidatorImpls.ImplementsClassValidator.class;
 
         Class<?> implementsClass();
-    }
-
-    /**
-     * Checks if class name is assignable to ONE of the provided list class/interfaces.
-     */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface isImplementationOfClasses {
-        Class<?> validatorClass() default ValidatorImpls.ImplementsClassesValidator.class;
-
-        Class<?>[] implementsClasses();
     }
 
     /**
@@ -136,7 +123,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isMapEntryCustom {
+    public @interface CustomMap {
         Class<?> validatorClass() default ValidatorImpls.MapEntryCustomValidator.class;
 
         Class<?>[] keyValidatorClasses();
@@ -149,7 +136,7 @@ public class ConfigValidationAnnotations {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
-    public @interface isValidTopicName {
+    public @interface TopicName {
         Class<?> validatorClass() default ValidatorImpls.TopicNameValidator.class;
     }
 
@@ -159,7 +146,6 @@ public class ConfigValidationAnnotations {
     public static class ValidatorParams {
         static final String VALIDATOR_CLASS = "validatorClass";
         static final String TYPE = "type";
-        static final String BASE_TYPE = "baseType";
         static final String ENTRY_VALIDATOR_CLASSES = "entryValidatorClasses";
         static final String KEY_VALIDATOR_CLASSES = "keyValidatorClasses";
         static final String VALUE_VALIDATOR_CLASSES = "valueValidatorClasses";
@@ -170,6 +156,4 @@ public class ConfigValidationAnnotations {
         static final String IMPLEMENTS_CLASS = "implementsClass";
         static final String IMPLEMENTS_CLASSES = "implementsClasses";
     }
-
-    // CHECKSTYLE.ON: TypeNameCheck
 }
