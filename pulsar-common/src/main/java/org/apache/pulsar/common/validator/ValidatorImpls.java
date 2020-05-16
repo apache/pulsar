@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.common.validator;
 
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.naming.TopicName;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.naming.TopicName;
+
+/**
+ * System defined Validator Annotations.
+ */
 @Slf4j
 public class ValidatorImpls {
     /**
@@ -118,7 +121,8 @@ public class ValidatorImpls {
         }
 
         public static void validateField(String name, Class<?> keyType, Class<?> valueType, Object o) {
-            ConfigValidationUtils.NestableFieldValidator validator = ConfigValidationUtils.mapFv(keyType, valueType, false);
+            ConfigValidationUtils.NestableFieldValidator validator = ConfigValidationUtils.mapFv(keyType,
+                    valueType, false);
             validator.validateField(name, o);
         }
 
@@ -128,6 +132,9 @@ public class ValidatorImpls {
         }
     }
 
+    /**
+     * validates that the item implements a certain type.
+     */
     public static class ImplementsClassValidator extends Validator {
 
         Class<?> classImplements;
@@ -162,14 +169,15 @@ public class ValidatorImpls {
     }
 
     /**
-     * validates class implements one of these classes
+     * validates class implements one of these classes.
      */
     public static class ImplementsClassesValidator extends Validator {
 
         Class<?>[] classesImplements;
 
         public ImplementsClassesValidator(Map<String, Object> params) {
-            this.classesImplements = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
+            this.classesImplements = (Class<?>[]) params.get(
+                    ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
         }
 
         @Override
@@ -209,13 +217,16 @@ public class ValidatorImpls {
         private Class<?>[] valueValidators;
 
         public MapEntryCustomValidator(Map<String, Object> params) {
-            this.keyValidators = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.KEY_VALIDATOR_CLASSES);
-            this.valueValidators = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.VALUE_VALIDATOR_CLASSES);
+            this.keyValidators = (Class<?>[]) params.get(
+                    ConfigValidationAnnotations.ValidatorParams.KEY_VALIDATOR_CLASSES);
+            this.valueValidators = (Class<?>[]) params.get(
+                    ConfigValidationAnnotations.ValidatorParams.VALUE_VALIDATOR_CLASSES);
         }
 
         @SuppressWarnings("unchecked")
         public static void validateField(String name, Class<?>[] keyValidators, Class<?>[] valueValidators, Object o)
-                throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+                throws IllegalAccessException, InstantiationException,
+                NoSuchMethodException, InvocationTargetException {
             if (o == null) {
                 return;
             }
@@ -228,8 +239,8 @@ public class ValidatorImpls {
                         ((Validator) keyValidator).validateField(name + " Map key", entry.getKey());
                     } else {
                         log.warn(
-                                "validator: {} cannot be used in MapEntryCustomValidator to validate keys.  Individual entry validators must " +
-                                        "a instance of Validator class",
+                                "validator: {} cannot be used in MapEntryCustomValidator to validate keys. "
+                                + " Individual entry validators must be a instance of Validator class",
                                 kv.getName());
                     }
                 }
@@ -239,8 +250,8 @@ public class ValidatorImpls {
                         ((Validator) valueValidator).validateField(name + " Map value", entry.getValue());
                     } else {
                         log.warn(
-                                "validator: {} cannot be used in MapEntryCustomValidator to validate values.  Individual entry validators " +
-                                        "must a instance of Validator class",
+                                "validator: {} cannot be used in MapEntryCustomValidator to validate values. "
+                                + " Individual entry validators must a instance of Validator class",
                                 vv.getName());
                     }
                 }
@@ -251,12 +262,16 @@ public class ValidatorImpls {
         public void validateField(String name, Object o) {
             try {
                 validateField(name, this.keyValidators, this.valueValidators, o);
-            } catch (IllegalAccessException | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
+            } catch (IllegalAccessException | InstantiationException
+                    | NoSuchMethodException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
+    /**
+     * validates that the string is equal to one of the specified ones in the list.
+     */
     @NoArgsConstructor
     public static class StringValidator extends Validator {
 
@@ -265,9 +280,11 @@ public class ValidatorImpls {
         public StringValidator(Map<String, Object> params) {
 
             this.acceptedValues =
-                    new HashSet<String>(Arrays.asList((String[]) params.get(ConfigValidationAnnotations.ValidatorParams.ACCEPTED_VALUES)));
+                    new HashSet<String>(Arrays.asList((String[]) params.get(
+                            ConfigValidationAnnotations.ValidatorParams.ACCEPTED_VALUES)));
 
-            if (this.acceptedValues.isEmpty() || (this.acceptedValues.size() == 1 && this.acceptedValues.contains(""))) {
+            if (this.acceptedValues.isEmpty()
+                    || (this.acceptedValues.size() == 1 && this.acceptedValues.contains(""))) {
                 this.acceptedValues = null;
             }
         }
@@ -278,26 +295,29 @@ public class ValidatorImpls {
             if (this.acceptedValues != null) {
                 if (!this.acceptedValues.contains((String) o)) {
                     throw new IllegalArgumentException(
-                            "Field " + name + " is not an accepted value. Value: " + o + " Accepted values: " + this.acceptedValues);
+                            "Field " + name + " is not an accepted value. Value: " + o
+                                    + " Accepted values: " + this.acceptedValues);
                 }
             }
         }
     }
 
     /**
-     * Validates each entry in a list against a list of custom Validators. Each validator in the list of validators must inherit or be an
-     * instance of Validator class
+     * Validates each entry in a list against a list of custom Validators. Each validator in the
+     * list of validators must inherit or be an instance of Validator class
      */
     public static class ListEntryCustomValidator extends Validator {
 
         private Class<?>[] entryValidators;
 
         public ListEntryCustomValidator(Map<String, Object> params) {
-            this.entryValidators = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.ENTRY_VALIDATOR_CLASSES);
+            this.entryValidators = (Class<?>[]) params.get(
+                    ConfigValidationAnnotations.ValidatorParams.ENTRY_VALIDATOR_CLASSES);
         }
 
         public static void validateField(String name, Class<?>[] validators, Object o)
-                throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+                throws IllegalAccessException, InstantiationException,
+                NoSuchMethodException, InvocationTargetException {
             if (o == null) {
                 return;
             }
@@ -310,8 +330,8 @@ public class ValidatorImpls {
                         ((Validator) v).validateField(name + " list entry", entry);
                     } else {
                         log.warn(
-                                "validator: {} cannot be used in ListEntryCustomValidator.  Individual entry validators must a instance of " +
-                                        "Validator class",
+                                "validator: {} cannot be used in ListEntryCustomValidator."
+                                + " Individual entry validators must a instance of Validator class",
                                 validator.getName());
                     }
                 }
@@ -322,12 +342,16 @@ public class ValidatorImpls {
         public void validateField(String name, Object o) {
             try {
                 validateField(name, this.entryValidators, o);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+            } catch (NoSuchMethodException | IllegalAccessException
+                    | InvocationTargetException | InstantiationException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
+    /**
+     * Validates that the field is a valid topic name.
+     */
     @NoArgsConstructor
     public static class TopicNameValidator extends Validator {
 

@@ -23,10 +23,15 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * This class defines all the annotations that classes can use to do their field validations.
+ */
 public class ConfigValidationAnnotations {
 
+    // CHECKSTYLE.OFF: TypeNameCheck
+
     /**
-     * Validates on object is not null
+     * Validates on object is not null.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -35,7 +40,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Checks if a number is positive and whether zero inclusive Validator with fields: validatorClass, includeZero
+     * Checks if a number is positive and whether zero inclusive Validator with fields: validatorClass, includeZero.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -46,7 +51,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Checks if the field satisfies the custom validator class
+     * Checks if the field satisfies the custom validator class.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -55,7 +60,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * validates each entry in a list is of a certain type
+     * validates each entry in a list is of a certain type.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -65,6 +70,9 @@ public class ConfigValidationAnnotations {
         Class<?> type();
     }
 
+    /**
+     * validates each entry in a list is of String type.
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
     public @interface isStringList {
@@ -74,7 +82,8 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Validates each entry in a list with a list of validators Validators with fields: validatorClass and entryValidatorClass
+     * Validates each entry in a list with a list of validators Validators with
+     * fields: validatorClass and entryValidatorClass.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -86,7 +95,8 @@ public class ConfigValidationAnnotations {
 
 
     /**
-     * Validates the type of each key and value in a map Validator with fields: validatorClass, keyValidatorClass, valueValidatorClass
+     * Validates the type of each key and value in a map Validator with
+     * fields: validatorClass, keyValidatorClass, valueValidatorClass.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -99,7 +109,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Checks if class name is assignable to the provided class/interfaces
+     * Checks if class name is assignable to the provided class/interfaces.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -110,7 +120,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Checks if class name is assignable to ONE of the provided list class/interfaces
+     * Checks if class name is assignable to ONE of the provided list class/interfaces.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -121,8 +131,8 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Validates a each key and value in a Map with a list of validators Validator with fields: validatorClass, keyValidatorClasses,
-     * valueValidatorClasses
+     * Validates a each key and value in a Map with a list of validators Validator with
+     * fields: validatorClass, keyValidatorClasses, valueValidatorClasses.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -135,7 +145,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * checks if the topic name is valid
+     * checks if the topic name is valid.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -144,7 +154,7 @@ public class ConfigValidationAnnotations {
     }
 
     /**
-     * Field names for annotations
+     * Field names for annotations.
      */
     public static class ValidatorParams {
         static final String VALIDATOR_CLASS = "validatorClass";
@@ -160,4 +170,6 @@ public class ConfigValidationAnnotations {
         static final String IMPLEMENTS_CLASS = "implementsClass";
         static final String IMPLEMENTS_CLASSES = "implementsClasses";
     }
+
+    // CHECKSTYLE.ON: TypeNameCheck
 }

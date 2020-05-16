@@ -16,25 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
-
-import java.util.Map;
-
 /**
- * Primary validation interface. All validators should extend this abstract class and implement
- * the validateField method.
+ * Implementation of Validator interfaces and annotations.
  */
-public abstract class Validator {
-    public Validator(Map<String, Object> params) {
-    }
-
-    public Validator() {
-    }
-
-    /**
-     * validate the field value o that belogs to the field which is named name
-     * This method should throw IllegalArgumentException in case o doesn't
-     * validate per this validator's implementation.
-     */
-    public abstract void validateField(String name, Object o);
-}
+package org.apache.pulsar.common.validator;

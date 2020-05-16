@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.validator;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -27,6 +25,11 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * The class that does the validation of all the members of a given object.
+ */
 @Slf4j
 public class ConfigValidation {
 
@@ -73,7 +76,8 @@ public class ConfigValidation {
                     Validator o = null;
                     Map<String, Object> params = getParamsFromAnnotation(validatorClass, v);
                     //two constructor signatures used to initialize validators.
-                    //One constructor takes input a Map of arguments, the other doesn't take any arguments (default constructor)
+                    //One constructor takes input a Map of arguments, the other doesn't take any
+                    //arguments (default constructor)
                     //If validator has a constructor that takes a Map as an argument call that constructor
                     if (hasConstructor(clazz, Map.class)) {
                         o = clazz.getConstructor(Map.class).newInstance(params);
@@ -83,7 +87,8 @@ public class ConfigValidation {
                     o.validateField(fieldName, value);
                 }
             }
-        } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+        } catch (NoSuchMethodException | IllegalAccessException
+                | InstantiationException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
     }
