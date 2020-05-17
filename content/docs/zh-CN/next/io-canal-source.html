@@ -29,16 +29,16 @@
 <tbody>
 <tr><td><code>username</code></td><td>true</td><td>无</td><td>Canal 服务器帐户（不是 MySQL）。</td></tr>
 <tr><td><code>password</code></td><td>true</td><td>无</td><td>Canal 服务器密码（不是 MySQL）。</td></tr>
-<tr><td><code>destination</code></td><td>true</td><td>无</td><td>与 Canal 源接口相连接的源目的地。</td></tr>
+<tr><td><code>destination</code></td><td>true</td><td>无</td><td>与 Canal source connector 相连接的 source 目标。</td></tr>
 <tr><td><code>singleHostname</code></td><td>false</td><td>无</td><td>Canal 服务器地址。</td></tr>
 <tr><td><code>singlePort</code></td><td>false</td><td>无</td><td>Canal 服务器端口。</td></tr>
-<tr><td><code>cluster</code></td><td>true</td><td>false</td><td>是否启用基于 Canal 服务器配置的集群模式。<br/><br/><li>true: <strong>cluster</strong> mode。<br/>如果设置为 true，将与 <code>zkServers</code> 一起确定实际的数据库主机。<br/><br/><li>false: <strong>standalone</strong> mode。<br/>如果设置为 false，则会连接到 <code>singleHostname</code> 和 <code>singlePort</code> 指定的数据库。</td></tr>
-<tr><td><code>zkServers</code></td><td>true</td><td>无</td><td>与 Canal 源连接器一起来查找实际数据库主机的 Zookeeper 地址和端口。</td></tr>
-<tr><td><code>batchSize</code></td><td>false</td><td>1000</td><td>从 Canal 中获取批量大小。</td></tr>
+<tr><td><code>cluster</code></td><td>true</td><td>false</td><td>是否启用基于 Canal 服务器配置的集群模式。<br/><br/><li>true：<strong>集群</strong>模式。<br/>如果设置为 true，则与 <code>zkServers</code> 一起确定实际的数据库主机。<br/><br/><li>false：<strong>独立运行</strong>模式。<br/>如果设置为 false，则会连接到 <code>singleHostname</code> 和 <code>singlePort</code> 指定的数据库。</td></tr>
+<tr><td><code>zkServers</code></td><td>true</td><td>无</td><td>与 Canal source connector 一起查找实际数据库主机的 Zookeeper 地址和端口。</td></tr>
+<tr><td><code>batchSize</code></td><td>false</td><td>1000</td><td>从 Canal 获取批处理大小。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
-<p>在使用 Canal 连接器之前，需要通过以下任一方法创建一个配置文件。</p>
+<p>在使用 Canal connector 之前，可通过以下任一方法创建配置文件。</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
@@ -53,7 +53,7 @@
 }
 </code></pre></li>
 <li><p>YAML</p>
-<p>可以创建一个 YAML 文件并复制 <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml">contents</a> 到新创建的 YAML 文件中。</p>
+<p>创建 YAML 文件并复制<a href="https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml">内容</a>到新创建的 YAML 文件中。</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
     <span class="hljs-attr">zkServers:</span> <span class="hljs-string">"127.0.0.1:2181"</span>
     <span class="hljs-attr">batchSize:</span> <span class="hljs-number">5120</span>
@@ -133,7 +133,7 @@ client.close()
 <pre><code class="hljs css language-bash">$ docker cp canal-mysql-source-config.yaml pulsar-standalone:/pulsar/conf/
 $ docker cp pulsar-client.py pulsar-standalone:/pulsar/
 </code></pre></li>
-<li><p>下载 Canal 连接器并启动。</p>
+<li><p>下载并启动 Canal connector。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-standalone /bin/bash
 $ wget https://archive.apache.org/dist/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
 $ ./bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \

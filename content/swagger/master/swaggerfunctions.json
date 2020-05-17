@@ -1376,6 +1376,20 @@
         "replicated" : {
           "type" : "boolean"
         },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
         "keyBytes" : {
           "type" : "array",
           "items" : {
@@ -1383,7 +1397,7 @@
             "format" : "byte"
           }
         },
-        "schemaVersion" : {
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1397,36 +1411,22 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "orderingKey" : {
+        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "topicName" : {
+        "replicatedFrom" : {
           "type" : "string"
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "producerName" : {
+          "type" : "string"
         },
         "data" : {
           "type" : "array",
