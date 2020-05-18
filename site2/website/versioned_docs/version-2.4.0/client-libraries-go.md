@@ -92,12 +92,12 @@ func main() {
 
 ### Client operations
 
-Pulsar Go client have the following methods available:
+Pulsar Go client has the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
 `CreateProducer(ProducerOptions)` | Create the producer instance(This method will block until the producer is created successfully). | `(Producer, error)`
-`CreateProducerWithSchema(ProducerOptions, Schema)` | Create the producer instance with schema | `(Producer, error)`
+`CreateProducerWithSchema(ProducerOptions, Schema)` | Create a producer instance with schema. | `(Producer, error)`
 `Subscribe(ConsumerOptions)` | Create a `Consumer` by subscribing to a topic. | `(Consumer, error)`
 `SubscribeWithSchema(ConsumerOptions, Schema)` | Create a `Consumer` with schema by subscribing to a topic. | `(Consumer, error)`
 `CreateReader(ReaderOptions)` | Create a Reader instance. | `(Reader, error)`
@@ -283,7 +283,7 @@ Method | Description | Return type
 `NackID(MessageID)` | Acknowledge the failure to process a single message. | `error`
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
 `RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](concepts-messaging.md#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](concepts-messaging.md#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
-`Schema()` | Message schema definition | `Schema`
+`Schema()` | Set the message schema definition | `Schema`
 
 #### Receive example
 
@@ -339,7 +339,7 @@ func main() {
 
 #### Schema example
 
-Here's an example usage of
+This example shows how to create a producer and consumer with schema.
 
 ```go
 var exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
@@ -399,7 +399,7 @@ Parameter | Description | Default
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000
 `MaxTotalReceiverQueueSizeAcrossPartitions` |Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value | 50000
-`Name` | Set the consumer name | `string`
+`Name` | Set the consumer name. | `string`
 `ReadCompacted` | If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic.| `bool`
 `Schema` | Message schema definition| 
 
