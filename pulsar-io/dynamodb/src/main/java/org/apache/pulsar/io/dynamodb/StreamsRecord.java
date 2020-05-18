@@ -35,6 +35,7 @@ import software.amazon.awssdk.utils.StringUtils;
  *  with a little branching added for dynamo-specific logic.
  */
 
+@Getter
 public class StreamsRecord implements Record<byte[]> {
     
     public static final String ARRIVAL_TIMESTAMP = "ARRIVAL_TIMESTAMP";
@@ -44,12 +45,9 @@ public class StreamsRecord implements Record<byte[]> {
     public static final String EVENT_NAME = "EVENT_NAME";
 
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-    @Getter
     private final Optional<String> key;
-    @Getter
     private final byte[] value;
-    @Getter
-    private final HashMap<String, String> userProperties = new HashMap<String, String> ();
+    private final Map<String, String> properties = new HashMap<String, String> ();
     
     public StreamsRecord(com.amazonaws.services.kinesis.model.Record record) {
         if (record instanceof RecordAdapter) {
@@ -80,6 +78,6 @@ public class StreamsRecord implements Record<byte[]> {
     }
 
     public void setProperty(String key, String value) {
-        userProperties.put(key, value);
+        properties.put(key, value);
     }
 }
