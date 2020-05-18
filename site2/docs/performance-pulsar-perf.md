@@ -163,7 +163,7 @@ To check test results through the HdrHistogram Plotter, follow these steps:
     ```
     cd HdrHistogram
     ```
-3. Install DskipTests through Maven.
+3. Install the HdrHistogram Plotter.
 
     ```
     mvn clean install -DskipTests
