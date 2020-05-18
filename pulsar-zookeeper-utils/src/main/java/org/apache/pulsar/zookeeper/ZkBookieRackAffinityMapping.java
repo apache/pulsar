@@ -85,7 +85,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieSocketAddress bsa = new BookieSocketAddress(addr);
-                        newRacksWithHost.updateBookie(group, bsa.getHostName(), bi);
+                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
 
                         String hostname = bsa.getSocketAddress().getHostName();
                         newBookieInfoMap.put(hostname, bi);
