@@ -118,7 +118,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sources reload
 ```
 
-For more information, see [`here`](io-cli/#reload).
+For more information, see [`here`](io-cli#reload).
 
 #### Sink
 
@@ -128,7 +128,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sinks reload
 ```
 
-For more information, see [`here`](io-cli/#reload-1).
+For more information, see [`here`](io-cli#reload-1).
 
 ### `available`
 
@@ -162,7 +162,7 @@ To run a connector, you can perform the following operations:
 
 ### `create`
 
-You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.
+You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.f
 
 #### Source
 
