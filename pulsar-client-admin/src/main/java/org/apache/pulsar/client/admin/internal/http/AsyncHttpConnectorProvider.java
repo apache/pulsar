@@ -31,6 +31,7 @@ import org.glassfish.jersey.client.spi.ConnectorProvider;
 public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     private final ClientConfigurationData conf;
+    private Connector connector;
 
     public AsyncHttpConnectorProvider(ClientConfigurationData conf) {
         this.conf = conf;
@@ -38,7 +39,10 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
-        return new AsyncHttpConnector(client, conf);
+        if (connector == null) {
+            connector = new AsyncHttpConnector(client, conf);
+        }
+        return connector;
     }
 
 

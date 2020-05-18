@@ -97,7 +97,7 @@ public class BatchReceivePolicy implements Serializable {
         return maxNumMessages;
     }
 
-    public long getMaxNumBytes() {
+    public int getMaxNumBytes() {
         return maxNumBytes;
     }
 

@@ -182,14 +182,14 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     /**
      * It verifies that AuthenticationTls provides cert refresh functionality.
-     * 
+     *
      * <pre>
      *  a. Create Auth with invalid cert
      *  b. Consumer fails with invalid tls certs
      *  c. refresh cert in provider
      *  d. Consumer successfully gets created
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -234,5 +234,5 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     private ByteArrayInputStream getStream(AtomicInteger index, ByteArrayInputStream... streams) {
         return streams[index.intValue()];
-    } 
+    }
 }

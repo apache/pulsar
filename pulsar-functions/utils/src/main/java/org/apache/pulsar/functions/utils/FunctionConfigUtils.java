@@ -34,9 +34,11 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
@@ -46,6 +48,10 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
 @Slf4j
 public class FunctionConfigUtils {
+	
+	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = Integer.valueOf(1000);
+	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
+	
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
 
@@ -365,6 +371,14 @@ public class FunctionConfigUtils {
         if (functionConfig.getParallelism() == null) {
             functionConfig.setParallelism(1);
         }
+        
+        if (functionConfig.getMaxPendingAsyncRequests() == null) {
+        	functionConfig.setMaxPendingAsyncRequests(MAX_PENDING_ASYNC_REQUESTS_DEFAULT);
+        }
+        
+        if (functionConfig.getForwardSourceMessageProperty() == null) {
+        	functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
+        }
 
         if (functionConfig.getJar() != null) {
             functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
@@ -431,7 +445,7 @@ public class FunctionConfigUtils {
                 // Need to make sure that one and only one of schema/serde is set
                 if (!isEmpty(conf.getSchemaType()) && !isEmpty(conf.getSerdeClassName())) {
                     throw new IllegalArgumentException(
-                            String.format("Only one of schemaType or serdeClassName should be set in inputSpec"));
+                        "Only one of schemaType or serdeClassName should be set in inputSpec");
                 }
                 if (!isEmpty(conf.getSerdeClassName())) {
                     ValidatorUtils.validateSerde(conf.getSerdeClassName(), typeArgs[0], clsLoader, true);
@@ -449,7 +463,7 @@ public class FunctionConfigUtils {
         // One and only one of outputSchemaType and outputSerdeClassName should be set
         if (!isEmpty(functionConfig.getOutputSerdeClassName()) && !isEmpty(functionConfig.getOutputSchemaType())) {
             throw new IllegalArgumentException(
-                    String.format("Only one of outputSchemaType or outputSerdeClassName should be set"));
+                "Only one of outputSchemaType or outputSerdeClassName should be set");
         }
 
         if (!isEmpty(functionConfig.getOutputSchemaType())) {
@@ -606,7 +620,7 @@ public class FunctionConfigUtils {
                 // receiver queue size should be >= 0
                 if (conf.getReceiverQueueSize() != null && conf.getReceiverQueueSize() < 0) {
                     throw new IllegalArgumentException(
-                            String.format("Receiver queue size should be >= zero"));
+                        "Receiver queue size should be >= zero");
                 }
             });
         }
@@ -743,10 +757,10 @@ public class FunctionConfigUtils {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
+            throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
-            throw new IllegalArgumentException("Retain Orderning cannot be altered");
+            throw new IllegalArgumentException("Retain Ordering cannot be altered");
         }
         if (!StringUtils.isEmpty(newConfig.getOutput())) {
             mergedConfig.setOutput(newConfig.getOutput());

@@ -71,8 +71,10 @@ public class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader) throws IOException {
-        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
+    FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader,
+                       String narExtractionDirectory) throws IOException {
+        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(),
+                rootClassLoader, narExtractionDirectory);
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));

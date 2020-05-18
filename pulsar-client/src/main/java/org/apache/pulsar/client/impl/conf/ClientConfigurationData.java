@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Sets;
 import java.time.Clock;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -69,6 +71,16 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+
+    // set TLS using KeyStore way.
+    private boolean useKeyStoreTls = false;
+    private String sslProvider = null;
+    // needed when client auth is required
+    private String tlsTrustStoreType = "JKS";
+    private String tlsTrustStorePath = null;
+    private String tlsTrustStorePassword = null;
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsProtocols = Sets.newTreeSet();
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();

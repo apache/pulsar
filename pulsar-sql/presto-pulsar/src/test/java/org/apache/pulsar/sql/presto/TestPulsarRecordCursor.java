@@ -19,14 +19,24 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.apache.pulsar.common.naming.TopicName;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 @Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
@@ -129,4 +139,45 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             pulsarRecordCursor.close();
         }
     }
+
+    @Test
+    public void testRecordToBytes() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        PulsarRecordCursor pulsarRecordCursor = Mockito.mock(PulsarRecordCursor.class);
+        Method method = PulsarRecordCursor.class.getDeclaredMethod("toBytes", Object.class);
+        method.setAccessible(true);
+
+        final String msg = "Hello!";
+
+        byte[] bytes = msg.getBytes();
+        Object obj = method.invoke(pulsarRecordCursor, bytes);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuffer byteBuffer1 = ByteBuffer.wrap(msg.getBytes());
+        assertTrue(byteBuffer1.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuffer1);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuffer byteBuffer2 = ByteBuffer.allocateDirect(msg.getBytes().length);
+        byteBuffer2.put(msg.getBytes());
+        assertFalse(byteBuffer2.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuffer2);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuf byteBuf1 = Unpooled.wrappedBuffer(msg.getBytes());
+        assertTrue(byteBuf1.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuf1);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuf byteBuf2 = Unpooled.directBuffer();
+        byteBuf2.writeBytes(msg.getBytes());
+        assertFalse(byteBuf2.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuf2);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+    }
+
 }
