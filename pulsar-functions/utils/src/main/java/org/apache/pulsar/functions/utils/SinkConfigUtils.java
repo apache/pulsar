@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
@@ -31,9 +32,13 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.validator.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -302,7 +307,8 @@ public class SinkConfigUtils {
     }
 
     public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
-                                          File sinkPackageFile, String narExtractionDirectory) {
+                                                File sinkPackageFile, String narExtractionDirectory,
+                                                boolean validateConnectorConfig) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -374,6 +380,9 @@ public class SinkConfigUtils {
             } catch (IOException e) {
                 throw new IllegalArgumentException("Failed to extract Sink class from archive", e);
             }
+            if (validateConnectorConfig) {
+                validateConnectorConfig(sinkConfig, (NarClassLoader)  narClassLoader);
+            }
             try {
                 typeArg = getSinkType(sinkClassName, narClassLoader);
                 classLoader = narClassLoader;
@@ -398,12 +407,18 @@ public class SinkConfigUtils {
                             throw new IllegalArgumentException(
                                     String.format("Sink class %s must be in class path", sinkClassName), e1);
                         }
+                        if (validateConnectorConfig) {
+                            validateConnectorConfig(sinkConfig, (NarClassLoader)  narClassLoader);
+                        }
                     } else {
                         throw new IllegalArgumentException(
                                 String.format("Sink class %s must be in class path", sinkClassName), e);
                     }
                 }
             } else if (narClassLoader != null) {
+                if (validateConnectorConfig) {
+                    validateConnectorConfig(sinkConfig, (NarClassLoader)  narClassLoader);
+                }
                 try {
                     typeArg = getSinkType(sinkClassName, narClassLoader);
                     classLoader = narClassLoader;
@@ -579,5 +594,19 @@ public class SinkConfigUtils {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
+    }
+
+    private static void validateConnectorConfig(SinkConfig sinkConfig, NarClassLoader narClassLoader) {
+        try {
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
+            if (defn.getSinkConfigClass() != null) {
+                Class configClass = defn.getSinkConfigClass().getClass();
+                ObjectMapper mapper = new ObjectMapper();
+                Object configObject = mapper.readValue(new ObjectMapper().writeValueAsString(sinkConfig.getConfigs()), configClass);
+                ConfigValidation.validateConfig(configObject);
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Error validating sink config", e);
+        }
     }
 }
