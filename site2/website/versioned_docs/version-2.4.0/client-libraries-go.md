@@ -96,14 +96,14 @@ Pulsar Go client has the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
-`CreateProducer(ProducerOptions)` | Create the producer instance(This method will block until the producer is created successfully). | `(Producer, error)`
+`CreateProducer(ProducerOptions)` | Create the producer instance. (This method will be blocked until the producer is created successfully.) | `(Producer, error)`
 `CreateProducerWithSchema(ProducerOptions, Schema)` | Create a producer instance with schema. | `(Producer, error)`
 `Subscribe(ConsumerOptions)` | Create a `Consumer` by subscribing to a topic. | `(Consumer, error)`
 `SubscribeWithSchema(ConsumerOptions, Schema)` | Create a `Consumer` with schema by subscribing to a topic. | `(Consumer, error)`
 `CreateReader(ReaderOptions)` | Create a Reader instance. | `(Reader, error)`
 `CreateReaderWithSchema(ReaderOptions, Schema)` | Create a Reader instance with schema. | `(Reader, error)`
 `TopicPartitions(topic string)` | Fetch the list of partitions for a given topic. | `([]string, error)`
-`Close()` | Close the Client and free associated resources. | `error`
+`Close()` | Close the Pulsar Go client and release associated resources. | `error`
 
 The following configurable parameters are available for Pulsar clients:
 
