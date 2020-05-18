@@ -143,6 +143,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
         }
+        log.info("Initializing secrets provider configurator {} with configs: {}",
+          secretsProviderConfigurator.getClass().getName(), workerConfig.getSecretsProviderConfiguratorConfig());
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
         Optional<FunctionAuthProvider> functionAuthProvider = Optional.empty();
