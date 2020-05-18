@@ -337,6 +337,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean subscriptionKeySharedEnable = true;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Max fenced messages for Key_Shared subscription. In Key_Shared subscription,\n"
+                + "the broker will dispatch messages to the new consumer until all previous messages are acknowledged. \n"
+                + "Otherwise, the messages will be fenced. After the previous messages acknowledged, the fenced messages will be lifted."
+    )
+    private int maxFencedMessagesForKeySharedSubscription = 10000;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Set the default behavior for message deduplication in the broker.\n\n"
             + "This can be overridden per-namespace. If enabled, broker will reject"

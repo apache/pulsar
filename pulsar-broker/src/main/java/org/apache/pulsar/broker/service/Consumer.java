@@ -111,6 +111,7 @@ public class Consumer {
     private final Map<String, String> metadata;
 
     private final PulsarApi.KeySharedMeta keySharedMeta;
+    private PositionImpl fencePositionForKeyShared;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -651,6 +652,14 @@ public class Consumer {
     private void clearUnAckedMsgs() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
+    }
+
+    public PositionImpl getFencePositionForKeyShared() {
+        return fencePositionForKeyShared;
+    }
+
+    public void setFencePositionForKeyShared(PositionImpl fencePositionForKeyShared) {
+        this.fencePositionForKeyShared = fencePositionForKeyShared;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

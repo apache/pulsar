@@ -144,6 +144,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
 |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
+|subscriptionKeySharedEnable| Enable Key_Shared subscription |true|
+|maxFencedMessagesForKeySharedSubscription| Max fenced messages for Key_Shared subscription. Messages for the new consumer will be fenced until the previous messages are acknowledged |10000|
 |tlsEnabled|  Enable TLS  |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||

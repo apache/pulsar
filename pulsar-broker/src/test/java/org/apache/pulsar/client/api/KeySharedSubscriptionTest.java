@@ -60,6 +60,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        // Set to 1 to ensure the dispatcher can work well when fenced messages are exceeds the max fenced messages.
+        conf.setMaxFencedMessagesForKeySharedSubscription(1);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -119,6 +121,163 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         checkList.add(new KeyValue<>(consumer3, consumer3ExpectMessages));
 
         receiveAndCheck(checkList);
+    }
+
+    @Test(dataProvider = "batch")
+    public void testMessageFencingWithAutoSplitConsumerSelector(boolean enableBatch) throws PulsarClientException, InterruptedException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        for (int i = 0; i < 2; i++) {
+            for (String key : keys) {
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        List<Message<Integer>> msgsForConsumer1 = new ArrayList<>(20);
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = consumer1.receive();
+            msgsForConsumer1.add(msg);
+            log.info("Received msg with {} -> {}", msg.getKey(), msg.getValue());
+            Assert.assertNotNull(msg);
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        // Send more messages, since consumer1 does not acknowledge previous message, consumer2 can't get any message.
+        for (int i = 2; i < 4; i++) {
+            for (String key : keys) {
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        Assert.assertNull(consumer2.receive(3, TimeUnit.SECONDS));
+
+        // After the mark delete position updated, consumer2 should get new messages.
+        for (Message<Integer> msg : msgsForConsumer1) {
+            consumer1.acknowledge(msg);
+        }
+
+        List<Message<Integer>> consumer2Received = new ArrayList<>();
+        while (true) {
+            Message<Integer> msg = consumer2.receive(3, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            } else {
+                log.info("Consumer2 received messages with key: {} with value: {}", msg.getKey(), msg.getValue());
+                consumer2Received.add(msg);
+                consumer2.acknowledge(msg);
+            }
+        }
+
+        Assert.assertTrue(consumer2Received.size() > 0);
+        checkOrderByKey(consumer2Received);
+    }
+
+    @Test(dataProvider = "batch")
+    public void testMessageLiftWhenConsumerCrashWithAutoSplitSelector(boolean enableBatch) throws PulsarClientException, InterruptedException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        for (int i = 0; i < 2; i++) {
+            for (String key : keys) {
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = consumer1.receive();
+            log.info("Received msg with {} -> {}", msg.getKey(), msg.getValue());
+            Assert.assertNotNull(msg);
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        // Send more messages, since consumer1 does not acknowledge previous message, consumer2 can't get any message.
+        for (int i = 2; i < 4; i++) {
+            for (String key : keys) {
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        Assert.assertNull(consumer2.receive(3, TimeUnit.SECONDS));
+
+        consumer1.close();
+
+        List<Message<Integer>> consumer2Received = new ArrayList<>();
+
+        while (true) {
+            Message<Integer> msg = consumer2.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            consumer2Received.add(msg);
+            log.info("Consumer2 received msg with {} -> {}", msg.getKey(), msg.getValue());
+            consumer2.acknowledge(msg);
+        }
+
+        for (int i = 4; i < 6; i++) {
+            for (String key : keys) {
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        while (true) {
+            Message<Integer> msg = consumer2.receive(3, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            consumer2Received.add(msg);
+            log.info("Consumer2 received msg with {} -> {}", msg.getKey(), msg.getValue());
+            consumer2.acknowledge(msg);
+        }
+        Assert.assertEquals(consumer2Received.size(), 60);
+        checkOrderByKey(consumer2Received);
     }
 
     @Test(dataProvider = "batch")
@@ -557,5 +716,24 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             assertTrue(allKeys.add(key),
                 "Key "+ key +  "is distributed to multiple consumers." );
         }));
+    }
+
+    private void checkOrderByKey(List<Message<Integer>> messages) {
+        Map<String, List<Integer>> map = new HashMap<>();
+        for (Message<Integer> msg : messages) {
+            map.putIfAbsent(msg.getKey(), new ArrayList<>());
+            map.get(msg.getKey()).add(msg.getValue());
+        }
+        for (List<Integer> value : map.values()) {
+            Integer last = null;
+            for (Integer v : value) {
+                if (last == null) {
+                    last = v;
+                } else {
+                    Assert.assertTrue(v > last);
+                    last = v;
+                }
+            }
+        }
     }
 }

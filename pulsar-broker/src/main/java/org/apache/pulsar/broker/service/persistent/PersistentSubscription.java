@@ -215,24 +215,25 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
+                    int maxFencedMessages = topic.getBrokerService().pulsar().getConfiguration().getMaxFencedMessagesForKeySharedSubscription();
                     if (consumer.getKeySharedMeta() != null) {
                         switch (consumer.getKeySharedMeta().getKeySharedMode()) {
                             case STICKY:
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeExclusiveStickyKeyConsumerSelector());
+                                        new HashRangeExclusiveStickyKeyConsumerSelector(), maxFencedMessages);
                                 break;
                             case AUTO_SPLIT:
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector(), maxFencedMessages);
                                 break;
                             default:
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector(), maxFencedMessages);
                                 break;
                         }
                     } else {
                         dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                new HashRangeAutoSplitStickyKeyConsumerSelector(), maxFencedMessages);
                     }
                 }
                 break;
@@ -389,6 +390,7 @@ public class PersistentSubscription implements Subscription {
                             .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
                 }
             }
+            dispatcher.onMarkDeletePositionChanged((PositionImpl) cursor.getMarkDeletedPosition());
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {

@@ -106,4 +106,8 @@ public interface Dispatcher {
     default void cursorIsReset() {
         //No-op
     }
+
+    default void onMarkDeletePositionChanged(PositionImpl markDeletePosition) {
+        //No-op
+    }
 }
