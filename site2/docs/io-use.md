@@ -88,13 +88,13 @@ configs:
 
 **Example 3**
 
-Below is a YAML configuration file of a MySQL JDBC sink.
+Below is a YAML configuration file of a PostgreSQL JDBC sink.
 
 ```shell
 configs:
-   userName: "root"
-   password: "jdbc"
-   jdbcUrl: "jdbc:mysql://127.0.0.1:3306/test_jdbc"
+   userName: "postgres"
+   password: "password"
+   jdbcUrl: "jdbc:postgresql://localhost:5432/test_jdbc"
    tableName: "test_jdbc"
 ```
 
@@ -562,7 +562,7 @@ SinkConfig getSink(String tenant,
 
 This is a sinkConfig.
 
-```
+```json
 {
 "tenant": "tenantName",
 "namespace": "namespaceName",
@@ -583,27 +583,27 @@ This is a sinkConfig.
 
 This is a sinkConfig example.
 
-```  
+```json
 {
-"tenant": "public",
-"namespace": "default",
-"name": "pulsar-mysql-jdbc-sink",
-"className": "org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink",
-"inputSpecs": {
-"pulsar-mysql-jdbc-sink-topic": {
-    "isRegexPattern": false
-}
-},
-"configs": {
-"password": "jdbc",
-"jdbcUrl": "jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink",
-"userName": "root",
-"tableName": "pulsar_mysql_jdbc_sink"
-},
-"parallelism": 1,
-"processingGuarantees": "ATLEAST_ONCE",
-"retainOrdering": false,
-"autoAck": true
+  "tenant": "public",
+  "namespace": "default",
+  "name": "pulsar-postgres-jdbc-sink",
+  "className": "org.apache.pulsar.io.jdbc.PostgresJdbcAutoSchemaSink",
+  "inputSpecs": {
+  "pulsar-postgres-jdbc-sink-topic": {
+     "isRegexPattern": false
+    }
+  },
+  "configs": {
+    "password": "password",
+    "jdbcUrl": "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink",
+    "userName": "postgres",
+    "tableName": "pulsar_postgres_jdbc_sink"
+  },
+  "parallelism": 1,
+  "processingGuarantees": "ATLEAST_ONCE",
+  "retainOrdering": false,
+  "autoAck": true
 }
 ```
 
