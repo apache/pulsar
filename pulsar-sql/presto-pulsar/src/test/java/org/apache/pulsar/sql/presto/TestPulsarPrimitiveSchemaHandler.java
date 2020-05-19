@@ -138,6 +138,8 @@ public class TestPulsarPrimitiveSchemaHandler {
     public void testNewPulsarPrimitiveSchemaHandler() {
         RawMessage rawMessage = mock(RawMessage.class);
         SchemaHandler schemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(
+                null,
+                null,
                 StringSchema.utf8().getSchemaInfo(),
                 null);
 
