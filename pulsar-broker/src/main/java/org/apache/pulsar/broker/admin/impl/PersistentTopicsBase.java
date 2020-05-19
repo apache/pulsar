@@ -1930,6 +1930,9 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
         }
+        if (metadata.hasNullValue()) {
+            responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
+        }
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
