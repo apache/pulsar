@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
@@ -81,6 +82,8 @@ public class Consumer {
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
+    private final LongAdder msgOutCounter;
+    private final LongAdder bytesOutCounter;
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
@@ -132,6 +135,8 @@ public class Consumer {
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
+        this.bytesOutCounter = new LongAdder();
+        this.msgOutCounter = new LongAdder();
         this.appId = appId;
         this.authenticationData = cnx.authenticationData;
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
@@ -230,6 +235,8 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
         incrementUnackedMessages(totalMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
+        msgOutCounter.add(totalMessages);
+        bytesOutCounter.add(totalBytes);
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
@@ -480,6 +487,8 @@ public class Consumer {
     }
 
     public ConsumerStats getStats() {
+        stats.msgOutCounter = msgOutCounter.longValue();
+        stats.bytesOutCounter = bytesOutCounter.longValue();
         stats.lastAckedTimestamp = lastAckedTimestamp;
         stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.availablePermits = getAvailablePermits();

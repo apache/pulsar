@@ -189,6 +189,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist"),
             @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -264,7 +265,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -777,7 +778,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subscriptionName}")
-    @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "Creates a subscription on the topic at the specified message id")
+    @ApiOperation(value = "Create a subscription on the topic.", notes = "Creates a subscription on the topic at the specified message id")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
@@ -797,14 +798,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String topic,
             @ApiParam(value = "Subscription to create position on", required = true)
             @PathParam("subscriptionName") String encodedSubName,
-            @ApiParam(value = "messageId where to create the subscription. " +
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(name = "messageId", value = "messageId where to create the subscription. " +
                     "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest,earliest,ledgerId:entryId"
             )
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("replicated") boolean replicated) {
+            MessageIdImpl messageId,
+            @ApiParam(value = "Is replicated required to perform this operation")
+            @QueryParam("replicated") boolean replicated
+            ) {
         try {
             validateTopicName(tenant, namespace, topic);
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);

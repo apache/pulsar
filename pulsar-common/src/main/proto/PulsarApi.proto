@@ -136,6 +136,9 @@ message MessageMetadata {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 24 [default = 0];
+
+    // Indicate if the message payload value is set
+    optional bool null_value = 25 [ default = false ];
 }
 
 message SingleMessageMetadata {
@@ -152,6 +155,8 @@ message SingleMessageMetadata {
     optional bytes ordering_key = 7;
     // Allows consumer retrieve the sequence id that the producer set.
     optional uint64 sequence_id = 8;
+    // Indicate if the message payload value is set
+    optional bool null_value = 9 [ default = false ];
 }
 
 enum ServerError {

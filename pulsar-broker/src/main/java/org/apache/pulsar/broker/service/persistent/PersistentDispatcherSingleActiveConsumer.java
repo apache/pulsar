@@ -439,6 +439,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 }
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);

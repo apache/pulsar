@@ -3698,6 +3698,10 @@ public final class PulsarApi {
     // optional uint64 highest_sequence_id = 24 [default = 0];
     boolean hasHighestSequenceId();
     long getHighestSequenceId();
+    
+    // optional bool null_value = 25 [default = false];
+    boolean hasNullValue();
+    boolean getNullValue();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -4068,6 +4072,16 @@ public final class PulsarApi {
       return highestSequenceId_;
     }
     
+    // optional bool null_value = 25 [default = false];
+    public static final int NULL_VALUE_FIELD_NUMBER = 25;
+    private boolean nullValue_;
+    public boolean hasNullValue() {
+      return ((bitField0_ & 0x00080000) == 0x00080000);
+    }
+    public boolean getNullValue() {
+      return nullValue_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -4091,6 +4105,7 @@ public final class PulsarApi {
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
       highestSequenceId_ = 0L;
+      nullValue_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4199,6 +4214,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
         output.writeUInt64(24, highestSequenceId_);
       }
+      if (((bitField0_ & 0x00080000) == 0x00080000)) {
+        output.writeBool(25, nullValue_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4299,6 +4317,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(24, highestSequenceId_);
+      }
+      if (((bitField0_ & 0x00080000) == 0x00080000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(25, nullValue_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4457,6 +4479,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00100000);
         highestSequenceId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00200000);
+        nullValue_ = false;
+        bitField0_ = (bitField0_ & ~0x00400000);
         return this;
       }
       
@@ -4582,6 +4606,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00040000;
         }
         result.highestSequenceId_ = highestSequenceId_;
+        if (((from_bitField0_ & 0x00400000) == 0x00400000)) {
+          to_bitField0_ |= 0x00080000;
+        }
+        result.nullValue_ = nullValue_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4674,6 +4702,9 @@ public final class PulsarApi {
         }
         if (other.hasHighestSequenceId()) {
           setHighestSequenceId(other.getHighestSequenceId());
+        }
+        if (other.hasNullValue()) {
+          setNullValue(other.getNullValue());
         }
         return this;
       }
@@ -4842,6 +4873,11 @@ public final class PulsarApi {
             case 192: {
               bitField0_ |= 0x00200000;
               highestSequenceId_ = input.readUInt64();
+              break;
+            }
+            case 200: {
+              bitField0_ |= 0x00400000;
+              nullValue_ = input.readBool();
               break;
             }
           }
@@ -5555,6 +5591,27 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional bool null_value = 25 [default = false];
+      private boolean nullValue_ ;
+      public boolean hasNullValue() {
+        return ((bitField0_ & 0x00400000) == 0x00400000);
+      }
+      public boolean getNullValue() {
+        return nullValue_;
+      }
+      public Builder setNullValue(boolean value) {
+        bitField0_ |= 0x00400000;
+        nullValue_ = value;
+        
+        return this;
+      }
+      public Builder clearNullValue() {
+        bitField0_ = (bitField0_ & ~0x00400000);
+        nullValue_ = false;
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     
@@ -5602,6 +5659,10 @@ public final class PulsarApi {
     // optional uint64 sequence_id = 8;
     boolean hasSequenceId();
     long getSequenceId();
+    
+    // optional bool null_value = 9 [default = false];
+    boolean hasNullValue();
+    boolean getNullValue();
   }
   public static final class SingleMessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -5751,6 +5812,16 @@ public final class PulsarApi {
       return sequenceId_;
     }
     
+    // optional bool null_value = 9 [default = false];
+    public static final int NULL_VALUE_FIELD_NUMBER = 9;
+    private boolean nullValue_;
+    public boolean hasNullValue() {
+      return ((bitField0_ & 0x00000080) == 0x00000080);
+    }
+    public boolean getNullValue() {
+      return nullValue_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
@@ -5760,6 +5831,7 @@ public final class PulsarApi {
       partitionKeyB64Encoded_ = false;
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       sequenceId_ = 0L;
+      nullValue_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -5812,6 +5884,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         output.writeUInt64(8, sequenceId_);
       }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        output.writeBool(9, nullValue_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -5851,6 +5926,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(8, sequenceId_);
+      }
+      if (((bitField0_ & 0x00000080) == 0x00000080)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(9, nullValue_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -5981,6 +6060,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000040);
         sequenceId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000080);
+        nullValue_ = false;
+        bitField0_ = (bitField0_ & ~0x00000100);
         return this;
       }
       
@@ -6047,6 +6128,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000040;
         }
         result.sequenceId_ = sequenceId_;
+        if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
+          to_bitField0_ |= 0x00000080;
+        }
+        result.nullValue_ = nullValue_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6083,6 +6168,9 @@ public final class PulsarApi {
         }
         if (other.hasSequenceId()) {
           setSequenceId(other.getSequenceId());
+        }
+        if (other.hasNullValue()) {
+          setNullValue(other.getNullValue());
         }
         return this;
       }
@@ -6162,6 +6250,11 @@ public final class PulsarApi {
             case 64: {
               bitField0_ |= 0x00000080;
               sequenceId_ = input.readUInt64();
+              break;
+            }
+            case 72: {
+              bitField0_ |= 0x00000100;
+              nullValue_ = input.readBool();
               break;
             }
           }
@@ -6420,6 +6513,27 @@ public final class PulsarApi {
       public Builder clearSequenceId() {
         bitField0_ = (bitField0_ & ~0x00000080);
         sequenceId_ = 0L;
+        
+        return this;
+      }
+      
+      // optional bool null_value = 9 [default = false];
+      private boolean nullValue_ ;
+      public boolean hasNullValue() {
+        return ((bitField0_ & 0x00000100) == 0x00000100);
+      }
+      public boolean getNullValue() {
+        return nullValue_;
+      }
+      public Builder setNullValue(boolean value) {
+        bitField0_ |= 0x00000100;
+        nullValue_ = value;
+        
+        return this;
+      }
+      public Builder clearNullValue() {
+        bitField0_ = (bitField0_ & ~0x00000100);
+        nullValue_ = false;
         
         return this;
       }

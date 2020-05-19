@@ -1302,7 +1302,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.updateNumMsgsReceived(msg);
 
         trackMessage(msg);
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, msg.getData() == null ? 0 : -msg.getData().length);
     }
 
     protected void trackMessage(Message<?> msg) {

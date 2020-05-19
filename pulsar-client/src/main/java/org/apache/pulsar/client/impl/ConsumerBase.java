@@ -50,6 +50,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
 
@@ -95,10 +97,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.schema = schema;
         this.interceptors = interceptors;
         if (conf.getBatchReceivePolicy() != null) {
-            this.batchReceivePolicy = conf.getBatchReceivePolicy();
+            BatchReceivePolicy userBatchReceivePolicy = conf.getBatchReceivePolicy();
+            if (userBatchReceivePolicy.getMaxNumMessages() > this.maxReceiverQueueSize) {
+                this.batchReceivePolicy = BatchReceivePolicy.builder()
+                        .maxNumMessages(this.maxReceiverQueueSize)
+                        .maxNumBytes(userBatchReceivePolicy.getMaxNumBytes())
+                        .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
+                        .build();
+                log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, " +
+                        "reset to maxReceiverQueueSize. batchReceivePolicy: {}",
+                        userBatchReceivePolicy.getMaxNumMessages(), this.maxReceiverQueueSize,
+                        this.batchReceivePolicy.toString());
+            } else if (userBatchReceivePolicy.getMaxNumMessages() <= 0 && userBatchReceivePolicy.getMaxNumBytes() <= 0) {
+                this.batchReceivePolicy = BatchReceivePolicy.builder()
+                        .maxNumMessages(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumMessages())
+                        .maxNumBytes(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumBytes())
+                        .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
+                        .build();
+                log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. " +
+                        "Reset to DEFAULT_POLICY. batchReceivePolicy: {}", userBatchReceivePolicy.getMaxNumMessages(),
+                        userBatchReceivePolicy.getMaxNumBytes(), this.batchReceivePolicy.toString());
+            } else {
+                this.batchReceivePolicy = conf.getBatchReceivePolicy();
+            }
         } else {
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
+
         if (batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
@@ -532,7 +557,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         if (canEnqueueMessage(message)) {
             incomingMessages.add(message);
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, message.getData().length);
+            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
+                    this, message.getData() == null ? 0 : message.getData().length);
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -669,4 +695,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
+
+    private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);
 }

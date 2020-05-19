@@ -34,7 +34,6 @@ public class AuthenticationDataHttps extends AuthenticationDataHttp {
     /*
      * TLS
      */
-
     @Override
     public boolean hasDataFromTls() {
         return (certificates != null);

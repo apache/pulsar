@@ -302,7 +302,7 @@ public class SinkConfigUtils {
     }
 
     public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
-                                          File sinkPackageFile) {
+                                          File sinkPackageFile, String narExtractionDirectory) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -356,7 +356,7 @@ public class SinkConfigUtils {
             jarClassLoaderException = e;
         }
         try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile);
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile, narExtractionDirectory);
         } catch (Exception e) {
             narClassLoaderException = e;
         }
@@ -546,7 +546,7 @@ public class SinkConfigUtils {
             });
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
+            throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getConfigs() != null) {
             mergedConfig.setConfigs(newConfig.getConfigs());
@@ -558,7 +558,7 @@ public class SinkConfigUtils {
             mergedConfig.setParallelism(newConfig.getParallelism());
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
-            throw new IllegalArgumentException("Retain Orderning cannot be altered");
+            throw new IllegalArgumentException("Retain Ordering cannot be altered");
         }
         if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
             throw new IllegalArgumentException("AutoAck cannot be altered");

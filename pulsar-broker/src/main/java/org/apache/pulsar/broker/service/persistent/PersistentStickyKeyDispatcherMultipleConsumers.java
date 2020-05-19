@@ -121,7 +121,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                                 readMoreEntries();
                             }
                 });
-                entriesWithSameKey.getValue().removeAll(subList);
+
+                for (int i = 0; i < messagesForC; i++) {
+                    entriesWithSameKey.getValue().remove(0);
+                }
 
                 TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();

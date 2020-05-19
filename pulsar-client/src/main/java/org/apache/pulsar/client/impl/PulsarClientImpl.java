@@ -151,11 +151,16 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getAuthPluginClassName()) || StringUtils.isBlank( conf.getAuthParams())) {
+        if (StringUtils.isBlank(conf.getAuthPluginClassName())
+                || (StringUtils.isBlank(conf.getAuthParams()) && conf.getAuthParamMap() == null)) {
             return;
         }
 
-        conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
+        if (StringUtils.isNotBlank(conf.getAuthParams())) {
+            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
+        } else if (conf.getAuthParamMap() != null) {
+            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParamMap()));
+        }
     }
 
     public ClientConfigurationData getConfiguration() {

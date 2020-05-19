@@ -34,6 +34,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
@@ -76,6 +77,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_FUNCTIONS = "Functions";
     @Category
     private static final String CATEGORY_TLS = "TLS";
+    @Category
+    private static final String CATEGORY_KEYSTORE_TLS = "KeyStoreTLS";
     @Category
     private static final String CATEGORY_AUTHENTICATION = "Authentication";
     @Category
@@ -227,6 +230,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"
     )
     private boolean skipBrokerShutdownOnOOM = false;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, this may need raised."
+    )
+    private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -310,7 +318,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
     )
-    private long subscriptionExpirationTimeMinutes = 0;
+    private int subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
@@ -322,7 +330,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired subscription"
     )
-    private long subscriptionExpiryCheckIntervalInMinutes = 5;
+    private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -648,6 +656,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int retentionCheckIntervalInSeconds = 120;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The number of partitions per partitioned topic.\n"
+                + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
+    )
+    private int maxNumPartitionsPerPartitionedTopic = 0;
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
@@ -903,6 +918,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available."
                 )
     private String bookkeeperClientSecondaryIsolationGroups;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to periodically check bookie info")
+    private int bookkeeperClientGetBookieInfoIntervalSeconds = 60 * 60 * 24; // defaults to 24 hours
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to retry a failed bookie info lookup")
+    private int bookkeeperClientGetBookieInfoRetryIntervalSeconds = 60;
+
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
@@ -973,6 +995,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Other possible options are `CRC32`, `MAC` or `DUMMY` (no checksum)."
     )
     private DigestType managedLedgerDigestType = DigestType.CRC32C;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
+        )
+    private String managedLedgerPassword = "";
 
     @FieldContext(
         minValue = 1,
@@ -1540,6 +1568,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerOffloadMaxThreads = 2;
 
     @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The directory where nar Extraction of offloaders happens"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+
+    @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Maximum prefetch rounds for ledger reading for offloading"
     )
@@ -1558,6 +1592,102 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String transactionMetadataStoreProviderClassName =
             "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
+
+    /**** --- KeyStore TLS config variables --- ****/
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Enable TLS with KeyStore type configuration in broker"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS Provider for KeyStore type"
+    )
+    private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration in broker: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path in broker"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for broker"
+    )
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore type configuration in broker: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore path in broker"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore password for broker"
+    )
+    private String tlsTrustStorePassword = null;
+
+    /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker--- ****/
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
+    )
+    private boolean brokerClientTlsEnabledWithKeyStore = false;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "The TLS Provider used by internal client to authenticate with other Pulsar brokers"
+    )
+    private String brokerClientSslProvider = null;
+    // needed when client auth is required
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore type configuration for internal client: JKS, PKCS12 "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore path for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsTrustStorePassword = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the tls cipher the internal client will use to negotiate during TLS Handshake"
+                  + " (a comma-separated list of ciphers).\n\n"
+                  + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
+                  + " (a comma-separated list of protocol names).\n\n"
+                  + "Examples:- [TLSv1.2, TLSv1.1, TLSv1] \n"
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

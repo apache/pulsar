@@ -67,7 +67,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -474,6 +473,10 @@ public class PersistentTopicsBase extends AdminResource {
         // Only do the validation if it's the first hop.
         if (!updateLocalTopicOnly) {
             validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
+        }
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
+        if (maxPartitions > 0 && numPartitions > maxPartitions) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions);
         }
 
         if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
@@ -1926,6 +1929,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
+        }
+        if (metadata.hasNullValue()) {
+            responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
         }
 
         // Decode if needed

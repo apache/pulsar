@@ -58,6 +58,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String pythonInstanceFile;
     private String logDirectory;
     private String extraDependenciesDir;
+    private String narExtractionDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -78,13 +79,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String pythonInstanceFile,
                                  String logDirectory,
                                  String extraDependenciesDir,
+                                 String narExtractionDirectory,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
                                  Optional<FunctionAuthProvider> functionAuthProvider,
                                  Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         initialize(pulsarServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
-                pythonInstanceFile, logDirectory, extraDependenciesDir,
+                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
                 secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
 
@@ -103,6 +105,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 factoryConfig.getPythonInstanceLocation(),
                 factoryConfig.getLogDirectory(),
                 factoryConfig.getExtraFunctionDependenciesDir(),
+                workerConfig.getNarExtractionDirectory(),
                 secretsProviderConfigurator,
                 workerConfig.isAuthenticationEnabled(),
                 authProvider,
@@ -116,6 +119,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                             String pythonInstanceFile,
                             String logDirectory,
                             String extraDependenciesDir,
+                            String narExtractionDirectory,
                             SecretsProviderConfigurator secretsProviderConfigurator,
                             boolean authenticationEnabled,
                             Optional<FunctionAuthProvider> functionAuthProvider,
@@ -127,6 +131,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.extraDependenciesDir = extraDependenciesDir;
+        this.narExtractionDirectory = narExtractionDirectory;
         this.logDirectory = logDirectory;
         this.authenticationEnabled = authenticationEnabled;
 
@@ -209,6 +214,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             instanceConfig,
             instanceFile,
             extraDependenciesDir,
+            narExtractionDirectory,
             logDirectory,
             codeFile,
             pulsarServiceUrl,
