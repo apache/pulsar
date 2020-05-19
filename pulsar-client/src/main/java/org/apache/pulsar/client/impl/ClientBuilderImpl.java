@@ -109,6 +109,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
+        conf.setAuthPluginClassName(authPluginClassName);
+        conf.setAuthParams(authParamsString);
+        conf.setAuthParamMap(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
         return this;
     }
@@ -116,6 +119,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
+        conf.setAuthPluginClassName(authPluginClassName);
+        conf.setAuthParamMap(authParams);
+        conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
     }
