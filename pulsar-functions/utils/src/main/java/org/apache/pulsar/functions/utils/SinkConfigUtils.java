@@ -596,9 +596,9 @@ public class SinkConfigUtils {
         return mergedConfig;
     }
 
-    private static void validateConnectorConfig(SinkConfig sinkConfig, ClassLoader classLoader) {
+    public static void validateConnectorConfig(SinkConfig sinkConfig, ClassLoader classLoader) {
         try {
-            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition((NarClassLoader) classLoader);
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
             if (defn.getSinkConfigClass() != null) {
                 Class configClass = Class.forName(defn.getSinkConfigClass(),  true, classLoader);
                 ObjectMapper mapper = new ObjectMapper();
@@ -610,7 +610,9 @@ public class SinkConfigUtils {
         } catch (IOException e) {
             throw new IllegalArgumentException("Error validating sink config", e);
         } catch (ClassNotFoundException e) {
-            throw new IllegalArgumentException("Could not find sink config class");
+            throw new IllegalArgumentException("Could not find sink config class", e);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Could not validate sink config: " + e.getMessage());
         }
     }
 }

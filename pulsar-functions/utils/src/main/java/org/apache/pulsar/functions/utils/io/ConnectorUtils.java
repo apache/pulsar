@@ -74,8 +74,8 @@ public class ConnectorUtils {
      * Extract the Pulsar IO Sink class from a connector archive.
      */
     public static String getIOSinkClass(ClassLoader classLoader) throws IOException {
+        ConnectorDefinition conf = getConnectorDefinition(classLoader);
         NarClassLoader ncl = (NarClassLoader) classLoader;
-        ConnectorDefinition conf = getConnectorDefinition(ncl);
         if (StringUtils.isEmpty(conf.getSinkClass())) {
             throw new IOException(
                     String.format("The '%s' connector does not provide a sink implementation", conf.getName()));
@@ -101,7 +101,8 @@ public class ConnectorUtils {
         }
     }
 
-    public static ConnectorDefinition getConnectorDefinition(NarClassLoader narClassLoader) throws IOException {
+    public static ConnectorDefinition getConnectorDefinition(ClassLoader classLoader) throws IOException {
+        NarClassLoader narClassLoader = (NarClassLoader) classLoader;
         String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
