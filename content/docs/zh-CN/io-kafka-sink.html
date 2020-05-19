@@ -29,7 +29,7 @@
 </thead>
 <tbody>
 <tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>用逗号分隔的主机和港口对应列表来建立与 Kafka 集群的初始连接。</td></tr>
-<tr><td><code>acks</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>生产商要求领先在请求完成之前收到的确认书数目。 <br/>This controls the durability of the sent records.</td></tr>
+<tr><td><code>ack</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>生产商要求领先在请求完成之前收到的确认书数目。 <br/>This controls the durability of the sent records.</td></tr>
 <tr><td><code>batchsize</code></td><td>long</td><td>false</td><td>16384L</td><td>Kafka 生产商试图将记录集中在一起，然后将记录发送给代理。</td></tr>
 <tr><td><code>maxRequestSize</code></td><td>long</td><td>false</td><td>1048576L</td><td>Kafka 请求的最大字节大小。</td></tr>
 <tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>Kafka 主题，它接收来自 Pulsar 的消息。</td></tr>

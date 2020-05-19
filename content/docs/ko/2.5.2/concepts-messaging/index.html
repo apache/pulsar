@@ -1,0 +1,468 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Messaging Concepts · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka pub-sub. 이 패턴에서 게시자는 주제에 대해 메시지를 게시한다. [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete."/><meta name="docsearch:version" content="2.5.2"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Messaging Concepts · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka pub-sub. 이 패턴에서 게시자는 주제에 대해 메시지를 게시한다. [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>2.5.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/2.5.2/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/2.5.2/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.5.2/concepts-messaging">English</a></li><li><a href="/docs/ja/2.5.2/concepts-messaging">日本語</a></li><li><a href="/docs/fr/2.5.2/concepts-messaging">Français</a></li><li><a href="/docs/zh-CN/2.5.2/concepts-messaging">中文</a></li><li><a href="/docs/zh-TW/2.5.2/concepts-messaging">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Concepts and Architecture</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/2.5.2/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/reference-connector-admin">Connector Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/2.5.2/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Messaging Concepts</h1></header><article><div><span><p>Pulsar is built on the <a href="https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern">publish-subscribe</a> pattern, aka pub-sub. 이 패턴에서 게시자는 주제에 대해 메시지를 게시한다. <a href="#consumers">Consumers</a> can then <a href="#subscription-modes">subscribe</a> to those topics, process incoming messages, and send an acknowledgement when processing is complete.</p>
+<p>Once a subscription has been created, all messages will be <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">retained</a> by Pulsar, even if the consumer gets disconnected. Retained messages will be discarded only when a consumer acknowledges that they've been successfully processed.</p>
+<h2><a class="anchor" aria-hidden="true" id="messages"></a><a href="#messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Messages</h2>
+<p>메시지는 펄사의 기본 단위이다. They're what producers publish to topics and what consumers then consume from topics (and acknowledge when the message has been processed). 메시지는 우편 시스템의 편지와 유사하다.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Component</th><th style="text-align:left">목적</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">값 / 데이터 페이로드</td><td style="text-align:left">The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data <a href="/docs/ko/2.5.2/schema-get-started">schemas</a></td></tr>
+<tr><td style="text-align:left">Key</td><td style="text-align:left">Messages can optionally be tagged with keys, which can be useful for things like <a href="/docs/ko/2.5.2/concepts-topic-compaction">topic compaction</a></td></tr>
+<tr><td style="text-align:left">속성</td><td style="text-align:left">An optional key/value map of user-defined properties</td></tr>
+<tr><td style="text-align:left">게시자 이름</td><td style="text-align:left">The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)</td></tr>
+<tr><td style="text-align:left">시퀀스 ID</td><td style="text-align:left">Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.</td></tr>
+<tr><td style="text-align:left">게시 시간</td><td style="text-align:left">The timestamp of when the message was published (automatically applied by the producer)</td></tr>
+<tr><td style="text-align:left">이벤트 시간</td><td style="text-align:left">An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's <a href="/docs/ko/2.5.2/develop-binary-protocol">binary protocol</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
+<p>게시자는 주제에 붙는 프로세스이자, 처리를 위해 펄사에 메시지를 게시하는 <a href="/docs/ko/2.5.2/reference-terminology#broker">브로커</a>이다.</p>
+<h3><a class="anchor" aria-hidden="true" id="송신-모드"></a><a href="#송신-모드" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>송신 모드</h3>
+<p>게시자는 브로커에 동기적(sync) 이나 비동기적(async) 으로 메시지를 보낼 수 있다.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">모드</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">동기적 송신</td><td style="text-align:left">The producer will wait for acknowledgement from the broker after sending each message. If acknowledgment isn't received then the producer will consider the send operation a failure.</td></tr>
+<tr><td style="text-align:left">Async send</td><td style="text-align:left">게시자는 메시지를 블로킹 큐에 집어넣은 후 바로 리턴한다. 그 후 클라이언트 라이브러리는 백그라운드에서 브로커에 메시지를 송신할 것이다. 큐가 가득 차면 (최대 크기 <a href="/docs/ko/2.5.2/reference-configuration#broker"> 설정 가능</a>), 게시자에게 전달된 입력변수(arguments)에 따라 API를 호출할 때 게시자가 차단되거나 바로 실패할 수도 있다.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="압축"></a><a href="#압축" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>압축</h3>
+<p>Messages published by producers can be compressed during transportation in order to save bandwidth. Pulsar currently supports the following types of compression:</p>
+<ul>
+<li><a href="https://github.com/lz4/lz4">LZ4</a></li>
+<li><a href="https://zlib.net/">ZLIB</a></li>
+<li><a href="https://facebook.github.io/zstd/">ZSTD</a></li>
+<li><a href="https://google.github.io/snappy/">SNAPPY</a></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="대량순차작업batching"></a><a href="#대량순차작업batching" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>대량순차작업(Batching)</h3>
+<p>If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batching size is defined by the maximum number of messages and maximum publish latency.</p>
+<h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
+<p>A consumer is a process that attaches to a topic via a subscription and then receives messages.</p>
+<h3><a class="anchor" aria-hidden="true" id="수신-모드"></a><a href="#수신-모드" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>수신 모드</h3>
+<p>Messages can be received from <a href="/docs/ko/2.5.2/reference-terminology#broker">brokers</a> either synchronously (sync) or asynchronously (async).</p>
+<table>
+<thead>
+<tr><th style="text-align:left">모드</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">동기 수신</td><td style="text-align:left">동기 수신은 메시지가 사용 가능할 때까지 차단된 상태로 있을 것이다.</td></tr>
+<tr><td style="text-align:left">Async receive</td><td style="text-align:left">비동기 수신은 신규 메시지가 사용 가능해지면 즉시 미래의 값, 예를 들면 자바 언어로 된 <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a> 을 완성하여 리턴한다.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="listeners"></a><a href="#listeners" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Listeners</h3>
+<p>Client libraries provide listener implementation for consumers. For example, the <a href="/docs/ko/2.5.2/client-libraries-java">Java client</a> provides a <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
+ interface. In this interface, the <code>received</code> method is called whenever a new message is received.</p>
+<h3><a class="anchor" aria-hidden="true" id="acknowledgement"></a><a href="#acknowledgement" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Acknowledgement</h3>
+<p>When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker, so that the broker will discard the message. Otherwise, it <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">stores</a> the message.</p>
+<p>Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.</p>
+<blockquote>
+<p>Cumulative acknowledgement cannot be used with <a href="#subscription-modes">shared subscription mode</a>, because shared mode involves multiple consumers having access to the same subscription.</p>
+</blockquote>
+<p>In the shared subscription mode, messages can be acknowledged individually.</p>
+<h3><a class="anchor" aria-hidden="true" id="부정적-알림"></a><a href="#부정적-알림" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>부정적 알림</h3>
+<p>When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer can send a negative acknowledgement to the broker, and then the broker will redeliver the message.</p>
+<p>Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.</p>
+<p>In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.</p>
+<p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
+<h3><a class="anchor" aria-hidden="true" id="알림-타임아웃"></a><a href="#알림-타임아웃" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>알림 타임아웃</h3>
+<p>When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire <code>acktimeout</code> time range, and send a <code>redeliver unacknowledged messages</code> request to the broker automatically when the acknowledgement timeout is specified.</p>
+<blockquote>
+<p>Note<br>
+Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="데드-레터-토픽"></a><a href="#데드-레터-토픽" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>데드 레터 토픽</h3>
+<p>Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.</p>
+<p>The following example shows how to enable dead letter topic in a Java client using the default dead letter topic:</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .build())
+              .subscribe();
+
+</code></pre>
+<p>The default dead letter topic uses this format:</p>
+<pre><code class="hljs"><span class="hljs-tag">&lt;<span class="hljs-name">topicname</span>&gt;</span>-<span class="hljs-tag">&lt;<span class="hljs-name">subscriptionname</span>&gt;</span>-DLQ
+</code></pre>
+<p>If you want to specify the name of the dead letter topic, use this Java client example:</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .deadLetterTopic(<span class="hljs-string">"your-topic-name"</span>)
+                    .build())
+              .subscribe();
+
+</code></pre>
+<p>Dead letter topic depends on message re-delivery. Messages are redelivered either due to <a href="#acknowledgement-timeout">acknowledgement timeout</a> or <a href="#negative-acknowledgement">negative acknowledgement</a>. If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout.</p>
+<blockquote>
+<p>Note<br>
+Currently, dead letter topic is enabled only in the shared subscription mode.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="topics"></a><a href="#topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topics</h2>
+<p>As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from <a href="/docs/ko/2.5.2/reference-terminology#producer">producers</a> to <a href="/docs/ko/2.5.2/reference-terminology#consumer">consumers</a>. Topic names are URLs that have a well-defined structure:</p>
+<pre><code class="hljs css language-http">{persistent|non-persistent}://tenant/namespace/topic
+</code></pre>
+<table>
+<thead>
+<tr><th style="text-align:left">토픽 이름 구성요소</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>persistent</code> / <code>non-persistent</code></td><td style="text-align:left">이는 토픽의 유형을 식별한다. 펄사는 두가지 유형의 토픽을 지원한다: <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">지속적 토픽</a> 과 <a href="#non-persistent-topics">비지속적 토픽</a> (지속적 토픽이 기본값이기 때문에, 토픽의 유형을 명시적으로 지정하지 않을 경우 토픽의 유형은 지속적 토픽이 된다.) 지속적 토픽의 경우, 모든 메시지가 안전하게 디스크에<a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">보존된다</a> 이는 곧, 브로커가 스탠드얼론이 아닌 한 다중 디스크에 저장된다는 의미이며, 반면에 <a href="#non-persistent-topics">비지속적 토픽</a> 의 경우에는 스토리지 디스크에 보존되지 않는다는 뜻이다.</td></tr>
+<tr><td style="text-align:left"><code>tenant</code></td><td style="text-align:left">The topic's tenant within the instance. Tenants are essential to multi-tenancy in Pulsar and can be spread across clusters.</td></tr>
+<tr><td style="text-align:left"><code>namespace</code></td><td style="text-align:left">토픽의 관리 단위로서, 관련 토픽을 위한 그룹화 메커니즘으로 작동한다. 대부분의 토픽 설정은 <a href="#namespaces">네임스페이스</a> 수준에서 이루어진다. 각 테넌트는 여러 개의 네임스페이스를 가질 수 있다.</td></tr>
+<tr><td style="text-align:left"><code>토픽</code></td><td style="text-align:left">The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.</td></tr>
+</tbody>
+</table>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="no-need-to-explicitly-create-new-topics"></a><a href="#no-need-to-explicitly-create-new-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No need to explicitly create new topics</h4>
+<p>You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the <a href="#namespaces">namespace</a> provided in the <a href="#topics">topic name</a>.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="네임스페이스"></a><a href="#네임스페이스" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>네임스페이스</h2>
+<p>A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the <a href="/docs/ko/2.5.2/admin-api-namespaces#create">admin API</a>. For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic <code>my-tenant/app1</code> is a namespace for the application <code>app1</code> for <code>my-tenant</code>. You can create any number of <a href="#topics">topics</a> under the namespace.</p>
+<h2><a class="anchor" aria-hidden="true" id="subscription-modes"></a><a href="#subscription-modes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription modes</h2>
+<p>A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: <a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>. These modes are illustrated in the figure below.</p>
+<p><img src="/docs/assets/pulsar-subscription-modes.png" alt="Subscription modes"></p>
+<h3><a class="anchor" aria-hidden="true" id="exclusive"></a><a href="#exclusive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exclusive</h3>
+<p>In <em>exclusive</em> mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.</p>
+<p>In the diagram below, only <strong>Consumer A-0</strong> is allowed to consume messages.</p>
+<blockquote>
+<p>Exclusive mode is the default subscription mode.</p>
+</blockquote>
+<p><img src="/docs/assets/pulsar-exclusive-subscriptions.png" alt="Exclusive subscriptions"></p>
+<h3><a class="anchor" aria-hidden="true" id="failover"></a><a href="#failover" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Failover</h3>
+<p>In <em>failover</em> mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the <em>master consumer</em>.</p>
+<p>When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.</p>
+<p>In the diagram below, <strong>Consumer-B-0</strong> is the master consumer while <strong>Consumer-B-1</strong> would be the next in line to receive messages if <strong>Consumer-B-0</strong> disconnected.</p>
+<p><img src="/docs/assets/pulsar-failover-subscriptions.png" alt="Failover subscriptions"></p>
+<h3><a class="anchor" aria-hidden="true" id="shared"></a><a href="#shared" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Shared</h3>
+<p>In <em>shared</em> or <em>round robin</em> mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.</p>
+<p>In the diagram below, <strong>Consumer-C-1</strong> and <strong>Consumer-C-2</strong> are able to subscribe to the topic, but <strong>Consumer-C-3</strong> and others could as well.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="limitations-of-shared-mode"></a><a href="#limitations-of-shared-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Limitations of shared mode</h4>
+<p>There are two important things to be aware of when using shared mode: * Message ordering is not guaranteed. * You cannot use cumulative acknowledgment with shared mode.</p>
+</blockquote>
+<p><img src="/docs/assets/pulsar-shared-subscriptions.png" alt="Shared subscriptions"></p>
+<h3><a class="anchor" aria-hidden="true" id="키-공유-모드"></a><a href="#키-공유-모드" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>키 공유 모드</h3>
+<p>In <em>Key_Shared</em> mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="limitations-of-key_shared-mode"></a><a href="#limitations-of-key_shared-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Limitations of Key_Shared mode</h4>
+<p>There are two important things to be aware of when using Key_Shared mode: * You need to specify a key or orderingKey for messages * You cannot use cumulative acknowledgment with Key_Shared mode.</p>
+</blockquote>
+<p><img src="/docs/assets/pulsar-key-shared-subscriptions.png" alt="Key_Shared subscriptions"></p>
+<p><strong>Key_Shared subscription is a beta feature. You can disable it at broker.config.</strong></p>
+<h2><a class="anchor" aria-hidden="true" id="다중-토픽-구독"></a><a href="#다중-토픽-구독" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>다중 토픽 구독</h2>
+<p>When a consumer subscribes to a Pulsar topic, by default it subscribes to one specific topic, such as <code>persistent://public/default/my-topic</code>. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:</p>
+<ul>
+<li>On the basis of a <a href="https://en.wikipedia.org/wiki/Regular_expression"><strong>reg</strong>ular <strong>ex</strong>pression</a> (regex), for example <code>persistent://public/default/finance-.*</code></li>
+<li>토픽의 리스트를 명시적으로 정의하여 다중 토픽 구독을 사용할 수 있다.</li>
+</ul>
+<blockquote>
+<p>When subscribing to multiple topics by regex, all topics must be in the same <a href="#namespaces">namespace</a></p>
+</blockquote>
+<p>When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="no-ordering-guarantees"></a><a href="#no-ordering-guarantees" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>No ordering guarantees</h4>
+<p>When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature.</p>
+</blockquote>
+<p>Here are some multi-topic subscription examples for Java:</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.regex.Pattern;
+
+<span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Consumer;
+<span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient pulsarClient = <span class="hljs-comment">// Instantiate Pulsar client object</span>
+
+<span class="hljs-comment">// Subscribe to all topics in a namespace</span>
+Pattern allTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/.*"</span>);
+Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; allTopicsConsumer = pulsarClient.newConsumer()
+                .topicsPattern(allTopicsInNamespace)
+                .subscriptionName(<span class="hljs-string">"subscription-1"</span>)
+                .subscribe();
+
+<span class="hljs-comment">// Subscribe to a subsets of topics in a namespace, based on regex</span>
+Pattern someTopicsInNamespace = Pattern.compile(<span class="hljs-string">"persistent://public/default/foo.*"</span>);
+Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; someTopicsConsumer = pulsarClient.newConsumer()
+                .topicsPattern(someTopicsInNamespace)
+                .subscriptionName(<span class="hljs-string">"subscription-1"</span>)
+                .subscribe();
+</code></pre>
+<p>For code examples, see:</p>
+<ul>
+<li><a href="/docs/ko/2.5.2/client-libraries-java#multi-topic-subscriptions">Java</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="partitioned-topics"></a><a href="#partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Partitioned topics</h2>
+<p>Normal topics can be served only by a single broker, which limits the topic's maximum throughput. <em>Partitioned topics</em> are a special type of topic that be handled by multiple brokers, which allows for much higher throughput.</p>
+<p>Behind the scenes, a partitioned topic is actually implemented as N internal topics, where N is the number of partitions. When publishing messages to a partitioned topic, each message is routed to one of several brokers. The distribution of partitions across brokers is handled automatically by Pulsar.</p>
+<p>The diagram below illustrates this:</p>
+<p><img src="/docs/assets/partitioning.png" alt=""></p>
+<p>Here, the topic <strong>Topic1</strong> has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).</p>
+<p>Messages for this topic are broadcast to two consumers. The <a href="#routing-modes">routing mode</a> determines both which broker handles each partition, while the <a href="#subscription-modes">subscription mode</a> determines which messages go to which consumers.</p>
+<p>Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.</p>
+<p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.</p>
+<p>Partitioned topics need to be explicitly created via the <a href="/docs/ko/2.5.2/admin-api-overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
+<h3><a class="anchor" aria-hidden="true" id="routing-modes"></a><a href="#routing-modes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Routing modes</h3>
+<p>When publishing to partitioned topics, you must specify a <em>routing mode</em>. The routing mode determines which partition---that is, which internal topic---each message should be published to.</p>
+<p>There are three <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRoutingMode">MessageRoutingMode</a>
+ available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">모드</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">키 값이 제공되지 않으면, 제공자가 라운드 로빈 방식으로 최대 처리율(throughput) 을 달성하기 위해 모든 파티션에 걸쳐 메시지를 게시할 것이다. 각 메시지 별로 라운드 로빈 방식이 실행되지는 않고, 배칭이 효과적으로 실행될 수 있도록 보장하기 위해 동일한 배칭 지연 시간의 한도(경계) 내에 설정된다는 것에 주의하라. 키 값이 메시지에 설정되고 나면, 분할된 게시자가 키를 해시하여 특정 파티션에 메시지를 할당할 것이다. 이것이 기본 모드다.</td></tr>
+<tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">키 값이 제공되지 않으면, 게시자는 단일 파티션을 랜덤하게 선택하여 모든 메시지를 해당 파티션에 게시할 것이다. 키 값이 메시지에 설정되고 나면, 분할된 게시자가 키를 해시하여 특정 파티션에 메시지를 할당할 것이다.</td></tr>
+<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">특정 메시지가 할당되는 파티션을 결정하기 위해 커스텀 메시지 라우터 구현(custom message router implementation) 이 호출되도록 한다. 사용자는 <a href="/docs/ko/2.5.2/client-libraries-java">자바 클라이언트</a>와 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+ 인터페이스를 구현하여 커스텀 라우팅 모드를 생성할 수 있다.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="ordering-guarantee"></a><a href="#ordering-guarantee" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Ordering guarantee</h3>
+<p>The ordering of messages is related to MessageRoutingMode and Message Key. Usually, user would want an ordering of Per-key-partition guarantee.</p>
+<p>If there is a key attached to message, the messages will be routed to corresponding partitions based on the hashing scheme specified by <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
+ in <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
+, when using either <code>SinglePartition</code> or <code>RoundRobinPartition</code> mode.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Ordering guarantee</th><th style="text-align:left">Description</th><th style="text-align:left">라우팅 모드와 키</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">단일 키 별 파티션</td><td style="text-align:left">같은 키값을 가진 모든 메시지는 순서대로 정렬되어 동일한 파티션 내에 위치한다.</td><td style="text-align:left"><code>단일 파티션(SinglePartition)</code> 이나 <code>라운드 로빈 파티션(RoundRobinPartition)</code> 모드를 사용하고, 각 메시지에 의해 키값이 제공된다.</td></tr>
+<tr><td style="text-align:left">게시자 별</td><td style="text-align:left">같은 게시자로부터 온 모든 메시지는 순서대로 정렬될 것이다.</td><td style="text-align:left">단일 파티션(<code>SinglePartition</code>) 모드를 사용하고, 각 메시지에 대해 키 값이 제공되지 않는다.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="hashing-scheme"></a><a href="#hashing-scheme" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hashing scheme</h3>
+<p><a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
+ is an enum that represent sets of standard hashing functions available when choosing the partition to use for a particular message.</p>
+<p>There are 2 types of standard hashing functions available: <code>JavaStringHash</code> and <code>Murmur3_32Hash</code>. The default hashing function for producer is <code>JavaStringHash</code>. Please pay attention that <code>JavaStringHash</code> is not useful when producers can be from different multiple language clients, under this use case, it is recommended to use <code>Murmur3_32Hash</code>.</p>
+<h2><a class="anchor" aria-hidden="true" id="비지속적인-토픽"></a><a href="#비지속적인-토픽" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>비지속적인 토픽</h2>
+<p>By default, Pulsar persistently stores <em>all</em> unacknowledged messages on multiple <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">BookKeeper</a> bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.</p>
+<p>Pulsar also, however, supports <strong>non-persistent topics</strong>, which are topics on which messages are <em>never</em> persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar broker or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.</p>
+<p>Non-persistent topics have names of this form (note the <code>non-persistent</code> in the name):</p>
+<pre><code class="hljs css language-http">non-persistent://tenant/namespace/topic
+</code></pre>
+<blockquote>
+<p>For more info on using non-persistent topics, see the <a href="/docs/ko/2.5.2/cookbooks-non-persistent">Non-persistent messaging cookbook</a>.</p>
+</blockquote>
+<p>In non-persistent topics, brokers immediately deliver messages to all connected subscribers <em>without persisting them</em> in <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">BookKeeper</a>. If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.</p>
+<blockquote>
+<p>With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're <em>certain</em> that your use case requires it and can sustain it.</p>
+</blockquote>
+<p>By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's <a href="/docs/ko/2.5.2/reference-configuration#broker-enableNonPersistentTopics">configuration</a>. You can manage non-persistent topics using the <a href="referencereference--pulsar-admin/#topics-1"><code>pulsar-admin topics</code></a> interface.</p>
+<h3><a class="anchor" aria-hidden="true" id="performance"></a><a href="#performance" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Performance</h3>
+<p>Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is delivered to connected brokers. Producers thus see comparatively low publish latency with non-persistent topic.</p>
+<h3><a class="anchor" aria-hidden="true" id="client-api"></a><a href="#client-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client API</h3>
+<p>Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with <code>non-persistent</code>. All three subscription modes---<a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>---are supported for non-persistent topics.</p>
+<p>Here's an example <a href="/docs/ko/2.5.2/client-libraries-java#consumers">Java consumer</a> for a non-persistent topic:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .build();
+String npTopic = <span class="hljs-string">"non-persistent://public/default/my-topic"</span>;
+String subscriptionName = <span class="hljs-string">"my-subscription-name"</span>;
+
+Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = client.newConsumer()
+        .topic(npTopic)
+        .subscriptionName(subscriptionName)
+        .subscribe();
+</code></pre>
+<p>Here's an example <a href="/docs/ko/2.5.2/client-libraries-java#producer">Java producer</a> for the same non-persistent topic:</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+                .topic(npTopic)
+                .create();
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="message-retention-and-expiry"></a><a href="#message-retention-and-expiry" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message retention and expiry</h2>
+<p>By default, Pulsar message brokers:</p>
+<ul>
+<li>immediately delete <em>all</em> messages that have been acknowledged by a consumer, and</li>
+<li>메시지 백로그에 있는 알림이 전송되지 않은 모든 메시지를 <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage"> 영구적으로 저장</a>한다.</li>
+</ul>
+<p>Pulsar has two features, however, that enable you to override this default behavior:</p>
+<ul>
+<li>Message <strong>retention</strong> enables you to store messages that have been acknowledged by a consumer</li>
+<li>Message <strong>expiry</strong> enables you to set a time to live (TTL) for messages that have not yet been acknowledged</li>
+</ul>
+<blockquote>
+<p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="/docs/ko/2.5.2/cookbooks-retention-expiry">Message retention and expiry</a> cookbook.</p>
+</blockquote>
+<p>The diagram below illustrates both concepts:</p>
+<p><img src="/docs/assets/retention-expiry.png" alt="Message retention and expiry"></p>
+<p>With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a namespace dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, <em>all</em> of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.</p>
+<p>With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).</p>
+<h2><a class="anchor" aria-hidden="true" id="message-deduplication"></a><a href="#message-deduplication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message deduplication</h2>
+<p>Message <strong>duplication</strong> occurs when a message is <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">persisted</a> by Pulsar more than once. Message <strong><em>de</em>duplication</strong> is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, <em>even if the message is received more than once</em>.</p>
+<p>The following diagram illustrates what happens when message deduplication is disabled vs. enabled:</p>
+<p><img src="/docs/assets/message-deduplication.png" alt="Pulsar message deduplication"></p>
+<p>Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar broker and is <a href="/docs/ko/2.5.2/concepts-architecture-overview#persistent-storage">persisted</a> to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.</p>
+<p>In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.</p>
+<blockquote>
+<p>Message deduplication is handled at the namespace level. For more instructions, see the <a href="/docs/ko/2.5.2/cookbooks-deduplication">message deduplication cookbook</a>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="producer-idempotency"></a><a href="#producer-idempotency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer idempotency</h3>
+<p>The other available approach to message deduplication is to ensure that each message is <em>only produced once</em>. This approach is typically called <strong>producer idempotency</strong>. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the <a href="/docs/ko/2.5.2/reference-terminology#broker">broker</a> level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the <a href="/docs/ko/2.5.2/cookbooks-deduplication">Managing message deduplication</a> cookbook for a guide).</p>
+<h3><a class="anchor" aria-hidden="true" id="deduplication-and-effectively-once-semantics"></a><a href="#deduplication-and-effectively-once-semantics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deduplication and effectively-once semantics</h3>
+<p>Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide <a href="https://streaml.io/blog/exactly-once">effectively-once</a> processing semantics. Messaging systems that don't offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.</p>
+<blockquote>
+<p>More in-depth information can be found in <a href="https://streaml.io/blog/pulsar-effectively-once/">this post</a> on the <a href="https://streaml.io/blog">Streamlio blog</a></p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="지연된-메시지-전송"></a><a href="#지연된-메시지-전송" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>지연된 메시지 전송</h2>
+<p>Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, <code>DelayedDeliveryTracker</code> maintains the time index(time -&gt; messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.</p>
+<p>Delayed message delivery only works well in Shared subscription mode. In Exclusive and Failover subscription mode, the delayed message is dispatched immediately.</p>
+<p>The diagram below illustrates the concept of delayed message delivery:</p>
+<p><img src="/docs/assets/message_delay.png" alt="Delayed Message Delivery"></p>
+<p>A broker saves a message without any check. When a consumer consumes a message, if the message is set to delay, then the message is added to <code>DelayedDeliveryTracker</code>. A subscription checks and gets timeout messages from <code>DelayedDeliveryTracker</code>.</p>
+<h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h3>
+<p>Delayed message delivery is enabled by default. You can change it in the broker configuration file as below:</p>
+<pre><code class="hljs"><span class="hljs-meta"># 메시지의 지연된 전송을 활성화 할 것인지 여부</span>
+<span class="hljs-meta"># 비활성화된 경우, 메시지는 즉각적으로 전송되며 추적을 위한 오버헤드가 없다.</span>
+delayedDeliveryEnabled=<span class="hljs-literal">true</span>
+
+<span class="hljs-meta"># 예정된 시간 대비 실제 전송 시간의 정확도에 영향을 미치는,</span>
+<span class="hljs-meta"># 지연 메시지 전송의 재시도에 필요한 시간을 통제한다.</span>
+<span class="hljs-meta"># 기본값은 1초이다.</span>
+delayedDeliveryTickTimeMillis=<span class="hljs-number">1000</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h3>
+<p>The following is an example of delayed message delivery for a producer in Java:</p>
+<pre><code class="hljs css language-java"><span class="hljs-comment">// message to be delivered at the configured delay interval</span>
+producer.newMessage().deliverAfter(<span class="hljs-number">3L</span>, TimeUnit.Minute).value(<span class="hljs-string">"Hello Pulsar!"</span>).send();
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/2.5.2/concepts-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/ko/2.5.2/concepts-architecture-overview"><span>Architecture</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#messages">Messages</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#송신-모드">송신 모드</a></li><li><a href="#압축">압축</a></li><li><a href="#대량순차작업batching">대량순차작업(Batching)</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#수신-모드">수신 모드</a></li><li><a href="#listeners">Listeners</a></li><li><a href="#acknowledgement">Acknowledgement</a></li><li><a href="#부정적-알림">부정적 알림</a></li><li><a href="#알림-타임아웃">알림 타임아웃</a></li><li><a href="#데드-레터-토픽">데드 레터 토픽</a></li></ul></li><li><a href="#topics">Topics</a></li><li><a href="#네임스페이스">네임스페이스</a></li><li><a href="#subscription-modes">Subscription modes</a><ul class="toc-headings"><li><a href="#exclusive">Exclusive</a></li><li><a href="#failover">Failover</a></li><li><a href="#shared">Shared</a></li><li><a href="#키-공유-모드">키 공유 모드</a></li></ul></li><li><a href="#다중-토픽-구독">다중 토픽 구독</a></li><li><a href="#partitioned-topics">Partitioned topics</a><ul class="toc-headings"><li><a href="#routing-modes">Routing modes</a></li><li><a href="#ordering-guarantee">Ordering guarantee</a></li><li><a href="#hashing-scheme">Hashing scheme</a></li></ul></li><li><a href="#비지속적인-토픽">비지속적인 토픽</a><ul class="toc-headings"><li><a href="#performance">Performance</a></li><li><a href="#client-api">Client API</a></li></ul></li><li><a href="#message-retention-and-expiry">Message retention and expiry</a></li><li><a href="#message-deduplication">Message deduplication</a><ul class="toc-headings"><li><a href="#producer-idempotency">Producer idempotency</a></li><li><a href="#deduplication-and-effectively-once-semantics">Deduplication and effectively-once semantics</a></li></ul></li><li><a href="#지연된-메시지-전송">지연된 메시지 전송</a><ul class="toc-headings"><li><a href="#broker">Broker</a></li><li><a href="#producer">Producer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:2.5.2"]}
+              });
+            </script></body></html>

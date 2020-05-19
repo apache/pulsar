@@ -128,6 +128,23 @@
     }
 }
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="client-operations"></a><a href="#client-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client operations</h3>
+<p>Pulsar Go client has the following methods available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>CreateProducer(ProducerOptions)</code></td><td style="text-align:left">Create the producer instance. (This method will be blocked until the producer is created successfully.)</td><td style="text-align:left"><code>(Producer, error)</code></td></tr>
+<tr><td style="text-align:left"><code>CreateProducerWithSchema(ProducerOptions, Schema)</code></td><td style="text-align:left">Create a producer instance with schema.</td><td style="text-align:left"><code>(Producer, error)</code></td></tr>
+<tr><td style="text-align:left"><code>Subscribe(ConsumerOptions)</code></td><td style="text-align:left">Create a <code>Consumer</code> by subscribing to a topic.</td><td style="text-align:left"><code>(Consumer, error)</code></td></tr>
+<tr><td style="text-align:left"><code>SubscribeWithSchema(ConsumerOptions, Schema)</code></td><td style="text-align:left">Create a <code>Consumer</code> with schema by subscribing to a topic.</td><td style="text-align:left"><code>(Consumer, error)</code></td></tr>
+<tr><td style="text-align:left"><code>CreateReader(ReaderOptions)</code></td><td style="text-align:left">Create a Reader instance.</td><td style="text-align:left"><code>(Reader, error)</code></td></tr>
+<tr><td style="text-align:left"><code>CreateReaderWithSchema(ReaderOptions, Schema)</code></td><td style="text-align:left">Create a Reader instance with schema.</td><td style="text-align:left"><code>(Reader, error)</code></td></tr>
+<tr><td style="text-align:left"><code>TopicPartitions(topic string)</code></td><td style="text-align:left">Fetch the list of partitions for a given topic.</td><td style="text-align:left"><code>([]string, error)</code></td></tr>
+<tr><td style="text-align:left"><code>Close()</code></td><td style="text-align:left">Close the Pulsar Go client and release associated resources.</td><td style="text-align:left"><code>error</code></td></tr>
+</tbody>
+</table>
 <p>The following configurable parameters are available for Pulsar clients:</p>
 <table>
 <thead>
@@ -304,6 +321,7 @@ consumer, err := client.Subscribe(consumerOpts)
 <tr><td style="text-align:left"><code>NackID(MessageID)</code></td><td style="text-align:left">Acknowledge the failure to process a single message.</td><td style="text-align:left"><code>error</code></td></tr>
 <tr><td style="text-align:left"><code>Close()</code></td><td style="text-align:left">Closes the consumer, disabling its ability to receive messages from the broker</td><td style="text-align:left"><code>error</code></td></tr>
 <tr><td style="text-align:left"><code>RedeliverUnackedMessages()</code></td><td style="text-align:left">Redelivers <em>all</em> unacknowledged messages on the topic. In <a href="/docs/fr/2.4.0/concepts-messaging#failover">failover</a> mode, this request is ignored if the consumer isn't active on the specified topic; in <a href="/docs/fr/2.4.0/concepts-messaging#shared">shared</a> mode, redelivered messages are distributed across all consumers connected to the topic. <strong>Note</strong>: this is a <em>non-blocking</em> operation that doesn't throw an error.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Schema()</code></td><td style="text-align:left">Set the message schema definition</td><td style="text-align:left"><code>Schema</code></td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="receive-example"></a><a href="#receive-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Receive example</h4>
@@ -354,6 +372,51 @@ consumer, err := client.Subscribe(consumerOpts)
     }
 }
 </code></pre>
+<h4><a class="anchor" aria-hidden="true" id="exemple-de-schéma"></a><a href="#exemple-de-schéma" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exemple de schéma</h4>
+<p>This example shows how to create a producer and consumer with schema.</p>
+<pre><code class="hljs css language-go"><span class="hljs-keyword">var</span> exampleSchemaDef = <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span> +
+            <span class="hljs-string">"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"</span>
+jsonSchema := NewJsonSchema(exampleSchemaDef, <span class="hljs-literal">nil</span>)
+
+<span class="hljs-comment">// create producer</span>
+producer, err := client.CreateProducerWithSchema(ProducerOptions{
+    Topic: <span class="hljs-string">"jsonTopic"</span>,
+}, jsonSchema)
+err = producer.Send(context.Background(), ProducerMessage{
+    Value: &amp;testJson{
+        ID:   <span class="hljs-number">100</span>,
+        Name: <span class="hljs-string">"pulsar"</span>,
+    },
+})
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+<span class="hljs-keyword">defer</span> producer.Close()
+
+<span class="hljs-comment">//create consumer</span>
+<span class="hljs-keyword">var</span> s testJson
+
+consumerJS := NewJsonSchema(exampleSchemaDef, <span class="hljs-literal">nil</span>)
+consumer, err := client.SubscribeWithSchema(ConsumerOptions{
+    Topic:            <span class="hljs-string">"jsonTopic"</span>,
+    SubscriptionName: <span class="hljs-string">"sub-2"</span>,
+}, consumerJS)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+msg, err := consumer.Receive(context.Background())
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+err = msg.GetValue(&amp;s)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+    log.Fatal(err)
+}
+fmt.Println(s.ID) <span class="hljs-comment">// output: 100</span>
+fmt.Println(s.Name) <span class="hljs-comment">// output: pulsar</span>
+
+<span class="hljs-keyword">defer</span> consumer.Close()
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
 <table>
 <thead>
@@ -365,10 +428,13 @@ consumer, err := client.Subscribe(consumerOpts)
 <tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>AckTimeout</code></td><td style="text-align:left"></td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>NackRedeliveryDelay</code></td><td style="text-align:left">The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See <code>Consumer.Nack()</code>)</td><td style="text-align:left">1 minute</td></tr>
-<tr><td style="text-align:left"><code>SubscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>SubscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, <code>Key_Shared</code> and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
 <tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>ReceiverQueueSize</code></td><td style="text-align:left">Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls <code>Receive</code>. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
 <tr><td style="text-align:left"><code>MaxTotalReceiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value</td><td style="text-align:left">50000</td></tr>
+<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">Set the consumer name.</td><td style="text-align:left"><code>string</code></td></tr>
+<tr><td style="text-align:left"><code>ReadCompacted</code></td><td style="text-align:left">If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic.</td><td style="text-align:left"><code>bool</code></td></tr>
+<tr><td style="text-align:left"><code>Schema</code></td><td style="text-align:left">Message schema definition</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
@@ -497,7 +563,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
     Authentication: NewAuthenticationTLS(<span class="hljs-string">"my-cert.pem"</span>, <span class="hljs-string">"my-key.pem"</span>),
 }
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.4.0/client-libraries-java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/fr/2.4.0/client-libraries-python"><span>Python</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#installing-go-package">Installing go package</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#creating-a-client">Creating a client</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-configuration">Producer configuration</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li></ul></li><li><a href="#messages">Messages</a></li><li><a href="#tls-encryption-and-authentication">TLS encryption and authentication</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.4.0/client-libraries-java"><span class="arrow-prev">← </span><span>Java</span></a><a class="docs-next button" href="/docs/fr/2.4.0/client-libraries-python"><span>Python</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#installing-go-package">Installing go package</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#creating-a-client">Creating a client</a><ul class="toc-headings"><li><a href="#client-operations">Client operations</a></li></ul></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-configuration">Producer configuration</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li></ul></li><li><a href="#messages">Messages</a></li><li><a href="#tls-encryption-and-authentication">TLS encryption and authentication</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

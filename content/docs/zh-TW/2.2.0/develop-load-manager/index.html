@@ -80,7 +80,7 @@
 <ol>
 <li><p>Change the value of the <code>loadManagerClassName</code> parameter in <code>conf/broker.conf</code> from <code>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</code> to <code>org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl</code>.</p></li>
 <li><p>Using the <code>pulsar-admin</code> tool. Here's an example:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin update-dynamic-config \</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin brokers update-dynamic-config \</span>
  --config loadManagerClassName \
  --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
 </code></pre>

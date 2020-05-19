@@ -1,0 +1,538 @@
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Understand schema · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="docsearch:version" content="2.5.2"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Understand schema · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/fr"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/fr/versions"><h3>2.5.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/fr/2.5.2/standalone" target="_self">Docs</a></li><li class=""><a href="/fr/download" target="_self">Téléchargement</a></li><li class="siteNavGroupActive"><a href="/docs/fr/2.5.2/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">API REST</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Communauté</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>Français</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.5.2/schema-understand">English</a></li><li><a href="/docs/ja/2.5.2/schema-understand">日本語</a></li><li><a href="/docs/ko/2.5.2/schema-understand">한국어</a></li><li><a href="/docs/zh-CN/2.5.2/schema-understand">中文</a></li><li><a href="/docs/zh-TW/2.5.2/schema-understand">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Aidez à traduire</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar Schema</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts et architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/concepts-schema-registry">Schema Registry</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/schema-get-started">Get started</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/fr/2.5.2/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-dashboard">Dashboard</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Sécurité</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">API Admin</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptateurs</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Développement</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Référence</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/pulsar-admin">Pulsar Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/reference-connector-admin">Connector Admin CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/fr/2.5.2/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Understand schema</h1></header><article><div><span><p>This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background.</p>
+<h2><a class="anchor" aria-hidden="true" id="schemainfo"></a><a href="#schemainfo" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SchemaInfo</h2>
+<p>Pulsar schema is defined in a data structure called <code>SchemaInfo</code>.</p>
+<p>The <code>SchemaInfo</code> is stored and enforced on a per-topic basis and cannot be stored at the namespace or tenant level.</p>
+<p>A <code>SchemaInfo</code> consists of the following fields:</p>
+<table style="table">
+<tr>
+<th>
+<p>Field</p>
+</th>
+<th>
+<p>Description</p>
+</th>
+</tr>
+<tr>
+<td> 
+<p><code>name</code></p>
+</td> 
+<td> 
+<p>Schema name (a string).</p>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>type</code></p>
+</td> 
+<td> 
+<p>Schema type, which determines how to interpret the schema data.</p>
+<ul>
+<li><p>Predefined schema: see <a href="/docs/fr/2.5.2/schema-understand#schema-type">here</a>.</p></li>
+<li><p>Customized schema: it is left as an empty string.</p></li>
+</ul>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>schema</code>（<code>payload</code>)</p>
+</td> 
+<td> 
+<p>Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.</p>
+</td>
+</tr>
+<tr>
+<td> 
+<p><code>properties</code></p>
+</td> 
+<td> 
+<p>It is a user defined properties as a string/string map.</p>
+<p>Applications can use this bag for carrying any application specific logics.</p>
+<p>Possible properties might be the Git hash associated with the schema, an environment string like <code>dev</code> or <code>prod</code>.</p>
+</td>
+</tr>
+</table>
+<p><strong>Example</strong></p>
+<p>This is the <code>SchemaInfo</code> of a string.</p>
+<pre><code class="hljs css language-text">{
+    "name": "test-string-schema",
+    "type": "STRING",
+    "schema": "",
+    "properties": {}
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="schema-type"></a><a href="#schema-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema type</h2>
+<p>Pulsar supports various schema types, which are mainly divided into two categories:</p>
+<ul>
+<li><p>Primitive type</p></li>
+<li><p>Complex type</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="primitive-type"></a><a href="#primitive-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Primitive type</h3>
+<p>Currently, Pulsar supports the following primitive types:</p>
+<table>
+<thead>
+<tr><th>Primitive Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>BOOLEAN</code></td><td>A binary value</td></tr>
+<tr><td><code>INT8</code></td><td>A 8-bit signed integer</td></tr>
+<tr><td><code>INT16</code></td><td>A 16-bit signed integer</td></tr>
+<tr><td><code>INT32</code></td><td>A 32-bit signed integer</td></tr>
+<tr><td><code>INT64</code></td><td>A 64-bit signed integer</td></tr>
+<tr><td><code>FLOAT</code></td><td>A single precision (32-bit) IEEE 754 floating-point number</td></tr>
+<tr><td><code>DOUBLE</code></td><td>A double-precision (64-bit) IEEE 754 floating-point number</td></tr>
+<tr><td><code>BYTES</code></td><td>A sequence of 8-bit unsigned bytes</td></tr>
+<tr><td><code>STRING</code></td><td>A Unicode character sequence</td></tr>
+<tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since <code>January 1, 1970, 00:00:00 GMT</code> as an <code>INT64</code> value</td></tr>
+</tbody>
+</table>
+<p>For primitive types, Pulsar does not store any schema data in <code>SchemaInfo</code>. The <code>type</code> in <code>SchemaInfo</code> is used to determine how to serialize and deserialize the data.</p>
+<p>Some of the primitive schema implementations can use <code>properties</code> to store implementation-specific tunable settings. For example, a <code>string</code> schema can use <code>properties</code> to store the encoding charset to serialize and deserialize strings.</p>
+<p>The conversions between <strong>Pulsar schema types</strong> and <strong>language-specific primitive types</strong> are as below.</p>
+<table>
+<thead>
+<tr><th>Schema Type</th><th>Java Type</th><th>Python Type</th><th>Go Type</th></tr>
+</thead>
+<tbody>
+<tr><td>BOOLEAN</td><td>boolean</td><td>bool</td><td>bool</td></tr>
+<tr><td>INT8</td><td>byte</td><td></td><td>int8</td></tr>
+<tr><td>INT16</td><td>short</td><td></td><td>int16</td></tr>
+<tr><td>INT32</td><td>int</td><td></td><td>int32</td></tr>
+<tr><td>INT64</td><td>long</td><td></td><td>int64</td></tr>
+<tr><td>FLOAT</td><td>float</td><td>float</td><td>float32</td></tr>
+<tr><td>DOUBLE</td><td>double</td><td>float</td><td>float64</td></tr>
+<tr><td>BYTES</td><td>byte[], ByteBuffer, ByteBuf</td><td>bytes</td><td>[]byte</td></tr>
+<tr><td>STRING</td><td>string</td><td>str</td><td>string</td></tr>
+<tr><td>TIMESTAMP</td><td>java.sql.Timestamp</td><td></td><td></td></tr>
+<tr><td>TIME</td><td>java.sql.Time</td><td></td><td></td></tr>
+<tr><td>DATE</td><td>java.util.Date</td><td></td><td></td></tr>
+</tbody>
+</table>
+<p><strong>Example</strong></p>
+<p>This example demonstrates how to use a string schema.</p>
+<ol>
+<li><p>Create a producer with a string schema and send messages.</p>
+<pre><code class="hljs css language-text">Producer<String> producer = client.newProducer(Schema.STRING).create();
+producer.newMessage().value("Hello Pulsar!").send();
+</code></pre></li>
+<li><p>Create a consumer with a string schema and receive messages.</p>
+<pre><code class="hljs css language-text">Consumer<String> consumer = client.newConsumer(Schema.STRING).create();
+consumer.receive();
+</code></pre></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="complex-type"></a><a href="#complex-type" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Complex type</h3>
+<p>Currently, Pulsar supports the following complex types:</p>
+<table>
+<thead>
+<tr><th>Complex Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>keyvalue</code></td><td>Represents a complex type of a key/value pair.</td></tr>
+<tr><td><code>struct</code></td><td>Supports <strong>AVRO</strong>, <strong>JSON</strong>, and <strong>Protobuf</strong>.</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="keyvalue"></a><a href="#keyvalue" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>keyvalue</h4>
+<p><code>Keyvalue</code> schema helps applications define schemas for both key and value.</p>
+<p>For <code>SchemaInfo</code> of <code>keyvalue</code> schema, Pulsar stores the <code>SchemaInfo</code> of key schema and the <code>SchemaInfo</code> of value schema together.</p>
+<p>Pulsar provides two methods to encode a key/value pair in messages：</p>
+<ul>
+<li><p><code>INLINE</code></p></li>
+<li><p><code>SEPARATED</code></p></li>
+</ul>
+<p>Users can choose the encoding type when constructing the key/value schema.</p>
+<h5><a class="anchor" aria-hidden="true" id="inline"></a><a href="#inline" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>INLINE</h5>
+<p>Key/value pairs will be encoded together in the message payload.</p>
+<h5><a class="anchor" aria-hidden="true" id="separated"></a><a href="#separated" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>SEPARATED</h5>
+<p>Key will be encoded in the message key and the value will be encoded in the message payload.</p>
+<p><strong>Example</strong></p>
+<p>This example shows how to construct a key/value schema and then use it to produce and consume messages.</p>
+<ol>
+<li><p>Construct a key/value schema with <code>INLINE</code> encoding type.</p>
+<pre><code class="hljs css language-java">Schema&lt;KeyValue&lt;Integer, String&gt;&gt; kvSchema = Schema.KeyValue(
+Schema.INT32,
+Schema.STRING,
+KeyValueEncodingType.INLINE
+);
+</code></pre></li>
+<li><p>Optionally, construct a key/value schema with <code>SEPARATED</code> encoding type.</p>
+<pre><code class="hljs css language-java">Schema&lt;KeyValue&lt;Integer, String&gt;&gt; kvSchema = Schema.KeyValue(
+Schema.INT32,
+Schema.STRING,
+KeyValueEncodingType.SEPARATED
+);
+</code></pre></li>
+<li><p>Produce messages using a key/value schema.</p>
+<pre><code class="hljs css language-java">Schema&lt;KeyValue&lt;Integer, String&gt;&gt; kvSchema = Schema.KeyValue(
+Schema.INT32,
+Schema.STRING,
+KeyValueEncodingType.SEPARATED
+);
+
+Producer&lt;KeyValue&lt;Integer, String&gt;&gt; producer = client.newProducer(kvSchema)
+    .topic(TOPIC)
+    .create();
+
+<span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> key = <span class="hljs-number">100</span>;
+<span class="hljs-keyword">final</span> String value = <span class="hljs-string">"value-100"</span>;
+
+<span class="hljs-comment">// send the key/value message</span>
+producer.newMessage()
+.value(<span class="hljs-keyword">new</span> KeyValue&lt;&gt;(key, value))
+.send();
+</code></pre></li>
+<li><p>Consume messages using a key/value schema.</p>
+<pre><code class="hljs css language-java">Schema&lt;KeyValue&lt;Integer, String&gt;&gt; kvSchema = Schema.KeyValue(
+Schema.INT32,
+Schema.STRING,
+KeyValueEncodingType.SEPARATED
+);
+
+Consumer&lt;KeyValue&lt;Integer, String&gt;&gt; consumer = client.newConsumer(kvSchema)
+    ...
+    .topic(TOPIC)
+    .subscriptionName(SubscriptionName).subscribe();
+
+<span class="hljs-comment">// receive key/value pair</span>
+Message&lt;KeyValue&lt;Integer, String&gt;&gt; msg = consumer.receive();
+KeyValue&lt;Integer, String&gt; kv = msg.getValue();
+</code></pre></li>
+</ol>
+<h4><a class="anchor" aria-hidden="true" id="struct"></a><a href="#struct" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>struct</h4>
+<p>Pulsar uses <a href="http://avro.apache.org/docs/current/spec.html">Avro Specification</a> to declare the schema definition for <code>struct</code> schema.</p>
+<p>This allows Pulsar:</p>
+<ul>
+<li><p>to use same tools to manage schema definitions</p></li>
+<li><p>to use different serialization/deserialization methods to handle data</p></li>
+</ul>
+<p>There are two methods to use <code>struct</code> schema：</p>
+<ul>
+<li><p><code>static</code></p></li>
+<li><p><code>generic</code></p></li>
+</ul>
+<h5><a class="anchor" aria-hidden="true" id="static"></a><a href="#static" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>static</h5>
+<p>You can predefine the <code>struct</code> schema, and it can be a POJO in Java, a <code>struct</code> in Go, or classes generated by Avro or Protobuf tools.</p>
+<p><strong>Example</strong></p>
+<p>Pulsar gets the schema definition from the predefined <code>struct</code> using an Avro library. The schema definition is the schema data stored as a part of the <code>SchemaInfo</code>.</p>
+<ol>
+<li><p>Create the <em>User</em> class to define the messages sent to Pulsar topics.</p>
+<pre><code class="hljs css language-text">public class User {
+    String name;
+    int age;
+}
+</code></pre></li>
+<li><p>Create a producer with a <code>struct</code> schema and send messages.</p>
+<pre><code class="hljs css language-text">Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
+producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
+</code></pre></li>
+<li><p>Create a consumer with a <code>struct</code> schema and receive messages</p>
+<pre><code class="hljs css language-text">Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).create();
+User user = consumer.receive();
+</code></pre></li>
+</ol>
+<h5><a class="anchor" aria-hidden="true" id="generic"></a><a href="#generic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>generic</h5>
+<p>Sometimes applications do not have pre-defined structs, and you can use this method to define schema and access data.</p>
+<p>You can define the <code>struct</code> schema using the <code>GenericSchemaBuilder</code>, generate a generic struct using <code>GenericRecordBuilder</code> and consume messages into <code>GenericRecord</code>.</p>
+<p><strong>Example</strong></p>
+<ol>
+<li><p>Use <code>RecordSchemaBuilder</code> to build a schema.</p>
+<pre><code class="hljs css language-text">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+</code></pre></li>
+<li><p>Use <code>RecordBuilder</code> to build the struct records.</p>
+<pre><code class="hljs css language-text">producer.newMessage().value(schema.newRecordBuilder()
+            .set("intField", 32)
+            .build()).send();
+</code></pre></li>
+</ol>
+<h3><a class="anchor" aria-hidden="true" id="auto-schema"></a><a href="#auto-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Auto Schema</h3>
+<p>If you don't know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.</p>
+<table>
+<thead>
+<tr><th>Auto Schema Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>AUTO_PRODUCE</code></td><td>This is useful for transferring data <strong>from a producer to a Pulsar topic that has a schema</strong>.</td></tr>
+<tr><td><code>AUTO_CONSUME</code></td><td>This is useful for transferring data <strong>from a Pulsar topic that has a schema to a consumer</strong>.</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="auto_produce"></a><a href="#auto_produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>AUTO_PRODUCE</h4>
+<p><code>AUTO_PRODUCE</code> schema helps a producer validate whether the bytes sent by the producer is compatible with the schema of a topic.</p>
+<p><strong>Example</strong></p>
+<p>Suppose that:</p>
+<ul>
+<li><p>You have a producer processing messages from a Kafka topic <em>K</em>.</p></li>
+<li><p>You have a Pulsar topic <em>P</em>, and you do not know its schema type.</p></li>
+<li><p>Your application reads the messages from <em>K</em> and writes the messages to <em>P</em>.</p></li>
+</ul>
+<p>In this case, you can use <code>AUTO_PRODUCE</code> to verify whether the bytes produced by <em>K</em> can be sent to <em>P</em> or not.</p>
+<pre><code class="hljs css language-text">Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
+    …
+    .create();
+
+byte[] kafkaMessageBytes = … ; 
+
+pulsarProducer.produce(kafkaMessageBytes);
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="auto_consume"></a><a href="#auto_consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>AUTO_CONSUME</h4>
+<p><code>AUTO_CONSUME</code> schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the <code>SchemaInfo</code> retrieved from broker-side.</p>
+<p>Currently, <code>AUTO_CONSUME</code> only supports <strong>AVRO</strong> and <strong>JSON</strong> schemas. It deserializes messages into <code>GenericRecord</code>.</p>
+<p><strong>Example</strong></p>
+<p>Suppose that:</p>
+<ul>
+<li><p>You have a Pulsar topic <em>P</em>.</p></li>
+<li><p>You have a consumer (for example, MySQL) receiving messages from the topic <em>P</em>.</p></li>
+<li><p>You application reads the messages from <em>P</em> and writes the messages to MySQL.</p></li>
+</ul>
+<p>In this case, you can use <code>AUTO_CONSUME</code> to verify whether the bytes produced by <em>P</em> can be sent to MySQL or not.</p>
+<pre><code class="hljs css language-text">Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
+    …
+    .subscribe();
+
+Message<GenericRecord> msg = consumer.receive() ; 
+GenericRecord record = msg.getValue();
+…
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="schema-version"></a><a href="#schema-version" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema version</h2>
+<p>Each <code>SchemaInfo</code> stored with a topic has a version. Schema version manages schema changes happening within a topic.</p>
+<p>Messages produced with a given <code>SchemaInfo</code> is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding <code>SchemaInfo</code> and then use the <code>SchemaInfo</code> to deserialize data.</p>
+<p>Schemas are versioned in succession. Schema storage happens in a broker that handles the associated topics so that version assignments can be made.</p>
+<p>Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.</p>
+<p><strong>Example</strong></p>
+<p>The following example illustrates how the schema version works.</p>
+<p>Suppose that a Pulsar <a href="/docs/fr/2.5.2/client-libraries-java">Java client</a> created using the code below attempts to connect to Pulsar and begins to send messages:</p>
+<pre><code class="hljs css language-text">PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+</code></pre>
+<p>The table below lists the possible scenarios when this connection attempt occurs and what happens in each scenario:</p>
+<table class="table">
+<tr>
+<th>Scenario</th>
+<th>What happens</th>
+</tr>
+<tr>
+<td> 
+<ul>
+<li>No schema exists for the topic.</li>
+</ul>
+</td>
+<td> 
+<p>(1) The producer is created using the given schema.</p>
+<p>(2) Since no existing schema is compatible with the <code>SensorReading</code> schema, the schema is transmitted to the broker and stored.</p>
+<p>(3) Any consumer created using the same schema or topic can consume messages from the <code>sensor-data</code> topic.</p>
+</td>
+</tr>
+<tr>
+<td> 
+<ul>
+<li><p>A schema already exists.</p></li>
+<li><p>The producer connects using the same schema that is already stored.</p></li>
+</ul>
+</td>
+<td> 
+<p>(1) The schema is transmitted to the broker.</p>
+<p>(2) The broker determines that the schema is compatible.</p>
+<p>(3) The broker attempts to store the schema in <a href="/docs/fr/2.5.2/concepts-architecture-overview#persistent-storage">BookKeeper</a> but then determines that it's already stored, so it is used to tag produced messages.</p>
+</td>
+<tr>
+<td> 
+<ul>
+<li><p>A schema already exists.</p></li>
+<li><p>The producer connects using a new schema that is compatible.</p></li>
+</ul>
+</td>
+<td> 
+<p>(1) The schema is transmitted to the broker.</p>
+<p>(2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</p>
+</td>
+</tr>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="how-does-schema-work"></a><a href="#how-does-schema-work" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>How does schema work</h2>
+<p>Pulsar schemas are applied and enforced at the <strong>topic</strong> level (schemas cannot be applied at the namespace or tenant level).</p>
+<p>Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.</p>
+<h3><a class="anchor" aria-hidden="true" id="producer-side"></a><a href="#producer-side" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer side</h3>
+<p>This diagram illustrates how does schema work on the Producer side.</p>
+<p><img src="/docs/assets/schema-producer.png" alt="Schema works at the producer side"></p>
+<ol>
+<li><p>The application uses a schema instance to construct a producer instance.</p>
+<p>The schema instance defines the schema for the data being produced using the producer instance.</p>
+<p>Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the <code>SchemaInfo</code> that the producer needs to pass to a broker when it connects.</p></li>
+<li><p>The producer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
+<li><p>The broker looks up the schema in the schema storage to check if it is already a registered schema.</p></li>
+<li><p>If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.</p></li>
+<li><p>If no, the broker verifies whether a schema can be automatically created in this namespace:</p></li>
+</ol>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>, then a schema can be created, and the broker validates the schema based on the schema compatibility check strategy defined for the topic.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, then a schema can not be created, and the producer is rejected to connect to the broker.</p></li>
+</ul>
+<p><strong>Tip</strong>:</p>
+<p><code>isAllowAutoUpdateSchema</code> can be set via <strong>Pulsar admin API</strong> or <strong>REST API.</strong></p>
+<p>For how to set <code>isAllowAutoUpdateSchema</code> via Pulsar admin API, see <a href="/docs/fr/2.5.2/schema-manage/#manage-autoupdate-strategy">Manage AutoUpdate Strategy</a>.</p>
+<ol start="6">
+<li>If the schema is allowed to be updated, then the compatible strategy check is performed.</li>
+</ol>
+<ul>
+<li><p>If the schema is compatible, the broker stores it and returns the schema version to the producer.</p>
+<p>All the messages produced by this producer are tagged with the schema version.</p></li>
+<li><p>If the schema is incompatible, the broker rejects it.</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="consumer-side"></a><a href="#consumer-side" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer side</h3>
+<p>This diagram illustrates how does Schema work on the consumer side.</p>
+<p><img src="/docs/assets/schema-consumer.png" alt="Schema works at the consumer side"></p>
+<ol>
+<li><p>The application uses a schema instance to construct a consumer instance.</p>
+<p>The schema instance defines the schema that the consumer uses for decoding messages received from a broker.</p></li>
+<li><p>The consumer connects to the broker with the <code>SchemaInfo</code> extracted from the passed-in schema instance.</p></li>
+<li><p>The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).</p></li>
+<li><p>If a topic does not have all of them (a schema/data/a local consumer and a local producer):</p>
+<ul>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>true</strong>, then the consumer registers a schema and it is connected to a broker.</p></li>
+<li><p>If <code>isAllowAutoUpdateSchema</code> sets to <strong>false</strong>, then the consumer is rejected to connect to a broker.</p></li>
+</ul></li>
+<li><p>If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.</p>
+<ul>
+<li><p>If the schema passes the compatibility check, then the consumer is connected to the broker.</p></li>
+<li><p>If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.</p></li>
+</ul></li>
+<li><p>The consumer receives messages from the broker.</p>
+<p>If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the <code>SchemaInfo</code> of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.</p></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/2.5.2/schema-get-started"><span class="arrow-prev">← </span><span>Get started</span></a><a class="docs-next button" href="/docs/fr/2.5.2/schema-evolution-compatibility"><span>Schema evolution and compatibility</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schemainfo">SchemaInfo</a></li><li><a href="#schema-type">Schema type</a><ul class="toc-headings"><li><a href="#primitive-type">Primitive type</a></li><li><a href="#complex-type">Complex type</a></li><li><a href="#auto-schema">Auto Schema</a></li></ul></li><li><a href="#schema-version">Schema version</a></li><li><a href="#how-does-schema-work">How does schema work</a><ul class="toc-headings"><li><a href="#producer-side">Producer side</a></li><li><a href="#consumer-side">Consumer side</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/fr/contact">Contact</a></li>' +
+            '<li><a href="/fr/contributing">Contributing</a></li>' +
+            '<li><a href="/fr/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/fr/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/fr/resources">Resources</a></li>' +
+            '<li><a href="/fr/team">Team</a></li>' +
+            '<li><a href="/fr/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:fr","version:2.5.2"]}
+              });
+            </script></body></html>

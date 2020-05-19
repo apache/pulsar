@@ -29,7 +29,7 @@
 </thead>
 <tbody>
 <tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster.</td></tr>
-<tr><td><code>acks</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The number of acknowledgments that the producer requires the leader to receive before a request completes. <br/>This controls the durability of the sent records.</td></tr>
+<tr><td><code>ack</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The number of acknowledgments that the producer requires the leader to receive before a request completes. <br/>This controls the durability of the sent records.</td></tr>
 <tr><td><code>batchsize</code></td><td>long</td><td>false</td><td>16384L</td><td>The batch size that a Kafka producer attempts to batch records together before sending them to brokers.</td></tr>
 <tr><td><code>maxRequestSize</code></td><td>long</td><td>false</td><td>1048576L</td><td>The maximum size of a Kafka request in bytes.</td></tr>
 <tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The Kafka topic which receives messages from Pulsar.</td></tr>

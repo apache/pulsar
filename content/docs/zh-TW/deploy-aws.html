@@ -104,12 +104,15 @@ $ <span class="hljs-built_in">cd</span> pulsar/deployment/terraform-ansible/aws
 <ol>
 <li>update <code>ansible.cfg</code> with following values:</li>
 </ol>
-<p><code>shell private_key_file=~/.ssh/pulsar_aws</code></p>
-<ol start="2">
-<li>update <code>terraform.tfvars</code> with following values:</li>
-</ol>
-<p><code>shell public_key_path=~/.ssh/pulsar_aws.pub</code></p>
+<pre><code class="hljs css language-shell"></code></pre>
 </blockquote>
+<p>private_key_file=~/.ssh/pulsar_aws</p>
+<pre><code class="hljs">
+2. <span class="hljs-keyword">update</span> <span class="hljs-symbol">`terraform.tfvars`</span> <span class="hljs-keyword">with</span> following <span class="hljs-keyword">values</span>:
+
+<span class="hljs-symbol">``</span><span class="hljs-symbol">`shell
+public_key_path=~/.ssh/pulsar_aws.pub
+</span></code></pre>
 <p>In order to create the necessary AWS resources using Terraform, you need to create an SSH key. Enter the following commands to create a private SSH key in <code>~/.ssh/id_rsa</code> and a public key in <code>~/.ssh/id_rsa.pub</code>:</p>
 <pre><code class="hljs css language-bash">$ ssh-keygen -t rsa
 </code></pre>
@@ -158,9 +161,9 @@ id_rsa               id_rsa.pub
 <li>9 total <a href="https://aws.amazon.com/ec2">Elastic Compute Cloud</a> (EC2) instances running the <a href="https://access.redhat.com/articles/3135091">ami-9fa343e7</a> Amazon Machine Image (AMI), which runs <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index">Red Hat Enterprise Linux (RHEL) 7.4</a>. By default, that includes:
 <ul>
 <li>3 small VMs for ZooKeeper (<a href="https://www.ec2instances.info/?selected=t2.small">t2.small</a> instances)</li>
-<li>3 larger VMs for BookKeeper <a href="/docs/zh-TW/reference-terminology#bookie">bookies</a> (<a href="https://www.ec2instances.info/?selected=i3.xlarge">i3.xlarge</a> instances)</li>
-<li>2 larger VMs for Pulsar <a href="/docs/zh-TW/reference-terminology#broker">brokers</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
-<li>1 larger VMs for Pulsar <a href="/docs/zh-TW/reference-terminology#proxy">proxy</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
+<li>3 larger VMs for BookKeeper <a href="reference-terminology.md#bookie">bookies</a> (<a href="https://www.ec2instances.info/?selected=i3.xlarge">i3.xlarge</a> instances)</li>
+<li>2 larger VMs for Pulsar <a href="reference-terminology.md#broker">brokers</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
+<li>1 larger VMs for Pulsar <a href="reference-terminology.md#proxy">proxy</a> (<a href="https://www.ec2instances.info/?selected=c5.2xlarge">c5.2xlarge</a> instances)</li>
 </ul></li>
 <li>An EC2 <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html">security group</a></li>
 <li>A <a href="https://aws.amazon.com/vpc/">virtual private cloud</a> (VPC) for security</li>

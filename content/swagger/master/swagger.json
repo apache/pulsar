@@ -10078,13 +10078,22 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
@@ -10104,15 +10113,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         }
       }
     },
@@ -11202,15 +11202,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
