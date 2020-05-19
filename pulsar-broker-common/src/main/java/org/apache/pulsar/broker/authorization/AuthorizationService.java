@@ -87,7 +87,13 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                     AuthenticationDataSource authenticationData) {
         if (provider != null) {
-            return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);
+            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.isTenantAdmin(tenant, role, tenantInfo, authenticationData);
+                }
+            });
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -323,7 +329,13 @@ public class AuthorizationService {
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                        AuthenticationDataSource authenticationData) {
-        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+            if (isSuperUser) {
+                return CompletableFuture.completedFuture(true);
+            } else {
+                return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+            }
+        });
     }
 
     /**
@@ -347,7 +359,13 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowTenantOperationAsync(tenantName, originalRole, role, operation, authData);
+            return provider.isSuperUser(role, authData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.allowTenantOperationAsync(tenantName, originalRole, role, operation, authData);
+                }
+            });
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
@@ -389,7 +407,13 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData);
+            return provider.isSuperUser(role, authData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData);
+                }
+            });
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
@@ -430,7 +454,13 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, originalRole, role, authData);
+            return provider.isSuperUser(role, authData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, originalRole, role, authData);
+                }
+            });
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
@@ -471,7 +501,13 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            return provider.isSuperUser(role, authData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+                }
+            });
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
