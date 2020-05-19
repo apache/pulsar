@@ -215,8 +215,6 @@ public class Policies {
                 .add("message_ttl_in_seconds", message_ttl_in_seconds)
                 .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
                 .add("retention_policies", retention_policies)
-                .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retentionPolicies", retention_policies)
-                .add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
                 .add("delayed_delivery_policies", delayed_delivery_policies)
