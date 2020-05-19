@@ -64,6 +64,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private ClassLoader rootClassLoader;
 
+    /**
+     * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime) that rely on ThreadRuntime to actually run an instance of the function.
+     * When used by other runtimes, the arguments such as secretsProvider and rootClassLoader will be provided.
+     */
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
