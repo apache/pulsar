@@ -21,27 +21,16 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit Tests of {@link MultiTopicsConsumerImpl}.
@@ -71,47 +60,5 @@ public class MultiTopicsConsumerImplTest {
             listenerExecutor, null, null, null, true);
 
         impl.getStats();
-    }
-
-    @Test
-    public void multiTopicsInDifferentNameSpace() throws PulsarClientException {
-        List<String> topics = new ArrayList<>();
-        topics.add("persistent://public/default/MultiTopics1");
-        topics.add("persistent://public/test-multi/MultiTopics2");
-        topics.add("persistent://public/test-multi/MultiTopics3");
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl("pulsar://localhost:6650");
-
-        PulsarClientImpl clientImpl = new PulsarClientImpl(conf);
-
-        clientImpl.newConsumer()
-                .topics(topics)
-                .subscriptionName("multiTopicSubscription")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribeAsync().thenAccept(this::receiveMessageFromConsumer);
-
-       Producer<String> producer = clientImpl.newProducer(Schema.STRING)
-                .topic("persistent://public/default/MultiTopics1")
-                .producerName("producer")
-                .create();
-         Producer<String> producer1 = clientImpl.newProducer(Schema.STRING)
-                .topic("persistent://public/test-multi/MultiTopics2")
-                .producerName("producer1")
-                .create();
-        //Message msg = consumer.receive();
-        producer.send("default/MultiTopics1-Message1");
-
-        producer1.send("test-multi/MultiTopics2-Message1");
-
-        producer.closeAsync();
-        producer1.closeAsync();
-    }
-    private void receiveMessageFromConsumer(Consumer consumer) {
-        consumer.receiveAsync().thenAccept(message -> {
-            Message ms = (Message) message;
-            String msg = new String(ms.getData());
-            assertTrue(msg.contains("-Message1"));
-            receiveMessageFromConsumer(consumer);
-        });
     }
 }
