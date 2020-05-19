@@ -36,6 +36,12 @@ module.exports = [
         link: 'https://debezium.io/'
     },
     {
+        name: 'dynamodb',
+        longName: 'AWS DynamoDB source',
+        type: 'Source',
+        link: 'https://aws.amazon.com/dynamodb/'
+    },
+    {
         name: 'elastic-search',
         longName: 'ElasticSearch sink',
         type: 'Sink',
