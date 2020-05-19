@@ -21,11 +21,14 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -62,4 +65,23 @@ public class MultiTopicsConsumerImplTest {
         impl.getStats();
     }
 
+    @Test
+    public void multiTopics() throws Exception {
+        List<String> topics = new ArrayList<>();
+        topics.add("persistent://public/default/MultiTopics1");
+        topics.add("persistent://public/test-multi/MultiTopics2");
+        topics.add("persistent://public/test-multi/MultiTopics3");
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-multi", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        ExecutorService listenerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+        ConsumerConfigurationData consumerConfData = new ConsumerConfigurationData();
+        consumerConfData.setTopicNames(Sets.newHashSet(topics));
+
+        Consumer consumer = clientImpl.newConsumer().topics(topics).subscriptionName("multiTopicSubscription").subscribe();
+    }
 }
