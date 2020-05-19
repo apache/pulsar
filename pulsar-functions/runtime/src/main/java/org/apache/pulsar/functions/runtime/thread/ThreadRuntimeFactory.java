@@ -34,7 +34,6 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -58,7 +57,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private FunctionCacheManager fnCache;
     private PulsarClient pulsarClient;
     private String storageServiceUrl;
-    private SecretsProvider secretsProvider;
+    private SecretsProvider defaultSecretsProvider;
     private CollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
     private volatile boolean closed;
@@ -112,7 +111,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
         this.rootClassLoader = rootClassLoader;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
-        this.secretsProvider = secretsProvider;
+        this.defaultSecretsProvider = secretsProvider;
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
@@ -139,6 +138,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
                                          String originalCodeFileName,
                                          Long expectedHealthCheckInterval) {
+        SecretsProvider secretsProvider = defaultSecretsProvider;
         if (secretsProvider == null) {
             String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
             secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
