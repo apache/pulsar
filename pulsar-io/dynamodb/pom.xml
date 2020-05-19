@@ -27,8 +27,8 @@
     <version>2.6.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-io-kinesis</artifactId>
-  <name>Pulsar IO :: Kinesis</name>
+  <artifactId>pulsar-io-dynamodb</artifactId>
+  <name>Pulsar IO :: DynamoDB</name>
 
   <dependencies>
 
@@ -78,30 +78,19 @@
       <artifactId>gson</artifactId>
     </dependency>
 
-    <!-- kinesis dependencies -->
+    <!-- dynamodb dependencies -->
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>software.amazon.kinesis</groupId>
-      <artifactId>amazon-kinesis-client</artifactId>
-      <version>2.2.8</version>
-    </dependency>
-
+    <!--  This pulls in the appropriate version of the kinesis consumer library as a transitive dependency -->
     <dependency>
       <groupId>com.amazonaws</groupId>
-      <artifactId>amazon-kinesis-producer</artifactId>
-      <version>0.14.0</version>
+      <artifactId>dynamodb-streams-kinesis-adapter</artifactId>
+      <version>1.5.1</version>
     </dependency>
-	<!-- /kinesis dependencies -->
-
-    <dependency>
-      <groupId>com.google.flatbuffers</groupId>
-      <artifactId>flatbuffers-java</artifactId>
-      <version>1.9.0</version>
-    </dependency>
+    <!-- /dynamodb dependencies -->
 
   </dependencies>
 
