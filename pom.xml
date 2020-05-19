@@ -195,6 +195,9 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.2.0</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
+    <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
+    <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
@@ -1050,6 +1053,11 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>mysql</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>postgresql</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>

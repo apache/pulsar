@@ -557,7 +557,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         if (canEnqueueMessage(message)) {
             incomingMessages.add(message);
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, message.getData().length);
+            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
+                    this, message.getData() == null ? 0 : message.getData().length);
         }
         return hasEnoughMessagesForBatchReceive();
     }
