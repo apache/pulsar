@@ -88,7 +88,7 @@
       "security-bouncy-castle"
     ],
     "Performance": [
-      "performance-pulsar-perf",
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",
