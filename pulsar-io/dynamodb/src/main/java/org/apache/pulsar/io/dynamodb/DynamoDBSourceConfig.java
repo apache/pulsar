@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
+package org.apache.pulsar.io.dynamodb;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,29 +25,64 @@ import java.net.URI;
 import java.util.Date;
 import java.util.Map;
 
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreams;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreamsClientBuilder;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStreamExtended;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClientBuilder;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
-import software.amazon.kinesis.common.InitialPositionInStreamExtended;
-import software.amazon.kinesis.common.KinesisClientUtil;
-import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.awssdk.regions.Region;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Data
-@EqualsAndHashCode(callSuper=true)
-public class KinesisSourceConfig extends BaseKinesisConfig implements Serializable {
+public class DynamoDBSourceConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Dynamodb streams end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+    )
+    private String awsEndpoint = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Appropriate aws region. E.g. us-west-1, us-west-2"
+    )
+    private String awsRegion = "";
+
+    @FieldDoc(
+            required = true,
+            defaultValue = "",
+            help = "Dynamodb stream arn"
+    )
+    private String awsDynamodbStreamArn = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
+                    + " It is a factory class which creates an AWSCredentialsProvider that will be used by dynamodb."
+                    + " If it is empty then dynamodb will create a default AWSCredentialsProvider which accepts json-map"
+                    + " of credentials in `awsCredentialPluginParam`")
+    private String awsCredentialPluginName = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
+    private String awsCredentialPluginParam = "";
 
     @FieldDoc(
         required = false,
@@ -81,16 +116,16 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     @FieldDoc(
         required = false,
         defaultValue = "Apache Pulsar IO Connector",
-        help = "Name of the Amazon Kinesis application. By default the application name is included "
+        help = "Name of the dynamodb consumer application. By default the application name is included "
                 + "in the user agent string used to make AWS requests. This can assist with troubleshooting "
                 + "(e.g. distinguish requests made by separate connectors instances)."
     )
-    private String applicationName = "pulsar-kinesis";
+    private String applicationName = "pulsar-dynamodb";
 
     @FieldDoc(
         required = false,
         defaultValue = "60000",
-        help = "The frequency of the Kinesis stream checkpointing (in milliseconds)"
+        help = "The frequency of the stream checkpointing (in milliseconds)"
     )
     private long checkpointInterval = 60000L;
 
@@ -98,7 +133,7 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
         required = false,
         defaultValue = "3000",
         help = "The amount of time to delay between requests when the connector encounters a Throttling"
-                + "exception from AWS Kinesis (in milliseconds)"
+                + "exception from dynamodb (in milliseconds)"
     )
     private long backoffTime = 3000L;
 
@@ -133,60 +168,57 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     )
     private String cloudwatchEndpoint = "";
 
-    @FieldDoc(
-        required = false,
-        defaultValue = "true",
-        help = "When true, uses Kinesis enhanced fan-out, when false, uses polling"
-    )
-    private boolean useEnhancedFanOut = true;
 
-
-    public static KinesisSourceConfig load(String yamlFile) throws IOException {
+    public static DynamoDBSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), KinesisSourceConfig.class);
+        return mapper.readValue(new File(yamlFile), DynamoDBSourceConfig.class);
     }
 
-    public static KinesisSourceConfig load(Map<String, Object> map) throws IOException {
+    public static DynamoDBSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KinesisSourceConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), DynamoDBSourceConfig.class);
     }
 
-    public KinesisAsyncClient buildKinesisAsyncClient(AwsCredentialProviderPlugin credPlugin) {
-        KinesisAsyncClientBuilder builder = KinesisAsyncClient.builder();
+    protected Region regionAsV2Region() {
+        return Region.of(this.getAwsRegion());
+    }
+
+    public AmazonDynamoDBStreams buildDynamoDBStreamsClient(AwsCredentialProviderPlugin credPlugin) {
+        AmazonDynamoDBStreamsClientBuilder builder = AmazonDynamoDBStreamsClientBuilder.standard();
 
         if (!this.getAwsEndpoint().isEmpty()) {
-            builder.endpointOverride(URI.create(this.getAwsEndpoint()));
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getAwsEndpoint(), this.getAwsRegion()));
         }
         if (!this.getAwsRegion().isEmpty()) {
-            builder.region(this.regionAsV2Region());
+            builder.setRegion(this.getAwsRegion());
         }
-        builder.credentialsProvider(credPlugin.getV2CredentialsProvider());
-        return KinesisClientUtil.createKinesisAsyncClient(builder);
-    }
-
-    public DynamoDbAsyncClient buildDynamoAsyncClient(AwsCredentialProviderPlugin credPlugin) {
-        DynamoDbAsyncClientBuilder builder = DynamoDbAsyncClient.builder();
-
-        if (!this.getDynamoEndpoint().isEmpty()) {
-            builder.endpointOverride(URI.create(this.getDynamoEndpoint()));
-        }
-        if (!this.getAwsRegion().isEmpty()) {
-            builder.region(this.regionAsV2Region());
-        }
-        builder.credentialsProvider(credPlugin.getV2CredentialsProvider());
+        builder.setCredentials(credPlugin.getCredentialProvider());
         return builder.build();
     }
 
-    public CloudWatchAsyncClient buildCloudwatchAsyncClient(AwsCredentialProviderPlugin credPlugin) {
-        CloudWatchAsyncClientBuilder builder = CloudWatchAsyncClient.builder();
+    public AmazonDynamoDB buildDynamoDBClient(AwsCredentialProviderPlugin credPlugin) {
+        AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
 
-        if (!this.getCloudwatchEndpoint().isEmpty()) {
-            builder.endpointOverride(URI.create(this.getCloudwatchEndpoint()));
+        if (!this.getAwsEndpoint().isEmpty()) {
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getDynamoEndpoint(), this.getAwsRegion()));
         }
         if (!this.getAwsRegion().isEmpty()) {
-            builder.region(this.regionAsV2Region());
+            builder.setRegion(this.getAwsRegion());
         }
-        builder.credentialsProvider(credPlugin.getV2CredentialsProvider());
+        builder.setCredentials(credPlugin.getCredentialProvider());
+        return builder.build();
+    }
+
+    public AmazonCloudWatch buildCloudwatchClient(AwsCredentialProviderPlugin credPlugin) {
+        AmazonCloudWatchClientBuilder builder = AmazonCloudWatchClientBuilder.standard();
+
+        if (!this.getAwsEndpoint().isEmpty()) {
+            builder.setEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(this.getCloudwatchEndpoint(), this.getAwsRegion()));
+        }
+        if (!this.getAwsRegion().isEmpty()) {
+            builder.setRegion(this.getAwsRegion());
+        }
+        builder.setCredentials(credPlugin.getCredentialProvider());
         return builder.build();
     }
 
