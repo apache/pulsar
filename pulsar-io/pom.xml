@@ -35,6 +35,7 @@
     <module>core</module>
     <module>common</module>
     <module>docs</module>
+    <module>aws</module>
     <module>twitter</module>
     <module>cassandra</module>
     <module>aerospike</module>
@@ -57,6 +58,7 @@
     <module>redis</module>
     <module>solr</module>
     <module>influxdb</module>
+    <module>dynamodb</module>
   </modules>
 
 </project>
