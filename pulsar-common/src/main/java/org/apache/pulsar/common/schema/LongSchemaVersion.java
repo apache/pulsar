@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.schema;
 
 import com.google.common.base.MoreObjects;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
+/**
+ * Long schema version.
+ */
 public class LongSchemaVersion implements SchemaVersion {
     private final long version;
 
