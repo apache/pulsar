@@ -399,17 +399,21 @@ public class SourceConfigUtils {
         return mergedConfig;
     }
 
-    private static void validateConnectorConfig(SourceConfig sourceConfig, NarClassLoader narClassLoader) {
+    private static void validateConnectorConfig(SourceConfig sourceConfig, ClassLoader classLoader) {
         try {
-            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition((NarClassLoader) classLoader);
             if (defn.getSourceConfigClass() != null) {
-                Class configClass = defn.getSourceConfigClass().getClass();
+                Class configClass = Class.forName(defn.getSourceConfigClass(), true, classLoader);
                 ObjectMapper mapper = new ObjectMapper();
                 Object configObject = mapper.readValue(new ObjectMapper().writeValueAsString(sourceConfig.getConfigs()), configClass);
-                ConfigValidation.validateConfig(configObject);
+                if (configObject != null) {
+                    ConfigValidation.validateConfig(configObject);
+                }
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Error validating source config", e);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Could not find source config class");
         }
     }
 
