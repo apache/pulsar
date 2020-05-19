@@ -22,6 +22,11 @@ import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -66,7 +71,7 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test
-    public void multiTopics() throws Exception {
+    public void multiTopicsInDifferentNameSpace() throws PulsarClientException {
         List<String> topics = new ArrayList<>();
         topics.add("persistent://public/default/MultiTopics1");
         topics.add("persistent://public/test-multi/MultiTopics2");
@@ -82,6 +87,27 @@ public class MultiTopicsConsumerImplTest {
         ConsumerConfigurationData consumerConfData = new ConsumerConfigurationData();
         consumerConfData.setTopicNames(Sets.newHashSet(topics));
 
-        Consumer consumer = clientImpl.newConsumer().topics(topics).subscriptionName("multiTopicSubscription").subscribe();
+        Consumer consumer = clientImpl.newConsumer().topics(topics)
+                .subscriptionName("multiTopicSubscription")
+                .messageListener(new MessageListener<byte[]>() {
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        System.out.println(" Message received:" + new String(msg.getData()));
+                    }
+                })
+                .subscribe();
+
+        Producer<String> producer = clientImpl.newProducer(Schema.STRING)
+                .topic("persistent://public/default/MultiTopics1")
+                .create();
+        Producer<String> producer1 = clientImpl.newProducer(Schema.STRING)
+                .topic("persistent://public/test-multi/MultiTopics2")
+                .create();
+        producer.send("default/MultiTopics1-Message1");
+        producer1.send("test-multi/MultiTopics2-Message1");
+        producer.closeAsync();
+        producer1.closeAsync();
+
+        consumer.closeAsync();
     }
 }
