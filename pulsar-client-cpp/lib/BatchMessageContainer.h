@@ -58,7 +58,11 @@ class BatchMessageContainer {
 
     ~BatchMessageContainer();
 
-    void add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
+    // It was only called in ProducerImpl::sendAsync, while the producer has reserved a spot of pending
+    // message queue before.
+    // It returns true to tell the producer not to release the spot because the spot would be released when
+    // the batched message was pushed to the queue successfully in ProducerImpl::sendMessage.
+    bool add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
 
     SharedBuffer getBatchedPayload();
 
@@ -109,7 +113,8 @@ class BatchMessageContainer {
 
     void startTimer();
 
-    void sendMessage(FlushCallback callback);
+    // Returns true if a batch of messages was sent to producer's pending message queue
+    bool sendMessage(FlushCallback callback);
 };
 
 bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {
