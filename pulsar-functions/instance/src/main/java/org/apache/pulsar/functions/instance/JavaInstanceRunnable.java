@@ -24,6 +24,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
+import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -132,6 +133,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final ClassLoader instanceClassLoader;
     private ClassLoader functionClassLoader;
+    private String narExtractionDirectory;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -139,7 +141,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry) {
+                                CollectorRegistry collectorRegistry,
+                                String narExtractionDirectory) {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
@@ -147,6 +150,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
+        this.narExtractionDirectory = narExtractionDirectory;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
@@ -214,7 +218,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(contextImpl, object);
+        return new JavaInstance(contextImpl, object, instanceConfig);
     }
 
     ContextImpl setupContext() {
@@ -254,7 +258,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 addLogTopicHandler();
-                JavaExecutionResult result;
+                CompletableFuture<JavaExecutionResult> result;
 
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
@@ -271,10 +275,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.processTimeEnd();
 
                 removeLogTopicHandler();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Got result: {}", result.getResult());
-                }
 
                 try {
                     processResult(currentRecord, result);
@@ -307,7 +307,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             fnCache.registerFunctionInstanceWithArchive(
                 instanceConfig.getFunctionId(),
                 instanceConfig.getInstanceName(),
-                jarFile);
+                jarFile, narExtractionDirectory);
         } catch (FileNotFoundException e) {
             // create the function class loader
             fnCache.registerFunctionInstance(
@@ -415,23 +415,27 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void processResult(Record srcRecord,
-                               JavaExecutionResult result) throws Exception {
-        if (result.getUserException() != null) {
-            log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
-            stats.incrUserExceptions(result.getUserException());
-            srcRecord.fail();
-        } else {
-            if (result.getResult() != null) {
-                sendOutputMessage(srcRecord, result.getResult());
+                               CompletableFuture<JavaExecutionResult> result) throws Exception {
+        result.whenComplete((result1, throwable) -> {
+            if (throwable != null || result1.getUserException() != null) {
+                Throwable t = throwable != null ? throwable : result1.getUserException();
+                log.warn("Encountered exception when processing message {}",
+                        srcRecord, t);
+                stats.incrUserExceptions(t);
+                srcRecord.fail();
             } else {
-                if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                    // the function doesn't produce any result or the user doesn't want the result.
-                    srcRecord.ack();
+                if (result1.getResult() != null) {
+                    sendOutputMessage(srcRecord, result1.getResult());
+                } else {
+                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                        // the function doesn't produce any result or the user doesn't want the result.
+                        srcRecord.ack();
+                    }
                 }
+                // increment total successfully processed
+                stats.incrTotalProcessedSuccessfully();
             }
-            // increment total successfully processed
-            stats.incrTotalProcessedSuccessfully();
-        }
+        });
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {

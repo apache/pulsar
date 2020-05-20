@@ -1520,6 +1520,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
+            stats.bytesOutCounter += subStats.bytesOutCounter;
+            stats.msgOutCounter += subStats.msgOutCounter;
             stats.subscriptions.put(name, subStats);
         });
 

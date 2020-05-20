@@ -72,6 +72,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -485,6 +486,10 @@ public abstract class AdminResource extends PulsarWebResource {
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
         }
+
+        if (policies.message_ttl_in_seconds <= 0) {
+            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
+        }
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
@@ -534,7 +539,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().clustersCache();
     }
 
-    protected ZooKeeperChildrenCache managedLedgerListCache() {
+    protected ZooKeeperManagedLedgerCache managedLedgerListCache() {
         return pulsar().getLocalZkCacheService().managedLedgerListCache();
     }
 

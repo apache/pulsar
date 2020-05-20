@@ -425,6 +425,8 @@ public class NonPersistentSubscription implements Subscription {
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
+                subStats.bytesOutCounter += consumerStats.bytesOutCounter;
+                subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
             });
         }

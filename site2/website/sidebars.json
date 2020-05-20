@@ -78,6 +78,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-tls-keystore",
       "security-jwt",
       "security-athenz",
       "security-kerberos",
@@ -85,6 +86,9 @@
       "security-encryption",
       "security-extending",
       "security-bouncy-castle"
+    ],
+    "Performance": [
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",

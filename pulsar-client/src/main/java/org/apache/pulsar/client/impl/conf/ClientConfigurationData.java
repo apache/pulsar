@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Sets;
 import java.time.Clock;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,6 +30,7 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,9 +47,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private transient Authentication authentication = new AuthenticationDisabled();
+    private Authentication authentication = AuthenticationDisabled.INSTANCE;
     private String authPluginClassName;
     private String authParams;
+    private Map<String, String> authParamMap;
 
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -71,6 +75,16 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
     //
     private String listenerName;
+
+    // set TLS using KeyStore way.
+    private boolean useKeyStoreTls = false;
+    private String sslProvider = null;
+    // needed when client auth is required
+    private String tlsTrustStoreType = "JKS";
+    private String tlsTrustStorePath = null;
+    private String tlsTrustStorePassword = null;
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsProtocols = Sets.newTreeSet();
 
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();

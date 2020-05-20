@@ -620,6 +620,10 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
 
+    for (const auto &q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
+
     delete[] content;
 }
 
@@ -3033,6 +3037,42 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
     }
 }
 
+TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+
+    std::string topicName =
+        "persistent://public/default/test-regex-initial-position-" + std::to_string(time(NULL));
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    for (int i = 0; i < 10; i++) {
+        producer.send(MessageBuilder().setContent("test-" + std::to_string(i)).build());
+    }
+
+    std::string subsName = "testRegexTopicsWithMessageListener-sub";
+    std::string pattern = topicName + ".*";
+
+    // Subscription gets created after messages are produced but it will start from the beginning of the topic
+    ConsumerConfiguration consumerConf;
+    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+
+    Consumer consumer;
+    result = client.subscribeWithRegex(pattern, subsName, consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subsName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        Result res = consumer.receive(msg);
+        ASSERT_EQ(ResultOk, result);
+    }
+
+    client.close();
+}
+
 TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     ClientConfiguration config;
     Client client(lookupUrl);
@@ -3214,9 +3254,63 @@ TEST(BasicEndToEndTest, testSendCallback) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg));
         receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
     }
 
     latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    consumer.close();
+    producer.close();
+
+    const std::string partitionedTopicName = topicName + "-" + std::to_string(time(nullptr));
+    const std::string url = adminUrl + "admin/v2/persistent/" +
+                            partitionedTopicName.substr(partitionedTopicName.find("://") + 3) + "/partitions";
+    const int numPartitions = 3;
+
+    int res = makePutRequest(url, std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopicName, producerConfig, producer));
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopicName, "SubscriptionName", consumer));
+
+    sentIdSet.clear();
+    receivedIdSet.clear();
+
+    const int numMessages = numPartitions * 2;
+    latch = Latch(numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+            ASSERT_EQ(ResultOk, result);
+            sentIdSet.emplace(id);
+            latch.countdown();
+        });
+    }
+
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    std::set<int> partitionIndexSet;
+    for (const auto &id : sentIdSet) {
+        partitionIndexSet.emplace(id.partition());
+    }
+    std::set<int> expectedPartitionIndexSet;
+    for (int i = 0; i < numPartitions; i++) {
+        expectedPartitionIndexSet.emplace(i);
+    }
     ASSERT_EQ(sentIdSet, receivedIdSet);
 
     consumer.close();

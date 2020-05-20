@@ -1650,6 +1650,10 @@ public class Commands {
             singleMessageMetadataBuilder.setSequenceId(msgBuilder.getSequenceId());
         }
 
+        if (msgBuilder.hasNullValue()) {
+            singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {
