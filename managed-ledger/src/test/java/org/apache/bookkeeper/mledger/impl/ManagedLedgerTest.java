@@ -99,6 +99,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -2648,6 +2649,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
         createLedgerDoneLatch.await();
         return failed.getValue();
+    }
+
+
+    @Test
+    public void testPropertiesForMeta() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+
+        final String mLName = "properties_test";
+        factory.open(mLName);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+
+        ManagedLedgerInfo.Builder builder = ManagedLedgerInfo.newBuilder();
+        builder.addProperties(MLDataFormats.KeyValue.newBuilder().setKey("key1").setValue("value1").build());
+        builder.addProperties(MLDataFormats.KeyValue.newBuilder().setKey("key2").setValue("value2").build());
+
+        CountDownLatch l2 = new CountDownLatch(1);
+        store.asyncUpdateLedgerIds(mLName, builder.build(),
+                new Stat(1, 0, 0),
+                new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat version) {
+                l2.countDown();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                fail("on asyncUpdateLedgerIds");
+            }
+        });
+
+        // get ManagedLedgerInfo from meta store
+        org.apache.bookkeeper.mledger.ManagedLedgerInfo managedLedgerInfo = factory.getManagedLedgerInfo(mLName);
+        Map<String, String> properties = managedLedgerInfo.properties;
+        assertEquals(properties.get("key1"), "value1");
+        assertEquals(properties.get("key2"), "value2");
+
+        factory.shutdown();
+        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+
+        // reopen managedLedger
+        ManagedLedger ml = factory.open(mLName);
+        properties = ml.getProperties();
+        assertEquals(properties.get("key1"), "value1");
+        assertEquals(properties.get("key2"), "value2");
     }
 
     private void createLedger(ManagedLedgerFactoryImpl factory, MutableObject<ManagedLedger> ledger1,
