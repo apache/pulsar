@@ -32,7 +32,6 @@ public class NamespaceEphemeralData {
     private String httpUrl;
     private String httpUrlTls;
     private boolean disabled;
-    //
     private Map<String, AdvertisedListener> advertisedListeners;
 
     public NamespaceEphemeralData() {
@@ -84,7 +83,7 @@ public class NamespaceEphemeralData {
     @NotNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
-            return Collections.unmodifiableMap(Collections.EMPTY_MAP);
+            return Collections.EMPTY_MAP;
         }
         return Collections.unmodifiableMap(this.advertisedListeners);
     }

@@ -395,9 +395,8 @@ public class NamespaceService {
                                     new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
                             return;
                         } else {
-                            future.complete(Optional.of(new LookupResult(
-                                    nsData.get().getHttpUrl(), nsData.get().getHttpUrlTls(), listener.getBrokerServiceUrl().toString(),
-                                    listener.getBrokerServiceUrlTls().toString(), LookupResult.Type.BrokerUrl)));
+                            future.complete(Optional.of(new LookupResult(nsData.get(),
+                                    listener.getBrokerServiceUrl().toString(), listener.getBrokerServiceUrlTls().toString())));
                             return;
                         }
                     } else {
@@ -496,9 +495,8 @@ public class NamespaceService {
                                         new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
                                 return;
                             } else {
-                                lookupFuture.complete(Optional.of(new LookupResult(
-                                        ownerInfo.getHttpUrl(), ownerInfo.getHttpUrlTls(), listener.getBrokerServiceUrl().toString(),
-                                        listener.getBrokerServiceUrlTls().toString(), LookupResult.Type.BrokerUrl)));
+                                lookupFuture.complete(Optional.of(new LookupResult(ownerInfo, listener.getBrokerServiceUrl().toString(),
+                                        listener.getBrokerServiceUrlTls().toString())));
                                 return;
                             }
                         } else {
