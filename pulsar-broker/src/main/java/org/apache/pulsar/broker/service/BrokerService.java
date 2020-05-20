@@ -1063,16 +1063,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
 
-            if (offloadPolicies == null) {
-                offloadPolicies = new OffloadPolicies();
-                offloadPolicies.setManagedLedgerOffloadDriver(pulsar.getConfiguration().getManagedLedgerOffloadDriver());
-                offloadPolicies.setManagedLedgerOffloadThresholdInBytes(
-                        pulsar.getConfiguration().getManagedLedgerOffloadAutoTriggerSizeThresholdBytes()
-                );
-                offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(
-                        pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs()
-                );
-            }
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
 
             future.complete(managedLedgerConfig);
