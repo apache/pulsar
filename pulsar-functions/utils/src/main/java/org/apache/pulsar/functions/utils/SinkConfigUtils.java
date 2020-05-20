@@ -601,8 +601,8 @@ public class SinkConfigUtils {
             ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
             if (defn.getSinkConfigClass() != null) {
                 Class configClass = Class.forName(defn.getSinkConfigClass(),  true, classLoader);
-                ObjectMapper mapper = new ObjectMapper();
-                Object configObject = mapper.readValue(new ObjectMapper().writeValueAsString(sinkConfig.getConfigs()), configClass);
+                Object configObject =
+                        ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
                 if (configObject != null) {
                     ConfigValidation.validateConfig(configObject);
                 }

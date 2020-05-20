@@ -404,8 +404,7 @@ public class SourceConfigUtils {
             ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
             if (defn.getSourceConfigClass() != null) {
                 Class configClass = Class.forName(defn.getSourceConfigClass(), true, classLoader);
-                ObjectMapper mapper = new ObjectMapper();
-                Object configObject = mapper.readValue(new ObjectMapper().writeValueAsString(sourceConfig.getConfigs()), configClass);
+                Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
                 if (configObject != null) {
                     ConfigValidation.validateConfig(configObject);
                 }
