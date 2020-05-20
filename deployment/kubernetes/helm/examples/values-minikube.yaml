@@ -17,7 +17,7 @@
 # under the License.
 #
 
-## deployed withh emptyDir
+## deployed with emptyDir
 volumes:
   persistence: false
 

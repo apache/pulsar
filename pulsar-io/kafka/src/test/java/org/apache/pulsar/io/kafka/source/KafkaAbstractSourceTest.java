@@ -22,6 +22,10 @@ package org.apache.pulsar.io.kafka.source;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.KafkaAbstractSource;
 import org.apache.pulsar.io.kafka.KafkaSourceConfig;
@@ -156,6 +160,16 @@ public class KafkaAbstractSourceTest {
 
             @Override
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+                return null;
+            }
+
+            @Override
+            public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
+                return null;
+            }
+
+            @Override
+            public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
                 return null;
             }
         };

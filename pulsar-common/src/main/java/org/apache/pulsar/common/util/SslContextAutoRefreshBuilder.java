@@ -18,16 +18,10 @@
  */
 package org.apache.pulsar.common.util;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Auto refresher and builder of SSLContext.
@@ -35,30 +29,18 @@ import org.slf4j.LoggerFactory;
  * @param <T>
  *            type of SSLContext
  */
+@Slf4j
 public abstract class SslContextAutoRefreshBuilder<T> {
-    protected final boolean tlsAllowInsecureConnection;
-    protected final FileModifiedTimeUpdater tlsTrustCertsFilePath, tlsCertificateFilePath, tlsKeyFilePath;
-    protected final Set<String> tlsCiphers;
-    protected final Set<String> tlsProtocols;
-    protected final boolean tlsRequireTrustedClientCertOnConnect;
     protected final long refreshTime;
     protected long lastRefreshTime;
 
-    public SslContextAutoRefreshBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
-            String keyFilePath, Set<String> ciphers, Set<String> protocols, boolean requireTrustedClientCertOnConnect,
-            long certRefreshInSec) throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
-        this.tlsAllowInsecureConnection = allowInsecure;
-        this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
-        this.tlsCertificateFilePath = new FileModifiedTimeUpdater(certificateFilePath);
-        this.tlsKeyFilePath = new FileModifiedTimeUpdater(keyFilePath);
-        this.tlsCiphers = ciphers;
-        this.tlsProtocols = protocols;
-        this.tlsRequireTrustedClientCertOnConnect = requireTrustedClientCertOnConnect;
+    public SslContextAutoRefreshBuilder(
+            long certRefreshInSec) {
         this.refreshTime = TimeUnit.SECONDS.toMillis(certRefreshInSec);
         this.lastRefreshTime = -1;
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Certs will be refreshed every {} seconds", certRefreshInSec);
+        if (log.isDebugEnabled()) {
+            log.debug("Certs will be refreshed every {} seconds", certRefreshInSec);
         }
     }
 
@@ -79,6 +61,13 @@ public abstract class SslContextAutoRefreshBuilder<T> {
     protected abstract T getSslContext();
 
     /**
+     * Returns whether the key files modified after a refresh time, and context need update.
+     *
+     * @return true if files modified
+     */
+    protected abstract boolean needUpdate();
+
+    /**
      * It updates SSLContext at every configured refresh time and returns updated SSLContext.
      *
      * @return
@@ -91,24 +80,21 @@ public abstract class SslContextAutoRefreshBuilder<T> {
                 lastRefreshTime = System.currentTimeMillis();
                 return getSslContext();
             } catch (GeneralSecurityException | IOException e) {
-                LOG.error("Execption while trying to refresh ssl Context {}", e.getMessage(), e);
+                log.error("Exception while trying to refresh ssl Context {}", e.getMessage(), e);
             }
         } else {
             long now = System.currentTimeMillis();
             if (refreshTime <= 0 || now > (lastRefreshTime + refreshTime)) {
-                if (tlsTrustCertsFilePath.checkAndRefresh() || tlsCertificateFilePath.checkAndRefresh()
-                        || tlsKeyFilePath.checkAndRefresh()) {
+                if (needUpdate()) {
                     try {
                         ctx = update();
                         lastRefreshTime = now;
                     } catch (GeneralSecurityException | IOException e) {
-                        LOG.error("Execption while trying to refresh ssl Context {} ", e.getMessage(), e);
+                        log.error("Exception while trying to refresh ssl Context {} ", e.getMessage(), e);
                     }
                 }
             }
         }
         return ctx;
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(SslContextAutoRefreshBuilder.class);
 }

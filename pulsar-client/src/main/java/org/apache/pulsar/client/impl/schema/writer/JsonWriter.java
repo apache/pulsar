@@ -23,6 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
+/**
+ * Writer implementation for writing objects as JSON.
+ *
+ * @param <T>
+ * @deprecated use {@link JacksonJsonWriter} instead.
+ */
+@Deprecated
 public class JsonWriter<T> implements SchemaWriter<T> {
 
     private final ObjectMapper objectMapper;

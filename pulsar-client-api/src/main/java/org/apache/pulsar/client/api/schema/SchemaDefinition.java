@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
@@ -76,4 +78,18 @@ public interface SchemaDefinition<T> {
      * @return the flag of supportSchemaVersioning
      */
     boolean getSupportSchemaVersioning();
+
+    /**
+     * Get a configured schema reader.
+     *
+     * @return optional containing configured schema reader or empty optional if none is configure
+     */
+    Optional<SchemaReader<T>> getSchemaReaderOpt();
+
+    /**
+     * Get a configured schema writer.
+     *
+     * @return optional containing configured schema writer or empty optional if none is configure
+     */
+    Optional<SchemaWriter<T>> getSchemaWriterOpt();
 }
