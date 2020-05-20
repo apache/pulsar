@@ -513,14 +513,18 @@ public class PulsarFunctionLocalRunTest {
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, sinkTopic, subscriptionName);
-        Map<String,String> schemaInput = new HashMap<>();
         //set jsr310ConversionEnabled、alwaysAllowNull
-        schemaInput.put(sourceTopic,"{\"schemaType\":\"AVRO\",\"jsr310ConversionEnabled\":true,\"alwaysAllowNull\":true}");
+        Map<String,String> schemaInput = new HashMap<>();
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"true\"}}");
+        Map<String, String> schemaOutput = new HashMap<>();
+        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"true\"}}");
+
         functionConfig.setCustomSchemaInputs(schemaInput);
+        functionConfig.setCustomSchemaOutputs(schemaOutput);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        if(jarFilePathUrl == null){
+        if (jarFilePathUrl == null) {
             functionConfig.setClassName("org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction");
-        }else {
+        } else {
             functionConfig.setJar(jarFilePathUrl);
         }
 
@@ -545,11 +549,6 @@ public class PulsarFunctionLocalRunTest {
             }
         }, 50, 150);
 
-        // validate pulsar sink consumer has started on the topic
-        TopicStats stats = admin.topics().getStats(sourceTopic);
-        assertTrue(stats.subscriptions.get(subscriptionName) != null
-                && !stats.subscriptions.get(subscriptionName).consumers.isEmpty());
-
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
             AvroTestObject avroTestObject = new AvroTestObject();
@@ -557,14 +556,6 @@ public class PulsarFunctionLocalRunTest {
             producer.newMessage().property(propertyKey, propertyValue)
                     .value(avroTestObject).send();
         }
-        retryStrategically((test) -> {
-            try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
 
         //consume message from sinkTopic
         for (int i = 0; i < totalMsgs; i++) {
@@ -572,14 +563,13 @@ public class PulsarFunctionLocalRunTest {
             String receivedPropertyValue = msg.getProperty(propertyKey);
             assertEquals(propertyValue, receivedPropertyValue);
             assertEquals(msg.getValue().getField("baseValue"),  10 + i);
+            consumer.acknowledge(msg);
         }
 
-        // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
-        // due to publish failure
-        assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages,
-                totalMsgs);
-
-        // stop functions
+        // validate pulsar-sink consumer has consumed all messages
+        assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages, 0);
+        producer.close();
+        consumer.close();
         localRunner.stop();
 
         retryStrategically((test) -> {
@@ -592,28 +582,29 @@ public class PulsarFunctionLocalRunTest {
             }
         }, 20, 150);
 
-        TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats.subscriptions.get(subscriptionName) != null
-                && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
+        //change the schema ,the function should not run, resulting in no messages to consume
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"false\"}}");
+        localRunner = LocalRunner.builder()
+                .functionConfig(functionConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        localRunner.start(false);
 
-        retryStrategically((test) -> {
-            try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
-            } catch (PulsarAdminException e) {
-                if (e.getStatusCode() == 404) {
-                    return true;
-                }
-                return false;
-            }
-        }, 10, 150);
+        producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
+        consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
 
-        try {
-            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() != 404) {
-                fail();
-            }
-        }
+        producer.newMessage().property(propertyKey, propertyValue).value(new AvroTestObject()).sendAsync();
+        Message<GenericRecord> msg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(msg, null);
+
+        producer.close();
+        consumer.close();
+        localRunner.stop();
     }
 
     @Test(timeOut = 20000)
@@ -621,7 +612,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(null);
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 30000)
     public void testAvroFunctionLocalRun() throws Exception {
         testAvroFunctionLocalRun(null);
     }

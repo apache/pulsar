@@ -45,6 +45,8 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 @Slf4j
 public class TopicSchema {
 
+    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
+    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
@@ -85,6 +87,10 @@ public class TopicSchema {
 
     public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
+    }
+
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input, classLoader));
     }
 
 
@@ -151,10 +157,7 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz)
-                    .withJSR310ConversionEnabled(conf.isJsr310ConversionEnabled())
-                    .withAlwaysAllowNull(conf.isAlwaysAllowNull())
-                    .build());
+            return buildAvroSchema(clazz, conf);
 
         case JSON:
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
@@ -168,6 +171,16 @@ public class TopicSchema {
         default:
             throw new RuntimeException("Unsupported schema type" + type);
         }
+    }
+
+    private static <T> AvroSchema<T> buildAvroSchema(Class<T> clazz, ConsumerConfig conf) {
+        //"jsr310ConversionEnabled" default value is false; "alwaysAllowNull" default value is true
+        String jsr310ConversionEnabled = conf.getSchemaProperties().get(JSR_310_CONVERSION_ENABLED);
+        String alwaysAllowNull = conf.getSchemaProperties().get(ALWAYS_ALLOW_NULL);
+        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz)
+                .withJSR310ConversionEnabled(!StringUtils.isEmpty(jsr310ConversionEnabled) && Boolean.parseBoolean(jsr310ConversionEnabled))
+                .withAlwaysAllowNull(StringUtils.isEmpty(alwaysAllowNull) || Boolean.parseBoolean(alwaysAllowNull))
+                .build());
     }
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {

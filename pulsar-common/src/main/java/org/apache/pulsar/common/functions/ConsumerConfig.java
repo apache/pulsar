@@ -24,6 +24,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Configuration of a consumer.
  */
@@ -36,11 +39,18 @@ public class ConsumerConfig {
     private String schemaType;
     private String serdeClassName;
     private boolean isRegexPattern;
+    private Map<String, String> schemaProperties;
     private Integer receiverQueueSize;
-    private boolean jsr310ConversionEnabled;
-    private boolean alwaysAllowNull;
 
     public ConsumerConfig(String schemaType) {
         this.schemaType = schemaType;
     }
+
+    public Map<String, String> getDefaultSchemaProperties() {
+        if (schemaProperties != null) {
+            return schemaProperties;
+        }
+        return new HashMap<>();
+    }
+
 }

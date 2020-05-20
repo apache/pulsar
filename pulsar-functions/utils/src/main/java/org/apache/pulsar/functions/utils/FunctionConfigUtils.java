@@ -102,12 +102,11 @@ public class FunctionConfigUtils {
                     sourceSpecBuilder.putInputSpecs(topicName,
                             Function.ConsumerSpec.newBuilder()
                                     .setSchemaType(consumerConfig.getSchemaType())
-                                    .setJsr310ConversionEnabled(consumerConfig.isJsr310ConversionEnabled())
-                                    .setAlwaysAllowNull(consumerConfig.isAlwaysAllowNull())
+                                    .putAllSchemaProperties(consumerConfig.getDefaultSchemaProperties())
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
-                    throw new IllegalArgumentException(String.format("Incorrect customer spec ,Topic %s ", topicName));
+                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs ,Topic %s ", topicName));
                 }
             });
         }
@@ -166,10 +165,22 @@ public class FunctionConfigUtils {
         if (functionConfig.getForwardSourceMessageProperty() != null) {
             sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
-
+        sinkSpecBuilder.putAllSchemaProperties(new HashMap<>());
+        if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
+            String conf = functionConfig.getCustomSchemaOutputs().get(functionConfig.getOutput());
+            try {
+                if (StringUtils.isNotEmpty(conf)) {
+                    ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                    sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getDefaultSchemaProperties());
+                }
+            } catch (JsonProcessingException e) {
+                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
+            }
+        }
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
+
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         if (functionConfig.getTenant() != null) {
@@ -280,8 +291,7 @@ public class FunctionConfigUtils {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
-            consumerConfig.setJsr310ConversionEnabled(input.getValue().getJsr310ConversionEnabled());
-            consumerConfig.setAlwaysAllowNull(input.getValue().getAlwaysAllowNull());
+            consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
