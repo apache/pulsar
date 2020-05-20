@@ -2,12 +2,27 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2020-04-23T06:00:00.000Z</updated>
+    <updated>2020-05-19T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.5.2]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2020/05/19/Apache-Pulsar-2-5-2.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2020/05/19/Apache-Pulsar-2-5-2.html"/>
+        <updated>2020-05-19T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are proud to publish Apache Pulsar 2.5.2. This is the result of a huge effort from the community, with over 56 commits, general improvements and bug fixes.</p>
+<p>For detailed changes related to 2.5.2 release, refer to the <b><a href="/release-notes/#2.5.2">release notes</a></b> and the <b><a href="https://github.com/apache/pulsar/pulls?q=is:pr%20label:release/2.5.2%20is:closed">PR list for Pulsar 2.5.2</a></b>.</p>
+<p>The following highlights some improved features and fixed bugs in this release.</p>
+]]></summary>
+        <author>
+            <name>Jia Zhai</name>
+            <email/>
+            <uri>https://twitter.com/Jia_Zhai</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.5.1]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2020/04/23/Apache-Pulsar-2-5-1.html</id>
