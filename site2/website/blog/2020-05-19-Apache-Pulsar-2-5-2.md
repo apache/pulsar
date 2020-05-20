@@ -91,7 +91,7 @@ In previous releases, the `MessageId` in the callback is always the default valu
 
 If messages are sent to a partitioned topic, the `partition` field of the message ID is always set to -1 because the `SendReceipt` command only contains the ledger ID and the entry ID. In Pulsar 2.5.2, we fix this bug by adding a `partition` field to `ProducerImpl` and setting the `partition` field of the message ID with it in the `ackReceived` method.
 
-## Support Async mode
+## Support Async mode for Pulsar Functions
 
 In previous releases, Pulsar Functions does not support the Async mode, such as the user passed in a Function in the following format:
 
