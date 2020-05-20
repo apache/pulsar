@@ -34,12 +34,11 @@ Usage:
 EOF
 }
 
+delete_namespace=false
 
 while [[ $# -gt 0 ]]
 do
 key="$1"
-
-delete_namespace=false
 
 case $key in
     -n|--namespace)

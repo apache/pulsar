@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -73,6 +74,9 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private long managedLedgerCacheSizeMB = 0L;
     private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
+
+    // --- Nar extraction
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
     @NotNull
     public String getBrokerServiceUrl() {
@@ -355,6 +359,17 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.managed-ledger-num-scheduler-threads")
     public PulsarConnectorConfig setManagedLedgerNumSchedulerThreads(int managedLedgerNumSchedulerThreads) {
         this.managedLedgerNumSchedulerThreads = managedLedgerNumSchedulerThreads;
+        return this;
+    }
+
+    // --- Nar extraction config
+    public String getNarExtractionDirectory() {
+        return narExtractionDirectory;
+    }
+
+    @Config("pulsar.nar-extraction-directory")
+    public PulsarConnectorConfig setNarExtractionDirectory(String narExtractionDirectory) {
+        this.narExtractionDirectory = narExtractionDirectory;
         return this;
     }
 

@@ -65,7 +65,7 @@ public class SearchBcNarUtils {
                 NarClassLoader ncl = NarClassLoader.getFromArchive(
                         new File(narPath),
                         Collections.emptySet(),
-                        BCLoader.class.getClassLoader());
+                        BCLoader.class.getClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
                 String configStr = ncl.getServiceDefinition(BC_DEF_NAME);
 
                 BcNarDefinition nar = ObjectMapperFactory.getThreadLocalYaml()

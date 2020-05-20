@@ -37,6 +37,7 @@ import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -58,6 +59,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -76,6 +78,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -291,8 +294,8 @@ public class ServerCnx extends PulsarHandler {
             }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService().canLookupAsync(topicName, authRole,
-                    authenticationData);
+                isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                        TopicOperation.LOOKUP, originalPrincipal, authRole, authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -363,8 +366,8 @@ public class ServerCnx extends PulsarHandler {
             }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService()
-                        .canLookupAsync(topicName, authRole, authenticationData);
+                isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                        TopicOperation.LOOKUP, originalPrincipal, authRole, authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -759,8 +762,9 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().canConsumeAsync(topicName, authRole,
-                    authenticationData, subscribe.getSubscription());
+            authenticationData.setSubscription(subscriptionName);
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                    TopicOperation.CONSUME, originalPrincipal, authRole, authenticationData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -768,9 +772,13 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationService().canConsumeAsync(topicName,
-                            originalPrincipal != null ? originalPrincipal : authRole, authenticationData,
-                            subscriptionName);
+                    if (authenticationData == null) {
+                        authenticationData = new AuthenticationDataCommand("", subscriptionName);
+                    } else {
+                        authenticationData.setSubscription(subscriptionName);
+                    }
+                    authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                            TopicOperation.CONSUME, originalPrincipal, authRole, authenticationData);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -978,8 +986,8 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().canProduceAsync(topicName,
-                    authRole, authenticationData);
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                    TopicOperation.PRODUCE, originalPrincipal, authRole, authenticationData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -987,8 +995,8 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationService().canProduceAsync(topicName,
-                            originalPrincipal != null ? originalPrincipal : authRole, authenticationData);
+                    authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                            TopicOperation.PRODUCE, originalPrincipal, authRole, authenticationData);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -1117,6 +1125,11 @@ public class ServerCnx extends PulsarHandler {
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
+
+                            if (cause instanceof NoSuchElementException) {
+                                cause = new TopicNotFoundException("Topic Not Found.");
+                            }
+
                             if (!(cause instanceof ServiceUnitNotReadyException)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}", remoteAddress, topicName, exception);

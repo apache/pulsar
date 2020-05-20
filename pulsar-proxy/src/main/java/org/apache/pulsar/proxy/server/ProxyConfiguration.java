@@ -133,6 +133,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Hostname or IP address the service advertises to the outside world."
+            + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."
+    )
+    private String advertisedAddress;
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
     private Optional<Integer> servicePort = Optional.ofNullable(6650);

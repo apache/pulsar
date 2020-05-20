@@ -39,13 +39,15 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
       sequenceId_(sequenceId),
       timeout_(TimeUtils::now() + milliseconds(conf.getSendTimeout())) {}
 
-ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf)
+ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf,
+                           int32_t partition)
     : HandlerBase(
           client, topic,
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
       executor_(client->getIOExecutorProvider()->get()),
       pendingMessagesQueue_(conf_.getMaxPendingMessages()),
+      partition_(partition),
       producerName_(conf_.getProducerName()),
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
@@ -235,14 +237,6 @@ void ProducerImpl::failPendingMessages(Result result) {
     // without holding producer mutex.
     for (MessageQueue::const_iterator it = pendingMessagesQueue_.begin(); it != pendingMessagesQueue_.end();
          it++) {
-        // When dealing any failure message, if the current message is a batch one, we should also release
-        // the reserved spots in the pendingMessageQueue_, for all individual messages inside this batch
-        // message. See 'ProducerImpl::sendAsync' for more details.
-        if (it->msg_.impl_->metadata.has_num_messages_in_batch()) {
-            // batch message - need to release more spots
-            // -1 since the pushing batch message into the queue already released a spot
-            pendingMessagesQueue_.release(it->msg_.impl_->metadata.num_messages_in_batch() - 1);
-        }
         messagesToFail.push_back(*it);
     }
 
@@ -425,7 +419,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     if (batchMessageContainer && !msg.impl_->metadata.has_deliver_at_time()) {
         // Batching is enabled and the message is not delayed
-        batchMessageContainer->add(msg, cb);
+        if (!batchMessageContainer->add(msg, cb)) {
+            pendingMessagesQueue_.release(1);
+        }
         return;
     }
     sendMessage(msg, cb);
@@ -609,11 +605,6 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
     } else {
         LOG_DEBUG(getName() << "Remove corrupt message from queue " << sequenceId);
         pendingMessagesQueue_.pop();
-        if (op.msg_.impl_->metadata.has_num_messages_in_batch()) {
-            // batch message - need to release more spots
-            // -1 since the pushing batch message into the queue already released a spot
-            pendingMessagesQueue_.release(op.msg_.impl_->metadata.num_messages_in_batch() - 1);
-        }
         lock.unlock();
         if (op.sendCallback_) {
             // to protect from client callback exception
@@ -627,7 +618,9 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
     }
 }
 
-bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& messageId) {
+bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
+    MessageId messageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
+                        rawMessageId.batchIndex());
     OpSendMsg op;
     Lock lock(mutex_);
     bool havePendingAck = pendingMessagesQueue_.peek(op);
@@ -653,11 +646,6 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& messageId) {
         // Message was persisted correctly
         LOG_DEBUG(getName() << "Received ack for msg " << sequenceId);
         pendingMessagesQueue_.pop();
-        if (op.msg_.impl_->metadata.has_num_messages_in_batch()) {
-            // batch message - need to release more spots
-            // -1 since the pushing batch message into the queue already released a spot
-            pendingMessagesQueue_.release(op.msg_.impl_->metadata.num_messages_in_batch() - 1);
-        }
 
         lastSequenceIdPublished_ = sequenceId + op.msg_.impl_->metadata.num_messages_in_batch() - 1;
 
