@@ -103,6 +103,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     /* methods */
     unsigned int getNumPartitions() const;
     unsigned int getNumPartitionsWithLock() const;
+    void assertPartitionIsValid(int32_t partition) const;
     ConsumerConfiguration getSinglePartitionConsumerConfig() const;
     ConsumerImplPtr newInternalConsumer(unsigned int partition, const ConsumerConfiguration& config) const;
     void setState(PartitionedConsumerState state);
@@ -126,5 +127,13 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
 };
 typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
 typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
+
+inline void PartitionedConsumerImpl::assertPartitionIsValid(int32_t partition) const {
+#ifndef NDEBUG
+    Lock consumersLock(consumersMutex_);
+    assert(partition < getNumPartitions() && partition >= 0 && consumers_.size() > partition);
+#endif
+}
+
 }  // namespace pulsar
 #endif  // PULSAR_PARTITIONED_CONSUMER_HEADER
