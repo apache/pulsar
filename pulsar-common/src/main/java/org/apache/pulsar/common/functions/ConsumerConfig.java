@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.common.functions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Configuration of a consumer.
