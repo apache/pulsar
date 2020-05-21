@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime.thread;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import io.prometheus.client.CollectorRegistry;
@@ -27,6 +28,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -42,22 +44,23 @@ import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 @Slf4j
 public class ThreadRuntime implements Runtime {
 
+    private static final int THREAD_SHUTDOWN_TIMEOUT_MILLIS = 10_000;
+
     // The thread that invokes the function
     private Thread fnThread;
 
-    private static final int THREAD_SHUTDOWN_TIMEOUT_MILLIS = 10_000;
+    private JavaInstanceRunnable javaInstanceRunnable;
 
     @Getter
-    private InstanceConfig instanceConfig;
-    private JavaInstanceRunnable javaInstanceRunnable;
-    private ThreadGroup threadGroup;
-    private FunctionCacheManager fnCache;
-    private String jarFile;
-    private PulsarClient pulsarClient;
-    private String stateStorageServiceUrl;
-    private SecretsProvider secretsProvider;
-    private CollectorRegistry collectorRegistry;
-    private String narExtractionDirectory;
+    private final InstanceConfig instanceConfig;
+    private final ThreadGroup threadGroup;
+    private final FunctionCacheManager fnCache;
+    private final String jarFile;
+    private final PulsarClient pulsarClient;
+    private final String stateStorageServiceUrl;
+    private final SecretsProvider secretsProvider;
+    private final CollectorRegistry collectorRegistry;
+    private final String narExtractionDirectory;
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
@@ -175,7 +178,12 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return javaInstanceRunnable.getStats().getStatsAsString();
+        final ComponentStatsManager stats = javaInstanceRunnable.getStats();
+        // do we have any stats to provide?
+        if (Objects.isNull(stats)) {
+            return "";
+        }
+        return stats.getStatsAsString();
     }
 
     @Override
