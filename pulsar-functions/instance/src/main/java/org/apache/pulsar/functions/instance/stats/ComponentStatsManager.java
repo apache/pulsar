@@ -136,7 +136,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions();
 
-    synchronized public String getStatsAsString() throws IOException {
+    public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();
 
         PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
