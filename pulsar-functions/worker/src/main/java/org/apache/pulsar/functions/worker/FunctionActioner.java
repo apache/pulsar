@@ -177,6 +177,7 @@ public class FunctionActioner {
         instanceConfig.setPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
+        instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
         return instanceConfig;
     }
 
@@ -397,7 +398,7 @@ public class FunctionActioner {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
                 File archive = connectorsManager.getSourceArchive(sourceSpec.getBuiltin()).toFile();
-                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSourceClass();
+                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSourceClass();
                 SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
@@ -411,7 +412,7 @@ public class FunctionActioner {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 File archive = connectorsManager.getSinkArchive(sinkSpec.getBuiltin()).toFile();
-                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSinkClass();
+                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSinkClass();
                 SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);
@@ -426,7 +427,7 @@ public class FunctionActioner {
 
     private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
             throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
             String typeArg = getSourceType(className, ncl).getName();
 
             SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
@@ -444,7 +445,7 @@ public class FunctionActioner {
 
     private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
             throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
             String typeArg = getSinkType(className, ncl).getName();
 
             SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());

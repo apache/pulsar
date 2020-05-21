@@ -75,12 +75,6 @@ public class RabbitMQAbstractConfig implements Serializable {
     private String password = "guest";
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The RabbitMQ queue name from which messages should be read from or written to")
-    private String queueName;
-
-    @FieldDoc(
         required = false,
         defaultValue = "0",
         help = "Initially requested maximum channel number. 0 for unlimited")
@@ -115,7 +109,6 @@ public class RabbitMQAbstractConfig implements Serializable {
         Preconditions.checkNotNull(port, "port property not set.");
         Preconditions.checkNotNull(virtualHost, "virtualHost property not set.");
         Preconditions.checkNotNull(connectionName, "connectionName property not set.");
-        Preconditions.checkNotNull(queueName, "queueName property not set.");
     }
 
     public ConnectionFactory createConnectionFactory() {

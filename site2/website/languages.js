@@ -118,8 +118,8 @@ const languages = [
   },
   {
     enabled: false,
-    name: 'Polskie',
-    tag: 'pl',
+    name: 'Polski',
+    tag: 'pl-PL',
   },
   {
     enabled: false,

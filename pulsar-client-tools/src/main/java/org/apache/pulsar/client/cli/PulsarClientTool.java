@@ -60,6 +60,12 @@ public class PulsarClientTool {
     boolean tlsEnableHostnameVerification = false;
     String tlsTrustCertsFilePath = null;
 
+    // for tls with keystore type config
+    boolean useKeyStoreTls = false;
+    String tlsTrustStoreType = "JKS";
+    String tlsTrustStorePath = null;
+    String tlsTrustStorePassword = null;
+
     JCommander commandParser;
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
@@ -78,6 +84,12 @@ public class PulsarClientTool {
         this.tlsEnableHostnameVerification = Boolean
                 .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
         this.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+
+        this.useKeyStoreTls = Boolean
+                .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
+        this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
+        this.tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
+        this.tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
 
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
@@ -99,6 +111,12 @@ public class PulsarClientTool {
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
         clientBuilder.serviceUrl(serviceURL);
+
+        clientBuilder.useKeyStoreTls(useKeyStoreTls)
+                .tlsTrustStoreType(tlsTrustStoreType)
+                .tlsTrustStorePath(tlsTrustStorePath)
+                .tlsTrustStorePassword(tlsTrustStorePassword);
+
         this.produceCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
     }

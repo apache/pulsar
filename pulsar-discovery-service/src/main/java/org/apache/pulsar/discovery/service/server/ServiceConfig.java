@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.Data;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
@@ -32,6 +33,7 @@ import com.google.common.collect.Sets;
  * Service Configuration to start :{@link DiscoveryServiceServlet}
  *
  */
+@Data
 public class ServiceConfig implements PulsarConfiguration {
 
     // Local-Zookeeper quorum connection string
@@ -81,7 +83,7 @@ public class ServiceConfig implements PulsarConfiguration {
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
-    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+    // Tls cert refresh duration in seconds (set 0 to check on every new connection)
     private long tlsCertRefreshCheckDurationSec = 300;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
@@ -101,217 +103,27 @@ public class ServiceConfig implements PulsarConfiguration {
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
+    /***** --- TLS with KeyStore--- ****/
+    // Enable TLS with KeyStore type configuration in broker
+    private boolean tlsEnabledWithKeyStore = false;
+    // TLS Provider
+    private String tlsProvider = null;
+    // TLS KeyStore type configuration in broker: JKS, PKCS12
+    private String tlsKeyStoreType = "JKS";
+    // TLS KeyStore path in broker
+    private String tlsKeyStore = null;
+    // TLS KeyStore password in broker
+    private String tlsKeyStorePassword = null;
+    // TLS TrustStore type configuration in broker: JKS, PKCS12
+    private String tlsTrustStoreType = "JKS";
+    // TLS TrustStore path in broker
+    private String tlsTrustStore = null;
+    // TLS TrustStore password in broker"
+    private String tlsTrustStorePassword = null;
+
     private Properties properties = new Properties();
-
-    public String getZookeeperServers() {
-        return zookeeperServers;
-    }
-
-    public void setZookeeperServers(String zookeeperServers) {
-        this.zookeeperServers = zookeeperServers;
-    }
-
-    @Deprecated
-    public String getGlobalZookeeperServers() {
-        return globalZookeeperServers;
-    }
-
-    @Deprecated
-    public void setGlobalZookeeperServers(String globalZookeeperServers) {
-        this.globalZookeeperServers = globalZookeeperServers;
-    }
 
     public String getConfigurationStoreServers() {
         return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
-    }
-
-    public void setConfigurationStoreServers(String configurationStoreServers) {
-        this.configurationStoreServers = configurationStoreServers;
-    }
-
-    public int getZookeeperSessionTimeoutMs() {
-        return zookeeperSessionTimeoutMs;
-    }
-
-    public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
-        this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
-    }
-
-    public int getZooKeeperCacheExpirySeconds() {
-        return zooKeeperCacheExpirySeconds;
-    }
-
-    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
-        this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
-    }
-
-    public Optional<Integer> getServicePort() {
-        return servicePort;
-    }
-
-    public void setServicePort(Optional<Integer> servicePort) {
-        this.servicePort = servicePort;
-    }
-
-    public Optional<Integer> getServicePortTls() {
-        return servicePortTls;
-    }
-
-    public void setServicePortTls(Optional<Integer> servicePortTls) {
-        this.servicePortTls = servicePortTls;
-    }
-
-    public Optional<Integer> getWebServicePort() {
-        return webServicePort;
-    }
-
-    public void setWebServicePort(Optional<Integer> webServicePort) {
-        this.webServicePort = webServicePort;
-    }
-
-    public Optional<Integer> getWebServicePortTls() {
-        return webServicePortTls;
-    }
-
-    public void setWebServicePortTls(Optional<Integer> webServicePortTls) {
-        this.webServicePortTls = webServicePortTls;
-    }
-
-    @Deprecated
-    public boolean isTlsEnabled() {
-        return tlsEnabled || webServicePortTls.isPresent() || servicePortTls.isPresent();
-    }
-
-    @Deprecated
-    public void setTlsEnabled(boolean tlsEnabled) {
-        this.tlsEnabled = tlsEnabled;
-    }
-
-    public String getTlsCertificateFilePath() {
-        return tlsCertificateFilePath;
-    }
-
-    public void setTlsCertificateFilePath(String tlsCertificateFilePath) {
-        this.tlsCertificateFilePath = tlsCertificateFilePath;
-    }
-
-    public String getTlsKeyFilePath() {
-        return tlsKeyFilePath;
-    }
-
-    public void setTlsKeyFilePath(String tlsKeyFilePath) {
-        this.tlsKeyFilePath = tlsKeyFilePath;
-    }
-
-    public String getTlsTrustCertsFilePath() {
-        return tlsTrustCertsFilePath;
-    }
-
-    public void setTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
-        this.tlsTrustCertsFilePath = tlsTrustCertsFilePath;
-    }
-
-    public boolean isTlsAllowInsecureConnection() {
-        return tlsAllowInsecureConnection;
-    }
-
-    public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
-        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
-    }
-
-    public boolean isBindOnLocalhost() {
-        return bindOnLocalhost;
-    }
-
-    public void setBindOnLocalhost(boolean bindOnLocalhost) {
-        this.bindOnLocalhost = bindOnLocalhost;
-    }
-
-    public boolean isAuthenticationEnabled() {
-        return authenticationEnabled;
-    }
-
-    public void setAuthenticationEnabled(boolean authenticationEnabled) {
-        this.authenticationEnabled = authenticationEnabled;
-    }
-
-    public Set<String> getAuthenticationProviders() {
-        return authenticationProviders;
-    }
-
-    public void setAuthenticationProviders(Set<String> authenticationProviders) {
-        this.authenticationProviders = authenticationProviders;
-    }
-
-    public boolean isAuthorizationEnabled() {
-        return authorizationEnabled;
-    }
-
-    public void setAuthorizationEnabled(boolean authorizationEnabled) {
-        this.authorizationEnabled = authorizationEnabled;
-    }
-
-    public String getAuthorizationProvider() {
-        return authorizationProvider;
-    }
-
-    public void setAuthorizationProvider(String authorizationProvider) {
-        this.authorizationProvider = authorizationProvider;
-    }
-
-    public Set<String> getSuperUserRoles() {
-        return superUserRoles;
-    }
-
-    public void setSuperUserRoles(Set<String> superUserRoles) {
-        this.superUserRoles = superUserRoles;
-    }
-
-    public boolean getAuthorizationAllowWildcardsMatching() {
-        return authorizationAllowWildcardsMatching;
-    }
-
-    public void setAuthorizationAllowWildcardsMatching(boolean authorizationAllowWildcardsMatching) {
-        this.authorizationAllowWildcardsMatching = authorizationAllowWildcardsMatching;
-    }
-
-    public Properties getProperties() {
-        return properties;
-    }
-
-    public void setProperties(Properties properties) {
-        this.properties = properties;
-    }
-
-    public Set<String> getTlsProtocols() {
-        return tlsProtocols;
-    }
-
-    public void setTlsProtocols(Set<String> tlsProtocols) {
-        this.tlsProtocols = tlsProtocols;
-    }
-
-    public long getTlsCertRefreshCheckDurationSec() {
-        return tlsCertRefreshCheckDurationSec;
-    }
-
-    public void setTlsCertRefreshCheckDurationSec(long tlsCertRefreshCheckDurationSec) {
-        this.tlsCertRefreshCheckDurationSec = tlsCertRefreshCheckDurationSec;
-    }
-
-    public Set<String> getTlsCiphers() {
-        return tlsCiphers;
-    }
-
-    public void setTlsCiphers(Set<String> tlsCiphers) {
-        this.tlsCiphers = tlsCiphers;
-    }
-
-    public boolean getTlsRequireTrustedClientCertOnConnect() {
-        return tlsRequireTrustedClientCertOnConnect;
-    }
-
-    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
-        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
     }
 }

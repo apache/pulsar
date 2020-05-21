@@ -38,13 +38,12 @@ Usage:
 EOF
 }
 
+symmetric=false
+create_namespace=false
 
 while [[ $# -gt 0 ]]
 do
 key="$1"
-
-symmetric=false
-create_namespace=false
 
 case $key in
     -n|--namespace)
