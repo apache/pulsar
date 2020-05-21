@@ -273,7 +273,7 @@ public class PulsarSink<T> implements Sink<T> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
-        Schema<T> schema = initializeSchema((Context) sinkContext);
+        Schema<T> schema = sinkContext instanceof Context ? initializeSchema((Context) sinkContext) : initializeSchema();
         if (schema == null) {
             log.info("Since output type is null, not creating any real sink");
             return;

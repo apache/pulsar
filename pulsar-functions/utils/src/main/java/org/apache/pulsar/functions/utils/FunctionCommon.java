@@ -403,7 +403,7 @@ public class FunctionCommon {
 
     public static Type[] getFunctionGenericTypeArg(String className, ClassLoader classLoader) throws ClassNotFoundException {
         if (StringUtils.isEmpty(className) || classLoader == null) {
-            return null;
+            throw new IllegalArgumentException("className and classLoader can not be null");
         }
         Class<?> loadedClass = classLoader.loadClass(className);
         Type functionGenericType = null;

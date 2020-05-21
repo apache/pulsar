@@ -66,7 +66,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
-        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs((Context) sourceContext);
+        Map<String, ConsumerConfig<T>> configs = sourceContext instanceof Context ? setupConsumerConfigs((Context) sourceContext)
+                : setupConsumerConfigs();
 
         for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
