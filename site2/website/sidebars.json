@@ -87,6 +87,9 @@
       "security-extending",
       "security-bouncy-castle"
     ],
+    "Performance": [
+      "performance-pulsar-perf"
+    ],
     "Client libraries": [
       "client-libraries-java",
       "client-libraries-go",

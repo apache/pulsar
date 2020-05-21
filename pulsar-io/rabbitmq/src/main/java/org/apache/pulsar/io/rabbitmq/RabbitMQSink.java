@@ -49,7 +49,6 @@ public class RabbitMQSink implements Sink<byte[]> {
     private Channel rabbitMQChannel;
     private RabbitMQSinkConfig rabbitMQSinkConfig;
     private String exchangeName;
-    private String routingKey;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -64,21 +63,17 @@ public class RabbitMQSink implements Sink<byte[]> {
         );
 
         exchangeName = rabbitMQSinkConfig.getExchangeName();
-        routingKey = rabbitMQSinkConfig.getRoutingKey();
+        String exchangeType = rabbitMQSinkConfig.getExchangeType();
 
         rabbitMQChannel = rabbitMQConnection.createChannel();
-
-        // several clients share a queue
-        rabbitMQChannel.exchangeDeclare(exchangeName, BuiltinExchangeType.DIRECT, true);
-        rabbitMQChannel.queueDeclare(rabbitMQSinkConfig.getQueueName(), true, false, false, null);
-        rabbitMQChannel.queueBind(rabbitMQSinkConfig.getQueueName(), exchangeName, routingKey);
+        rabbitMQChannel.exchangeDeclare(exchangeName, exchangeType, true);
     }
 
     @Override
     public void write(Record<byte[]> record) {
         byte[] value = record.getValue();
         try {
-            rabbitMQChannel.basicPublish(exchangeName, routingKey, null, value);
+            rabbitMQChannel.basicPublish(exchangeName, record.getProperties().get("routingKey"), null, value);
             record.ack();
         } catch (IOException e) {
             record.fail();

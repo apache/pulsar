@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -72,6 +74,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      */
     private boolean supportSchemaVersioning = false;
 
+    private SchemaReader<T> reader;
+
+    private SchemaWriter<T> writer;
+
     @Override
     public SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull) {
         this.alwaysAllowNull = alwaysAllowNull;
@@ -115,6 +121,18 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
+    public SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader) {
+        this.reader=reader;
+        return this;
+    }
+
+    @Override
+    public SchemaDefinitionBuilder<T> withSchemaWriter(SchemaWriter<T> writer) {
+        this.writer = writer;
+        return this;
+    }
+
+    @Override
     public  SchemaDefinition<T> build() {
         checkArgument(StringUtils.isNotBlank(jsonDef) || clazz != null,
                 "Must specify one of the pojo or jsonDef for the schema definition.");
@@ -122,10 +140,13 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         checkArgument(!(StringUtils.isNotBlank(jsonDef) && clazz != null),
                 "Not allowed to set pojo and jsonDef both for the schema definition.");
 
+        checkArgument((reader != null && writer != null) || (reader == null && writer == null),
+                "Must specify reader and writer or none of them.");
+
         properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
         properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
         return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning,
-                jsr310ConversionEnabled);
+                jsr310ConversionEnabled, reader, writer);
 
     }
 }

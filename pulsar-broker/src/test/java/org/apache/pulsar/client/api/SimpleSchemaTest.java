@@ -30,7 +30,7 @@ import static org.testng.Assert.assertTrue;
 
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
-import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;

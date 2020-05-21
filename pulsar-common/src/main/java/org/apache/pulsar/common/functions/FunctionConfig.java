@@ -86,7 +86,7 @@ public class FunctionConfig {
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
-    private Boolean forwardSourceMessageProperty = true;
+    private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
@@ -115,5 +115,5 @@ public class FunctionConfig {
     private String customRuntimeOptions;
     // Max pending async requests per instance to avoid large number of concurrent requests.
     // Only used in AsyncFunction. Default: 1000.
-    private Integer maxPendingAsyncRequests = 1000;
+    private Integer maxPendingAsyncRequests;
 }

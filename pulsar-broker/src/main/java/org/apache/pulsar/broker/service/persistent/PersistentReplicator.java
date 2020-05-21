@@ -276,6 +276,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 messagesToRead = 1;
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 if (log.isDebugEnabled()) {
