@@ -811,7 +811,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    public String getStatsAsString() throws IOException {
+    synchronized public String getStatsAsString() throws IOException {
         if (stats != null) {
             return stats.getStatsAsString();
         } else {
