@@ -547,17 +547,32 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
+    synchronized public String getStatsAsString() throws IOException {
+        if (stats != null) {
+            return stats.getStatsAsString();
+        } else {
+            return "";
+        }
+    }
+
     // This method is synchronized because it is using the stats variable
     synchronized public InstanceCommunication.MetricsData getAndResetMetrics() {
-        InstanceCommunication.MetricsData metricsData = getMetrics();
-        if (stats != null) {
-            stats.reset();
-        }
+        InstanceCommunication.MetricsData metricsData = internalGetMetrics();
+        internalResetMetrics();
         return metricsData;
     }
 
     // This method is synchronized because it is using the stats and javaInstance variables
     synchronized public InstanceCommunication.MetricsData getMetrics() {
+        return internalGetMetrics();
+    }
+
+    // This method is synchronized because it is using the stats and javaInstance variables
+    synchronized public void resetMetrics() {
+        internalResetMetrics();
+    }
+
+    private InstanceCommunication.MetricsData internalGetMetrics() {
         InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
         if (javaInstance != null) {
             Map<String, Double> userMetrics =  javaInstance.getMetrics();
@@ -568,8 +583,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return bldr.build();
     }
 
-    // This method is synchronized because it is using the stats and javaInstance variables
-    synchronized public void resetMetrics() {
+    private void internalResetMetrics() {
         if (stats != null) {
             stats.reset();
         }
@@ -810,14 +824,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
-        }
-    }
-
-    synchronized public String getStatsAsString() throws IOException {
-        if (stats != null) {
-            return stats.getStatsAsString();
-        } else {
-            return "";
         }
     }
 }
