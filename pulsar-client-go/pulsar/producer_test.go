@@ -448,39 +448,39 @@ func TestProducer_DelayMessage(t *testing.T) {
 
 	ctx := context.Background()
 
-	delay := time.Second*5
+	delay := time.Second * 5
 	begin := time.Now()
-	fmt.Printf("begin %v\n", begin)
+	t.Logf("begin %v\n", begin)
 	for i := 0; i < 10; i++ {
 		err := producer.Send(ctx, ProducerMessage{
-			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+			Payload:      []byte(fmt.Sprintf("hello-%d", i)),
 			DeliverAfter: delay,
 		})
-		fmt.Printf("send message %d\n", i)
+		t.Logf("send message %d\n", i)
 		assert.Nil(t, err)
 	}
 
 	// Failover consumer will receive the messages immediately while
-    // the shared consumer will get them after the delay
+	// the shared consumer will get them after the delay
 	for i := 0; i < 10; i++ {
 		msg, err := failoverConsumer.Receive(ctx)
 		assert.Nil(t, err)
-		fmt.Printf("message: %s\n",msg.Payload())
+		t.Logf("message: %s\n", msg.Payload())
 		err = failoverConsumer.Ack(msg)
 		assert.Nil(t, err)
 
-		fmt.Printf("after %v\n", time.Now())
+		t.Logf("after %v\n", time.Now())
 		assert.True(t, time.Since(begin) < delay)
 	}
 
 	for i := 0; i < 10; i++ {
 		msg, err := sharedConsumer.Receive(ctx)
 		assert.Nil(t, err)
-		fmt.Printf("message: %s\n",msg.Payload())
+		t.Logf("message: %s\n", msg.Payload())
 		err = sharedConsumer.Ack(msg)
 		assert.Nil(t, err)
 
-		fmt.Printf("after %v\n", time.Now())
+		t.Logf("after %v\n", time.Now())
 		assert.True(t, time.Since(begin) > delay)
 	}
 }
