@@ -177,7 +177,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     /**
      * NOTE: this method should be called in the instance thread, in order to make class loading work.
      */
-    JavaInstance setupJavaInstance() throws Exception {
+    synchronized private void setup() throws Exception {
+
+        this.instanceCache = InstanceCache.getInstanceCache();
+
+        if (this.collectorRegistry == null) {
+            this.collectorRegistry = new CollectorRegistry();
+        }
+        this.stats = ComponentStatsManager.getStatsManager(this.collectorRegistry, this.metricsLabels,
+                this.instanceCache.getScheduledExecutorService(),
+                this.componentType);
+
         // initialize the thread context
         ThreadContext.put("function", FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
@@ -217,7 +227,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(contextImpl, object, instanceConfig);
+        javaInstance = new JavaInstance(contextImpl, object, instanceConfig);
     }
 
     ContextImpl setupContext() {
@@ -233,16 +243,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
-            this.instanceCache = InstanceCache.getInstanceCache();
-
-            if (this.collectorRegistry == null) {
-                this.collectorRegistry = new CollectorRegistry();
-            }
-            this.stats = ComponentStatsManager.getStatsManager(this.collectorRegistry, this.metricsLabels,
-                    this.instanceCache.getScheduledExecutorService(),
-                    this.componentType);
-
-            javaInstance = setupJavaInstance();
+            setup();
+            
             while (true) {
                 currentRecord = readInput();
 
