@@ -24,6 +24,8 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
+
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -102,9 +104,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
-    @Getter(AccessLevel.PACKAGE)
     private StorageClient storageClient;
-    @Getter(AccessLevel.PACKAGE)
     private Table<ByteBuf, ByteBuf> stateTable;
 
     private JavaInstance javaInstance;
@@ -112,7 +112,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Throwable deathException;
 
     // function stats
-    @Getter
     private ComponentStatsManager stats;
 
     private Record<?> currentRecord;
@@ -799,6 +798,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
+        }
+    }
+
+    public String getStatsAsString() throws IOException {
+        if (stats != null) {
+            return stats.getStatsAsString();
+        } else {
+            return "";
         }
     }
 }
