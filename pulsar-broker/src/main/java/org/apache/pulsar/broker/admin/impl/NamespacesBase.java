@@ -2410,6 +2410,12 @@ public abstract class NamespacesBase extends AdminResource {
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (policies.offload_policies != null) {
                 policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+            } else {
+                policies.offload_policies = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+                if (policies.offload_deletion_lag_ms != null) {
+                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+                }
             }
             policies.offload_threshold = newThreshold;
 
@@ -2457,6 +2463,12 @@ public abstract class NamespacesBase extends AdminResource {
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (policies.offload_policies != null) {
                 policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+            } else {
+                policies.offload_policies = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+                if (policies.offload_threshold != -1) {
+                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+                }
             }
             policies.offload_deletion_lag_ms = newDeletionLagMs;
 
