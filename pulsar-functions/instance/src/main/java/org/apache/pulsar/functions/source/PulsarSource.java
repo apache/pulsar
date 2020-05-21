@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -33,8 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -63,7 +66,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
-        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
+        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs(sourceContext);
 
         for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
@@ -150,7 +153,13 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @SuppressWarnings("unchecked")
     @VisibleForTesting
-    Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException {
+    Map<String, ConsumerConfig<T>> setupConsumerConfigs() throws ClassNotFoundException{
+        return setupConsumerConfigs(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    @VisibleForTesting
+    Map<String, ConsumerConfig<T>> setupConsumerConfigs(SourceContext sourceContext) throws ClassNotFoundException {
         Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
@@ -158,14 +167,18 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
+        Context context = (Context) sourceContext;
+        //Function<T, R> . Source should base on the type of T，so use the data at position 0
+        Type genericType = FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[0];
+
         // Check new config with schema types or classnames
         pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
             Schema<T> schema;
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
-            } else if (typeArg == KeyValue.class) {
+            } else if (typeArg == KeyValue.class && genericType != null) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg,
-                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), pulsarSourceConfig.getFunctionGenericType());
+                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), genericType);
             } else {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }

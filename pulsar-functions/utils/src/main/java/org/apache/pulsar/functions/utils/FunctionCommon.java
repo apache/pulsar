@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -401,6 +402,9 @@ public class FunctionCommon {
     }
 
     public static Type[] getFunctionGenericTypeArg(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        if (StringUtils.isEmpty(className) || classLoader == null) {
+            return null;
+        }
         Class<?> loadedClass = classLoader.loadClass(className);
         Type functionGenericType = null;
         if (java.util.function.Function.class.isAssignableFrom(loadedClass)) {

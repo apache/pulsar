@@ -35,16 +35,19 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -270,7 +273,7 @@ public class PulsarSink<T> implements Sink<T> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
-        Schema<T> schema = initializeSchema();
+        Schema<T> schema = initializeSchema(sinkContext);
         if (schema == null) {
             log.info("Since output type is null, not creating any real sink");
             return;
@@ -330,10 +333,19 @@ public class PulsarSink<T> implements Sink<T> {
 
     @SuppressWarnings("unchecked")
     @VisibleForTesting
-    Schema<T> initializeSchema() throws ClassNotFoundException {
+    Schema<T> initializeSchema() throws ClassNotFoundException{
+        return initializeSchema(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    @VisibleForTesting
+    Schema<T> initializeSchema(SinkContext sinkContext) throws ClassNotFoundException {
         if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
             return (Schema<T>) Schema.BYTES;
         }
+        Context context = (Context) sinkContext;
+        //Function<T, R> . Sink should base on the type of R，so use the data at position 1
+        Type genericType = FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[1];
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
         if (Void.class.equals(typeArg)) {
@@ -345,9 +357,9 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     pulsarSinkConfig.getSchemaType(), false);
         } else {
-            if(typeArg == KeyValue.class){
+            if (typeArg == KeyValue.class && genericType != null) {
                 return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, pulsarSinkConfig.getFunctionGenericType());
+                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, genericType);
             }
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader);

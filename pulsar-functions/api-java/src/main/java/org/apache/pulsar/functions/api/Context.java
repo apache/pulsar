@@ -88,6 +88,12 @@ public interface Context {
     String getFunctionName();
 
     /**
+     * The class name of the function that we are executing.
+     * @return
+     */
+    String getFunctionClassName();
+
+    /**
      * The id of the function that we are executing
      *
      * @return The function id

@@ -211,6 +211,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public String getFunctionClassName() {
+        return config.getFunctionDetails().getClassName();
+    }
+
+    @Override
     public String getFunctionId() {
         return config.getFunctionId();
     }
