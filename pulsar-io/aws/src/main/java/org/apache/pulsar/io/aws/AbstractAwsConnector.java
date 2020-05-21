@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.kinesis;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+package org.apache.pulsar.io.aws;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -32,16 +29,17 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.utils.StringUtils;
 
 @Slf4j
-public abstract class AbstractKinesisConnector {
+public abstract class AbstractAwsConnector {
     
     public static final String ACCESS_KEY_NAME = "accessKey";
     public static final String SECRET_KEY_NAME = "secretKey";
 
-    protected AwsCredentialProviderPlugin createCredentialProvider(String awsCredentialPluginName,
-            String awsCredentialPluginParam) {
-        if (isNotBlank(awsCredentialPluginName)) {
+    public AwsCredentialProviderPlugin createCredentialProvider(String awsCredentialPluginName,
+                                                                   String awsCredentialPluginParam) {
+        if (StringUtils.isNotBlank(awsCredentialPluginName)) {
             return createCredentialProviderWithPlugin(awsCredentialPluginName, awsCredentialPluginParam);
         } else {
             return defaultCredentialProvider(awsCredentialPluginParam);
@@ -79,16 +77,19 @@ public abstract class AbstractKinesisConnector {
      * @param awsCredentialPluginParam
      * @return
      */
-    protected AwsCredentialProviderPlugin defaultCredentialProvider(String awsCredentialPluginParam) {
+    public AwsCredentialProviderPlugin defaultCredentialProvider(String awsCredentialPluginParam) {
         Map<String, String> credentialMap = new Gson().fromJson(awsCredentialPluginParam,
                 new TypeToken<Map<String, String>>() {
                 }.getType());
         String accessKey = credentialMap.get(ACCESS_KEY_NAME);
         String secretKey = credentialMap.get(SECRET_KEY_NAME);
-        checkArgument(isNotBlank(accessKey) && isNotBlank(secretKey),
-                String.format(
-                        "Default %s and %s must be present into json-map if AwsCredentialProviderPlugin not provided",
-                        ACCESS_KEY_NAME, SECRET_KEY_NAME));
+        if (!(StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey))) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Default %s and %s must be present into json-map if AwsCredentialProviderPlugin not provided",
+                            ACCESS_KEY_NAME, SECRET_KEY_NAME)
+            );
+        }
         return new AwsCredentialProviderPlugin() {
             @Override
             public void init(String param) {
