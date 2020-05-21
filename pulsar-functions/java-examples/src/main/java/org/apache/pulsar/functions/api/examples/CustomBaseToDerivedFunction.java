@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
 public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, CustomDerivedObject> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public CustomDerivedObject process(CustomBaseObject input, Context context) {
         return new CustomDerivedObject(input.getBaseValue() + 100, (int)input.getBaseValue() + 50);
     }

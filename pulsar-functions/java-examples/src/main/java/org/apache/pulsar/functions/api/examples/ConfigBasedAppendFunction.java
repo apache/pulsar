@@ -28,6 +28,11 @@ import java.util.Optional;
  */
 public class ConfigBasedAppendFunction implements Function<String, String> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public String process(String input, Context context) {
         String key = "config-key";
         Optional<Object> appendValue = context.getUserConfigValue(key);

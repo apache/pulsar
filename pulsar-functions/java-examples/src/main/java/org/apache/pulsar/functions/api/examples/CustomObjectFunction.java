@@ -28,6 +28,11 @@ import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 public class CustomObjectFunction implements Function<CustomObject, CustomObject> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public CustomObject process(CustomObject input, Context context) {
         return new CustomObject(input.getValue() + 100);
     }

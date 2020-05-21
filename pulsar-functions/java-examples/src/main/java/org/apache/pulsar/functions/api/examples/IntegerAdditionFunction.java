@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
 public class IntegerAdditionFunction implements Function<Integer, Integer> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public Integer process(Integer input, Context context) {
         return input + 100;
     }

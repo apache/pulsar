@@ -27,6 +27,11 @@ import org.slf4j.Logger;
 
 public class AsyncContextFunction implements Function<String, CompletableFuture<Void>> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public CompletableFuture<Void> process(String input, Context context) {
         Logger LOG = context.getLogger();
         CompletableFuture<Void> future = new CompletableFuture();

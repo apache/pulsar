@@ -269,6 +269,11 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
     }
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public O process(I input, Context context) throws Exception {
         if (!this.initialized) {
             initialize(context);

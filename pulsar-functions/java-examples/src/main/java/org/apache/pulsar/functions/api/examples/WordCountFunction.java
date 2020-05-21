@@ -31,6 +31,11 @@ import java.util.Arrays;
  */
 public class WordCountFunction implements Function<String, Void> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public Void process(String input, Context context) {
         Arrays.asList(input.split("\\s+")).forEach(word -> context.incrCounter(word, 1));
         return null;

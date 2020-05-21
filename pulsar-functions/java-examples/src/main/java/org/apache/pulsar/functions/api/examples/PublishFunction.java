@@ -30,6 +30,11 @@ import org.apache.pulsar.functions.api.Function;
  */
 public class PublishFunction implements Function<String, Void> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public Void process(String input, Context context) {
         String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
         String output = String.format("%s!", input);

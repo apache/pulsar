@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
  */
 public class AutoSchemaFunction implements Function<GenericRecord, String> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public String process(GenericRecord input, Context context) {
         return "value-" + input.getField("value");
     }

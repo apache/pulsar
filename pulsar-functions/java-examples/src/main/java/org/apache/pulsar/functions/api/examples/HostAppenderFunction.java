@@ -30,6 +30,11 @@ import java.net.UnknownHostException;
 public class HostAppenderFunction implements Function<String, String> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public String process(String input, Context context) {
         try {
             return input + InetAddress.getLocalHost().getHostName();

@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
  */
 public class UserMetricFunction implements Function<String, Void> {
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public Void process(String input, Context context) {
         context.recordMetric("LetterCount", input.length());
         return null;

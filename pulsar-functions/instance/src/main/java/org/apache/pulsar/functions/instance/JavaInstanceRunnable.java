@@ -244,6 +244,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.componentType);
 
             javaInstance = setupJavaInstance();
+
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            javaInstance.prepare();
+            Thread.currentThread().setContextClassLoader(instanceClassLoader);
+
             while (true) {
                 currentRecord = readInput();
 

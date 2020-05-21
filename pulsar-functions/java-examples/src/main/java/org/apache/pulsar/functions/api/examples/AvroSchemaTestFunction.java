@@ -28,6 +28,11 @@ import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 public class AvroSchemaTestFunction implements Function<AvroTestObject, AvroTestObject> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public AvroTestObject process(AvroTestObject input, Context context) throws Exception {
         log.info("AvroTestObject - baseValue: {}", input.getBaseValue());
         input.setBaseValue(input.getBaseValue() + 10);

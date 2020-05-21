@@ -27,6 +27,11 @@ import org.apache.pulsar.functions.api.Function;
 public class CustomBaseToBaseFunction implements Function<CustomBaseObject, CustomBaseObject> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public CustomBaseObject process(CustomBaseObject input, Context context) {
         return new CustomBaseObject(input.getBaseValue() + 100);
     }

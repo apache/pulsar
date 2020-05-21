@@ -29,6 +29,11 @@ import java.util.Optional;
 public class UserConfigFunction implements Function<String, String> {
 
     @Override
+    public void prepare(Context context) throws Exception {
+
+    }
+
+    @Override
     public String process(String input, Context context) {
         Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
         if (whatToWrite.get() != null) {
