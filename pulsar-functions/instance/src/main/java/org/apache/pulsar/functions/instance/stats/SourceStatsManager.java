@@ -178,7 +178,7 @@ public class SourceStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public void reset() {
+    synchronized public void reset() {
         statTotalRecordsReceived1min.clear();
         _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
@@ -193,19 +193,19 @@ public class SourceStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public void incrTotalReceived() {
+    synchronized public void incrTotalReceived() {
         _statTotalRecordsReceived.inc();
         _statTotalRecordsReceived1min.inc();
     }
 
     @Override
-    public void incrTotalProcessedSuccessfully() {
+    synchronized public void incrTotalProcessedSuccessfully() {
         _statTotalWritten.inc();
         _statTotalWritten1min.inc();
     }
 
     @Override
-    public void incrSysExceptions(Throwable ex) {
+    synchronized public void incrSysExceptions(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
@@ -218,12 +218,12 @@ public class SourceStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public void incrUserExceptions(Throwable ex) {
+    synchronized public void incrUserExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void incrSourceExceptions(Throwable ex) {
+    synchronized public void incrSourceExceptions(Throwable ex) {
         long ts = System.currentTimeMillis();
         InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSourceExceptions.add(info);
@@ -243,97 +243,97 @@ public class SourceStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public void incrSinkExceptions(Throwable ex) {
+    synchronized public void incrSinkExceptions(Throwable ex) {
         incrSysExceptions(ex);
     }
 
     @Override
-    public void setLastInvocation(long ts) {
+    synchronized public void setLastInvocation(long ts) {
         _statlastInvocation.set(ts);
     }
 
     @Override
-    public void processTimeStart() {
+    synchronized public void processTimeStart() {
         //no-op
     }
 
     @Override
-    public void processTimeEnd() {
+    synchronized public void processTimeEnd() {
         //no-op
     }
 
     @Override
-    public double getTotalProcessedSuccessfully() {
+    synchronized public double getTotalProcessedSuccessfully() {
         return _statTotalWritten.get();
     }
 
     @Override
-    public double getTotalRecordsReceived() {
+    synchronized public double getTotalRecordsReceived() {
         return _statTotalRecordsReceived.get();
     }
 
     @Override
-    public double getTotalSysExceptions() {
+    synchronized public double getTotalSysExceptions() {
         return _statTotalSysExceptions.get();
     }
 
     @Override
-    public double getTotalUserExceptions() {
+    synchronized public double getTotalUserExceptions() {
         return 0;
     }
 
     @Override
-    public double getLastInvocation() {
+    synchronized public double getLastInvocation() {
         return _statlastInvocation.get();
     }
 
     @Override
-    public double getAvgProcessLatency() {
+    synchronized public double getAvgProcessLatency() {
         return 0;
     }
 
     @Override
-    public double getTotalProcessedSuccessfully1min() {
+    synchronized public double getTotalProcessedSuccessfully1min() {
         return _statTotalWritten1min.get();
     }
 
     @Override
-    public double getTotalRecordsReceived1min() {
+    synchronized public double getTotalRecordsReceived1min() {
         return _statTotalRecordsReceived1min.get();
     }
 
     @Override
-    public double getTotalSysExceptions1min() {
+    synchronized public double getTotalSysExceptions1min() {
         return _statTotalSysExceptions1min.get();
     }
 
     @Override
-    public double getTotalUserExceptions1min() {
+    synchronized public double getTotalUserExceptions1min() {
         return 0;
     }
 
     @Override
-    public double getAvgProcessLatency1min() {
+    synchronized public double getAvgProcessLatency1min() {
         return 0;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
+    synchronized public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
         return EvictingQueue.create(0);
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
+    synchronized public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
         return EMPTY_QUEUE;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+    synchronized public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
         return EMPTY_QUEUE;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+    synchronized public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
         return EvictingQueue.create(0);
     }
 }
