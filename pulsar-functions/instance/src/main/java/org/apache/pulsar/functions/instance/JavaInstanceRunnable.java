@@ -545,13 +545,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    public InstanceCommunication.MetricsData getAndResetMetrics() {
+    // This method is synchronized because it is using the stats variable
+    synchronized public InstanceCommunication.MetricsData getAndResetMetrics() {
         InstanceCommunication.MetricsData metricsData = getMetrics();
-        stats.reset();
+        if (stats != null) {
+            stats.reset();
+        }
         return metricsData;
     }
 
-    public InstanceCommunication.MetricsData getMetrics() {
+    // This method is synchronized because it is using the stats and javaInstance variables
+    synchronized public InstanceCommunication.MetricsData getMetrics() {
         InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
         if (javaInstance != null) {
             Map<String, Double> userMetrics =  javaInstance.getMetrics();
@@ -562,9 +566,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return bldr.build();
     }
 
-    public void resetMetrics() {
-        stats.reset();
-        javaInstance.resetMetrics();
+    // This method is synchronized because it is using the stats and javaInstance variables
+    synchronized public void resetMetrics() {
+        if (stats != null) {
+            stats.reset();
+        }
+        if (javaInstance != null) {
+            javaInstance.resetMetrics();
+        }
     }
 
     private Builder createMetricsDataBuilder() {
@@ -587,7 +596,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return bldr;
     }
 
-    public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
+    // This method is synchronized because it is using the stats variable
+    synchronized public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
         if (stats != null) {
             functionStatusBuilder.setNumReceived((long) stats.getTotalRecordsReceived());
@@ -642,7 +652,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         config.getRootLogger().removeAppender(logAppender.getName());
     }
 
-    public void setupInput(ContextImpl contextImpl) throws Exception {
+    private void setupInput(ContextImpl contextImpl) throws Exception {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
@@ -744,7 +754,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    public void setupOutput(ContextImpl contextImpl) throws Exception {
+    private void setupOutput(ContextImpl contextImpl) throws Exception {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
         Object object;
