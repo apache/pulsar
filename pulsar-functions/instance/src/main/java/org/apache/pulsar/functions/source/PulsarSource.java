@@ -66,7 +66,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup schemas
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
-        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs(sourceContext);
+        Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs((Context) sourceContext);
 
         for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
@@ -159,7 +159,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @SuppressWarnings("unchecked")
     @VisibleForTesting
-    Map<String, ConsumerConfig<T>> setupConsumerConfigs(SourceContext sourceContext) throws ClassNotFoundException {
+    Map<String, ConsumerConfig<T>> setupConsumerConfigs(Context context) throws ClassNotFoundException {
         Map<String, ConsumerConfig<T>> configs = new TreeMap<>();
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
@@ -167,9 +167,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
-        Context context = (Context) sourceContext;
         //Function<T, R> . Source should base on the type of T，so use the data at position 0
-        Type genericType = FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[0];
+        Type genericType = context == null ? null
+                : FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[0];
 
         // Check new config with schema types or classnames
         pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
