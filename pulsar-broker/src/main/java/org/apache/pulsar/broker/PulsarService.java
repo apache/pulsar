@@ -33,17 +33,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -416,8 +413,6 @@ public class PulsarService implements AutoCloseable {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
-            generatePropertiesForConfigurationIfNeeded();
-
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
 
@@ -541,25 +536,6 @@ public class PulsarService implements AutoCloseable {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
-        }
-    }
-
-    private void generatePropertiesForConfigurationIfNeeded() {
-        if (this.getConfiguration().getProperties().size() == 0) {
-            Properties properties = new Properties();
-            Field[] fields = ServiceConfiguration.class.getDeclaredFields();
-            Arrays.stream(fields).forEach(f -> {
-                try {
-                    f.setAccessible(true);
-                    Object value = f.get(this.getConfiguration());
-                    if (value != null) {
-                        properties.setProperty(f.getName(), value + "");
-                    }
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            });
-            this.getConfiguration().setProperties(properties);
         }
     }
 

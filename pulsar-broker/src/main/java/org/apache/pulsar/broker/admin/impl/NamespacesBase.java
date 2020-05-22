@@ -2410,18 +2410,14 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
-            } else {
-                LedgerOffloader ledgerOffloader = pulsar().getDefaultOffloader();
-                if (ledgerOffloader instanceof NullLedgerOffloader) {
-                    policies.offload_policies = new OffloadPolicies();
-                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
-                    if (policies.offload_deletion_lag_ms != null) {
-                        policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
-                    }
+            if (policies.offload_policies == null) {
+                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
+                if (policies.offload_deletion_lag_ms != null) {
+                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
                 }
             }
+            policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2466,18 +2462,15 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
-            } else {
-                LedgerOffloader ledgerOffloader = pulsar().getDefaultOffloader();
-                if (ledgerOffloader instanceof NullLedgerOffloader) {
-                    policies.offload_policies = new OffloadPolicies();
-                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
-                    if (policies.offload_threshold != -1) {
-                        policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
-                    }
+
+            if (policies.offload_policies == null) {
+                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
+                if (policies.offload_threshold != -1) {
+                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
                 }
             }
+            policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
             policies.offload_deletion_lag_ms = newDeletionLagMs;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
