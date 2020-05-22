@@ -689,7 +689,8 @@ public class SinksImpl extends ComponentImpl {
             }
         }
         SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath,
-                componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
+                worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 }
