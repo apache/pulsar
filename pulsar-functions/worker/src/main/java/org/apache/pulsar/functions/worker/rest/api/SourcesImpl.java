@@ -685,7 +685,8 @@ public class SourcesImpl extends ComponentImpl {
             }
         }
         SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath,
-                sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
+                worker().getWorkerConfig().getValidateConnectorConfig());
         return SourceConfigUtils.convert(sourceConfig, sourceDetails);
     }
 }
