@@ -288,7 +288,7 @@
 <tr><td><code>--deserialization-classname</code></td><td>The SerDe classname for the source.</td></tr>
 <tr><td><code>--destination-topic-name</code></td><td>The Pulsar topic to which data is sent.</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime).</td></tr>
-<tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名验证。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名验证。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>--name</code></td><td>The source’s name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The source’s namespace.</td></tr>
 <tr><td><code>--parallelism</code></td><td>The source’s parallelism factor, that is, the number of source instances to run).</td></tr>
@@ -299,9 +299,9 @@
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration.</td></tr>
 <tr><td><code>--source-type</code></td><td>The source's connector provider.</td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant.</td></tr>
-<tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的连接。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>--tls-trust-cert-path</code></td><td>The tls trust cert file path.</td></tr>
-<tr><td><code>--use-tls</code></td><td>使用 tls 连接。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--use-tls</code></td><td>使用 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="available-sources"></a><a href="#available-sources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available-sources</code></h3>
@@ -538,7 +538,7 @@
 <tr><td><code>--custom-schema-inputs</code></td><td>The map of input topics to Schema types or class names (as a JSON string).</td></tr>
 <tr><td><code>--custom-serde-inputs</code></td><td>输入 topic 到 SerDe 类名称的映射（以 JSON 字符串的形式）。</td></tr>
 <tr><td><code>--disk</code></td><td>The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).</td></tr>
-<tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名验证。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--hostname-verification-enabled</code></td><td>启用主机名验证。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>-i</code>, <code>--inputs</code></td><td>The sink's input topic or topics (multiple topics can be specified as a comma-separated list).</td></tr>
 <tr><td><code>--name</code></td><td>The sink’s name.</td></tr>
 <tr><td><code>--namespace</code></td><td>The sink’s namespace.</td></tr>
@@ -552,10 +552,10 @@
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
-<tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的连接。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--tls-allow-insecure</code></td><td>允许不安全的 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 <tr><td><code>--tls-trust-cert-path</code></td><td>The tls trust cert file path.</td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern. <br><code>--input</code> and <code>--topics-Pattern</code> are mutually exclusive. <br>Add SerDe class name for a pattern in <code>--customSerdeInputs</code> (supported for java fun only).</td></tr>
-<tr><td><code>--use-tls</code></td><td>使用 tls 连接。<br><strong>默认值：fals</strong>。</td></tr>
+<tr><td><code>--use-tls</code></td><td>使用 tls 连接。<br><strong>默认值：false</strong>。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="available-sinks"></a><a href="#available-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available-sinks</code></h3>

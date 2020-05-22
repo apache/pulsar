@@ -90,16 +90,16 @@
 <h3><a class="anchor" aria-hidden="true" id="install-pulsar-using-binary-release"></a><a href="#install-pulsar-using-binary-release" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Pulsar using binary release</h3>
 <p>To get started with Pulsar, download a binary tarball release in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz" download>Pulsar 2.5.1 binary release</a>)</p></li>
+<li><p>download from the Apache mirror (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz" download>Pulsar 2.5.2 binary release</a>)</p></li>
 <li><p>download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>After you download the tarball, untar it and use the <code>cd</code> command to navigate to the resulting directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.5.1-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.1
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.5.2-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.2
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="what-your-package-contains"></a><a href="#what-your-package-contains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What your package contains</h4>
 <p>The Pulsar binary package initially contains the following directories:</p>
@@ -138,18 +138,18 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.1
 <h3><a class="anchor" aria-hidden="true" id="install-builtin-connectors-optional"></a><a href="#install-builtin-connectors-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install builtin connectors (optional)</h3>
 <p>Since <code>2.1.0-incubating</code> release, Pulsar releases a separate binary distribution, containing all the <code>builtin</code> connectors. To enable those <code>builtin</code> connectors, you can download the connectors tarball release in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.1/connectors" download>Pulsar IO Connectors 2.5.1 release</a>* download from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors" download>Pulsar IO Connectors 2.5.2 release</a>* download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/connectors/{connector}-2.5.1.nar</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors/{connector}-2.5.2.nar</span>
 </code></pre></li>
 </ul>
-<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory. For example, if you download the <code>pulsar-io-aerospike-2.5.1.nar</code> connector file, enter the following commands:</p>
+<p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory. For example, if you download the <code>pulsar-io-aerospike-2.5.2.nar</code> connector file, enter the following commands:</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
-$ mv pulsar-io-aerospike-2.5.1.nar connectors
+$ mv pulsar-io-aerospike-2.5.2.nar connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.5.1.nar
+pulsar-io-aerospike-2.5.2.nar
 ...
 </code></pre>
 <blockquote>
@@ -166,22 +166,22 @@ pulsar-io-aerospike-2.5.1.nar
 </blockquote>
 <p>To get started with <a href="/docs/fr/2.5.0/concepts-tiered-storage">tiered storage offloaders</a>, you need to download the offloaders tarball release on every broker node in one of the following ways:</p>
 <ul>
-<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.5.1 release</a>* download from the Pulsar <a href="/download">downloads page</a></p></li>
+<li><p>download from the Apache mirror <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-offloaders-2.5.2-bin.tar.gz" download>Pulsar Tiered Storage Offloaders 2.5.2 release</a>* download from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>download from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>use <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-offloaders-2.5.2-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>After you download the tarball, untar the offloaders package and copy the offloaders as <code>offloaders</code> in the pulsar directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.5.2-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-2.5.1` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-2.5.2` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the offloaders
 
-$ mv apache-pulsar-offloaders-2.5.1/offloaders offloaders
+$ mv apache-pulsar-offloaders-2.5.2/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-2.5.1.nar
+tiered-storage-jcloud-2.5.2.nar
 </code></pre>
 <p>For more information on how to configure tiered storage, see <a href="/docs/fr/2.5.0/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p>
 <blockquote>
