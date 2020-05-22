@@ -23,6 +23,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -49,6 +50,7 @@ public class RabbitMQSink implements Sink<byte[]> {
     private Channel rabbitMQChannel;
     private RabbitMQSinkConfig rabbitMQSinkConfig;
     private String exchangeName;
+    private String defaultRoutingKey;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -63,17 +65,26 @@ public class RabbitMQSink implements Sink<byte[]> {
         );
 
         exchangeName = rabbitMQSinkConfig.getExchangeName();
+        defaultRoutingKey = rabbitMQSinkConfig.getRoutingKey();
         String exchangeType = rabbitMQSinkConfig.getExchangeType();
 
         rabbitMQChannel = rabbitMQConnection.createChannel();
-        rabbitMQChannel.exchangeDeclare(exchangeName, exchangeType, true);
+        String queueName = rabbitMQSinkConfig.getQueueName();
+        if (StringUtils.isNotEmpty(queueName)) {
+            rabbitMQChannel.exchangeDeclare(exchangeName, BuiltinExchangeType.DIRECT, true);
+            rabbitMQChannel.queueDeclare(rabbitMQSinkConfig.getQueueName(), true, false, false, null);
+            rabbitMQChannel.queueBind(rabbitMQSinkConfig.getQueueName(), exchangeName, defaultRoutingKey);
+        } else {
+            rabbitMQChannel.exchangeDeclare(exchangeName, exchangeType, true);
+        }
     }
 
     @Override
     public void write(Record<byte[]> record) {
         byte[] value = record.getValue();
         try {
-            rabbitMQChannel.basicPublish(exchangeName, record.getProperties().get("routingKey"), null, value);
+            String routingKey = record.getProperties().get("routingKey");
+            rabbitMQChannel.basicPublish(exchangeName, StringUtils.isEmpty(routingKey) ? defaultRoutingKey : routingKey, null, value);
             record.ack();
         } catch (IOException e) {
             record.fail();
