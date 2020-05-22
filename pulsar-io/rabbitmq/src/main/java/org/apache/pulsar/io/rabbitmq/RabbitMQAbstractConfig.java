@@ -75,6 +75,12 @@ public class RabbitMQAbstractConfig implements Serializable {
     private String password = "guest";
 
     @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "The RabbitMQ queue name from which messages should be read from or written to")
+    private String queueName;
+
+    @FieldDoc(
         required = false,
         defaultValue = "0",
         help = "Initially requested maximum channel number. 0 for unlimited")
