@@ -91,7 +91,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCacheListener<LocalBrokerData> {
-    private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
+    protected static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
     // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
     public static final String BUNDLE_DATA_ZPATH = "/loadbalance/bundle-data";
@@ -161,7 +161,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private LocalBrokerData localData;
 
     // Load data comprising data available for each broker.
-    private final LoadData loadData;
+    protected final LoadData loadData;
 
     // Used to determine whether a bundle is preallocated.
     private final Map<String, String> preallocatedBundleToBroker;
@@ -179,7 +179,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private final ScheduledExecutorService scheduler;
 
     // ZooKeeper belonging to the pulsar service.
-    private ZooKeeper zkClient;
+    protected ZooKeeper zkClient;
 
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
@@ -322,7 +322,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     }
 
     // Attempt to create a ZooKeeper path if it does not exist.
-    private static void createZPathIfNotExists(final ZooKeeper zkClient, final String path) throws Exception {
+    protected static void createZPathIfNotExists(final ZooKeeper zkClient, final String path) throws Exception {
         if (zkClient.exists(path, false) == null) {
             try {
                 ZkUtils.createFullPathOptimistic(zkClient, path, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
@@ -473,7 +473,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // As the leader broker, update the broker data map in loadData by querying ZooKeeper for the broker data put there
     // by each broker via updateLocalBrokerData.
-    private void updateAllBrokerData() {
+    protected void updateAllBrokerData() {
         final Set<String> activeBrokers = getAvailableBrokers();
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
         for (String broker : activeBrokers) {
@@ -509,7 +509,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // As the leader broker, use the local broker data saved on ZooKeeper to update the bundle stats so that better load
     // management decisions may be made.
-    private void updateBundleData() {
+    protected void updateBundleData() {
         final Map<String, BundleData> bundleData = loadData.getBundleData();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
