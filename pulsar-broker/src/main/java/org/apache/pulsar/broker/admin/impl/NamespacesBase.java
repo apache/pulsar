@@ -50,6 +50,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -2411,10 +2413,13 @@ public abstract class NamespacesBase extends AdminResource {
             if (policies.offload_policies != null) {
                 policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             } else {
-                policies.offload_policies = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
-                if (policies.offload_deletion_lag_ms != null) {
-                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+                LedgerOffloader ledgerOffloader = pulsar().getDefaultOffloader();
+                if (ledgerOffloader instanceof NullLedgerOffloader) {
+                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+                    if (policies.offload_deletion_lag_ms != null) {
+                        policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+                    }
                 }
             }
             policies.offload_threshold = newThreshold;
@@ -2464,10 +2469,13 @@ public abstract class NamespacesBase extends AdminResource {
             if (policies.offload_policies != null) {
                 policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
             } else {
-                policies.offload_policies = pulsar().getDefaultOffloader().getOffloadPolicies();
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
-                if (policies.offload_threshold != -1) {
-                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+                LedgerOffloader ledgerOffloader = pulsar().getDefaultOffloader();
+                if (ledgerOffloader instanceof NullLedgerOffloader) {
+                    policies.offload_policies = new OffloadPolicies();
+                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+                    if (policies.offload_threshold != -1) {
+                        policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+                    }
                 }
             }
             policies.offload_deletion_lag_ms = newDeletionLagMs;
