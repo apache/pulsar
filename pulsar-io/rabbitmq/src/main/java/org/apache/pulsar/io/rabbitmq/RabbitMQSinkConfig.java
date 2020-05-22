@@ -45,6 +45,12 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
     private String exchangeName;
 
     @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "The routing key used for publishing the messages")
+    private String routingKey;
+
+    @FieldDoc(
         required = false,
         defaultValue = "topic",
         help = "The exchange type to publish the messages on")
