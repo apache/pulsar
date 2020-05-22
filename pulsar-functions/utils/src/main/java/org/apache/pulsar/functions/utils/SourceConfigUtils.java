@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
@@ -28,10 +29,12 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.validator.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -209,7 +212,8 @@ public class SourceConfigUtils {
     }
 
     public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath,
-                                                  File sourcePackageFile, String narExtractionDirectory) {
+                                                  File sourcePackageFile, String narExtractionDirectory,
+                                                  boolean validateConnectorConfig) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -268,6 +272,9 @@ public class SourceConfigUtils {
             } catch (IOException e) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e);
             }
+            if (validateConnectorConfig) {
+                validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
+            }
             try {
                 typeArg = getSourceType(sourceClassName, narClassLoader);
                 classLoader = narClassLoader;
@@ -292,12 +299,18 @@ public class SourceConfigUtils {
                             throw new IllegalArgumentException(
                                     String.format("Source class %s must be in class path", sourceClassName), e1);
                         }
+                        if (validateConnectorConfig) {
+                            validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
+                        }
                     } else {
                         throw new IllegalArgumentException(
                                 String.format("Source class %s must be in class path", sourceClassName), e);
                     }
                 }
             } else if (narClassLoader != null) {
+                if (validateConnectorConfig) {
+                    validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
+                }
                 try {
                     typeArg = getSourceType(sourceClassName, narClassLoader);
                     classLoader = narClassLoader;
@@ -384,6 +397,25 @@ public class SourceConfigUtils {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
+    }
+
+    public static void validateConnectorConfig(SourceConfig sourceConfig, ClassLoader classLoader) {
+        try {
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
+            if (defn.getSourceConfigClass() != null) {
+                Class configClass = Class.forName(defn.getSourceConfigClass(), true, classLoader);
+                Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
+                if (configObject != null) {
+                    ConfigValidation.validateConfig(configObject);
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Error validating source config", e);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Could not find source config class");
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Could not validate source config: " + e.getMessage());
+        }
     }
 
 }
