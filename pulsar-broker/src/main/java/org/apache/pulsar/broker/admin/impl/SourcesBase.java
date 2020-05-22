@@ -455,8 +455,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
 
     @GET
     @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
-            response = List.class
+            value = "Fetches the list of built-in Pulsar IO sources",
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -479,7 +480,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
 
     @POST
     @ApiOperation(
-            value = "Reload the available built-in connectors, include Source and Sink",
+            value = "Reload the built-in connectors, including Sources and Sinks",
             response = Void.class
     )
     @ApiResponses(value = {
