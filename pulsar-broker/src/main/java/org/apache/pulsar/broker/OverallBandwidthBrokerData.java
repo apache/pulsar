@@ -48,4 +48,20 @@ public class OverallBandwidthBrokerData extends JSONWritable {
         return MoreObjects.toStringHelper(this).add("overallBandwidthIn", overallBandwidthIn)
                 .add("overallBandwidthOut", overallBandwidthOut).toString();
     }
+
+    public double getOverallBandwidthIn() {
+        return overallBandwidthIn;
+    }
+
+    public void setOverallBandwidthIn(double overallBandwidthIn) {
+        this.overallBandwidthIn = overallBandwidthIn;
+    }
+
+    public double getOverallBandwidthOut() {
+        return overallBandwidthOut;
+    }
+
+    public void setOverallBandwidthOut(double overallBandwidthOut) {
+        this.overallBandwidthOut = overallBandwidthOut;
+    }
 }

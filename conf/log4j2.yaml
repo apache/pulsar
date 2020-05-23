@@ -19,7 +19,7 @@
 
 
 Configuration:
-  status: INFO
+  status: DEBUG
   monitorInterval: 30
   name: pulsar
   packages: io.prometheus.client.log4j2

@@ -18,50 +18,15 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageBrokerData;
-import org.apache.pulsar.broker.TimeAverageMessageData;
-import org.apache.pulsar.broker.loadbalance.BrokerFilter;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
-import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
-import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
-import org.apache.pulsar.broker.loadbalance.LoadData;
-import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
-import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
-import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import org.apache.pulsar.broker.*;
+import org.apache.pulsar.broker.loadbalance.*;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -90,10 +55,22 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+
 public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCacheListener<LocalBrokerData> {
     protected static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
-    // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
+    // Path to ZNode whose childrenX contain BundleData jsons for each bundle (new API version of ResourceQuota).
     public static final String BUNDLE_DATA_ZPATH = "/loadbalance/bundle-data";
 
     // Default message rate to assume for unseen bundles.
@@ -199,6 +176,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private long bundleSplitCount = 0;
     private long unloadBrokerCount = 0;
     private long unloadBundleCount = 0;
+
+    private OverallBandwidthBrokerData overallBandwidthBrokerData;
+
+    private String overallBandwidthPath;
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -863,6 +844,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
+            overallBandwidthBrokerData = new OverallBandwidthBrokerData();
+
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
@@ -870,8 +853,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
                             : conf.getWebServicePortTls().get());
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
-            final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
+            overallBandwidthPath = "/loadbalance/overall/" + lookupServiceAddress;
+            final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress + "/" + "overall";
             updateLocalBrokerData();
+            overallBandwidthBrokerData.update(localData);
             try {
                 if (!org.apache.pulsar.zookeeper.ZkUtils.checkNodeAndWaitExpired(
                     zkClient, brokerZnodePath,
@@ -898,6 +883,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
             createZPathIfNotExists(zkClient, timeAverageZPath);
             zkClient.setData(timeAverageZPath, (new TimeAverageBrokerData()).getJsonBytes(), -1);
+            log.error("Writing overallBandwidthpaht at : {}", overallBandwidthPath);
+            createZPathIfNotExists(zkClient, overallBandwidthPath);
+            log.error("Wrote overallBandwidthpaht at : {}", overallBandwidthPath);
+            zkClient.setData(overallBandwidthPath, overallBandwidthBrokerData.getJsonBytes(), -1);
             updateAll();
             lastBundleDataUpdate = System.currentTimeMillis();
         } catch (Exception e) {
@@ -935,6 +924,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
+            overallBandwidthBrokerData.update(localData);
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
         }
@@ -975,6 +965,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
                 try {
                     zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
+                    log.error("Writing overall bandwidth data {} at path : {}", overallBandwidthBrokerData.getJsonBytes(), overallBandwidthPath );
+                    zkClient.setData(overallBandwidthPath, overallBandwidthBrokerData.getJsonBytes(), -1);
+                    log.error("Wrote overall bandwidth data {} at path : {}", overallBandwidthBrokerData.getJsonBytes(), overallBandwidthPath );
                 } catch (KeeperException.NoNodeException e) {
                     ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
                             ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
@@ -1002,6 +995,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
+        //updateBillingData();
         updateBundleData();
         // Write the bundle data to ZooKeeper.
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
