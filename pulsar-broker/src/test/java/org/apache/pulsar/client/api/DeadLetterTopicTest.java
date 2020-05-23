@@ -20,7 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -132,12 +132,11 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         //1 start 3 parallel consumers
         List<Consumer<String>> consumers = new ArrayList<>();
         final AtomicInteger totalReceived = new AtomicInteger(0);
-        Executor executor = Executors.newFixedThreadPool(consumerCount);
+        ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
         for (int i = 0; i < consumerCount; i++) {
             executor.execute(() -> {
-                Consumer<String> consumer = null;
                 try {
-                    consumer = pulsarClient.newConsumer(Schema.STRING)
+                    Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                             .topic(topic)
                             .subscriptionName("my-subscription-DuplicatedMessage")
                             .subscriptionType(SubscriptionType.Shared)
@@ -151,10 +150,10 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                                 //never ack
                             })
                             .subscribe();
+                    consumers.add(consumer);
                 } catch (PulsarClientException e) {
                     fail();
                 }
-                consumers.add(consumer);
             });
         }
 
@@ -172,7 +171,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .subscribe();
         int totalInDeadLetter = 0;
         while (true) {
-            Message<String> message = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+            Message<String> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
@@ -187,6 +186,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertEquals(totalInDeadLetter, messageCount);
 
         //6 clean up
+        executor.shutdownNow();
         producer.close();
         deadLetterConsumer.close();
         for (Consumer<String> consumer : consumers) {
