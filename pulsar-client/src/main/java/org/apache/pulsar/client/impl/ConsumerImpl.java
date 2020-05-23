@@ -1539,10 +1539,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             builder.setEntryId(messageId.getEntryId());
                             return builder.build();
                         }).collect(Collectors.toList());
-
-                ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdDatas);
-                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-                messageIdDatas.forEach(MessageIdData::recycle);
+                if (!messageIdDatas.isEmpty()) {
+                    ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdDatas);
+                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                    messageIdDatas.forEach(MessageIdData::recycle);
+                }
             });
             if (messagesFromQueue > 0) {
                 increaseAvailablePermits(cnx, messagesFromQueue);
