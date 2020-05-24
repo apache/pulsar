@@ -1,5 +1,5 @@
 ---
-id: client-libraries-donet
+id: client-libraries-dotnet
 title: Pulsar C# client
 sidebar_label: C#
 ---
