@@ -21,10 +21,6 @@ package org.apache.pulsar.broker;
 import com.google.common.base.MoreObjects;
 import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Data class aggregating the short term and long term data across all bundles belonging to a broker.
@@ -32,15 +28,21 @@ import java.util.Set;
 public class OverallBandwidthBrokerData extends JSONWritable {
     private double overallBandwidthIn;
     private double overallBandwidthOut;
+    private double overallMessageThroughputIn;
+    private double overallMessageThroughputOut;
 
     public OverallBandwidthBrokerData() {
         overallBandwidthIn = 0;
         overallBandwidthOut = 0;
+        overallMessageThroughputIn = 0;
+        overallMessageThroughputOut = 0;
     }
 
     public void update(final LocalBrokerData localBrokerData) {
         overallBandwidthIn += localBrokerData.getBandwidthIn().usage;
         overallBandwidthOut += localBrokerData.getBandwidthOut().usage;
+        overallMessageThroughputIn += localBrokerData.getMsgThroughputIn();
+        overallMessageThroughputOut += localBrokerData.getMsgThroughputOut();
     }
 
     @Override
@@ -63,5 +65,21 @@ public class OverallBandwidthBrokerData extends JSONWritable {
 
     public void setOverallBandwidthOut(double overallBandwidthOut) {
         this.overallBandwidthOut = overallBandwidthOut;
+    }
+
+    public double getOverallMessageThroughputIn() {
+        return overallMessageThroughputIn;
+    }
+
+    public void setOverallMessageThroughputIn(double overallMessageThroughputIn) {
+        this.overallMessageThroughputIn = overallMessageThroughputIn;
+    }
+
+    public double getOverallMessageThroughputOut() {
+        return overallMessageThroughputOut;
+    }
+
+    public void setOverallMessageThroughputOut(double overallMessageThroughputOut) {
+        this.overallMessageThroughputOut = overallMessageThroughputOut;
     }
 }
