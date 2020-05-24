@@ -255,12 +255,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // totalAvailablePermits may be updated by other threads
         int currentTotalAvailablePermits = totalAvailablePermits;
         if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-            int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
+            int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
 
             Consumer c = getRandomConsumer();
             // if turn on precise dispatcher flow control, adjust the record to read
             if (c != null && c.isPreciseDispatcherFlowControl()) {
-                messagesToRead = Math.min((int) Math.ceil(totalAvailablePermits * 1.0 / c.getAvgMessagesPerEntry()), readBatchSize);
+                messagesToRead = Math.min((int) Math.ceil(currentTotalAvailablePermits * 1.0 / c.getAvgMessagesPerEntry()), readBatchSize);
             }
 
             if (!isConsumerWritable()) {
