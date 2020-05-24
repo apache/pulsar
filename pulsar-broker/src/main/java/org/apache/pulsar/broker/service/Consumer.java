@@ -122,6 +122,7 @@ public class Consumer {
     private volatile int avgMessagesPerEntry = 1000;
 
     private static final double avgPercent = 0.9;
+    private boolean preciseDispatcherFlowControl;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -147,6 +148,8 @@ public class Consumer {
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
         this.authenticationData = cnx.authenticationData;
+        this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
+
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -238,7 +241,7 @@ public class Consumer {
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
         tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
-                (1 - avgPercent) * totalMessages / entries.size());
+                    (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
@@ -674,6 +677,10 @@ public class Consumer {
     private void clearUnAckedMsgs() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
+    }
+
+    public boolean isPreciseDispatcherFlowControl() {
+        return preciseDispatcherFlowControl;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
