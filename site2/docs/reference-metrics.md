@@ -15,6 +15,7 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Proxy](#proxy)
 
 ## Overview
 
@@ -320,6 +321,21 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
+
+# Proxy
+
+All the proxy metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_proxy_active_connections | Gauge | Number of connections currently active in the proxy. |
+| pulsar_proxy_new_connections | Counter | Counter of connections being opened in the proxy. |
+| pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
+| pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
+| pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
 
 ## Monitor
 
