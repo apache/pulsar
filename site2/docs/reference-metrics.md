@@ -15,6 +15,7 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Pulsar Functions](#pulsar functions)
 * [Proxy](#proxy)
 
 ## Overview
@@ -321,6 +322,27 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
+
+# Pulsar Functions
+
+All the Pulsar Functions metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
+| pulsar_function_received_total | Counter | Total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
 
 # Proxy
 
