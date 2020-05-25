@@ -89,10 +89,10 @@ But since all broker configuration in Pulsar is stored in ZooKeeper, configurati
 
 #### pulsar-admin
 
-The [`update-dynamic-config`](reference-pulsar-admin.md#brokers-update-dynamic-config) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value. Here's an example for the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
+The [`update-dynamic-config`](reference-pulsar-admin.md#brokers-update-dynamic-config) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example for the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
 
 ```shell
-$ pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+$ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --value 100
 ```
 
 #### REST API
