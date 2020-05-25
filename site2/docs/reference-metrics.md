@@ -17,6 +17,7 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [Broker](#broker)
 * [Pulsar Functions](#pulsar functions)
 * [Proxy](#proxy)
+* [Pulsar SQL Worker](#Pulsar SQL Worker)
 
 ## Overview
 
@@ -358,6 +359,34 @@ All the proxy metrics are labelled with the following labels:
 | pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
 | pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
 | pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
+
+# Pulsar SQL Worker
+
+| Name | Type | Description |
+|---|---|---|
+| split_bytes_read | Counter | Number of bytes read from bookkeeper. |
+| split_num_messages_deserialized | Counter | Number of messages deserialized. |
+| split_num_record_deserialized | Counter | Number of record deserialized. |
+| split_bytes_read_per_query | Summary | Total number of bytes read per query. |
+| split_entry_deserialize_time | Summary | Time spent derserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent derserializing entries per query. |
+| split_entry_queue_dequeue_wait_time | Summary | Time spend waiting to get entry from entry queue because it is empty. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spend waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent waiting to dequeue from message queue because its empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent waiting for message queue enqueue because message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent waiting for message queue enqueue because message queue is full per query. |
+| split_num_entries_per_batch | Summary | Number of entries per batch. |
+| split_num_entries_per_query | Summary | Number of entries per query. |
+| split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
+| split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
+| split_read_attempts | Summary | Number of read attempts(will fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_latency_per_batch | Summary | Latency of reads per batch. |
+| split_read_latency_per_query | Summary | Total read latency per query. |
+| split_record_deserialize_time | Summary | Time spent deserializing message to record e.g. avro, json, etc. |
+| split_record_deserialize_time_per_query | Summary | Time spent deserializing message to record per query. |
+| split_total_execution_time | Summary | Total time spent execution time . |
+
 
 ## Monitor
 
