@@ -20,3 +20,4 @@
 name: jdbc-sqlite
 description: JDBC sink for SQLite
 sinkClass: org.apache.pulsar.io.jdbc.SqliteJdbcAutoSchemaSink
+sinkConfigClass: org.apache.pulsar.io.jdbc.JdbcSinkConfig

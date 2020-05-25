@@ -16,6 +16,7 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
 * [Pulsar Functions](#pulsar functions)
+* [Proxy](#proxy)
 
 ## Overview
 
@@ -342,6 +343,21 @@ All the Pulsar Functions metrics are labelled with the following labels:
 | pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
 | pulsar_function_received_total | Counter | Total number of messages received from source. |
 | pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+
+# Proxy
+
+All the proxy metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_proxy_active_connections | Gauge | Number of connections currently active in the proxy. |
+| pulsar_proxy_new_connections | Counter | Counter of connections being opened in the proxy. |
+| pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
+| pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
+| pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
 
 ## Monitor
 
