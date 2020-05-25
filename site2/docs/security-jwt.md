@@ -120,6 +120,13 @@ config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIi
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ```
 
+<!--C#-->
+```c#
+var client = PulsarClient.Builder()
+                         .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+                         .Build();
+```
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Enable token authentication 
