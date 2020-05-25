@@ -61,7 +61,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
-import static org.apache.pulsar.functions.utils.FunctionCommon.extractClassLoader;
 
 @Slf4j
 public class LocalRunner {
@@ -258,14 +257,14 @@ public class LocalRunner {
 
                 if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory));
+                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory, true));
 
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
                     }
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory));
+                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory, true));
                 }
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
@@ -286,13 +285,13 @@ public class LocalRunner {
 
                 if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory));
+                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory, true));
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Sink archive does not exist");
                     }
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory));
+                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory,  true));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");

@@ -19,20 +19,20 @@ The configuration of the Kinesis sink connector has the following property.
 `awsEndpoint`|String|false|" " (empty string)|The Kinesis end-point URL, which can be found at [here](https://docs.aws.amazon.com/general/latest/gr/rande.html).
 `awsRegion`|String|false|" " (empty string)|The AWS region. <br/><br/>**Example**<br/> us-west-1, us-west-2
 `awsKinesisStreamName`|String|true|" " (empty string)|The Kinesis stream name.
-`awsCredentialPluginName`|String|false|" " (empty string)|The fully-qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. <br/><br/>It is a factory class which creates an AWSCredentialsProvider that is used by Kinesis sink. <br/><br/>If it is empty, the Kinesis sink creates a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam`.
+`awsCredentialPluginName`|String|false|" " (empty string)|The fully-qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/aws/src/main/java/org/apache/pulsar/io/aws/AwsCredentialProviderPlugin.java}. <br/><br/>It is a factory class which creates an AWSCredentialsProvider that is used by Kinesis sink. <br/><br/>If it is empty, the Kinesis sink creates a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam`.
 `awsCredentialPluginParam`|String |false|" " (empty string)|The JSON parameter to initialize `awsCredentialsProviderPlugin`.
 
 ### Built-in plugins
 
 The following are built-in `AwsCredentialProviderPlugin` plugins:
 
-* `org.apache.pulsar.io.kinesis.AwsDefaultProviderChainPlugin`
+* `org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin`
   
     This plugin takes no configuration, it uses the default AWS provider chain. 
     
     For more information, see [AWS documentation](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html#credentials-default).
 
-* `org.apache.pulsar.io.kinesis.STSAssumeRoleProviderPlugin`
+* `org.apache.pulsar.io.aws.STSAssumeRoleProviderPlugin`
   
     This plugin takes a configuration (via the `awsCredentialPluginParam`) that describes a role to assume when running the KCL.
 
