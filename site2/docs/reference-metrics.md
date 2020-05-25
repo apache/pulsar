@@ -379,7 +379,7 @@ All the proxy metrics are labelled with the following labels:
 | split_num_entries_per_query | Summary | Number of entries per query. |
 | split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
 | split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
-| split_read_attempts | Summary | Number of read attempts(fail if queues are full). |
+| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
 | split_read_attempts_per_query | Summary | Number of read attempts per query. |
 | split_read_latency_per_batch | Summary | Latency of reads per batch. |
 | split_read_latency_per_query | Summary | Total read latency per query. |

@@ -68,7 +68,7 @@ public class PulsarConnectorMetricsTracker implements AutoCloseable{
     // number of messages deserialized per query
     public static final String NUM_MESSAGES_DERSERIALIZED_PER_QUERY = "num-messages-deserialized-per-query";
 
-    // number of read attempts(fail if queues are full)
+    // number of read attempts (fail if queues are full)
     public static final String READ_ATTEMPTS = "read-attempts";
 
     // number of read attempts per query
