@@ -18,7 +18,7 @@
     "/sources/builtinsources" : {
       "get" : {
         "tags" : [ "sources" ],
-        "summary" : "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
+        "summary" : "Fetches the list of built-in Pulsar IO sources",
         "description" : "",
         "operationId" : "getSourceList",
         "consumes" : [ "application/json" ],
@@ -29,7 +29,7 @@
             "schema" : {
               "type" : "array",
               "items" : {
-                "type" : "object"
+                "$ref" : "#/definitions/ConnectorDefinition"
               }
             }
           },
@@ -51,7 +51,7 @@
     "/sources/reloadBuiltInSources" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Reload the available built-in connectors, include Source and Sink",
+        "summary" : "Reload the built-in connectors, including Sources and Sinks",
         "description" : "",
         "operationId" : "reloadSources",
         "consumes" : [ "application/json" ],
@@ -729,6 +729,29 @@
     }
   },
   "definitions" : {
+    "ConnectorDefinition" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "sourceClass" : {
+          "type" : "string"
+        },
+        "sinkClass" : {
+          "type" : "string"
+        },
+        "sourceConfigClass" : {
+          "type" : "string"
+        },
+        "sinkConfigClass" : {
+          "type" : "string"
+        }
+      }
+    },
     "ExceptionInformation" : {
       "type" : "object",
       "properties" : {

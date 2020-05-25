@@ -171,7 +171,7 @@ test-tenant/ns2
 <pre><code class="hljs css language-java">admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取复制集群"></a><a href="#获取复制集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取复制集群</h4>
-<p>It gives a list of replication clusters for a given namespace.</p>
+<p>它为给定的命名空间提供一个复制集群列表。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-1"></a><a href="#cli-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
 
@@ -237,12 +237,12 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置持久化策略"></a><a href="#设置持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置持久化策略</h4>
-<p>Persistence policies allow to configure persistency-level for all topic messages under a given namespace.</p>
+<p>持久化策略可以为给定命名空间下的所有主题消息配置持久等级。</p>
 <ul>
-<li><p>Bookkeeper-ack-quorum: Number of acks (guaranteed copies) to wait for each entry, default: 0</p></li>
-<li><p>Bookkeeper-ensemble: Number of bookies to use for a topic, default: 0</p></li>
-<li><p>Bookkeeper-write-quorum: How many writes to make of each entry, default: 0</p></li>
-<li><p>Ml-mark-delete-max-rate: Throttling rate of mark-delete operation (0 means no throttle), default: 0.0</p></li>
+<li><p>Bookkeeper-ack-quorum：每个条目中等待的 acks（有保证的副本）数量，默认值：0</p></li>
+<li><p>Bookkeeper-ensemble：对一个主题使用的 bookie 数量，默认值：0</p></li>
+<li><p>Bookkeeper-write-quorum：对每个条目进行多少次写入，默认值：0</p></li>
+<li><p>Ml-mark-delete-max-rate：标记-删除操作的配额限制速率（0表示无限制），默认：0.0</p></li>
 </ul>
 <h6><a class="anchor" aria-hidden="true" id="cli-5"></a><a href="#cli-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
@@ -403,7 +403,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setDispatchRate(namespace, <span class="hljs-number">1000</span>, <span class="hljs-number">1048576</span>, <span class="hljs-number">1</span>)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取消息分发速率配置"></a><a href="#获取消息分发速率配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取消息分发速率配置</h4>
-<p>It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)</p>
+<p>它能显示命名空间已配置的消息分发速率（该命名空间下的主题每秒能够分发多少条消息）</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-16"></a><a href="#cli-16" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 </code></pre>

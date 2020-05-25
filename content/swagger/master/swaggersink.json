@@ -18,7 +18,7 @@
     "/sinks/builtinsinks" : {
       "get" : {
         "tags" : [ "sinks" ],
-        "summary" : "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",
+        "summary" : "Fetches the list of built-in Pulsar IO sinks",
         "description" : "",
         "operationId" : "getSinkList",
         "consumes" : [ "application/json" ],
@@ -29,7 +29,7 @@
             "schema" : {
               "type" : "array",
               "items" : {
-                "type" : "object"
+                "$ref" : "#/definitions/ConnectorDefinition"
               }
             }
           }
@@ -39,7 +39,7 @@
     "/sinks/reloadBuiltInSinks" : {
       "post" : {
         "tags" : [ "sinks" ],
-        "summary" : "Reload the available built-in connectors, include Source and Sink",
+        "summary" : "Reload the built-in connectors, including Sources and Sinks",
         "description" : "",
         "operationId" : "reloadSinks",
         "consumes" : [ "application/json" ],
@@ -726,6 +726,29 @@
     }
   },
   "definitions" : {
+    "ConnectorDefinition" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "sourceClass" : {
+          "type" : "string"
+        },
+        "sinkClass" : {
+          "type" : "string"
+        },
+        "sourceConfigClass" : {
+          "type" : "string"
+        },
+        "sinkConfigClass" : {
+          "type" : "string"
+        }
+      }
+    },
     "ConsumerConfig" : {
       "type" : "object",
       "properties" : {
