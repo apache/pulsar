@@ -393,12 +393,11 @@ public class NamespaceService {
                         if (listener == null) {
                             future.completeExceptionally(
                                     new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
-                            return;
                         } else {
                             future.complete(Optional.of(new LookupResult(nsData.get(),
                                     listener.getBrokerServiceUrl().toString(), listener.getBrokerServiceUrlTls().toString())));
-                            return;
                         }
+                        return;
                     } else {
                         future.complete(Optional.of(new LookupResult(nsData.get())));
                     }

@@ -141,11 +141,13 @@ public class TopicLookupBase extends PulsarWebResource {
      *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
      *
-     * a. Returns broker-address if namespace-bundle is already owned by any broker b. If current-broker receives
-     * lookup-request and if it's not a leader then current broker redirects request to leader by returning
-     * leader-service address. c. If current-broker is leader then it finds out least-loaded broker to own namespace
-     * bundle and redirects request by returning least-loaded broker. d. If current-broker receives request to own the
-     * namespace-bundle then it owns a bundle and returns success(connect) response to client.
+     * a. Returns broker-address if namespace-bundle is already owned by any broker
+     * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
+     *    to leader by returning leader-service address.
+     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and redirects request
+     *    by returning least-loaded broker.
+     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns success(connect)
+     *    response to client.
      *
      * @param pulsarService
      * @param topicName
@@ -163,11 +165,13 @@ public class TopicLookupBase extends PulsarWebResource {
      *
      * Lookup broker-service address for a given namespace-bundle which contains given topic.
      *
-     * a. Returns broker-address if namespace-bundle is already owned by any broker b. If current-broker receives
-     * lookup-request and if it's not a leader then current broker redirects request to leader by returning
-     * leader-service address. c. If current-broker is leader then it finds out least-loaded broker to own namespace
-     * bundle and redirects request by returning least-loaded broker. d. If current-broker receives request to own the
-     * namespace-bundle then it owns a bundle and returns success(connect) response to client.
+     * a. Returns broker-address if namespace-bundle is already owned by any broker
+     * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
+     *    to leader by returning leader-service address.
+     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and redirects request
+     *    by returning least-loaded broker.
+     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns success(connect)
+     *    response to client.
      *
      * @param pulsarService
      * @param topicName
