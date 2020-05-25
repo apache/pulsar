@@ -106,7 +106,7 @@ public class FunctionConfigUtils {
                     sourceSpecBuilder.putInputSpecs(topicName,
                             Function.ConsumerSpec.newBuilder()
                                     .setSchemaType(consumerConfig.getSchemaType())
-                                    .putAllSchemaProperties(consumerConfig.getDefaultSchemaProperties())
+                                    .putAllSchemaProperties(consumerConfig.getSchemaProperties())
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
@@ -126,6 +126,9 @@ public class FunctionConfigUtils {
                 if (consumerConf.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(consumerConf.getReceiverQueueSize()).build());
+                }
+                if (consumerConf.getSchemaProperties() != null) {
+                    bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
                 }
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
@@ -169,13 +172,12 @@ public class FunctionConfigUtils {
         if (functionConfig.getForwardSourceMessageProperty() != null) {
             sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
-        sinkSpecBuilder.putAllSchemaProperties(new HashMap<>());
         if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
             String conf = functionConfig.getCustomSchemaOutputs().get(functionConfig.getOutput());
             try {
                 if (StringUtils.isNotEmpty(conf)) {
                     ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
-                    sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getDefaultSchemaProperties());
+                    sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getSchemaProperties());
                 }
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));

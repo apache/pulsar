@@ -174,9 +174,13 @@ public class TopicSchema {
     }
 
     private static <T> AvroSchema<T> buildAvroSchema(Class<T> clazz, ConsumerConfig conf) {
+        String jsr310ConversionEnabled = null;
+        String alwaysAllowNull = null;
+        if (conf.getSchemaProperties() != null) {
+            jsr310ConversionEnabled = conf.getSchemaProperties().get(JSR_310_CONVERSION_ENABLED);
+            alwaysAllowNull = conf.getSchemaProperties().get(ALWAYS_ALLOW_NULL);
+        }
         //"jsr310ConversionEnabled" default value is false; "alwaysAllowNull" default value is true
-        String jsr310ConversionEnabled = conf.getSchemaProperties().get(JSR_310_CONVERSION_ENABLED);
-        String alwaysAllowNull = conf.getSchemaProperties().get(ALWAYS_ALLOW_NULL);
         return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz)
                 .withJSR310ConversionEnabled(!StringUtils.isEmpty(jsr310ConversionEnabled) && Boolean.parseBoolean(jsr310ConversionEnabled))
                 .withAlwaysAllowNull(StringUtils.isEmpty(alwaysAllowNull) || Boolean.parseBoolean(alwaysAllowNull))

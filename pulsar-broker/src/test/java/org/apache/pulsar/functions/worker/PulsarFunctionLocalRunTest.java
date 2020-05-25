@@ -598,8 +598,8 @@ public class PulsarFunctionLocalRunTest {
         producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
         consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
 
-        producer.newMessage().property(propertyKey, propertyValue).value(new AvroTestObject()).sendAsync();
-        Message<GenericRecord> msg = consumer.receive(5, TimeUnit.SECONDS);
+        producer.newMessage().property(propertyKey, propertyValue).value(new AvroTestObject()).send();
+        Message<GenericRecord> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertEquals(msg, null);
 
         producer.close();
