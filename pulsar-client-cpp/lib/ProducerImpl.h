@@ -167,6 +167,10 @@ class ProducerImpl : public HandlerBase,
 
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
 
+    struct PendingCallbacks;
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailed();
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
+
     void failPendingMessages(Result result);
 
     MessageCryptoPtr msgCrypto_;
