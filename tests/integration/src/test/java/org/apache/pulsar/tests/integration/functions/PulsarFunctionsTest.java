@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumSqlServerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -62,6 +63,7 @@ import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
 import org.apache.pulsar.tests.integration.io.DebeziumMongoDbSourceTester;
 import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
 import org.apache.pulsar.tests.integration.io.DebeziumPostgreSqlSourceTester;
+import org.apache.pulsar.tests.integration.io.DebeziumSqlServerSourceTester;
 import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
 import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
 import org.apache.pulsar.tests.integration.io.JdbcPostgresSinkTester;
@@ -170,6 +172,110 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test(groups = "source")
     public void testDebeziumMongoDbSource() throws Exception{
         testDebeziumMongoDbConnect("org.apache.kafka.connect.json.JsonConverter", true);
+    }
+
+    @Test(groups = "source")
+    public void testDebeziumSqlServerSource() throws Exception {
+        testDebeziumSqlServerConnect("org.apache.kafka.connect.json.JsonConverter", true);
+    }
+
+    private void testDebeziumSqlServerConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        boolean isJsonConverter = converterClassName.endsWith("JsonConverter");
+        final String consumeTopicName = "debezium/sqlserver-"
+                + (isJsonConverter ? "json" : "avro")
+                + "/dbserver1.testDB.products";
+        final String sourceName = "test-source-debezium-sqlserver" + (isJsonConverter ? "json" : "avro")
+                + "-" + functionRuntimeType + "-" + randomName(8);
+
+        // This is the binlog count that contained in mysql container.
+        final int numMessages = 9;
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
+
+        try {
+            SchemaInfo lastSchemaInfo = admin.schemas().getSchemaInfo(consumeTopicName);
+            log.info("lastSchemaInfo: {}", lastSchemaInfo == null ? "null" : lastSchemaInfo.toString());
+        } catch (Exception e) {
+            log.warn("failed to get schemaInfo for topic: {}, exceptions message: {}",
+                    consumeTopicName, e.getMessage());
+        }
+
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+
+        @Cleanup
+        DebeziumSqlServerSourceTester sourceTester = new DebeziumSqlServerSourceTester(pulsarCluster, converterClassName);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
+
+        // setup debezium mysql server
+        DebeziumSqlServerContainer SqlServerContainer = new DebeziumSqlServerContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(SqlServerContainer);
+
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
+
+        // wait for source to process messages
+        Failsafe.with(statusRetryPolicy).run(() ->
+                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+
+        @Cleanup
+        Consumer consumer = client.newConsumer(getSchema(jsonWithEnvelope))
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        log.info("[debezium sqlserver test] create consumer finish. converterName: {}", converterClassName);
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
+
+        // prepare insert event
+        sourceTester.prepareInsertEvent();
+
+        // validate the source insert event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
+
+        // prepare update event
+        sourceTester.prepareUpdateEvent();
+
+        // validate the source update event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
+
+        // prepare delete event
+        sourceTester.prepareDeleteEvent();
+
+        // validate the source delete event
+        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {

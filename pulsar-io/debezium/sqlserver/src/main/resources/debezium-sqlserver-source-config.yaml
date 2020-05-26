@@ -1,0 +1,45 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+tenant: "public"
+namespace: "default"
+name: "debezium-sqlserver-source"
+topicName: "debezium-sqlserver-topic"
+archive: "connectors/pulsar-io-debezium-sqlserver-2.4.0-SNAPSHOT.nar"
+
+parallelism: 1
+
+configs:
+  ## config for sqlserver, docker image:  microsoft/mssql-server-linux:2017-CU9-GDR2
+  database.server.name: "server1",
+  database.hostname: "sqlserver",
+  database.port: "1433",
+  database.user: "sa",
+  database.password: "Password!",
+  database.dbname: "testDB",
+  table.whitelist: "inventory",
+  tasks.max: 1
+
+
+  ## PULSAR_SERVICE_URL_CONFIG
+  pulsar.service.url: "pulsar://127.0.0.1:6650"
+  database.history.pulsar.topic: "sqlserver-history-topic"
+  offset.storage.topic: "sqlserver-offset-topic"
+
+
