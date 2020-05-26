@@ -1282,7 +1282,7 @@ Usage
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 ```
 
-### set-replicator-dispatch-rate
+### `set-replicator-dispatch-rate`
 Set replicator message-dispatch-rate for all topics of the namespace
 
 Usage
@@ -1297,7 +1297,7 @@ Options
 |`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
 |`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
 
-### get-replicator-dispatch-rate
+### `get-replicator-dispatch-rate`
 Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
 
 Usage
