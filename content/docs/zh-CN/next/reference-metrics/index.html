@@ -87,6 +87,7 @@
 <li><a href="#broker">Broker</a></li>
 <li>[Pulsar Functions](#pulsar functions)</li>
 <li><a href="#proxy">Proxy</a></li>
+<li>[Pulsar SQL Worker](#Pulsar SQL Worker)</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="概述"></a><a href="#概述" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>概述</h2>
 <p>The metrics exposed by Pulsar are in Prometheus format. The types of metrics are:</p>
@@ -566,6 +567,36 @@ Available quantile:</p>
 <tr><td>pulsar_proxy_rejected_connections</td><td>Counter</td><td>Counter for connections rejected due to throttling.</td></tr>
 <tr><td>pulsar_proxy_binary_ops</td><td>Counter</td><td>Counter of proxy operations.</td></tr>
 <tr><td>pulsar_proxy_binary_bytes</td><td>Counter</td><td>Counter of proxy bytes.</td></tr>
+</tbody>
+</table>
+<h1><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h1>
+<table>
+<thead>
+<tr><th>Name</th><th>类型</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>split_bytes_read</td><td>Counter</td><td>Number of bytes read from BookKeeper.</td></tr>
+<tr><td>split_num_messages_deserialized</td><td>Counter</td><td>Number of messages deserialized.</td></tr>
+<tr><td>split_num_record_deserialized</td><td>Counter</td><td>Number of records deserialized.</td></tr>
+<tr><td>split_bytes_read_per_query</td><td>总结</td><td>Total number of bytes read per query.</td></tr>
+<tr><td>split_entry_deserialize_time</td><td>总结</td><td>Time spent on derserializing entries.</td></tr>
+<tr><td>split_entry_deserialize_time_per_query</td><td>总结</td><td>Time spent on derserializing entries per query.</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time</td><td>总结</td><td>Time spend on waiting to get entry from entry queue because it is empty.</td></tr>
+<tr><td>split_entry_queue_dequeue_wait_time_per_query</td><td>总结</td><td>Total time spent on waiting to get entry from entry queue per query.</td></tr>
+<tr><td>split_message_queue_dequeue_wait_time_per_query</td><td>总结</td><td>Time spent on waiting to dequeue from message queue because is is empty per query.</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time</td><td>总结</td><td>Time spent on waiting for message queue enqueue because the message queue is full.</td></tr>
+<tr><td>split_message_queue_enqueue_wait_time_per_query</td><td>总结</td><td>Time spent on waiting for message queue enqueue because the message queue is full per query.</td></tr>
+<tr><td>split_num_entries_per_batch</td><td>总结</td><td>Number of entries per batch.</td></tr>
+<tr><td>split_num_entries_per_query</td><td>总结</td><td>Number of entries per query.</td></tr>
+<tr><td>split_num_messages_deserialized_per_entry</td><td>总结</td><td>Number of messages deserialized per entry.</td></tr>
+<tr><td>split_num_messages_deserialized_per_query</td><td>总结</td><td>Number of messages deserialized per query.</td></tr>
+<tr><td>split_read_attempts</td><td>总结</td><td>Number of read attempts (fail if queues are full).</td></tr>
+<tr><td>split_read_attempts_per_query</td><td>总结</td><td>Number of read attempts per query.</td></tr>
+<tr><td>split_read_latency_per_batch</td><td>总结</td><td>Latency of reads per batch.</td></tr>
+<tr><td>split_read_latency_per_query</td><td>总结</td><td>Total read latency per query.</td></tr>
+<tr><td>split_record_deserialize_time</td><td>总结</td><td>Time spent on deserializing message to record. For example, Avro, JSON, and so on.</td></tr>
+<tr><td>split_record_deserialize_time_per_query</td><td>总结</td><td>Time spent on deserializing message to record per query.</td></tr>
+<tr><td>split_total_execution_time</td><td>总结</td><td>Total execution time .</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="monitor"></a><a href="#monitor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor</h2>

@@ -271,7 +271,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <p><a href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a> is a web-based GUI management tool for managing and monitoring Pulsar.</p>
 <ol>
 <li><p>By default, the <code>Pulsar Manager</code> is exposed as a separate <code>LoadBalancer</code>. You can open the Pulsar Manager UI using the following command:</p>
-<pre><code class="hljs css language-bash">minikube service pulsar-mini-pulsar-manager
+<pre><code class="hljs css language-bash">minikube service -n pulsar pulsar-mini-pulsar-manager 
 </code></pre></li>
 <li><p>The Pulsar Manager UI will be open in your browser. You can use the username <code>pulsar</code> and password <code>pulsar</code> to log into Pulsar Manager.</p></li>
 <li><p>In Pulsar Manager UI, you can create an environment.</p>
