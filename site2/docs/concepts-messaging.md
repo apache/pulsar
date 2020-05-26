@@ -49,7 +49,7 @@ Messages published by producers can be compressed during transportation in order
 
 ### Batching
 
-When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the the total number of batches instead of the total number of messages.
+When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the total number of batches instead of the total number of messages.
 
 In Pulsar, batches are tracked and stored as single units rather than as individual messages. Under the hood, the consumer unbundles a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even batching is enabled.
 
