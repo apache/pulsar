@@ -21,9 +21,9 @@
 
 #include <iostream>
 
-using namespace pulsar;
+namespace pulsar {
 
-const char* pulsar::strResult(Result result) {
+const char* strResult(Result result) {
     switch (result) {
         case ResultOk:
             return "Ok";
@@ -152,3 +152,5 @@ const char* pulsar::strResult(Result result) {
 }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }
+
+}  // namespace pulsar
