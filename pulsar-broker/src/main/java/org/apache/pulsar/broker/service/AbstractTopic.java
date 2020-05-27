@@ -415,5 +415,13 @@ public abstract class AbstractTopic implements Topic {
         return this.bytesInCounter.longValue();
     }
 
+    public long getMsgOutCounter() {
+        return getStats(false).msgOutCounter;
+    }
+
+    public long getBytesOutCounter() {
+        return getStats(false).bytesOutCounter;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
 }
