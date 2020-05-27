@@ -759,7 +759,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("It should fail as throttling should only receive 2 requests");
         } catch (Exception e) {
             if (!(e.getCause() instanceof
-                    org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                 fail("Subscribe should fail with TooManyRequestsException");
             }
         }

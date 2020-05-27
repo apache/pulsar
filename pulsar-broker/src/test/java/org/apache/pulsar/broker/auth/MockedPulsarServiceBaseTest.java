@@ -140,8 +140,8 @@ public abstract class MockedPulsarServiceBaseTest {
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                        .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                        .build());
+                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                    .build());
 
         mockZooKeeper = createMockZooKeeper();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
@@ -290,7 +290,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                                                   int zkSessionTimeoutMillis) {
+                int zkSessionTimeoutMillis) {
             // Always return the same instance (so that we don't loose the mock ZK content on broker restart
             return CompletableFuture.completedFuture(mockZooKeeper);
         }
@@ -300,8 +300,8 @@ public abstract class MockedPulsarServiceBaseTest {
 
         @Override
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
-                                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                                 Map<String, Object> properties) {
+                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
