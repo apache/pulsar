@@ -36,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -1458,6 +1457,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("averageMsgSize", topicStatsHelper.averageMsgSize);
         topicStatsStream.writePair("msgRateIn", topicStatsHelper.aggMsgRateIn);
         topicStatsStream.writePair("msgRateOut", topicStatsHelper.aggMsgRateOut);
+        topicStatsStream.writePair("msgInCount", getMsgInCounter());
+        topicStatsStream.writePair("bytesInCount", getBytesInCounter());
+        topicStatsStream.writePair("msgOutCount", getMsgOutCounter());
+        topicStatsStream.writePair("bytesOutCount", getBytesOutCounter());
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
