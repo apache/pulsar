@@ -141,6 +141,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Should we validate connector config during submission"
+    )
+    private Boolean validateConnectorConfig = false;
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"
     )
