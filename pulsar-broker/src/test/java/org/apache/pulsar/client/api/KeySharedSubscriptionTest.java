@@ -76,6 +76,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
     }
 
     @AfterMethod

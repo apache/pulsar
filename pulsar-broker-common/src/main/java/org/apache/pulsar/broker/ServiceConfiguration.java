@@ -336,6 +336,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean subscriptionKeySharedEnable = true;
 
+    @FieldContext(category = CATEGORY_POLICIES,
+            doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or " +
+            "consistent hashing to reassign keys to new consumers")
+    private boolean subscriptionKeySharedUseConsistentHashing = false;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "On KeyShared subscriptions, number of points in the consistent-hashing ring. "

@@ -29,12 +29,12 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignExc
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
+public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
     @Test
     public void testConsumerSelect() throws ConsumerAssignException {
 
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(100);
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         String key1 = "anyKey";
         Assert.assertNull(selector.select(key1.getBytes()));
 
