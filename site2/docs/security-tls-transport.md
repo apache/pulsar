@@ -242,3 +242,14 @@ const Pulsar = require('pulsar-client');
   });
 })();
 ```
+
+### C# client
+
+```c#
+var certificate = new X509Certificate2("ca.cert.pem");
+var client = PulsarClient.Builder()
+                         .TrustedCertificateAuthority(certificate) //If the CA is not trusted on the host, you can add it explicitly.
+                         .VerifyCertificateAuthority(true) //Default is 'true'
+                         .VerifyCertificateName(false)     //Default is 'false'
+                         .Build();
+```

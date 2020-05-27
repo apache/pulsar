@@ -136,6 +136,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
+
+        @Parameter(names = { "-time",
+                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+        public long testTime = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -200,8 +204,16 @@ public class PerformanceConsumer {
         final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-
+        long startTime = System.nanoTime();
+        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         MessageListener<byte[]> listener = (consumer, msg) -> {
+            if (arguments.testTime > 0) {
+                if (System.nanoTime() > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    printAggregatedStats();
+                    System.exit(0);
+                }
+            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 

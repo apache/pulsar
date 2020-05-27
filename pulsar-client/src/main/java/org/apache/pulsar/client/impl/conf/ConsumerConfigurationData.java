@@ -105,6 +105,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private DeadLetterPolicy deadLetterPolicy;
 
+    private boolean retryEnable = false;
+
     @JsonIgnore
     private BatchReceivePolicy batchReceivePolicy;
 

@@ -298,11 +298,12 @@ public class FunctionCommon {
         return objectClass;
     }
 
-    public static NarClassLoader extractNarClassLoader(Path archivePath, File packageFile) {
+    public static NarClassLoader extractNarClassLoader(Path archivePath, File packageFile,
+                                                       String narExtractionDirectory) {
         if (archivePath != null) {
             try {
                 return NarClassLoader.getFromArchive(archivePath.toFile(),
-                            Collections.emptySet());
+                            Collections.emptySet(), narExtractionDirectory);
             } catch (IOException e) {
                 throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
             }
@@ -311,7 +312,7 @@ public class FunctionCommon {
         if (packageFile != null) {
             try {
                 return NarClassLoader.getFromArchive(packageFile,
-                        Collections.emptySet());
+                        Collections.emptySet(), narExtractionDirectory);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }

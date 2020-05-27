@@ -85,8 +85,7 @@ module.exports = [
     {
         name: 'Stream Native',
         url: 'https://streamnative.io/',
-        logo: 'https://streamnative.io/streamnative-logo.png',
-        featured: 3
+        logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
     },
     {
         name: 'EMQ',
@@ -227,5 +226,10 @@ module.exports = [
         name: 'MercadoLibre',
         url: 'https://www.mercadolibre.com/',
         logo: 'https://d1.awsstatic.com/case-studies/LATAM/mercadolibre.1d9d3766bb06e60948f1c5ce8851ce0eac63b349.png'
+    },
+    {
+        name: 'BIGO',
+        url: 'https://www.bigo.sg/',
+        logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

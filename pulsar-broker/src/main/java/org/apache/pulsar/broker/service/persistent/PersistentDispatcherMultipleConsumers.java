@@ -251,8 +251,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public void readMoreEntries() {
-        if (totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-            int messagesToRead = Math.min(totalAvailablePermits, readBatchSize);
+        // totalAvailablePermits may be updated by other threads
+        int currentTotalAvailablePermits = totalAvailablePermits;
+        if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+            int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
+
+            if (!isConsumerWritable()) {
+                // If the connection is not currently writable, we issue the read request anyway, but for a single
+                // message. The intent here is to keep use the request as a notification mechanism while avoiding to
+                // read and dispatch a big batch of messages which will need to wait before getting written to the
+                // socket.
+                messagesToRead = 1;
+            }
 
             // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
@@ -306,6 +316,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 return;
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
             Set<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
 
             if (!messagesToReplayNow.isEmpty()) {
@@ -476,8 +488,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
 
             // round-robin dispatch batch size for this consumer
+            int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
+            if (log.isDebugEnabled() && !c.isWritable()) {
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
+                        c);
+            }
             int messagesForC = Math.min(
-                    Math.min(entriesToDispatch, c.getAvailablePermits()),
+                    Math.min(entriesToDispatch, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
 
             if (messagesForC > 0) {
@@ -610,6 +627,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (isConsumerAvailable(consumer)) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private boolean isConsumerWritable() {
+        for (Consumer consumer : consumerList) {
+            if (consumer.isWritable()) {
+                return true;
+            }
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] consumer is not writable", topic.getName(), name);
         }
         return false;
     }
