@@ -4,6 +4,7 @@
       "version-2.5.2-pulsar-2.0",
       "version-2.5.2-standalone",
       "version-2.5.2-standalone-docker",
+      "version-2.5.1-kubernetes-helm",
       "version-2.5.2-client-libraries"
     ],
     "Concepts and Architecture": [
@@ -133,7 +134,6 @@
       "version-2.5.2-reference-terminology",
       "version-2.5.2-reference-cli-tools",
       "version-2.5.2-pulsar-admin",
-      "version-2.5.2-reference-connector-admin",
       "version-2.5.2-reference-configuration",
       "version-2.5.2-reference-metrics"
     ]
