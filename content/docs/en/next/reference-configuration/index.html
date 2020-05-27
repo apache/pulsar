@@ -204,6 +204,8 @@
 <tr><td>defaultNumPartitions</td><td>The number of partitioned topics that is allowed to be automatically created if <code>allowAutoTopicCreationType</code> is partitioned</td><td>1</td></tr>
 <tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics</td><td>60</td></tr>
+<tr><td>brokerDeleteInactiveTopicsMode</td><td>Set the mode to delete inactive topics. <li> <code>delete_when_no_subscriptions</code>: delete the topic which has no subscriptions or active producers. <li> <code>delete_when_subscriptions_caught_up</code>: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers.</td><td><code>delete_when_no_subscriptions</code></td></tr>
+<tr><td>brokerDeleteInactiveTopicsMaxInactiveDurationSeconds</td><td>Set the maximum duration for inactive topics. If it is not specified, the <code>brokerDeleteInactiveTopicsFrequencySeconds</code> parameter is adopted.</td><td>N/A</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired messages</td><td>5</td></tr>
 <tr><td>brokerServiceCompactionMonitorIntervalInSeconds</td><td>Interval between checks to see if topics with compaction policies need to be compacted</td><td>60</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
@@ -241,6 +243,7 @@
 <tr><td>maxUnackedMessagesPerConsumer</td><td>Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction</td><td>50000</td></tr>
 <tr><td>maxUnackedMessagesPerSubscription</td><td>Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction</td><td>200000</td></tr>
 <tr><td>subscriptionRedeliveryTrackerEnabled</td><td>Enable subscription message redelivery tracker</td><td>true</td></tr>
+<tr><td>subscriptionExpirationTimeMinutes</td><td>How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value <strong>greater than 0</strong> deletes inactive subscriptions automatically.<br/>Setting this configuration to <strong>0</strong> does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each <strong>namespace</strong> using the <a href="http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-"><code>pulsar-admin namespaces set-subscription-expiration-time options</code> command</a>.</td><td>0</td></tr>
 <tr><td>maxConcurrentLookupRequest</td><td>Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic</td><td>50000</td></tr>
 <tr><td>maxConcurrentTopicLoadRequest</td><td>Max number of concurrent topic loading request broker allows to control number of zk-operations</td><td>5000</td></tr>
 <tr><td>authenticationEnabled</td><td>Enable authentication</td><td>false</td></tr>
@@ -550,6 +553,7 @@
 <tr><td>servicePort</td><td>The port to use for server binary Protobuf requests</td><td>6650</td></tr>
 <tr><td>servicePortTls</td><td>The port to use to server binary Protobuf TLS requests</td><td>6651</td></tr>
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks</td><td></td></tr>
+<tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world.</td><td><code>InetAddress.getLocalHost().getHostname()</code></td></tr>
 <tr><td>authenticationEnabled</td><td>Whether authentication is enabled for the Pulsar proxy</td><td>false</td></tr>
 <tr><td>authenticateMetricsEndpoint</td><td>Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect.</td><td>true</td></tr>
 <tr><td>authenticationProviders</td><td>Authentication provider name list (a comma-separated list of class names)</td><td></td></tr>
