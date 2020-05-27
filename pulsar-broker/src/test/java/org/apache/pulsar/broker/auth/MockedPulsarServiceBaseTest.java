@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -50,17 +49,12 @@ import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -146,8 +140,8 @@ public abstract class MockedPulsarServiceBaseTest {
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                .build());
+                        .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                        .build());
 
         mockZooKeeper = createMockZooKeeper();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
@@ -296,7 +290,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                int zkSessionTimeoutMillis) {
+                                                   int zkSessionTimeoutMillis) {
             // Always return the same instance (so that we don't loose the mock ZK content on broker restart
             return CompletableFuture.completedFuture(mockZooKeeper);
         }
@@ -306,8 +300,8 @@ public abstract class MockedPulsarServiceBaseTest {
 
         @Override
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
-                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                Map<String, Object> properties) {
+                                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                 Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
@@ -333,16 +327,6 @@ public abstract class MockedPulsarServiceBaseTest {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
-    }
-
-    protected List<String> getTopicListAndTrimSystemTopic(String namespace) throws PulsarAdminException {
-        List<String> topicList = admin.topics().getList(namespace);
-
-        // Check topic policy system topic and then delete them
-        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
-            EventType.TOPIC_POLICY).toString()));
-        topicList.removeIf(tn -> SystemTopicClient.isSystemTopic(TopicName.get(tn)));
-        return topicList;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

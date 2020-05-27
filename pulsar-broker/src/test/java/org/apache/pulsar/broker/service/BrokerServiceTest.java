@@ -389,8 +389,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         JsonObject topicStats = brokerStatsClient.getTopics();
-        // original topics and system topic for namespace event change
-        assertEquals(topicStats.size(), 3, topicStats.toString());
+        assertEquals(topicStats.size(), 2, topicStats.toString());
 
         for (String ns : nsList) {
             JsonObject nsObject = topicStats.getAsJsonObject(ns);
@@ -416,7 +415,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         for (String ns : nsList) {
             List<String> topics = admin.namespaces().getTopics(ns);
             for (String dest : topics) {
-                admin.topics().delete(dest, true);
+                admin.topics().delete(dest);
             }
             admin.namespaces().deleteNamespace(ns);
         }
@@ -760,7 +759,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("It should fail as throttling should only receive 2 requests");
         } catch (Exception e) {
             if (!(e.getCause() instanceof
-                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                 fail("Subscribe should fail with TooManyRequestsException");
             }
         }
@@ -920,7 +919,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
      * version.
-     * 
+     *
      * @throws Exception
      */
     @Test

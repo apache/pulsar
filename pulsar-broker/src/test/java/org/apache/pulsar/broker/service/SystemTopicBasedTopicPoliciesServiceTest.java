@@ -54,6 +54,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         prepareData();
     }

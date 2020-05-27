@@ -52,7 +52,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
@@ -76,8 +75,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -113,10 +110,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -158,10 +155,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertEquals(getAvailablePermits(subRef), 1000 /* default */);
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         for (int i = 0; i < numMsgs * 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -236,10 +233,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .receiverQueueSize(recvQueueSize).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -284,10 +281,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .receiverQueueSize(recvQueueSize).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // (2) Produce Messages
         for (int i = 0; i < recvQueueSize / 2; i++) {
@@ -357,10 +354,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         for (int i = 0; i < recvQueueSize * numConsumersThreads; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -388,10 +385,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String subName = "sub4";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -455,10 +452,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -487,10 +484,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         try {
             pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
             fail("Should have thrown an exception since one consumer is already connected");
@@ -883,10 +880,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertFalse(subRef.getDispatcher().isConsumerConnected());
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -906,8 +903,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespaceName),
-                EventType.TOPIC_POLICY).toString(), true);
         admin.namespaces().deleteNamespace(namespaceName);
     }
 
@@ -932,10 +927,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(subRef.getDispatcher().isConsumerConnected());
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -1043,10 +1038,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subName).receiverQueueSize(1000).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         assertEquals(consumer.getAvailablePermits(), 0);
 
@@ -1074,10 +1069,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -1126,13 +1121,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. Producer connect
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
-            .topic(topicName)
-            .maxPendingMessages(messages)
-            .blockIfQueueFull(true)
-            .sendTimeout(1, TimeUnit.SECONDS)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .maxPendingMessages(messages)
+                .blockIfQueueFull(true)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Stop broker
         super.internalCleanup();
@@ -1173,13 +1168,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 1. Producer connect
         PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
-            .topic(topicName)
-            .maxPendingMessages(messages)
-            .blockIfQueueFull(false)
-            .sendTimeout(1, TimeUnit.SECONDS)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .maxPendingMessages(messages)
+                .blockIfQueueFull(false)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         // 2. Stop broker
         super.internalCleanup();
@@ -1222,15 +1217,15 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. producers connect
         Producer<byte[]> producer1 = pulsarClient.newProducer()
-            .topic("persistent://prop/ns-abc/topic-1")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic("persistent://prop/ns-abc/topic-1")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         /* Producer<byte[]> producer2 = */ pulsarClient.newProducer()
-            .topic("persistent://prop/ns-abc/topic-2")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic("persistent://prop/ns-abc/topic-2")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         brokerService.updateRates();
 
@@ -1270,11 +1265,11 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .compressionType(compressionType)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .compressionType(compressionType)
+                .create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -1310,10 +1305,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         final String namespace = "prop/ns-abc";
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic("persistent://" + namespace + "/topic0")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic("persistent://" + namespace + "/topic0")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         // 1. producer publish messages
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -1343,9 +1338,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
         CompletableFuture<MessageId> future1 = producer.newMessage().value("message-1".getBytes()).sendAsync();
@@ -1470,10 +1465,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(1).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -1536,10 +1531,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String topic = "persistent://prop/ns-abc/testCreateProducerWithSameName";
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-            .topic(topic)
-            .producerName("test-producer-a")
-            .enableBatching(false)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition);
+                .topic(topic)
+                .producerName("test-producer-a")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
         Producer<byte[]> p1 = producerBuilder.create();
 
         try {
