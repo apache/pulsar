@@ -161,7 +161,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             if (msgId.compareTo(lastCumlativeAck) > 0) {
                 if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId) && LAST_CUMULATIVE_ACK_SET_UPDATER.compareAndSet(this, lastBitSet, bitSet)) {
                     if (lastBitSet != null) {
-                        lastBitSet.recycle();
+                        try {
+                            lastBitSet.recycle();
+                        } catch (Exception ignore) {
+                            // no-op
+                        }
                     }
                     // Successfully updated the last cumulative ack. Next flush iteration will send this to broker.
                     cumulativeAckFlushRequired = true;

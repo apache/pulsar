@@ -1541,8 +1541,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             subMap.values().forEach(BitSetRecyclable::recycle);
             subMap.clear();
         } else if (newPosition.ackSet != null) {
-            callback.markDeleteFailed(new ManagedLedgerException("Batch ack set not support"), ctx);
-            return;
+            newPosition = ledger.getPreviousPosition(newPosition);
+            newPosition.ackSet = null;
         }
 
         if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
