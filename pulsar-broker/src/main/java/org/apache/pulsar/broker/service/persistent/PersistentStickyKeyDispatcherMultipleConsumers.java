@@ -167,7 +167,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     PositionImpl startPosition = (PositionImpl) subList.get(0).getPosition();
 
                     // To fence messages if current mark delete position of the cursor is lower than fence position of the consumer.
-                    if (mdPosition.getNext().compareTo(consumer.getFencePositionForKeyShared()) < 0) {
+                    if (consumer.getFencePositionForKeyShared() != null && mdPosition.getNext().compareTo(consumer.getFencePositionForKeyShared()) < 0) {
                         if (startPosition.compareTo(consumer.getFencePositionForKeyShared()) >= 0) {
                             fencedMessagesContainer.putIfAbsent(consumer.getFencePositionForKeyShared(), new ConcurrentSortedLongPairSet(128, 2));
                             subList.forEach(entry -> fencedMessagesContainer.get(consumer.getFencePositionForKeyShared()).add(entry.getLedgerId(), entry.getEntryId()));
