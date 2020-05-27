@@ -116,7 +116,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         ).thenReturn(false);
 
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, new HashRangeAutoSplitStickyKeyConsumerSelector());
+                topicMock, cursorMock, subscriptionMock, new HashRangeAutoSplitStickyKeyConsumerSelector(), 1000);
         persistentDispatcher.addConsumer(consumerMock);
         persistentDispatcher.consumerFlow(consumerMock, 1000);
     }
