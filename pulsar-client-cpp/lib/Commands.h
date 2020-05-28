@@ -71,6 +71,8 @@ class Commands {
     static SharedBuffer newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
                                    bool connectingThroughProxy);
 
+    static SharedBuffer newAuthResponse(const AuthenticationPtr& authentication);
+
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
     static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);

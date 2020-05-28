@@ -215,6 +215,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
+
+    FeatureFlags* flags = connect->mutable_feature_flags();
+    flags->set_supports_auth_refresh(true);
     if (connectingThroughProxy) {
         Url logicalAddressUrl;
         Url::parse(logicalAddress, logicalAddressUrl);
@@ -225,6 +228,23 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::AUTH_RESPONSE);
+    CommandAuthResponse* authResponse = cmd.mutable_authresponse();
+    authResponse->set_client_version(_PULSAR_VERSION_);
+
+    AuthData* authData = authResponse->mutable_response();
+    authData->set_auth_method_name(authentication->getAuthMethodName());
+
+    AuthenticationDataPtr authDataContent;
+    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+        authData->set_auth_data(authDataContent->getCommandData());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
