@@ -225,6 +225,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private Channel listenChannel;
     private Channel listenChannelTls;
 
+    private boolean preciseTopicPublishRateLimitingEnable;
     private final long maxMessagePublishBufferBytes;
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
@@ -234,6 +235,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.maxMessagePublishBufferBytes = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() > 0 ?
             pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L : -1;
         this.resumeProducerReadMessagePublishBufferBytes = this.maxMessagePublishBufferBytes / 2;
+        this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
@@ -1586,9 +1588,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 updateBrokerPublisherThrottlingMaxRate());
 
         // add listener to notify topic publish-rate monitoring
-        registerConfigurationListener("topicPublisherThrottlingTickTimeMillis", (publisherThrottlingTickTimeMillis) -> {
-            setupTopicPublishRateLimiterMonitor();
-        });
+        if (!preciseTopicPublishRateLimitingEnable) {
+            registerConfigurationListener("topicPublisherThrottlingTickTimeMillis", (publisherThrottlingTickTimeMillis) -> {
+                setupTopicPublishRateLimiterMonitor();
+            });
+        }
 
         // add more listeners here
     }

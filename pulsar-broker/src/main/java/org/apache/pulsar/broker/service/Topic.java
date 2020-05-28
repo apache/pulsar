@@ -149,6 +149,14 @@ public interface Topic {
 
     boolean isPublishRateExceeded();
 
+    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
+
+    boolean isBrokerPublishRateExceeded();
+
+    void disableCnxAutoRead();
+
+    void enableCnxAutoRead();
+
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);
