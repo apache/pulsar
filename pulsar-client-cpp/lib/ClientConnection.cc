@@ -414,6 +414,15 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
     readNextCommand();
 }
 
+void ClientConnection::handleSentAuthResponse(const boost::system::error_code& err,
+                                              const SharedBuffer& buffer) {
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to send auth response: " << err.message());
+        close();
+        return;
+    }
+}
+
 /*
  * Async method to establish TCP connection with broker
  *
@@ -1024,6 +1033,15 @@ void ClientConnection::handleIncomingCommand() {
                     LOG_DEBUG(cnxString_ << "Received response to ping message");
                     havePendingPingRequest_ = false;
                     break;
+                }
+
+                case BaseCommand::AUTH_CHALLENGE: {
+                    LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
+
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    asyncWrite(buffer.const_asio_buffer(),
+                               std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
+                                         std::placeholders::_1, buffer));
                 }
 
                 case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
