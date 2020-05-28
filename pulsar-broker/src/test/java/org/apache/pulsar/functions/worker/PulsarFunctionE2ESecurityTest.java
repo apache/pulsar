@@ -511,7 +511,12 @@ public class PulsarFunctionE2ESecurityTest {
 
                 }
 
-                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                try {
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                } catch (PulsarAdminException e) {
+                    // This happens because the request becomes outdated. Lets retry again
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                }
 
                 assertTrue(retryStrategically((test) -> {
                     try {
@@ -783,7 +788,12 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            try {
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            } catch (PulsarAdminException e) {
+                // This happens because the request becomes outdated. Lets retry again
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            }
 
             assertTrue(retryStrategically((test) -> {
                 try {
