@@ -23,18 +23,23 @@ and persists the messages to HBase tables</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
 <p>The configuration of the HBase sink connector has the following properties.</p>
 <h3><a class="anchor" aria-hidden="true" id="property"></a><a href="#property" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Property</h3>
-<p>| Name | Type|Default | Required | Description |
-|------|---------|----------|-------------|
-| <code>hbaseConfigResources</code> | String|None | false | HBase system configuration <code>hbase-site.xml</code> file. |
-| <code>zookeeperQuorum</code> | String|None | true | HBase system configuration about <code>hbase.zookeeper.quorum</code> value. |
-| <code>zookeeperClientPort</code> | String|2181 | false | HBase system configuration about <code>hbase.zookeeper.property.clientPort</code> value. |
-| <code>zookeeperZnodeParent</code> | String|/hbase | false | HBase system configuration about <code>zookeeper.znode.parent</code> value. |
-| <code>tableName</code> | None |String | true | HBase table, the value is <code>namespace:tableName</code>. |
-| <code>rowKeyName</code> | String|None | true | HBase table rowkey name. |
-| <code>familyName</code> | String|None | true | HBase table column family name. |
-| <code>qualifierNames</code> |String| None | true | HBase table column qualifier names. |
-| <code>batchTimeMs</code> | Long|1000l| false | HBase table operation timeout in milliseconds. |
-| <code>batchSize</code> | int|200| false | Batch size of updates made to the HBase table. |</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Default</th><th>Required</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>hbaseConfigResources</code></td><td>String</td><td>None</td><td>false</td><td>HBase system configuration <code>hbase-site.xml</code> file.</td></tr>
+<tr><td><code>zookeeperQuorum</code></td><td>String</td><td>None</td><td>true</td><td>HBase system configuration about <code>hbase.zookeeper.quorum</code> value.</td></tr>
+<tr><td><code>zookeeperClientPort</code></td><td>String</td><td>2181</td><td>false</td><td>HBase system configuration about <code>hbase.zookeeper.property.clientPort</code> value.</td></tr>
+<tr><td><code>zookeeperZnodeParent</code></td><td>String</td><td>/hbase</td><td>false</td><td>HBase system configuration about <code>zookeeper.znode.parent</code> value.</td></tr>
+<tr><td><code>tableName</code></td><td>None</td><td>String</td><td>true</td><td>HBase table, the value is <code>namespace:tableName</code>.</td></tr>
+<tr><td><code>rowKeyName</code></td><td>String</td><td>None</td><td>true</td><td>HBase table rowkey name.</td></tr>
+<tr><td><code>familyName</code></td><td>String</td><td>None</td><td>true</td><td>HBase table column family name.</td></tr>
+<tr><td><code>qualifierNames</code></td><td>String</td><td>None</td><td>true</td><td>HBase table column qualifier names.</td></tr>
+<tr><td><code>batchTimeMs</code></td><td>Long</td><td>1000l</td><td>false</td><td>HBase table operation timeout in milliseconds.</td></tr>
+<tr><td><code>batchSize</code></td><td>int</td><td>200</td><td>false</td><td>Batch size of updates made to the HBase table.</td></tr>
+</tbody>
+</table>
 <h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
 <p>Before using the HBase sink connector, you need to create a configuration file through one of the following methods.</p>
 <ul>

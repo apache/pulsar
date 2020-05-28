@@ -78,11 +78,11 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to develop Pulsar connectors</h1></header><article><div><span><p>本教程解释了如何开发 Pulsar connector，以在 Pulsar 和其他系统之间移动数据。</p>
 <p>Pulsar connector 是特殊的 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a>，因此创建 Pulsar connector 类似于创建 Pulsar function。</p>
 <p>Pulsar connector 可分为两类：</p>
-<p>| Type | Description | Example |---|---|--- <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
+<p>| 类型 | 说明 | 示例 |---|---|--- <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
 | 从一个系统导入数据到 Pulsar。|<a href="/docs/zh-CN/next/io-rabbitmq">RabbitMQ source connector</a> 从 RabbitMQ 队列导入消息到 Pulsar topic。 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
-| 从 Pulsar 导出数据到另一个系统。|<a href="/docs/zh-CN/next/io-kinesis">Kinesis sink connector</a> 从 Pulsar 主题导出消息到 Kinesis 流。</p>
-<h2><a class="anchor" aria-hidden="true" id="develop"></a><a href="#develop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Develop</h2>
-<p>可以开发 Pulsar 源连接器 和 sink 连接器。</p>
+| 从 Pulsar 导出数据到另一个系统。|<a href="/docs/zh-CN/next/io-kinesis">Kinesis sink connector</a> 从 Pulsar topic 导出消息到 Kinesis 流。</p>
+<h2><a class="anchor" aria-hidden="true" id="开发"></a><a href="#开发" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>开发</h2>
+<p>你可以开发 Pulsar source connector 和 sink connector。</p>
 <h3><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h3>
 <p>Developing a source connector is to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>Source</code></a>
  interface, which means you need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>open</code></a>
@@ -100,10 +100,10 @@
 */</span>
 <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SourceContext sourceContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
-<p>源连接器初始化会调用此方法。</p>
-<p>在此方法中，可通过传入的 <code>config</code> 参数检索所有连接器的特定设置，并初始化所有必要的资源。</p>
-<p>例如，Kafka连接器可以在 <code>open</code> 方法中创建 Kafka 客户端。</p>
-<p>此外，Pulsar 运行时会为连接器提供 <code>SourceContext</code>，连接器可以访问运行时资源，以执行收集度量等任务。 执行此方法可以保存 <code>SourceContext</code> 供后续使用。</p></li>
+<p>Source connector 初始化会调用此方法。</p>
+<p>在此方法中，可通过传入的 <code>config</code> 参数检索所有 connector 的特定设置，并初始化所有必须的资源。</p>
+<p>例如，Kafka connector 可以在 <code>open</code> 方法中创建 Kafka 客户端。</p>
+<p>此外，Pulsar 运行时会为 connector 提供 <code>SourceContext</code>，connector 可以访问运行时资源，以执行收集 metrics 等任务。 执行此方法可以保存 <code>SourceContext</code> 供后续使用。</p></li>
 <li><p>Implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java"><code>read</code></a>
  method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
@@ -120,21 +120,21 @@
 <ul>
 <li><p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
  should provide the following variables:</p>
-<p>|Variable|Required|Description |---|---|--- <code>TopicName</code>|No| 记录来自于 Pulsar 主题名称。 <code>Key</code>|No| 消息会被随机标记为密钥。</p>
-<p>更多详细信息，请参见 <a href="/docs/zh-CN/next/concepts-messaging#routing-modes">Routing modes</a>.| <code>Value</code>|Yes| 实际记录数据。 <code>EventTime</code>|No| 来自源记录的事件时间。 <code>PartitionId</code>|No| 如果记录来自已分区的源，则返回 <code>PartitionId</code>。</p>
-<p><code>PartitionId</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>RecordSequence</code>|No| 如果记录源自序列，则返回 <code>RecordSequence</code>。</p>
-<p><code>RecordSequence</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>Properties</code> |No| 如果记录带有用户自定义的属性，则返回相关属性。 <code>DestinationTopic</code>|No| 应该写入消息的主题。 <code>Message</code>|No| 包含用户所发送数据的类。</p>
-<p>更多详细信息，请参见 <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java">Message.java</a>.|</p>
+<p>| 变量 | 是否必须 | 说明 |---|---|--- <code>TopicName</code>|No| 记录所属于的 Pulsar topic 的名称。 <code>Key</code>|No| 随机用密钥标记消息。</p>
+<p>更多详细信息，参阅 <a href="/docs/zh-CN/next/concepts-messaging#routing-modes">Routing modes</a>.| <code>Value</code>|Yes| 实际记录数据。 <code>EventTime</code>|No| Source 中记录的事件时间。 <code>PartitionId</code>|No| 如果记录来自已分区的 source，则返回 <code>PartitionId</code>。</p>
+<p><code>PartitionId</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>RecordSequence</code>|No| 如果记录来自于序列 source，则返回 <code>RecordSequence</code>。</p>
+<p><code>RecordSequence</code> 被 Pulsar IO 运行时间用作唯一标识符的一部分，删除重复的消息并实现 exactly-once 处理保证。 <code>Properties</code> |No| 如果记录带有用户自定义的属性，则返回相关属性。 <code>DestinationTopic</code>|No| 应该写入消息的 topic。 <code>Message</code>|No| 包含用户发送数据的类。</p>
+<p>更多详细信息，参阅 <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java">Message.java</a>。|</p>
 <ul>
 <li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java"><code>Record</code></a>
  should provide the following methods:</li>
 </ul>
-<p>Method|Description |---|--- <code>ack</code> | 确认记录已被处理。 <code>fail</code>| 表示记录未被处理。</p></li>
+<p>方法|说明 |---|--- <code>ack</code> | 记录已被处理。 <code>fail</code>| 记录未被处理。</p></li>
 </ul></li>
 </ol>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <strong>how to create a source connector</strong> 的更多详细信息，请参见 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaSource</code></a>
+<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>关于 <strong>how to create a source connector</strong> 的更多详细信息，参阅 <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaSource</code></a>
 。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Sink</h3>
@@ -164,38 +164,38 @@
     */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">write</span><span class="hljs-params">(Record&lt;T&gt; record)</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
-<p>在执行过程中，可以自行决定如何将 <code>Value</code> 和 <code>Key</code> 写入到实际源中，以及如何利用现有信息，如：<code>PartitionId</code> 和 <code>RecordSequence</code> 来实现不同的处理保证。</p>
-<p>还需要确认记录（消息发送成功）或确认失败记录（消息发送失败）。</p></li>
+<p>在执行过程中，可以自行决定如何将 <code>Value</code> 和 <code>Key</code> 写入到实际 source 中，以及如何利用现有信息，如：<code>PartitionId</code> 和 <code>RecordSequence</code> 来实现不同的处理保证。</p>
+<p>还需要 ack 记录（消息发送成功）或发送失败记录（消息发送失败）。</p></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="测试"></a><a href="#测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>测试</h2>
-<p>测试连接器会有一定的难度，因为 Pulsar IO 连接器与两个可能很难模拟的系统交互，即 Pulsar 和与连接器连接的系统。</p>
-<p>建议在模拟外部服务时编写特殊测试来测试连接器功能，如下所示。</p>
+<p>测试 connector 会有一定的难度，因为 Pulsar IO connector 与两个可能很难模拟的系统交互，即 Pulsar 和与 connector 连接的系统。</p>
+<p>建议在模拟外部服务时编写特殊测试来测试 connector 功能，如下所示。</p>
 <h3><a class="anchor" aria-hidden="true" id="单元测试"></a><a href="#单元测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单元测试</h3>
-<p>可以为连接器创建单元测试。</p>
+<p>可以为 connector 创建单元测试。</p>
 <h3><a class="anchor" aria-hidden="true" id="集成测试"></a><a href="#集成测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>集成测试</h3>
-<p>只要编写过足够的单元测试，就可以添加单独的集成测试来验证端到端的功能。</p>
-<p>Pulsar 使用 <a href="https://www.testcontainers.org/">testcontainers</a> <strong>for all integration tests</strong>。</p>
+<p>只要有足够的单元测试，就可以添加单独的集成测试来验证端到端的功能。</p>
+<p>Pulsar 使用 <a href="https://www.testcontainers.org/">testcontainers</a> <strong>进行所有的集成测试</strong>。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <strong>how to create integration tests for Pulsar connectors</strong> 的更多信息，请参见 <a href="https://github.com/apache/incubator-pulsar/tree/master//tests/integration/src/test/java/org/apache/pulsar/tests/integration/io"><code>IntegrationTests</code></a>
+<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>关于<strong>如何为 Pulsar connector 创建集成测试</strong>的更多信息，参阅 <a href="https://github.com/apache/incubator-pulsar/tree/master//tests/integration/src/test/java/org/apache/pulsar/tests/integration/io"><code>IntegrationTests</code></a>
 。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="包"></a><a href="#包" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>包</h2>
-<p>在开发并测试连接器后，需要先将其打包，然后才能提交到 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a> 集群。</p>
-<p>有两种方法可以使用 Pulsar Functions 的运行时间，即 <a href="#nar">NAR</a> and <a href="#uber-jar">uber JAR</a>。</p>
+<p>在开发并测试 connector 后，需要先将其打包，然后才能提交到 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a> 集群。</p>
+<p>有两种方法可以使用 Pulsar Functions 的运行时间，即 <a href="#nar">NAR</a> 和 <a href="#uber-jar">uber JAR</a>。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
-<p>如果打算将连接器打包并分发给其他人使用，你有义务 对自己的代码添加许可，并进行版权保护。 请记得添加许可和版权到 代码使用的所有库和你的发行版中。</p>
-<p>如果使用 <a href="#nar">NAR</a> 方法，则 NAR 插件会在生成的 NAR 包中自动创建一个 <code>DEPENDENCIES</code> 文件，包含连接器所有库的许可和版权。</p>
+<p>如果打算将 connector 打包并分发给其他人使用，则需要 为自己的代码添加许可，并进行版权保护。 请记得添加许可和版权到 代码用到的所有库和你的发行版中。</p>
+<p>如果使用 <a href="#nar">NAR</a> 方法，则 NAR 插件会在生成的 NAR 包中自动创建一个 <code>DEPENDENCIES</code> 文件，包含 connector 所有库的许可和版权。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="nar"></a><a href="#nar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NAR</h3>
-<p><strong>NAR</strong>，即 NiFi Archive，是 Apache NiFi 使用的自定义包装机制，提供一些 Java ClassLoader 隔离。</p>
+<p><strong>NAR</strong>，即 NiFi Archive，是 Apache NiFi 使用的自定义打包机制，提供一些 Java ClassLoader 隔离。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>关于 <strong>how NAR works</strong> 的更多信息，请点击 <a href="https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd">here</a>。</p>
+<h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p>关于 <strong>NAR 的工作原理</strong>的更多信息，参阅<a href="https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd">这里</a>。</p>
 </blockquote>
-<p>Pulsar 使用相同的机制来打包 <strong>all</strong> <a href="io-connectors">built-in connectors</a>。</p>
-<p>安装 Pulsar 连接器的最简单方法是使用 <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> 创建一个 NAR 包。</p>
+<p>Pulsar 使用相同的机制来打包<strong>所有</strong><a href="io-connectors">内置 connectors</a>。</p>
+<p>安装 Pulsar connector 最简单的方法是使用 <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> 创建一个 NAR 包。</p>
 <p>Include this <a href="https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin">nifi-nar-maven-plugin</a> in your maven project for your connector as below.</p>
 <pre><code class="hljs css language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">plugins</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">plugin</span>&gt;</span>
@@ -213,7 +213,7 @@
 </code></pre>
 <p>If you are using the <a href="https://github.com/sponiro/gradle-nar-plugin">Gradle NiFi plugin</a> you might need to create a directive to ensure your pulsar-io.yaml is <a href="https://github.com/sponiro/gradle-nar-plugin/issues/5">copied into the NAR file correctly</a>.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
 <p>For more information about an <strong>how to use NAR for Pulsar connectors</strong>, see <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/twitter/pom.xml"><code>TwitterFirehose</code></a>
 .</p>
 </blockquote>
@@ -241,7 +241,7 @@
   <span class="hljs-tag">&lt;/<span class="hljs-name">executions</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">plugin</span>&gt;</span>
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/io-cdc"><span class="arrow-prev">← </span><span>CDC connector</span></a><a class="docs-next button" href="/docs/zh-CN/next/io-cli"><span>CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#develop">Develop</a><ul class="toc-headings"><li><a href="#source">Source</a></li><li><a href="#sink">Sink</a></li></ul></li><li><a href="#测试">测试</a><ul class="toc-headings"><li><a href="#单元测试">单元测试</a></li><li><a href="#集成测试">集成测试</a></li></ul></li><li><a href="#包">包</a><ul class="toc-headings"><li><a href="#nar">NAR</a></li><li><a href="#uber-jar">Uber JAR</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/io-cdc"><span class="arrow-prev">← </span><span>CDC connector</span></a><a class="docs-next button" href="/docs/zh-CN/next/io-cli"><span>CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#开发">开发</a><ul class="toc-headings"><li><a href="#source">Source</a></li><li><a href="#sink">Sink</a></li></ul></li><li><a href="#测试">测试</a><ul class="toc-headings"><li><a href="#单元测试">单元测试</a></li><li><a href="#集成测试">集成测试</a></li></ul></li><li><a href="#包">包</a><ul class="toc-headings"><li><a href="#nar">NAR</a></li><li><a href="#uber-jar">Uber JAR</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
