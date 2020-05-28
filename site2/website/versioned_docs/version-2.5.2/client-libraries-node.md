@@ -7,6 +7,8 @@ original_id: client-libraries-node
 
 The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
 
+All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
+
 ## Installation
 
 You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
@@ -285,7 +287,7 @@ Pulsar Node.js readers have the following methods available:
 | :----- | :---------- | :---------- |
 | `readNext()` | Receives the next message on the topic (analogous to the `receive` method for [consumers](#consumer-operations)). When the message is available, the Promise object run executor function and get message object. | `Promise<Object>` |
 | `readNext(Number)` | Receives a single message from the topic with specific timeout in milliseconds. | `Promise<Object>` |
-| `hasNext()` | Return whether Proker has next message in target topic. | `Boolean` |
+| `hasNext()` | Return whether the broker has next message in target topic. | `Boolean` |
 | `close()` | Closes the reader, disabling its ability to receive messages from the broker. | `Promise<null>` |
 
 ### Reader configuration
