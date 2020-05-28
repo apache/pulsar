@@ -26,7 +26,7 @@ At the end of this tutorial, you are able to:
 
 Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.
 
-For more information about **how to install a standalone Pulsar and built-in connectors**, see [here](standalone/#installing-pulsar).
+For more information about **how to install a standalone Pulsar and built-in connectors**, see [here](getting-started-standalone.md/#installing-pulsar).
 
 ## Start Pulsar standalone 
 
@@ -53,7 +53,7 @@ For more information about **how to install a standalone Pulsar and built-in con
     ```
 
     **Example output**
-    ```shell
+    ```json
     [{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
     ```
 
@@ -63,8 +63,8 @@ For more information about **how to install a standalone Pulsar and built-in con
     curl -s http://localhost:8080/admin/v2/namespaces/public
     ```
 
-    **Example outoupt**
-    ```shell
+    **Example output**
+    ```json
     ["public/default","public/functions"]
     ```
 
@@ -185,7 +185,7 @@ You can create a configuration file through one of the following methods.
 
 * YAML
   
-    ```
+    ```yaml
     configs:
         roots: "localhost:9042"
         keyspace: "pulsar_test_keyspace"
@@ -234,7 +234,7 @@ to monitor a connector and perform other operations on it.
 
   **Example output**
 
-  ```bash
+  ```json
   {
     "tenant": "public",
     "namespace": "default",
@@ -271,7 +271,7 @@ to monitor a connector and perform other operations on it.
 
   **Example output**
 
-  ```shell
+  ```json
   {
     "numInstances" : 1,
     "numRunning" : 1,
@@ -315,7 +315,7 @@ to monitor a connector and perform other operations on it.
 
     **Example output**
 
-    ```shell
+    ```json
     {
       "numInstances" : 1,
       "numRunning" : 1,
@@ -483,7 +483,7 @@ In this section, you need to configure a JDBC sink connector.
 
     Create a _pulsar-mysql-jdbc-sink.yaml_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-    ```bash
+    ```yaml
     configs:
       userName: "root"
       password: "jdbc"
@@ -495,7 +495,7 @@ In this section, you need to configure a JDBC sink connector.
 
     Create a _avro-schema_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-    ```bash
+    ```json
     {
       "type": "AVRO",
       "schema": "{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}",
@@ -524,7 +524,7 @@ In this section, you need to configure a JDBC sink connector.
 
     The schema has been uploaded successfully if the following message appears.
 
-    ```bash
+    ```json
     {"name":"pulsar-mysql-jdbc-sink-topic","schema":"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}","type":"AVRO","properties":{}}
     ```
 
@@ -587,7 +587,7 @@ to monitor a connector and perform other operations on it.
 
   The result shows that only the _mysql-jdbc-sink_ sink is running.
 
-  ```bash
+  ```json
   [
   "pulsar-mysql-jdbc-sink"
   ]
@@ -608,7 +608,7 @@ to monitor a connector and perform other operations on it.
 
   The result shows the information of the sink connector, including tenant, namespace, topic and so on.
 
-  ```bash
+  ```json
   {
     "tenant": "public",
     "namespace": "default",
@@ -647,7 +647,7 @@ to monitor a connector and perform other operations on it.
 
   The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.
 
-  ```bash
+  ```json
   {
     "numInstances" : 1,
     "numRunning" : 1,
@@ -758,7 +758,7 @@ $ bin/pulsar-admin sinks get \
 
 The result shows that the parallelism is 2.
 
-```text
+```json
 {
   "tenant": "public",
   "namespace": "default",
@@ -789,7 +789,7 @@ to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-mysql-jdbc-sink_ sink connector.
 
-```text
+```bash
 $ bin/pulsar-admin sinks delete \
 --tenant public \
 --namespace default \
@@ -808,7 +808,7 @@ The sink connector has been deleted successfully if the following message appear
 
 This example double-checks the status of the sink connector.
 
-```text
+```bash
 $ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
