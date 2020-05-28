@@ -111,7 +111,7 @@ Possible properties might be the Git hash associated with the schema, an environ
 
 This is the `SchemaInfo` of a string.
 
-```text
+```json
 {
     "name": "test-string-schema",
     "type": "STRING",
@@ -172,15 +172,15 @@ This example demonstrates how to use a string schema.
 
 1. Create a producer with a string schema and send messages.
 
-    ```text
+    ```java
     Producer<String> producer = client.newProducer(Schema.STRING).create();
     producer.newMessage().value("Hello Pulsar!").send();
     ```
 
 2. Create a consumer with a string schema and receive messages.  
 
-    ```text
-    Consumer<String> consumer = client.newConsumer(Schema.STRING).create();
+    ```java
+    Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
     consumer.receive();
     ```
 
@@ -306,7 +306,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
-    ```text
+    ```java
     public class User {
         String name;
         int age;
@@ -315,15 +315,15 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 2. Create a producer with a `struct` schema and send messages.
 
-    ```text
+    ```java
     Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
     producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
     ```
 
 3. Create a consumer with a `struct` schema and receive messages
 
-    ```text
-    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).create();
+    ```java
+    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
     User user = consumer.receive();
     ```
 
@@ -337,7 +337,7 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 1. Use `RecordSchemaBuilder` to build a schema.
 
-    ```text
+    ```java
     RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
     recordSchemaBuilder.field("intField").type(SchemaType.INT32);
     SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
@@ -347,7 +347,7 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 2. Use `RecordBuilder` to build the struct records.
 
-    ```text
+    ```java
     producer.newMessage().value(schema.newRecordBuilder()
                 .set("intField", 32)
                 .build()).send();
@@ -378,7 +378,7 @@ Suppose that:
    
 In this case, you can use `AUTO_PRODUCE` to verify whether the bytes produced by _K_ can be sent to _P_ or not.
 
-```text
+```java
 Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
     …
     .create();
@@ -406,14 +406,13 @@ Suppose that:
    
 In this case, you can use `AUTO_CONSUME` to verify whether the bytes produced by _P_ can be sent to MySQL or not.
 
-```text
+```java
 Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
     …
     .subscribe();
 
 Message<GenericRecord> msg = consumer.receive() ; 
 GenericRecord record = msg.getValue();
-…
 ```
 
 ## Schema version
@@ -432,7 +431,7 @@ The following example illustrates how the schema version works.
 
 Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
 
-```text
+```java
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
