@@ -107,9 +107,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 if (indexesAcks != null && cursor != null) {
                     long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
                     if (ackSet != null) {
-                        indexesAcks.setIndexesAcks(Pair.of(batchSize, ackSet));
+                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                     } else {
-                        indexesAcks.setIndexesAcks(null);
+                        indexesAcks.setIndexesAcks(i,null);
                     }
                 }
             } finally {

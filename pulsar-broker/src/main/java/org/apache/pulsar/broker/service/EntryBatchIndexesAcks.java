@@ -28,14 +28,14 @@ import java.util.List;
 
 public class EntryBatchIndexesAcks {
 
-    List<Pair<Integer, long[]>> indexesAcks = new ArrayList<>();
+    Pair<Integer, long[]>[] indexesAcks = new Pair[100];
 
-    public void setIndexesAcks(Pair<Integer, long[]> indexesAcks) {
-        this.indexesAcks.add(indexesAcks);
+    public void setIndexesAcks(int entryIdx, Pair<Integer, long[]> indexesAcks) {
+        this.indexesAcks[entryIdx] = indexesAcks;
     }
 
     public long[] getAckSet(int entryIdx) {
-        Pair<Integer, long[]> pair = indexesAcks.get(entryIdx);
+        Pair<Integer, long[]> pair = indexesAcks[entryIdx];
         return pair == null ? null : pair.getRight();
     }
 
@@ -50,7 +50,6 @@ public class EntryBatchIndexesAcks {
     }
 
     public void recycle() {
-        this.indexesAcks.clear();
         handle.recycle(this);
     }
 
