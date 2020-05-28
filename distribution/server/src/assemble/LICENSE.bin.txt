@@ -326,7 +326,7 @@ The Apache Software License, Version 2.0
  * Guava
     - com.google.guava-guava-25.1-jre.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
- * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.4.jar
  * Swagger
     - io.swagger-swagger-annotations-1.5.21.jar
     - io.swagger-swagger-core-1.5.21.jar
