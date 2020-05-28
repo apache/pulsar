@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -80,7 +79,6 @@ public abstract class BkEnsemblesTestBase {
             config.setAllowAutoTopicCreationType("non-partitioned");
 
             pulsar = new PulsarService(config);
-            pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
