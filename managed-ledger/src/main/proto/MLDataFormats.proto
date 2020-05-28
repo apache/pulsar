@@ -56,6 +56,8 @@ message ManagedLedgerInfo {
     // committed entry.
     // No more entries can be written.
     optional NestedPositionInfo terminatedPosition = 2;
+
+    repeated KeyValue properties = 3;
 }
 
 message PositionInfo {
