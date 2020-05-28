@@ -45,6 +45,12 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
     private static final String PULSAR_SERVICE_URL_CONFIG_DOC = "pulsar service url";
 
     /**
+     * <code>pulsar.auth.token</code>
+     */
+    public static final String PULSAR_AUTH_TOKEN_CONFIG = "pulsar.auth.token";
+    private static final String PULSAR_AUTH_TOKEN_CONFIG_DOC = "pulsar auth token";
+
+    /**
      * <code>topic.namespace</code>
      */
     public static final String TOPIC_NAMESPACE_CONFIG = "topic.namespace";
@@ -60,6 +66,10 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
                 Type.STRING,
                 Importance.HIGH,
                 PULSAR_SERVICE_URL_CONFIG_DOC)
+            .define(PULSAR_AUTH_TOKEN_CONFIG,
+                Type.STRING,
+                Importance.HIGH,
+                PULSAR_AUTH_TOKEN_CONFIG_DOC)
             .define(TOPIC_NAMESPACE_CONFIG,
                 Type.STRING,
                 "public/default",
