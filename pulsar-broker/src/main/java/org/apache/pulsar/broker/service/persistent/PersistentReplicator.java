@@ -77,6 +77,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private int readBatchSize;
+    private final int readMaxSizeBytes;
 
     private final int producerQueueThreshold;
 
@@ -119,6 +120,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -138,6 +140,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -285,7 +288,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
