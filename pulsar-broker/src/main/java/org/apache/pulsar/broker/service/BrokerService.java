@@ -2185,7 +2185,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
             return null;
         }
-        log.warn("No autoTopicCreateOverride policy found for {}", topicName);
+        log.debug("No autoTopicCreateOverride policy found for {}", topicName);
         return null;
     }
 
@@ -2216,7 +2216,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};", topicName, t.getMessage(), t);
             return null;
         }
-        log.warn("No autoSubscriptionCreateOverride policy found for {}", topicName);
+        log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
 }
