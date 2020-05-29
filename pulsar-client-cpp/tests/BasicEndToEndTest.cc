@@ -1536,7 +1536,7 @@ TEST(BasicEndToEndTest, testSeek) {
     LOG_INFO("Trying to receive 100 messages");
     Message msgReceived;
     for (msgNum = 0; msgNum < 100; msgNum++) {
-        consumer.receive(msgReceived, 100);
+        consumer.receive(msgReceived, 3000);
         LOG_DEBUG("Received message :" << msgReceived.getMessageId());
         std::stringstream expected;
         expected << msgContent << msgNum;
@@ -1550,7 +1550,7 @@ TEST(BasicEndToEndTest, testSeek) {
     std::this_thread::sleep_for(std::chrono::microseconds(500 * 1000));
 
     ASSERT_EQ(ResultOk, result);
-    consumer.receive(msgReceived, 100);
+    consumer.receive(msgReceived, 3000);
     LOG_ERROR("Received message :" << msgReceived.getMessageId());
     std::stringstream expected;
     msgNum = 0;
@@ -3123,11 +3123,11 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
         LOG_INFO("begin to receive message " << i);
 
         Message msg;
-        Result res = consumer1.receive(msg, 100);
+        Result res = consumer1.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         consumer1.acknowledge(msg);
 
-        res = consumer2.receive(msg, 100);
+        res = consumer2.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         consumer2.acknowledge(msg);
     }
@@ -3206,7 +3206,7 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
     // test cannot use acknowledgeCumulative on Shared subscription
     for (int i = 0; i < numMessages; i++) {
         Message msg;
-        Result res = consumer1.receive(msg, 100);
+        Result res = consumer1.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         if (i == 9) {
             res = consumer1.acknowledgeCumulative(msg);
@@ -3217,7 +3217,7 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
     // test cannot use acknowledgeCumulative on Key_Shared subscription
     for (int i = 0; i < numMessages; i++) {
         Message msg;
-        Result res = consumer2.receive(msg, 100);
+        Result res = consumer2.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         if (i == 9) {
             res = consumer2.acknowledgeCumulative(msg);
