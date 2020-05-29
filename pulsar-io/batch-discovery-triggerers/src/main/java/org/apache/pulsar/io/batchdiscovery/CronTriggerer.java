@@ -33,7 +33,6 @@ import java.util.function.Consumer;
  * "__CRON__" key with the appropriate cron expression. The triggerer will trigger based on this expression.
  *
  */
-
 @Slf4j
 public class CronTriggerer implements BatchSourceTriggerer {
   public static final String CRON_KEY = "__CRON__";
