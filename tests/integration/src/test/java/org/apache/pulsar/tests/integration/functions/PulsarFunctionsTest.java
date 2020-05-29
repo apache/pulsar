@@ -221,9 +221,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         DebeziumSqlServerSourceTester sourceTester = new DebeziumSqlServerSourceTester(pulsarCluster, converterClassName);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
-        // setup debezium mysql server
-        DebeziumSqlServerContainer SqlServerContainer = new DebeziumSqlServerContainer(pulsarCluster.getClusterName());
-        sourceTester.setServiceContainer(SqlServerContainer);
+        // setup debezium sqlserver server
+        DebeziumSqlServerContainer sqlServerContainer = new DebeziumSqlServerContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(sqlServerContainer);
 
         // prepare the testing environment for source
         prepareSource(sourceTester);
