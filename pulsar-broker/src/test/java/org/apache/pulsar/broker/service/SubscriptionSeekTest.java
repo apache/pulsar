@@ -39,7 +39,6 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 public class SubscriptionSeekTest extends BrokerTestBase {
     @BeforeClass
     @Override

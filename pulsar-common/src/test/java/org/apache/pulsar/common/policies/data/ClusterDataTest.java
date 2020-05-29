@@ -23,11 +23,10 @@ import static org.testng.Assert.assertNotEquals;
 
 import org.testng.annotations.Test;
 
-@Test
 public class ClusterDataTest {
 
     @Test
-    void simple() {
+    public void simple() {
         String s1 = "http://broker.messaging.c1.example.com:8080";
         String s2 = "http://broker.messaging.c2.example.com:8080";
         String s3 = "https://broker.messaging.c1.example.com:4443";
