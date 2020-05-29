@@ -42,12 +42,11 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-@Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarRecordCursor.class);
 
-    @Test
+    @Test(singleThreaded = true)
     public void testTopics() throws Exception {
 
         for (Map.Entry<TopicName, PulsarRecordCursor> entry : pulsarRecordCursors.entrySet()) {
