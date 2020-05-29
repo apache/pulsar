@@ -63,7 +63,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
-    // When set to true, this inactive topic can not be deleted
+    // When set to false, this inactive topic can not be deleted
     protected boolean brokerDeleteInactiveTopicsEnabled;
 
     // Timestamp of when this topic was last seen active
