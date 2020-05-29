@@ -354,7 +354,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, ReadType.Normal);
+                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this,
+                        ReadType.Normal);
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
