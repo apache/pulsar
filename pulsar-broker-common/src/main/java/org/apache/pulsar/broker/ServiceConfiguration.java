@@ -539,6 +539,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int dispatcherMaxRoundRobinBatchSize = 20;
 
     @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = "Precise dispatcher flow control according to history message number of each entry"
+    )
+    private boolean preciseDispatcherFlowControl = false;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic")
