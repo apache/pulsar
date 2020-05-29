@@ -129,6 +129,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
+        config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
