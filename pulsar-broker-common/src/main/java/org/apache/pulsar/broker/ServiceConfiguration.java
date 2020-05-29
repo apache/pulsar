@@ -522,6 +522,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max size in bytes of entries to read from bookkeeper. By default it is 5MB."
+    )
+    private int dispatcherMaxReadSizeBytes = 5 * 1024 * 1024;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
