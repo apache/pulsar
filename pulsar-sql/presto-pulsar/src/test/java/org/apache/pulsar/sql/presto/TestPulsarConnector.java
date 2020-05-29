@@ -94,7 +94,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-@Test(singleThreaded = true)
 public abstract class TestPulsarConnector {
 
     protected static final long currentTimeMs = 1534806330000L;
