@@ -428,12 +428,12 @@ public abstract class AbstractTopic implements Topic {
         return getStats(false).bytesOutCounter;
     }
 
-    public boolean isInactiveTopicCanNotBeDeleted() {
+    public boolean isBrokerDeleteInactiveTopicsEnabled() {
         return brokerDeleteInactiveTopicsEnabled;
     }
 
-    public void setInactiveTopicCanNotBeDeleted(boolean inactiveTopicCanNotBeDeleted) {
-        brokerDeleteInactiveTopicsEnabled = inactiveTopicCanNotBeDeleted;
+    public void setBrokerDeleteInactiveTopicsEnabled(boolean brokerDeleteInactiveTopicsEnabled) {
+        this.brokerDeleteInactiveTopicsEnabled = brokerDeleteInactiveTopicsEnabled;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
