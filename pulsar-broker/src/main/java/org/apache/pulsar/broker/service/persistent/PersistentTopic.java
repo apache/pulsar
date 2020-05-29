@@ -1629,7 +1629,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (isInactiveTopicCanNotBeDeleted) {
+        if (brokerDeleteInactiveTopicsEnabled) {
             // This topic is not included in GC
             return;
         }

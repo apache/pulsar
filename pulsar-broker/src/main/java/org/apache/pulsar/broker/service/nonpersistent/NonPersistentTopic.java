@@ -830,7 +830,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (isInactiveTopicCanNotBeDeleted) {
+        if (brokerDeleteInactiveTopicsEnabled) {
             // This topic is not included in GC
             return;
         }
