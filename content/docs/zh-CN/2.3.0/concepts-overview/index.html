@@ -85,14 +85,14 @@
 <li>通过<a href="http://bookkeeper.apache.org/">Apache BookKeeper</a>提供的 <a href="/docs/zh-CN/2.3.0/concepts-architecture-overview#persistent-storage">持久化消息存储机制</a> 保证消息的送达</li>
 <li>一个serverless的轻量级计算框架 <a href="/docs/zh-CN/2.3.0/functions-overview">Pulsar Functions</a> 提供了原生的流数据处理</li>
 <li>一个serverless的连接器框架<a href="/docs/zh-CN/2.3.0/io-overview">Pulsar IO</a>，构建于 Pulsar Functions之上，能够轻松的将数据从Apache Pulsar中移入和移出</li>
-<li><a href="/docs/zh-CN/2.3.0/concepts-tiered-storage">分层式存储</a>可在数据老化时，将数据从热存储转移到冷存储(如S3、GCS)中。</li>
+<li><a href="/docs/zh-CN/2.3.0/concepts-tiered-storage">分层式存储</a>可在数据陈旧时，将数据从热存储卸载到冷/长期存储（如S3、GCS）中。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="内容"></a><a href="#内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>内容</h2>
 <ul>
 <li><a href="/docs/zh-CN/2.3.0/concepts-messaging">消息系统概念</a></li>
 <li><a href="/docs/zh-CN/2.3.0/concepts-architecture-overview">架构概述</a></li>
-<li><a href="/docs/zh-CN/2.3.0/concepts-clients">Pulsar客户端</a></li>
-<li><a href="/docs/zh-CN/2.3.0/concepts-replication">基于地理位置的备份</a></li>
+<li><a href="/docs/zh-CN/2.3.0/concepts-clients">Pulsar 客户端</a></li>
+<li><a href="/docs/zh-CN/2.3.0/concepts-replication">跨机房复制</a></li>
 <li><a href="/docs/zh-CN/2.3.0/concepts-multi-tenancy">多租户</a></li>
 <li><a href="/docs/zh-CN/2.3.0/concepts-authentication">认证和授权</a></li>
 <li><a href="/docs/zh-CN/2.3.0/concepts-topic-compaction">消息压缩</a></li>

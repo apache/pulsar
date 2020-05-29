@@ -586,7 +586,7 @@ readerInclusive, err := client.CreateReader(ReaderOptions{
 <tbody>
 <tr><td style="text-align:left"><code>Payload</code></td><td style="text-align:left">The actual data payload of the message</td></tr>
 <tr><td style="text-align:left"><code>Key</code></td><td style="text-align:left">The optional key associated with the message (particularly useful for things like topic compaction)</td></tr>
-<tr><td style="text-align:left"><code>Properties</code></td><td style="text-align:left">A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message</td></tr>
+<tr><td style="text-align:left"><code>属性</code></td><td style="text-align:left">A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message</td></tr>
 <tr><td style="text-align:left"><code>EventTime</code></td><td style="text-align:left">The timestamp associated with the message</td></tr>
 <tr><td style="text-align:left"><code>ReplicationClusters</code></td><td style="text-align:left">The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.</td></tr>
 <tr><td style="text-align:left"><code>SequenceID</code></td><td style="text-align:left">Set the sequence id to assign to the current message</td></tr>

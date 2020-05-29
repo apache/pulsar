@@ -84,17 +84,17 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">Value / data payload</td><td style="text-align:left">The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data <a href="/docs/zh-CN/2.5.1/schema-get-started">schemas</a>.</td></tr>
-<tr><td style="text-align:left">Key</td><td style="text-align:left">消息可以打上标签（key），这在 <a href="/docs/zh-CN/2.5.1/concepts-topic-compaction">topic compaction</a> 时很有用。</td></tr>
-<tr><td style="text-align:left">Properties</td><td style="text-align:left">用户自定义属性的键值对</td></tr>
-<tr><td style="text-align:left">Producer名称</td><td style="text-align:left">给生产者的命名（生产者是有默认名称的，但您也可以显式地自定义名称）</td></tr>
-<tr><td style="text-align:left">序列ID</td><td style="text-align:left">Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.</td></tr>
+<tr><td style="text-align:left">Key</td><td style="text-align:left">可以为消息添加密钥（key）标签，这在 <a href="/docs/zh-CN/2.5.1/concepts-topic-compaction">topic 压缩</a>时很有用。</td></tr>
+<tr><td style="text-align:left">属性</td><td style="text-align:left">用户自定义属性的键值对</td></tr>
+<tr><td style="text-align:left">Producer 名称</td><td style="text-align:left">给生产者的命名（生产者是有默认名称的，但您也可以显式地自定义名称）</td></tr>
+<tr><td style="text-align:left">序列 ID</td><td style="text-align:left">Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.</td></tr>
 <tr><td style="text-align:left">发布时间</td><td style="text-align:left">消息发布的时间戳（由生产者自动添加）</td></tr>
 <tr><td style="text-align:left">事件时间</td><td style="text-align:left">可选的时间戳，应用程序可以将某些事情发生的时间添加到消息上，例如消息处理的时间。 The event time of a message is 0 if none is explicitly set.</td></tr>
 <tr><td style="text-align:left">TypedMessageBuilder</td><td style="text-align:left"><code>TypedMessageBuilder</code> 用于构造消息。 您可以使用 <code>TypedMessageBuilder</code> 设置消息的键值对属性。 </br> 在设置 <code>TypedMessageBuilder</code> 时，最佳实践是将 key 设置为字符串。 如果将 key 设置为其他类型（例如，AVRO 对象），则 key 会以字节形式发送，这时消费者就很难使用了。</td></tr>
 </tbody>
 </table>
 <blockquote>
-<p>更多 Pulsar 消息的细节，请参阅 <a href="/docs/zh-CN/2.5.1/develop-binary-protocol">binary protocol</a>。</p>
+<p>更多关于 Pulsar 消息的信息，参阅<a href="/docs/zh-CN/2.5.1/develop-binary-protocol">二进制协议</a>。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
 <p>生产者是连接 topic 的程序，它将消息发布到一个 Pulsar <a href="/docs/zh-CN/2.5.1/reference-terminology#broker">broker</a> 上。</p>

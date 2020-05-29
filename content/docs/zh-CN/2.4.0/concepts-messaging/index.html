@@ -85,9 +85,9 @@
 <tbody>
 <tr><td style="text-align:left">Value / data payload</td><td style="text-align:left">The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data <a href="/docs/zh-CN/2.4.0/concepts-schema-registry">schemas</a></td></tr>
 <tr><td style="text-align:left">Key</td><td style="text-align:left">消息可以被Key打标签。这对诸如<a href="/docs/zh-CN/2.4.0/concepts-topic-compaction">topic压缩</a>之类的事情有作用</td></tr>
-<tr><td style="text-align:left">Properties</td><td style="text-align:left">可选的，用户定义属性 的key/value map</td></tr>
-<tr><td style="text-align:left">Producer名称</td><td style="text-align:left">生产消息的producer名称(producer被自动赋予默认名称，但你也可以自己指定)</td></tr>
-<tr><td style="text-align:left">序列ID</td><td style="text-align:left">Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.</td></tr>
+<tr><td style="text-align:left">属性</td><td style="text-align:left">可选的，用户定义属性 的key/value map</td></tr>
+<tr><td style="text-align:left">Producer 名称</td><td style="text-align:left">生产消息的producer名称(producer被自动赋予默认名称，但你也可以自己指定)</td></tr>
+<tr><td style="text-align:left">序列 ID</td><td style="text-align:left">Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.</td></tr>
 <tr><td style="text-align:left">发布时间</td><td style="text-align:left">消息发布的时间戳(producer自动附上)</td></tr>
 <tr><td style="text-align:left">事件时间</td><td style="text-align:left">An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.</td></tr>
 </tbody>
