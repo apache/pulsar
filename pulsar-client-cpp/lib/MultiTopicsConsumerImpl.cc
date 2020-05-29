@@ -31,7 +31,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
       state_(Pending),
-      messages_(1000),
+      messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
       pendingReceives_(),
