@@ -63,6 +63,9 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
+    // When set to true, this inactive topic can not be gc
+    protected boolean isInactiveTopicCanNotBeDeleted = false;
+
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
 
@@ -421,6 +424,14 @@ public abstract class AbstractTopic implements Topic {
 
     public long getBytesOutCounter() {
         return getStats(false).bytesOutCounter;
+    }
+
+    public boolean isInactiveTopicCanNotBeDeleted() {
+        return isInactiveTopicCanNotBeDeleted;
+    }
+
+    public void setInactiveTopicCanNotBeDeleted(boolean inactiveTopicCanNotBeDeleted) {
+        isInactiveTopicCanNotBeDeleted = inactiveTopicCanNotBeDeleted;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
