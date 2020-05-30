@@ -16,16 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime;
-
-import org.apache.pulsar.common.util.Reflections;
+package org.apache.pulsar.io;
 
 import java.util.Map;
 
-public interface RuntimeCustomizer {
-    void initialize(final Map<String, Object> runtimeCustomizerConfig);
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
-    static RuntimeCustomizer getRuntimeCustomizer(String className) {
-        return Reflections.createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
+public class SinkForTest<T> implements Sink<String> {
+    @Override
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+
+    }
+
+    @Override
+    public void write(Record<String> record) throws Exception {
+        if (record.getValue().contains("fail")) {
+            record.fail();
+        } else {
+            record.ack();
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+
     }
 }

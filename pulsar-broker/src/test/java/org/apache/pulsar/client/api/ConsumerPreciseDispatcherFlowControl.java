@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.util.Reflections;
+import org.testng.annotations.BeforeMethod;
 
-import java.util.Map;
+public class ConsumerPreciseDispatcherFlowControl extends SimpleProducerConsumerTest{
 
-public interface RuntimeCustomizer {
-    void initialize(final Map<String, Object> runtimeCustomizerConfig);
-
-    static RuntimeCustomizer getRuntimeCustomizer(String className) {
-        return Reflections.createInstance(className, RuntimeCustomizer.class, Thread.currentThread().getContextClassLoader());
+    @BeforeMethod
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup(true);
+        super.producerBaseSetup();
     }
+
 }

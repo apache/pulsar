@@ -46,7 +46,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.testng.annotations.Test;
 
-@Test
 public class ManagedCursorContainerTest {
 
     private static class MockManagedCursor implements ManagedCursor {
@@ -326,10 +325,20 @@ public class ManagedCursorContainerTest {
 
         }
 
+        @Override
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                Object ctx) {
+        }
+
+        @Override
+        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
+                throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
     }
 
     @Test
-    void simple() throws Exception {
+    public void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
         assertNull(container.getSlowestReaderPosition());
 
@@ -384,7 +393,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void updatingCursorOutsideContainer() throws Exception {
+    public void updatingCursorOutsideContainer() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -406,7 +415,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void removingCursor() throws Exception {
+    public void removingCursor() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -443,7 +452,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void ordering() throws Exception {
+    public void ordering() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -477,7 +486,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void orderingWithUpdates() throws Exception {
+    public void orderingWithUpdates() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -542,7 +551,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void orderingWithUpdatesAndReset() throws Exception {
+    public void orderingWithUpdatesAndReset() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));

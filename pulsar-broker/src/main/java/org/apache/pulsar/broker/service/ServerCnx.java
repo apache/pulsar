@@ -159,6 +159,7 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
+    private boolean preciseDispatcherFlowControl;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
@@ -191,6 +192,7 @@ public class ServerCnx extends PulsarHandler {
         this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
         this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishdRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
+        this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
     }
 
     @Override
@@ -1951,5 +1953,9 @@ public class ServerCnx extends PulsarHandler {
     @VisibleForTesting
     void setAutoReadDisabledRateLimiting(boolean isLimiting) {
         this.autoReadDisabledRateLimiting = isLimiting;
+    }
+
+    public boolean isPreciseDispatcherFlowControl() {
+        return preciseDispatcherFlowControl;
     }
 }
