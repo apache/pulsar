@@ -9700,6 +9700,10 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "avgMessagesPerEntry" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "blockedConsumerOnUnackedMsgs" : {
           "type" : "boolean"
         },
@@ -10092,14 +10096,20 @@
           "type" : "number",
           "format" : "double"
         },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
+        "underLoaded" : {
           "type" : "boolean"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
         "lastUpdate" : {
           "type" : "integer",
@@ -10109,24 +10119,18 @@
           "type" : "number",
           "format" : "double"
         },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthOut" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -10297,10 +10301,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -11154,10 +11158,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -11216,15 +11220,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
