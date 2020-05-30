@@ -263,6 +263,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576|
 |s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 ||
 |s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
+| acknowledgmentAtBatchIndexLevelEnabled | Enable or disable the batch index acknowledgement. | false |
 
 
 
