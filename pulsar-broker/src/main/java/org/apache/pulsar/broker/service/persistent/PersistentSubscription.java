@@ -1014,6 +1014,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
+        subStats.isDurable = cursor.isDurable();
         return subStats;
     }
 
