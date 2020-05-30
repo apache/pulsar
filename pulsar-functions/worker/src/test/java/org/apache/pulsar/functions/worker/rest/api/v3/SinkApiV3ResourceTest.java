@@ -884,7 +884,7 @@ public class SinkApiV3ResourceTest {
         doReturn(CassandraStringSink.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSinkClass(any(NarClassLoader.class));
 
-        mockStatic(ConnectorUtils.class);
+        mockStatic(ClassLoaderUtils.class);
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
