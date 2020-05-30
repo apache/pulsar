@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,11 +44,8 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
     @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
-        conf.setRetentionCheckIntervalInSeconds(1);
-        conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
-        final String subscriptionName = "CurrentLedgerRolloverIfFullTest-subscriber-name";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -56,7 +54,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
                 .create();
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("CurrentLedgerRolloverIfFullTest-subscriber-name")
                 .subscribe();
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -64,19 +64,18 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-        managedLedgerConfig.setRetentionSizeInMB(1L);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
-        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-//        managedLedgerConfig.setMaximumRolloverTime(3000, TimeUnit.MILLISECONDS);
+        managedLedgerConfig.setMaximumRolloverTime(5, TimeUnit.MILLISECONDS);
 
-        int msgNum = 5;
+        int msgNum = 10;
         for (int i = 0; i < msgNum; i++) {
             producer.send(new byte[1024 * 1024]);
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum);
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -84,17 +83,21 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
             consumer.acknowledge(msg);
         }
 
-        // all the messages reached the TTL
-        // and all the ledgers will be removed except the the last ledger
-        Thread.sleep(2500);
+        // all the messages have been acknowledged
+        // and all the ledgers have been removed except the the last ledger
+        Thread.sleep(500);
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
 
-        // the last ledger reached the max time interval of rollover
-        // and all the entries will be removed
-        Thread.sleep(65000);
+        // trigger a ledger rollover
+        // and now we have two ledgers, one with expired data and one for empty
         managedLedger.rollCurrentLedgerIfFull();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        Thread.sleep(1000);
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+
+        // trigger a ledger trimming
+        // and now we only have the empty ledger
+        managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Assert.assertEquals(managedLedger.getCurrentLedgerSize(), 0);
     }
 }
