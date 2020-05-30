@@ -39,6 +39,8 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import java.util.Collections;
+
 import lombok.Cleanup;
 
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
@@ -151,12 +153,8 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(0).toString()).size(), 1);
 
-        // Partition-1 should not have a subscription and it shouldn't exist yet
-        try {
-            admin.topics().getSubscriptions(partitionedTopicName.getPartition(1).toString()).size();
-            fail("The partition topic should not exist yet");
-        } catch (NotFoundException e) {
-            // Expected
-        }
+        // Partition-1 should not have subscriptions
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName.getPartition(1).toString()),
+                Collections.emptyList());
     }
 }
