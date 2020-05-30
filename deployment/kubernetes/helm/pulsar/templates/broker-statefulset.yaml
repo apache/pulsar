@@ -82,8 +82,8 @@ spec:
       # This init container will wait for zookeeper to be ready before
       # deploying the bookies
       - name: wait-zookeeper-ready
-        image: "{{ .Values.images.broker.repository }}:{{ .Values.images.broker.tag }}"
-        imagePullPolicy: {{ .Values.images.broker.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         command: ["sh", "-c"]
         args:
           - >-
@@ -101,8 +101,8 @@ spec:
       # This init container will wait for bookkeeper to be ready before
       # deploying the broker
       - name: wait-bookkeeper-ready
-        image: "{{ .Values.images.broker.repository }}:{{ .Values.images.broker.tag }}"
-        imagePullPolicy: {{ .Values.images.broker.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         command: ["sh", "-c"]
         args:
           - >
@@ -127,8 +127,8 @@ spec:
         {{- include "pulsar.broker.certs.volumeMounts" . | nindent 10 }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}"
-        image: "{{ .Values.images.broker.repository }}:{{ .Values.images.broker.tag }}"
-        imagePullPolicy: {{ .Values.images.broker.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         {{- if .Values.broker.probe.liveness.enabled }}
         livenessProbe:
           httpGet:

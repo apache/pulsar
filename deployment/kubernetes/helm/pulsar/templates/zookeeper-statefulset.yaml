@@ -76,8 +76,8 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.zookeeper.gracePeriod }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}"
-        image: "{{ .Values.images.zookeeper.repository }}:{{ .Values.images.zookeeper.tag }}"
-        imagePullPolicy: {{ .Values.images.zookeeper.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
       {{- if .Values.zookeeper.resources }}
         resources:
 {{ toYaml .Values.zookeeper.resources | indent 10 }}

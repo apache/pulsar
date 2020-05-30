@@ -31,8 +31,8 @@ spec:
     spec:
       initContainers:
       - name: wait-zookeeper-ready
-        image: "{{ .Values.bookkeeper.metadata.image.repository }}:{{ .Values.bookkeeper.metadata.image.tag }}"
-        imagePullPolicy: {{ .Values.bookkeeper.metadata.image.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         command: ["sh", "-c"]
         args:
           - >-
@@ -41,8 +41,8 @@ spec:
             done;
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-init"
-        image: "{{ .Values.bookkeeper.metadata.image.repository }}:{{ .Values.bookkeeper.metadata.image.tag }}"
-        imagePullPolicy: {{ .Values.bookkeeper.metadata.image.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
       {{- if .Values.bookkeeper.metadata.resources }}
         resources:
 {{ toYaml .Values.bookkeeper.metadata.resources | indent 10 }}

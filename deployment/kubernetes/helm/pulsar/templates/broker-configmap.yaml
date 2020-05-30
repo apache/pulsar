@@ -58,7 +58,7 @@ data:
   # support version >= 2.5.0
   PF_functionRuntimeFactoryConfigs_pulsarRootDir: {{ template "pulsar.home" . }}
   PF_kubernetesContainerFactory_pulsarRootDir: {{ template "pulsar.home" . }}
-  PF_functionRuntimeFactoryConfigs_pulsarDockerImageName: "{{ .Values.images.functions.repository }}:{{ .Values.images.functions.tag }}"
+  PF_functionRuntimeFactoryConfigs_pulsarDockerImageName: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
   PF_functionRuntimeFactoryConfigs_submittingInsidePod: "true"
   PF_functionRuntimeFactoryConfigs_installUserCodeDependencies: "true"
   PF_functionRuntimeFactoryConfigs_jobNamespace: {{ .Values.namespace }}
@@ -74,7 +74,7 @@ data:
   PF_functionRuntimeFactoryConfigs_changeConfigMap: "{{ template "pulsar.fullname" . }}-{{ .Values.functions.component }}-config"
   PF_functionRuntimeFactoryConfigs_changeConfigMapNamespace: {{ .Values.namespace }}
   # support version < 2.5.0
-  PF_kubernetesContainerFactory_pulsarDockerImageName: "{{ .Values.images.functions.repository }}:{{ .Values.images.functions.tag }}"
+  PF_kubernetesContainerFactory_pulsarDockerImageName: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
   PF_kubernetesContainerFactory_submittingInsidePod: "true"
   PF_kubernetesContainerFactory_installUserCodeDependencies: "true"
   PF_kubernetesContainerFactory_jobNamespace: {{ .Values.namespace }}

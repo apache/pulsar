@@ -81,8 +81,8 @@ spec:
       # This initContainer will wait for bookkeeper initnewcluster to complete
       # before deploying the bookies
       - name: pulsar-bookkeeper-verify-clusterid
-        image: "{{ .Values.images.bookie.repository }}:{{ .Values.images.bookie.tag }}"
-        imagePullPolicy: {{ .Values.images.bookie.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         command: ["sh", "-c"]
         args:
         # only reformat bookie if bookkeeper is running without persistence
@@ -95,8 +95,8 @@ spec:
         {{- include "pulsar.bookkeeper.certs.volumeMounts" . | nindent 8 }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
-        image: "{{ .Values.images.bookie.repository }}:{{ .Values.images.bookie.tag }}"
-        imagePullPolicy: {{ .Values.images.bookie.pullPolicy }}
+        image: "{{ .Values.images.pulsar_all.repository }}:{{ .Values.images.pulsar_all.tag }}"
+        imagePullPolicy: {{ .Values.images.pulsar_all.pullPolicy }}
         {{- if .Values.bookkeeper.probe.liveness.enabled }}
         livenessProbe:
           httpGet:
