@@ -87,7 +87,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
             }
             cb = cb.properties(properties);
-
+            if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
+                    && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
+                cb.negativeAckRedeliveryDelay(pulsarSourceConfig.getNegativeAckRedeliveryDelayMs(), TimeUnit.MILLISECONDS);
+            }
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
@@ -98,7 +101,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
                     deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
                 }
-                cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
+                cb = cb.enableRetry(true).deadLetterPolicy(deadLetterPolicyBuilder.build());
             }
 
             Consumer<T> consumer = cb.subscribeAsync().join();
