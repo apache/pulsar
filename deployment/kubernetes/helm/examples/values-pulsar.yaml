@@ -20,4 +20,4 @@
 images:
   pulsar_all:
     repository: apachepulsar/pulsar-all
-    tag: latest
+    tag: 2.5.0

@@ -129,7 +129,7 @@ The Pulsar Helm chart is designed to enable controlled upgrades. So it can confi
 images:
   pulsar_all:
     repository: apachepulsar/pulsar-all
-    tag: latest
+    tag: 2.5.0
     pullPolicy: IfNotPresent
   prometheus:
     repository: prom/prometheus
