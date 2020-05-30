@@ -45,10 +45,6 @@ bookkeeper:
     diskUsageWarnThreshold: "0.999"
     PULSAR_PREFIX_diskUsageThreshold: "0.999"
     PULSAR_PREFIX_diskUsageWarnThreshold: "0.999"
-  metadata:
-    image:
-      repository: apachepulsar/pulsar-all
-      tag: 2.5.0
 
 broker:
   replicaCount: 1

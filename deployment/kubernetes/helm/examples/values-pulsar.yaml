@@ -18,33 +18,6 @@
 #
 
 images:
-  zookeeper:
+  pulsar_all:
     repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-  bookie:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-  autorecovery:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-  broker:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-  functions:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-  proxy:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
-
-bookkeeper:
-  metadata:
-    image:
-      repository: apachepulsar/pulsar-all
-      tag: 2.5.0
-
-
-pulsar_metadata:
-  image:
-    repository: apachepulsar/pulsar-all
-    tag: 2.5.0
+    tag: latest
