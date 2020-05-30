@@ -27,7 +27,7 @@ import io.prometheus.client.CollectorRegistry;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import lombok.AccessLevel;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -69,7 +69,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
