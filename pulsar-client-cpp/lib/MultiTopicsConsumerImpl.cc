@@ -746,3 +746,10 @@ void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }
+
+void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    Lock lock(mutex_);
+    for (auto&& c : consumers_) {
+        c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
+}
