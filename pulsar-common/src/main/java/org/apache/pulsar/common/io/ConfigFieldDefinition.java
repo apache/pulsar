@@ -16,24 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.io;
+package org.apache.pulsar.common.io;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import org.apache.pulsar.common.io.ConfigFieldDefinition;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-
+/**
+ * Information about a Pulsar connector config field.
+ */
 @Data
-public class Connectors {
-    final List<ConnectorDefinition> connectors = new ArrayList<>();
-    final Map<String, Path> sources = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sourceConfigDefinitions = new TreeMap<>();
-    final Map<String, Path> sinks = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sinkConfigDefinitions = new TreeMap<>();
+@NoArgsConstructor
+public class ConfigFieldDefinition {
+
+    /**
+     * The name of the field.
+     */
+    private String fieldName;
+
+    /**
+     * The field type.
+     */
+    private String typeName;
+
+    /**
+     * Other attribute pairs associated with the field.
+     */
+    private Map<String, String> attributes;
 }
