@@ -1111,6 +1111,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum ledger size before triggering a rollover for a topic (MB)"
+    )
+    private int managedLedgerMaxSizePerLedgerMbytes = 2048;
+    @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
         doc = "Delay between a ledger being successfully offloaded to long term storage,"
             + " and the ledger being deleted from bookkeeper"
