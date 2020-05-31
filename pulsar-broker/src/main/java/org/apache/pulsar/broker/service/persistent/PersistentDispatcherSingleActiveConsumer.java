@@ -373,6 +373,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
 
             int messagesToRead = Math.min(availablePermits, readBatchSize);
+            // if turn of precise dispatcher flow control, adjust the records to read
+            if (consumer.isPreciseDispatcherFlowControl()) {
+                int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
+                messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+            }
 
             // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
@@ -445,10 +450,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
             havePendingRead = true;
+
             if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {

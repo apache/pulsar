@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.util;
 
-import static org.apache.pulsar.functions.utils.Reflections.createInstance;
+import static org.apache.pulsar.common.util.Reflections.createInstance;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
 import java.lang.reflect.InvocationTargetException;
+
 import org.testng.annotations.Test;
 
 /**

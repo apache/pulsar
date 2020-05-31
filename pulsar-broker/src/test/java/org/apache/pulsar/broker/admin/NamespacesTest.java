@@ -102,7 +102,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private Namespaces namespaces;
