@@ -5,7 +5,9 @@ sidebar_label: Java
 original_id: client-libraries-java
 ---
 
-You can use Pulsar Java client to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{pulsar:version}}**.
+You can use Pulsar Java client to create Java [producer](#producer), [consumer](#consumer), and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{pulsar:version}}**.
+
+All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
 
 Javadoc for the Pulsar client is divided into two domains by package as follows.
 
@@ -649,6 +651,22 @@ CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key s
 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.<br/><br/><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br/><li> **DISCARD**: silently acknowledge and not deliver message to an application.</li><br/><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br/><br/>The message decompression fails. <br/><br/>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br/><br/>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>
 boolean|`readCompacted`|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.<br/><br/> A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/>`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions). <br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
 boolean|`resetIncludeHead`|If set to true, the first message to be returned is the one specified by `messageId`.<br/><br/>If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
+
+### Sticky key range reader
+
+In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+
+The following is an example to create a sticky key range reader.
+
+```java
+pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
+        .create();
+```
+
+Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
 
 ## Schema
 

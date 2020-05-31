@@ -16,23 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.io;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
 
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
-@Slf4j
-public class NoOpShutdownService implements ShutdownService {
-
+public class SinkForTest<T> implements Sink<String> {
     @Override
-    public void run() {
-        shutdown(0);
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+
     }
 
     @Override
-    public void shutdown(int exitCode) {
-        log.warn("Invoked shutdown with exitCode={}", exitCode);
+    public void write(Record<String> record) throws Exception {
+        if (record.getValue().contains("fail")) {
+            record.fail();
+        } else {
+            record.ack();
+        }
     }
 
+    @Override
+    public void close() throws Exception {
+
+    }
 }

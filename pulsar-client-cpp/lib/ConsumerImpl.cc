@@ -1184,4 +1184,8 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
     }
 }
 
+void ConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    negativeAcksTracker_.setEnabledForTesting(enabled);
+}
+
 } /* namespace pulsar */

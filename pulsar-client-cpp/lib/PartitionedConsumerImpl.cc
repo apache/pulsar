@@ -592,4 +592,11 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
     runPartitionUpdateTask();
 }
 
+void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    Lock lock(mutex_);
+    for (auto&& c : consumers_) {
+        c->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
+}
+
 }  // namespace pulsar

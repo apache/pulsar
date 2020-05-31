@@ -41,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -893,7 +892,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config1.setAllowAutoTopicCreationType("non-partitioned");
             pulsar1 = new PulsarService(config1);
-            pulsar1.setShutdownService(new NoOpShutdownService());
             pulsar1.start();
             ns1 = pulsar1.getBrokerService();
 
@@ -919,7 +917,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config2.setAllowAutoTopicCreationType("non-partitioned");
             pulsar2 = new PulsarService(config2);
-            pulsar2.setShutdownService(new NoOpShutdownService());
             pulsar2.start();
             ns2 = pulsar2.getBrokerService();
 
@@ -944,7 +941,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setBrokerServicePort(Optional.of(0));
             config3.setAllowAutoTopicCreationType("non-partitioned");
             pulsar3 = new PulsarService(config3);
-            pulsar3.setShutdownService(new NoOpShutdownService());
             pulsar3.start();
             ns3 = pulsar3.getBrokerService();
 
