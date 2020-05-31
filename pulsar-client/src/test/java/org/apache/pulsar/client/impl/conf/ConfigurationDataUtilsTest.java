@@ -43,13 +43,16 @@ public class ConfigurationDataUtilsTest {
         ClientConfigurationData confData = new ClientConfigurationData();
         confData.setServiceUrl("pulsar://unknown:6650");
         confData.setMaxLookupRequest(600);
+        confData.setMaxLookupRedirects(10);
         confData.setNumIoThreads(33);
         Map<String, Object> config = new HashMap<>();
         config.put("serviceUrl", "pulsar://localhost:6650");
         config.put("maxLookupRequest", 70000);
+        config.put("maxLookupRedirects", 50);
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
+        assertEquals(50, confData.getMaxLookupRedirects());
         assertEquals(33, confData.getNumIoThreads());
     }
 
