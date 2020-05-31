@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v2;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
@@ -130,7 +131,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace already exists"),
             @ApiResponse(code = 412, message = "Namespace name is not valid") })
     public void createNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            Policies policies) {
+            @ApiParam(value = "Policies for the namespace") Policies policies) {
         validateNamespaceName(tenant, namespace);
         validateTenantOperation(tenant, TenantOperation.CREATE_NAMESPACE);
         policies = getDefaultPolicesIfNull(policies);
@@ -196,7 +197,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 501, message = "Authorization is not enabled")})
     public void grantPermissionOnNamespace(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
+            @PathParam("namespace") String namespace, @PathParam("role") String role,
+            @ApiParam(value = "List of permissions for the specified role") Set<AuthAction> actions) {
         validateNamespaceName(tenant, namespace);
         internalGrantPermissionOnNamespace(role, actions);
     }
@@ -211,7 +213,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 501, message = "Authorization is not enabled") })
     public void grantPermissionOnSubscription(@PathParam("property") String property,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
-            Set<String> roles) {
+            @ApiParam(value = "List of roles for the specified subscription") Set<String> roles) {
         validateNamespaceName(property, namespace);
         internalGrantPermissionOnSubscription(subscription, roles);
     }
@@ -260,7 +262,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
     public void setNamespaceReplicationClusters(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, List<String> clusterIds) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceReplicationClusters(clusterIds);
     }
@@ -286,7 +289,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL") })
     public void setNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            int messageTTL) {
+            @ApiParam(value = "TTL in seconds for the specified namespace", required = true) int messageTTL) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceMessageTTL(messageTTL);
     }
@@ -312,7 +315,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid expiration time") })
     public void setSubscriptionExpirationTime(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, int expirationTime) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Expiration time in minutes for the specified namespace", required = true) int expirationTime) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionExpirationTime(expirationTime);
     }
@@ -323,7 +327,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void modifyDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            boolean enableDeduplication) {
+            @ApiParam(value = "Flag for disabling or enabling broker side deduplication for all topics in the specified namespace", required = true) boolean enableDeduplication) {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplication(enableDeduplication);
     }
@@ -337,8 +341,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
     public void setAutoTopicCreation(
             @Suspended final AsyncResponse asyncResponse,
-                                                  @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                                  AutoTopicCreationOverride autoTopicCreationOverride) {
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Settings for automatic topic creation", required = true) AutoTopicCreationOverride autoTopicCreationOverride) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
@@ -375,7 +379,7 @@ public class Namespaces extends NamespacesBase {
     public void setAutoSubscriptionCreation(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+            @ApiParam(value = "Settings for automatic subscription creation") AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSetAutoSubscriptionCreation(asyncResponse, autoSubscriptionCreationOverride);
@@ -477,7 +481,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace,
-            PublishRate publishRate) {
+            @ApiParam(value = "Publish rate for all topics of the specified namespace") PublishRate publishRate) {
         validateNamespaceName(property, namespace);
         internalSetPublishRate(publishRate);
     }
@@ -497,7 +501,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            DispatchRate dispatchRate) {
+            @ApiParam(value = "Dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
@@ -518,8 +522,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setSubscriptionDispatchRate(@PathParam("tenant") String tenant,
-                                            @PathParam("namespace") String namespace,
-                                            DispatchRate dispatchRate) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Subscription dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
@@ -540,7 +544,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set subscribe-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setSubscribeRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                SubscribeRate subscribeRate) {
+            @ApiParam(value = "Subscribe rate for all topics of the specified namespace") SubscribeRate subscribeRate) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscribeRate(subscribeRate);
     }
@@ -561,8 +565,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                            @PathParam("namespace") String namespace,
-                                            DispatchRate dispatchRate) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }
@@ -599,7 +603,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota. Increase retention quota and retry request") })
     public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+            @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
+            @ApiParam(value = "Backlog quota for all topics of the specified namespace") BacklogQuota backlogQuota) {
         validateNamespaceName(tenant, namespace);
         internalSetBacklogQuota(backlogQuotaType, backlogQuota);
     }
@@ -635,7 +640,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
     public void setRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            RetentionPolicies retention) {
+            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateNamespaceName(tenant, namespace);
         internalSetRetention(retention);
     }
@@ -648,7 +653,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 400, message = "Invalid persistence policies") })
     public void setPersistence(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            PersistencePolicies persistence) {
+            @ApiParam(value = "Persistence policies for the specified namespace", required = true) PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
         internalSetPersistence(persistence);
     }
@@ -662,7 +667,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setBookieAffinityGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            BookieAffinityGroupData bookieAffinityGroup) {
+            @ApiParam(value = "Bookie affinity group for the specified namespace") BookieAffinityGroupData bookieAffinityGroup) {
         validateNamespaceName(tenant, namespace);
         internalSetBookieAffinityGroup(bookieAffinityGroup);
     }
@@ -810,7 +815,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setSubscriptionAuthMode(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, SubscriptionAuthMode subscriptionAuthMode) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Subscription auth mode for all topics of the specified namespace") SubscriptionAuthMode subscriptionAuthMode) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionAuthMode(subscriptionAuthMode);
     }
@@ -822,7 +828,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
     public void modifyEncryptionRequired(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, boolean encryptionRequired) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Flag defining if message encryption is required", required = true) boolean encryptionRequired) {
         validateNamespaceName(tenant, namespace);
         internalModifyEncryptionRequired(encryptionRequired);
     }
@@ -845,7 +852,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
     public void setDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
-                                           @PathParam("namespace") String namespace, DelayedDeliveryPolicies deliveryPolicies) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Delayed delivery policies for the specified namespace") DelayedDeliveryPolicies deliveryPolicies) {
         validateNamespaceName(tenant, namespace);
         internalSetDelayedDelivery(deliveryPolicies);
     }
@@ -869,7 +877,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxProducersPerTopic value is not valid") })
     public void setMaxProducersPerTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            int maxProducersPerTopic) {
+            @ApiParam(value = "Number of maximum producers per topic", required = true) int maxProducersPerTopic) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxProducersPerTopic(maxProducersPerTopic);
     }
@@ -893,7 +901,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerTopic value is not valid") })
     public void setMaxConsumersPerTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            int maxConsumersPerTopic) {
+            @ApiParam(value = "Number of maximum consumers per topic", required = true) int maxConsumersPerTopic) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerTopic(maxConsumersPerTopic);
     }
@@ -917,7 +925,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid") })
     public void setMaxConsumersPerSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            int maxConsumersPerSubscription) {
+            @ApiParam(value = "Number of maximum consumers per subscription", required = true) int maxConsumersPerSubscription) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
     }
@@ -941,7 +949,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxUnackedMessagesPerConsumer value is not valid") })
     public void setMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                        int maxUnackedMessagesPerConsumer) {
+            @ApiParam(value = "Number of maximum unacked messages per consumer", required = true) int maxUnackedMessagesPerConsumer) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerConsumer(maxUnackedMessagesPerConsumer);
     }
@@ -965,7 +973,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxUnackedMessagesPerSubscription value is not valid") })
     public void setMaxUnackedMessagesPerSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                               int maxUnackedMessagesPerSubscription) {
+            @ApiParam(value = "Number of maximum unacked messages per subscription", required = true) int maxUnackedMessagesPerSubscription) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerSubscription(maxUnackedMessagesPerSubscription);
     }
@@ -977,7 +985,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid antiAffinityGroup") })
     public void setNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, String antiAffinityGroup) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Anti-affinity group for the specified namespace", required = true) String antiAffinityGroup) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
     }
@@ -1052,8 +1061,8 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 409, message = "Concurrent modification"),
                             @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
     public void setCompactionThreshold(@PathParam("tenant") String tenant,
-                                       @PathParam("namespace") String namespace,
-                                       long newThreshold) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Maximum number of uncompacted bytes in a topic of the specified namespace", required = true) long newThreshold) {
         validateNamespaceName(tenant, namespace);
         internalSetCompactionThreshold(newThreshold);
     }
@@ -1081,8 +1090,8 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 409, message = "Concurrent modification"),
                             @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
     public void setOffloadThreshold(@PathParam("tenant") String tenant,
-                                    @PathParam("namespace") String namespace,
-                                    long newThreshold) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Maximum number of bytes stored on the pulsar cluster for a topic of the specified namespace", required = true) long newThreshold) {
         validateNamespaceName(tenant, namespace);
         internalSetOffloadThreshold(newThreshold);
     }
@@ -1112,8 +1121,8 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 409, message = "Concurrent modification"),
                             @ApiResponse(code = 412, message = "offloadDeletionLagMs value is not valid") })
     public void setOffloadDeletionLag(@PathParam("tenant") String tenant,
-                                      @PathParam("namespace") String namespace,
-                                      long newDeletionLagMs) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "New number of milliseconds to wait before deleting a ledger segment which has been offloaded", required = true) long newDeletionLagMs) {
         validateNamespaceName(tenant, namespace);
         internalSetOffloadDeletionLag(newDeletionLagMs);
     }
@@ -1157,8 +1166,8 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setSchemaAutoUpdateCompatibilityStrategy(@PathParam("tenant") String tenant,
-                                                         @PathParam("namespace") String namespace,
-                                                         SchemaAutoUpdateCompatibilityStrategy strategy) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Strategy used to check the compatibility of new schemas") SchemaAutoUpdateCompatibilityStrategy strategy) {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
     }
@@ -1183,8 +1192,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setSchemaCompatibilityStrategy(@PathParam("tenant") String tenant,
-                                               @PathParam("namespace") String namespace,
-                                               SchemaCompatibilityStrategy strategy) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Strategy used to check the compatibility of new schema") SchemaCompatibilityStrategy strategy) {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaCompatibilityStrategy(strategy);
     }
@@ -1209,8 +1218,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setIsAllowAutoUpdateSchema(@PathParam("tenant") String tenant,
-                                           @PathParam("namespace") String namespace,
-                                           boolean isAllowAutoUpdateSchema) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Flag of whether to allow auto update schema", required = true) boolean isAllowAutoUpdateSchema) {
         validateNamespaceName(tenant, namespace);
         internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
     }
@@ -1242,8 +1251,8 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
                             @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid") })
     public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
-                                             @PathParam("namespace") String namespace,
-                                             boolean schemaValidationEnforced) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Flag of whether validation is enforced on the specified namespace", required = true) boolean schemaValidationEnforced) {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaValidationEnforced(schemaValidationEnforced);
     }
@@ -1257,7 +1266,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "OffloadPolicies is empty or driver is not supported or bucket is not valid") })
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                           OffloadPolicies offload, @Suspended final AsyncResponse asyncResponse) {
+            @ApiParam(value = "Offload policies for the specified namespace", required = true) OffloadPolicies offload,
+            @Suspended final AsyncResponse asyncResponse) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSetOffloadPolicies(asyncResponse, offload);
