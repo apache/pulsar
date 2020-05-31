@@ -81,6 +81,10 @@ class PulsarFriend {
         return *consumerImpl;
     }
 
+    static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
+        consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
+
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
 
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
