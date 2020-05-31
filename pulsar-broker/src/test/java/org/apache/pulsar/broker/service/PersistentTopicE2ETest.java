@@ -90,7 +90,6 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 public class PersistentTopicE2ETest extends BrokerTestBase {
     @BeforeMethod
     @Override

@@ -38,6 +38,14 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/java/org/apache/pulsar/io/debezium/postgres/DebeziumPostgresSource.java)
 
+### Debezium MongoDB
+
+* [Configuration](io-debezium-source.md#configuration)
+
+* [Example](io-debezium-source.md#example-of-mongodb)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/java/org/apache/pulsar/io/debezium/mongodb/DebeziumMongoDbSource.java)
+
 
 ### File
 
@@ -121,7 +129,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 ### HBase
 
-* [Configuration](io-hbase.md)
+* [Configuration](io-hbase-sink.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hbase/src/main/java/org/apache/pulsar/io/hbase/HbaseAbstractConfig.java)
   

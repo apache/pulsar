@@ -144,6 +144,22 @@ public interface ManagedCursor {
     List<Entry> readEntriesOrWait(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>
+     * If no entries are available, the method will block until at least a new message will be persisted.
+     *
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @return the list of entries
+     * @throws ManagedLedgerException
+     */
+    List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Asynchronously read entries from the ManagedLedger.
      *
      * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
@@ -158,6 +174,24 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
@@ -594,7 +628,7 @@ public interface ManagedCursor {
 
     /**
      * Get {@link ManagedLedger} attached with cursor
-     * 
+     *
      * @return ManagedLedger
      */
     ManagedLedger getManagedLedger();
