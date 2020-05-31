@@ -1495,7 +1495,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
-        doc = "The maximum size of a text message during parsing in WebSocket proxy"
+        doc = "The maximum size of a text message during parsing in WebSocket proxy."
     )
     private int webSocketMaxTextFrameSize = 1048576;
 
