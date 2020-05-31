@@ -108,6 +108,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -2404,28 +2405,32 @@ public class PersistentTopicsBase extends AdminResource {
             }
 
             admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
-                if (stats.subscriptions.size() == 0) {
+                List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+
+                stats.subscriptions.entrySet().forEach(e -> {
+                    String subscription = e.getKey();
+                    SubscriptionStats ss = e.getValue();
+                    if (!ss.isDurable) {
+                        // We must not re-create non-durable subscriptions on the new partitions
+                        return;
+                    }
+
+                    for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
+                        final String topicNamePartition = topicName.getPartition(i).toString();
+
+                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
+                                subscription, MessageId.latest));
+                    }
+                });
+
+                FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
+                    log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
                     result.complete(null);
-                } else {
-                    stats.subscriptions.keySet().forEach(subscription -> {
-                        List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
-                        for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
-                            final String topicNamePartition = topicName.getPartition(i).toString();
-
-                            subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                    subscription, MessageId.latest));
-                        }
-
-                        FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                            log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
-                            result.complete(null);
-                        }).exceptionally(ex -> {
-                            log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
-                            result.completeExceptionally(ex);
-                            return null;
-                        });
-                    });
-                }
+                }).exceptionally(ex -> {
+                    log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
+                    result.completeExceptionally(ex);
+                    return null;
+                });
             }).exceptionally(ex -> {
                 if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
                     // The first partition doesn't exist, so there are currently to subscriptions to recreate
