@@ -10096,6 +10096,15 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -10104,12 +10113,6 @@
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
         },
         "lastUpdate" : {
           "type" : "integer",
@@ -10128,9 +10131,6 @@
         },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "loadReportType" : {
-          "type" : "string"
         }
       }
     },
@@ -10298,10 +10298,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -10438,6 +10438,9 @@
           "items" : {
             "$ref" : "#/definitions/ConsumerStats"
           }
+        },
+        "isDurable" : {
+          "type" : "boolean"
         },
         "isReplicated" : {
           "type" : "boolean"
@@ -11155,10 +11158,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -11220,15 +11223,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
+        },
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -11387,6 +11390,9 @@
           "items" : {
             "$ref" : "#/definitions/ConsumerStats"
           }
+        },
+        "isDurable" : {
+          "type" : "boolean"
         },
         "isReplicated" : {
           "type" : "boolean"

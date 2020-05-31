@@ -845,6 +845,13 @@
             "$ref" : "#/definitions/ConsumerConfig"
           }
         },
+        "maxMessageRetries" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "deadLetterTopic" : {
+          "type" : "string"
+        },
         "configs" : {
           "type" : "object",
           "additionalProperties" : {
@@ -875,6 +882,10 @@
           "type" : "boolean"
         },
         "timeoutMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "negativeAckRedeliveryDelayMs" : {
           "type" : "integer",
           "format" : "int64"
         },
