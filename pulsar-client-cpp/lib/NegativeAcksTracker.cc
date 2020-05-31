@@ -31,7 +31,10 @@ namespace pulsar {
 
 NegativeAcksTracker::NegativeAcksTracker(ClientImplPtr client, ConsumerImpl &consumer,
                                          const ConsumerConfiguration &conf)
-    : consumer_(consumer), timerInterval_(0), executor_(client->getIOExecutorProvider()->get()) {
+    : consumer_(consumer),
+      timerInterval_(0),
+      executor_(client->getIOExecutorProvider()->get()),
+      enabledForTesting_(true) {
     static const long MIN_NACK_DELAY_MILLIS = 100;
 
     nackDelay_ =
@@ -56,7 +59,7 @@ void NegativeAcksTracker::handleTimer(const boost::system::error_code &ec) {
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ = nullptr;
 
-    if (nackedMessages_.empty()) {
+    if (nackedMessages_.empty() || !enabledForTesting_) {
         return;
     }
 
@@ -100,6 +103,15 @@ void NegativeAcksTracker::close() {
     if (timer_) {
         boost::system::error_code ec;
         timer_->cancel(ec);
+    }
+}
+
+void NegativeAcksTracker::setEnabledForTesting(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    enabledForTesting_ = enabled;
+
+    if (enabledForTesting_ && !timer_) {
+        scheduleTimer();
     }
 }
 
