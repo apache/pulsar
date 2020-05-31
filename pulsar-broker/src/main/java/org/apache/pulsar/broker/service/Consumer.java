@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
@@ -78,6 +79,8 @@ public class Consumer {
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
+    private final LongAdder msgOutCounter;
+    private final LongAdder bytesOutCounter;
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
@@ -109,6 +112,18 @@ public class Consumer {
 
     private final PulsarApi.KeySharedMeta keySharedMeta;
 
+    /**
+     * It starts keep tracking the average messages per entry.
+     * The initial value is 1000, when new value comes, it will update with
+     * avgMessagesPerEntry = avgMessagePerEntry * avgPercent + (1 - avgPercent) * new Value.
+     */
+    private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
+            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
+    private volatile int avgMessagesPerEntry = 1000;
+
+    private static final double avgPercent = 0.9;
+    private boolean preciseDispatcherFlowControl;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
@@ -129,11 +144,16 @@ public class Consumer {
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
+        this.bytesOutCounter = new LongAdder();
+        this.msgOutCounter = new LongAdder();
         this.appId = appId;
         this.authenticationData = cnx.authenticationData;
+        this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
+
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
+        AVG_MESSAGES_PER_ENTRY.set(this, 1000);
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
@@ -218,10 +238,18 @@ public class Consumer {
             }
         }
 
+        // calculate avg message per entry
+        int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
+        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
+                    (1 - avgPercent) * totalMessages / entries.size());
+        AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
+
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
         incrementUnackedMessages(totalMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
+        msgOutCounter.add(totalMessages);
+        bytesOutCounter.add(totalBytes);
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
@@ -425,6 +453,10 @@ public class Consumer {
         return MESSAGE_PERMITS_UPDATER.get(this);
     }
 
+    public int getAvgMessagesPerEntry() {
+        return AVG_MESSAGES_PER_ENTRY.get(this);
+    }
+
     public boolean isBlocked() {
         return blockedConsumerOnUnackedMsgs;
     }
@@ -457,11 +489,14 @@ public class Consumer {
     }
 
     public ConsumerStats getStats() {
+        stats.msgOutCounter = msgOutCounter.longValue();
+        stats.bytesOutCounter = bytesOutCounter.longValue();
         stats.lastAckedTimestamp = lastAckedTimestamp;
         stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
+        stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
         return stats;
     }
 
@@ -642,6 +677,10 @@ public class Consumer {
     private void clearUnAckedMsgs() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
+    }
+
+    public boolean isPreciseDispatcherFlowControl() {
+        return preciseDispatcherFlowControl;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

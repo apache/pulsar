@@ -72,6 +72,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -485,6 +486,10 @@ public abstract class AdminResource extends PulsarWebResource {
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
         }
+
+        if (policies.message_ttl_in_seconds <= 0) {
+            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
+        }
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
@@ -534,7 +539,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().clustersCache();
     }
 
-    protected ZooKeeperChildrenCache managedLedgerListCache() {
+    protected ZooKeeperManagedLedgerCache managedLedgerListCache() {
         return pulsar().getLocalZkCacheService().managedLedgerListCache();
     }
 
@@ -727,6 +732,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions) {
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         try {
             validateAdminAccessForTenant(topicName.getTenant());
         } catch (Exception e) {
@@ -738,11 +744,16 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
             return;
         }
+        if (maxPartitions > 0 && numPartitions > maxPartitions) {
+            asyncResponse.resume(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions));
+            return;
+        }
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
                 asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
             } else {
+
                 try {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);
                     byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));

@@ -81,9 +81,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -99,7 +102,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private Namespaces namespaces;
@@ -154,9 +156,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
-        doNothing().when(namespaces).validateAdminAccessForTenant(this.testTenant);
-        doNothing().when(namespaces).validateAdminAccessForTenant("non-existing-tenant");
-        doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
         admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:8080"));
         admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:8080"));
@@ -171,7 +170,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 new BundlesData());
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateAdminAccessForTenant(this.testOtherTenant);
+                .validateTenantOperation(this.testOtherTenant, null);
+
+        doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                        PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+
+        doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                        PolicyName.REPLICATION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();
     }
@@ -878,7 +885,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testValidateAdminAccessOnTenant() throws Exception {
-
         try {
             final String property = "prop";
             pulsar.getConfiguration().setAuthenticationEnabled(true);
@@ -888,7 +894,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                     new TenantInfo(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
             ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            namespaces.validateAdminAccessForTenant(property);
+
+            namespaces.validateTenantOperation(property, null);
         } finally {
             pulsar.getConfiguration().setAuthenticationEnabled(false);
             pulsar.getConfiguration().setAuthorizationEnabled(false);

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction.coordinator;
 import java.util.Optional;
 
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -72,7 +71,6 @@ public class TransactionMetaStoreTestBase {
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
-            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
 
             pulsarAdmins[i] = PulsarAdmin.builder()

@@ -46,6 +46,7 @@ import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
@@ -134,6 +135,16 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The path to the location to locate builtin connectors"
     )
     private String connectorsDirectory = "./connectors";
+    @FieldContext(
+        category = CATEGORY_CONNECTORS,
+        doc = "The directory where nar packages are extractors"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Should we validate connector config during submission"
+    )
+    private Boolean validateConnectorConfig = false;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"
@@ -408,6 +419,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     " as this config is the the same across all functions"
     )
     private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
+
+    @FieldContext(
+            doc = "Max pending async requests per instance to avoid large number of concurrent requests."
+                  + "Only used in AsyncFunction. Default: 1000"
+    )
+    private int maxPendingAsyncRequests = 1000;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

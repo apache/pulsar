@@ -31,7 +31,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
       state_(Pending),
-      messages_(1000),
+      messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
       pendingReceives_(),
@@ -157,13 +157,9 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     }
 
     std::shared_ptr<ConsumerImpl> consumer;
-    ConsumerConfiguration config;
+    ConsumerConfiguration config = conf_.clone();
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
 
-    // all the consumers should have same name.
-    config.setConsumerName(conf_.getConsumerName());
-    config.setConsumerType(conf_.getConsumerType());
-    config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
     config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
                                         std::placeholders::_1, std::placeholders::_2));
 
@@ -749,4 +745,11 @@ void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 
 void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     callback(ResultOperationNotSupported);
+}
+
+void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    Lock lock(mutex_);
+    for (auto&& c : consumers_) {
+        c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
 }

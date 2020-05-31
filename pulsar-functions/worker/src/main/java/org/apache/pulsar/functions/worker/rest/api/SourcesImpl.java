@@ -684,7 +684,9 @@ public class SourcesImpl extends ComponentImpl {
                 throw new IllegalArgumentException(String.format("No Source archive %s found", archivePath));
             }
         }
-        SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath, sourcePackageFile);
+        SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath,
+                sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
+                worker().getWorkerConfig().getValidateConnectorConfig());
         return SourceConfigUtils.convert(sourceConfig, sourceDetails);
     }
 }

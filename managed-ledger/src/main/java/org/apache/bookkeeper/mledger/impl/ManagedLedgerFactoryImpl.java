@@ -535,6 +535,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
                 }
 
+                if (pbInfo.getPropertiesCount() > 0) {
+                    info.properties = Maps.newTreeMap();
+                    for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
+                        MLDataFormats.KeyValue property = pbInfo.getProperties(i);
+                        info.properties.put(property.getKey(), property.getValue());
+                    }
+                }
+
                 for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
                     MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
                     LedgerInfo ledgerInfo = new LedgerInfo();

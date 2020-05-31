@@ -27,6 +27,8 @@ import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.aws.AbstractAwsConnector;
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -51,7 +53,7 @@ import software.amazon.kinesis.retrieval.polling.PollingConfig;
         configClass = KinesisSourceConfig.class
     )
 @Slf4j
-public class KinesisSource extends AbstractKinesisConnector implements Source<byte[]> {
+public class KinesisSource extends AbstractAwsConnector implements Source<byte[]> {
 
     private LinkedBlockingQueue<KinesisRecord> queue;
     private KinesisSourceConfig kinesisSourceConfig;

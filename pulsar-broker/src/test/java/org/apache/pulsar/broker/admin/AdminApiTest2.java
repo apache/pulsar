@@ -60,7 +60,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -1243,6 +1242,31 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         topicStats = admin.topics().getPartitionedStats(topic, false, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
+    }
+
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicSuccess() {
+        final String topic = "persistent://prop-xyz/ns1/max-num-partitions-per-partitioned-topic-success";
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(3);
+
+        try {
+            admin.topics().createPartitionedTopic(topic, 2);
+        } catch (Exception e) {
+            fail("should not throw any exceptions");
+        }
+    }
+
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicFailure() {
+        final String topic = "persistent://prop-xyz/ns1/max-num-partitions-per-partitioned-topic-failure";
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(2);
+
+        try {
+            admin.topics().createPartitionedTopic(topic, 3);
+            fail("should throw exception when number of partitions exceed than max partitions");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarAdminException);
+        }
     }
 
 }

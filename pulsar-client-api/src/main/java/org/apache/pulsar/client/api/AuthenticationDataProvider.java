@@ -63,6 +63,15 @@ public interface AuthenticationDataProvider extends Serializable {
         return null;
     }
 
+    /**
+     * Used for TLS authentication with keystore type.
+     *
+     * @return a KeyStoreParams for the client certificate chain, or null if the data are not available
+     */
+    default KeyStoreParams getTlsKeyStoreParams() {
+        return null;
+    }
+
     /*
      * HTTP
      */

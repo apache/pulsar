@@ -1138,7 +1138,7 @@ $ pulsar-admin namespaces set-persistence tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-a`, `--bookkeeper-ack-quorom`|The number of acks (guaranteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
 |`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
@@ -1282,7 +1282,7 @@ Usage
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 ```
 
-### set-replicator-dispatch-rate
+### `set-replicator-dispatch-rate`
 Set replicator message-dispatch-rate for all topics of the namespace
 
 Usage
@@ -1297,7 +1297,7 @@ Options
 |`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
 |`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
 
-### get-replicator-dispatch-rate
+### `get-replicator-dispatch-rate`
 Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
 
 Usage
@@ -1641,6 +1641,27 @@ Options
 |`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
 |`-d`, `--disabled`|Disable automatic schema updates.|false|
 
+### `get-publish-rate`
+Get the message publish rate for each topic in a namespace, in bytes as well as messages per second 
+
+Usage
+```bash
+$ pulsar-admin namespaces get-publish-rate tenant/namespace
+```
+
+### `set-publish-rate`
+Set the message publish rate for each topic in a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-publish-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
+|`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.

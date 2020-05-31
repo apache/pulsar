@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
@@ -237,10 +238,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
                 .thenApply(entry ->
-                    new StoredSchema(
-                        entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(version)
-                    )
+                        new StoredSchema(
+                            entry.getSchemaData().toByteArray(),
+                            new LongSchemaVersion(version)
+                        )
                 );
         });
     }
@@ -387,11 +388,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .setPosition(position)
                 .setHash(copyFrom(hash))
                 .build();
+
         return updateSchemaLocator(getSchemaPath(schemaId),
             SchemaStorageFormat.SchemaLocator.newBuilder()
                 .setInfo(info)
                 .addAllIndex(
-                    concat(locator.getIndexList(), newArrayList(info))
+                        concat(locator.getIndexList(), newArrayList(info))
                 ).build(), locatorEntry.zkZnodeVersion
         ).thenApply(ignore -> nextVersion);
     }
@@ -409,7 +411,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
             return readSchemaEntry(lowest.getPosition())
-                .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
+                    .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
         }
 
         for (SchemaStorageFormat.IndexEntry entry : index) {

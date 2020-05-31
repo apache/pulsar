@@ -28,10 +28,13 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.validator.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -86,7 +89,6 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setProcessingGuarantees(
                     convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
         }
-
         // set source spec
         Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
         if (sourceDetails.getSourceClassName() != null) {
@@ -209,7 +211,9 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath, File sourcePackageFile) {
+    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath,
+                                                  File sourcePackageFile, String narExtractionDirectory,
+                                                  boolean validateConnectorConfig) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -245,12 +249,12 @@ public class SourceConfigUtils {
         Exception narClassLoaderException = null;
 
         try {
-            jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
+            jarClassLoader = ClassLoaderUtils.extractClassLoader(archivePath, sourcePackageFile);
         } catch (Exception e) {
             jarClassLoaderException = e;
         }
         try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile, narExtractionDirectory);
         } catch (Exception e) {
             narClassLoaderException = e;
         }
@@ -267,6 +271,9 @@ public class SourceConfigUtils {
                 sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
             } catch (IOException e) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e);
+            }
+            if (validateConnectorConfig) {
+                validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
             }
             try {
                 typeArg = getSourceType(sourceClassName, narClassLoader);
@@ -292,12 +299,18 @@ public class SourceConfigUtils {
                             throw new IllegalArgumentException(
                                     String.format("Source class %s must be in class path", sourceClassName), e1);
                         }
+                        if (validateConnectorConfig) {
+                            validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
+                        }
                     } else {
                         throw new IllegalArgumentException(
                                 String.format("Source class %s must be in class path", sourceClassName), e);
                     }
                 }
             } else if (narClassLoader != null) {
+                if (validateConnectorConfig) {
+                    validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
+                }
                 try {
                     typeArg = getSourceType(sourceClassName, narClassLoader);
                     classLoader = narClassLoader;
@@ -366,7 +379,7 @@ public class SourceConfigUtils {
             mergedConfig.setSecrets(newConfig.getSecrets());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
-            throw new IllegalArgumentException("Processing Guarantess cannot be altered");
+            throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());
@@ -384,6 +397,25 @@ public class SourceConfigUtils {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
+    }
+
+    public static void validateConnectorConfig(SourceConfig sourceConfig, ClassLoader classLoader) {
+        try {
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
+            if (defn.getSourceConfigClass() != null) {
+                Class configClass = Class.forName(defn.getSourceConfigClass(), true, classLoader);
+                Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
+                if (configObject != null) {
+                    ConfigValidation.validateConfig(configObject);
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Error validating source config", e);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Could not find source config class");
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Could not validate source config: " + e.getMessage());
+        }
     }
 
 }
