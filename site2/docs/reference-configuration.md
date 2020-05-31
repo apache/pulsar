@@ -136,6 +136,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
+| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. <li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. | `delete_when_no_subscriptions` |
+| brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to see if topics with compaction policies need to be compacted  |60|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
@@ -173,6 +175,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
+subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
@@ -478,6 +481,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
+|advertisedAddress|Hostname or IP address the service advertises to the outside world.|`InetAddress.getLocalHost().getHostname()`|
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
 |authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||

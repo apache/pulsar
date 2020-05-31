@@ -116,6 +116,7 @@ public class PulsarFunctionTlsTest {
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
+        config.setAdvertisedAddress("localhost");
         functionsWorkerService = spy(createPulsarFunctionWorker(config));
         AuthenticationService authenticationService = new AuthenticationService(config);
         AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));

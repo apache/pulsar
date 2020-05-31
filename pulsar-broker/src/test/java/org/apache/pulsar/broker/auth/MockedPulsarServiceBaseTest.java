@@ -45,7 +45,6 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -210,7 +209,6 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
         PulsarService pulsar = spy(new PulsarService(conf));
-        pulsar.setShutdownService(new NoOpShutdownService());
 
         setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();

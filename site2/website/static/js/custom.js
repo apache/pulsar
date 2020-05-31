@@ -64,7 +64,8 @@ window.addEventListener('load', function() {
     }
   });
 
-  const href = document.querySelector('a[href="/en/versions"]');
+  // retrieve current selected version from header
+  const href = document.getElementsByClassName("logo")[0].parentElement.nextSibling;
   let version = href.textContent;
 
   if (version === 'next') {
