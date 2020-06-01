@@ -37,6 +37,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -103,6 +104,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
@@ -1022,6 +1024,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+
+        final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
+        final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch() ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
+
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
             return;
@@ -1124,40 +1130,40 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, getPrincipal(),
-                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
+                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName, producerAccessMode, topicEpoch);
 
-                                try {
-                                    topic.addProducer(producer);
-
-                                    if (isActive()) {
-                                        if (producerFuture.complete(producer)) {
-                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                            commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                    producer.getLastSequenceId(), producer.getSchemaVersion());
-                                            return;
+                                    topic.addProducer(producer).thenAccept(newTopicEpoch -> {
+                                        if (isActive()) {
+                                            if (producerFuture.complete(producer)) {
+                                                log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                                                commandSender.sendProducerSuccessResponse(requestId, producerName,
+                                                        producer.getLastSequenceId(), producer.getSchemaVersion(), newTopicEpoch);
+                                                return;
+                                            } else {
+                                                // The producer's future was completed before by
+                                                // a close command
+                                                producer.closeNow(true);
+                                                log.info("[{}] Cleared producer created after timeout on client side {}",
+                                                    remoteAddress, producer);
+                                            }
                                         } else {
-                                            // The producer's future was completed before by
-                                            // a close command
                                             producer.closeNow(true);
-                                            log.info("[{}] Cleared producer created after timeout on client side {}",
+                                            log.info("[{}] Cleared producer created after connection was closed: {}",
                                                 remoteAddress, producer);
+                                            producerFuture.completeExceptionally(
+                                                new IllegalStateException("Producer created after connection was closed"));
                                         }
-                                    } else {
-                                        producer.closeNow(true);
-                                        log.info("[{}] Cleared producer created after connection was closed: {}",
-                                            remoteAddress, producer);
-                                        producerFuture.completeExceptionally(
-                                            new IllegalStateException("Producer created after connection was closed"));
-                                    }
-                                } catch (Exception ise) {
-                                    log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
-                                        ise.getMessage());
-                                    commandSender.sendErrorResponse(requestId,
-                                            BrokerServiceException.getClientErrorCode(ise), ise.getMessage());
-                                    producerFuture.completeExceptionally(ise);
-                                }
 
-                                producers.remove(producerId, producerFuture);
+                                        producers.remove(producerId, producerFuture);
+                                }).exceptionally(ex -> {
+                                    log.warn("[{}] Failed to add producer {}: {}", remoteAddress, producer, ex.getMessage());
+                                    producer.closeNow(true);
+                                    if (producerFuture.completeExceptionally(ex)) {
+                                        commandSender.sendErrorResponse(requestId,
+                                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+                                    }
+                                    return null;
+                                });
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();

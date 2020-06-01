@@ -155,6 +155,7 @@ public class ConnectionHandler {
             case Closing:
             case Closed:
             case Failed:
+            case ProducerFenced:
             case Terminated:
                 return false;
         }

@@ -37,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -357,20 +358,21 @@ public class Commands {
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName,
             SchemaVersion schemaVersion) {
-        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion);
+        return newProducerSuccessCommand(requestId, producerName, -1, schemaVersion, Optional.empty());
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
-        return newProducerSuccess(requestId, producerName, -1, schemaVersion);
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion, Optional.empty());
     }
 
     public static BaseCommand newProducerSuccessCommand(long requestId, String producerName, long lastSequenceId,
-                                                 SchemaVersion schemaVersion) {
+                                                 SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         BaseCommand.Builder builder = BaseCommand.newBuilder();
         BaseCommand res = builder.setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess).build();
@@ -380,12 +382,13 @@ public class Commands {
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
-        SchemaVersion schemaVersion) {
+        SchemaVersion schemaVersion, Optional<Long> topicEpoch) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
         producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        topicEpoch.ifPresent(producerSuccessBuilder::setTopicEpoch);
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
@@ -846,7 +849,8 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false);
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false,
+                ProducerAccessMode.Shared, Optional.empty());
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -886,7 +890,9 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
           boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-          long epoch, boolean userProvidedProducerName) {
+          long epoch, boolean userProvidedProducerName,
+          ProducerAccessMode accessMode,
+          Optional<Long> topicEpoch) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -903,6 +909,9 @@ public class Commands {
         if (null != schemaInfo) {
             producerBuilder.setSchema(getSchema(schemaInfo));
         }
+
+        producerBuilder.setProducerAccessMode(convertProducerAccessMode(accessMode));
+        topicEpoch.ifPresent(producerBuilder::setTopicEpoch);
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
@@ -2160,5 +2169,18 @@ public class Commands {
 
     public static boolean peerSupportsGetOrCreateSchema(int peerVersion) {
         return peerVersion >= ProtocolVersion.v15.getNumber();
+    }
+
+    private static PulsarApi.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {
+        switch (accessMode) {
+        case Exclusive:
+            return PulsarApi.ProducerAccessMode.Exclusive;
+        case Shared:
+            return PulsarApi.ProducerAccessMode.Shared;
+//        case WaitForExclusive:
+//            return PulsarApi.ProducerAccessMode.WaitForExclusive;
+        default:
+            throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
+        }
     }
 }
