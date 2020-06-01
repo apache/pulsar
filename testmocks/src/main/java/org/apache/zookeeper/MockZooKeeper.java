@@ -34,6 +34,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -785,24 +786,17 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void delete(final String path, int version, final VoidCallback cb, final Object ctx) {
-        mutex.lock();
-        if (executor.isShutdown()) {
-            mutex.unlock();
-            cb.processResult(KeeperException.Code.SESSIONEXPIRED.intValue(), path, ctx);
-            return;
-        }
-
-        final Set<Watcher> toNotifyDelete = Sets.newHashSet();
-        toNotifyDelete.addAll(watchers.get(path));
-
-        final Set<Watcher> toNotifyParent = Sets.newHashSet();
-        final String parent = path.substring(0, path.lastIndexOf("/"));
-        if (!parent.isEmpty()) {
-            toNotifyParent.addAll(watchers.get(parent));
-        }
-
-        executor.execute(() -> {
+        Runnable r = () -> {
             mutex.lock();
+            final Set<Watcher> toNotifyDelete = Sets.newHashSet();
+            toNotifyDelete.addAll(watchers.get(path));
+
+            final Set<Watcher> toNotifyParent = Sets.newHashSet();
+            final String parent = path.substring(0, path.lastIndexOf("/"));
+            if (!parent.isEmpty()) {
+                toNotifyParent.addAll(watchers.get(parent));
+            }
+            watchers.removeAll(path);
 
             Optional<KeeperException.Code> failure = programmedFailure(Op.DELETE, path);
             if (failure.isPresent()) {
@@ -821,6 +815,7 @@ public class MockZooKeeper extends ZooKeeper {
                 if (version != -1) {
                     int currentVersion = tree.get(path).getRight();
                     if (version != currentVersion) {
+                        mutex.unlock();
                         cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx);
                         return;
                     }
@@ -836,10 +831,15 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotifyParent.forEach(watcher -> watcher
                         .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
             }
-        });
+        };
 
-        watchers.removeAll(path);
-        mutex.unlock();
+        try {
+            executor.execute(r);
+        } catch (RejectedExecutionException ree) {
+            cb.processResult(KeeperException.Code.SESSIONEXPIRED.intValue(), path, ctx);
+            return;
+        }
+
     }
 
     @Override
@@ -852,7 +852,7 @@ public class MockZooKeeper extends ZooKeeper {
             stopped = true;
             tree.clear();
             watchers.clear();
-            executor.shutdownNow();
+            executor.shutdown();
         } finally {
             mutex.unlock();
         }
