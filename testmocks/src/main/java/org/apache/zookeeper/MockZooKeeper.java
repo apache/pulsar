@@ -26,13 +26,18 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Constructor;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiPredicate;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
@@ -52,17 +57,29 @@ public class MockZooKeeper extends ZooKeeper {
     private TreeMap<String, Pair<byte[], Integer>> tree;
     private SetMultimap<String, Watcher> watchers;
     private volatile boolean stopped;
-    private boolean alwaysFail = false;
-
+    private AtomicReference<KeeperException.Code> alwaysFail;
+    private CopyOnWriteArrayList<Failure> failures;
     private ExecutorService executor;
 
-    private AtomicInteger stepsToFail;
-    private KeeperException.Code failReturnCode;
     private Watcher sessionWatcher;
     private long sessionId = 0L;
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
+
+    public enum Op {
+        CREATE, GET, SET, GET_CHILDREN, DELETE, EXISTS, SYNC,
+    };
+
+    private class Failure {
+        final KeeperException.Code failReturnCode;
+        final BiPredicate<Op, String> predicate;
+
+        Failure(KeeperException.Code failReturnCode, BiPredicate<Op, String> predicate) {
+            this.failReturnCode = failReturnCode;
+            this.predicate = predicate;
+        }
+    }
 
     public static MockZooKeeper newInstance() {
         return newInstance(null);
@@ -100,8 +117,8 @@ public class MockZooKeeper extends ZooKeeper {
         SetMultimap<String, Watcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;
-        stepsToFail = new AtomicInteger(-1);
-        failReturnCode = KeeperException.Code.OK;
+        alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
+        failures = new CopyOnWriteArrayList<>();
     }
 
     private MockZooKeeper(String quorum) throws Exception {
@@ -132,7 +149,7 @@ public class MockZooKeeper extends ZooKeeper {
         final String parent = path.substring(0, path.lastIndexOf("/"));
 
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.CREATE, path);
 
             if (stopped)
                 throw new KeeperException.ConnectionLossException();
@@ -207,9 +224,10 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotifyParent.addAll(watchers.get(parent));
             }
 
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.CREATE, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null);
             } else if (stopped) {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
@@ -244,7 +262,7 @@ public class MockZooKeeper extends ZooKeeper {
     public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
         mutex.lock();
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.GET, path);
             Pair<byte[], Integer> value = tree.get(path);
             if (value == null) {
                 throw new KeeperException.NoNodeException(path);
@@ -266,8 +284,9 @@ public class MockZooKeeper extends ZooKeeper {
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
         executor.execute(() -> {
             checkReadOpDelay();
-            if (getProgrammedFailStatus()) {
-                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+            Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
+            if (failure.isPresent()) {
+                cb.processResult(failure.get().intValue(), path, ctx, null, null);
                 return;
             } else if (stopped) {
                 cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx, null, null);
@@ -297,9 +316,10 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             checkReadOpDelay();
             mutex.lock();
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -328,9 +348,10 @@ public class MockZooKeeper extends ZooKeeper {
     public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object ctx) {
         executor.execute(() -> {
             mutex.lock();
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -373,7 +394,7 @@ public class MockZooKeeper extends ZooKeeper {
     public List<String> getChildren(String path, Watcher watcher) throws KeeperException {
         mutex.lock();
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
 
             if (!tree.containsKey(path)) {
                 throw new KeeperException.NoNodeException();
@@ -409,7 +430,7 @@ public class MockZooKeeper extends ZooKeeper {
     public List<String> getChildren(String path, boolean watch) throws KeeperException, InterruptedException {
         mutex.lock();
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
 
             if (stopped) {
                 throw new KeeperException.ConnectionLossException();
@@ -445,9 +466,11 @@ public class MockZooKeeper extends ZooKeeper {
     public void getChildren(final String path, boolean watcher, final Children2Callback cb, final Object ctx) {
         executor.execute(() -> {
             mutex.lock();
-            if (getProgrammedFailStatus()) {
+
+            Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -490,7 +513,7 @@ public class MockZooKeeper extends ZooKeeper {
     public Stat exists(String path, boolean watch) throws KeeperException, InterruptedException {
         mutex.lock();
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.EXISTS, path);
 
             if (stopped)
                 throw new KeeperException.ConnectionLossException();
@@ -511,7 +534,7 @@ public class MockZooKeeper extends ZooKeeper {
     public Stat exists(String path, Watcher watcher) throws KeeperException, InterruptedException {
         mutex.lock();
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.EXISTS, path);
 
             if (stopped)
                 throw new KeeperException.ConnectionLossException();
@@ -536,9 +559,10 @@ public class MockZooKeeper extends ZooKeeper {
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
         executor.execute(() -> {
             mutex.lock();
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.EXISTS, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -560,9 +584,10 @@ public class MockZooKeeper extends ZooKeeper {
     public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
         executor.execute(() -> {
             mutex.lock();
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.EXISTS, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -587,8 +612,9 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void sync(String path, VoidCallback cb, Object ctx) {
         executor.execute(() -> {
-            if (getProgrammedFailStatus()) {
-                cb.processResult(failReturnCode.intValue(), path, ctx);
+            Optional<KeeperException.Code> failure = programmedFailure(Op.SYNC, path);
+            if (failure.isPresent()) {
+                cb.processResult(failure.get().intValue(), path, ctx);
                 return;
             } else if (stopped) {
                 cb.processResult(KeeperException.Code.ConnectionLoss, path, ctx);
@@ -608,7 +634,7 @@ public class MockZooKeeper extends ZooKeeper {
         int newVersion;
 
         try {
-            checkProgrammedFail();
+            maybeThrowProgrammedFailure(Op.SET, path);
 
             if (stopped) {
                 throw new KeeperException.ConnectionLossException();
@@ -657,9 +683,10 @@ public class MockZooKeeper extends ZooKeeper {
 
             mutex.lock();
 
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx, null);
+                cb.processResult(failure.get().intValue(), path, ctx, null);
                 return;
             } else if (stopped) {
                 mutex.unlock();
@@ -703,7 +730,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void delete(final String path, int version) throws InterruptedException, KeeperException {
-        checkProgrammedFail();
+        maybeThrowProgrammedFailure(Op.DELETE, path);
 
         final Set<Watcher> toNotifyDelete;
         final Set<Watcher> toNotifyParent;
@@ -777,9 +804,10 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             mutex.lock();
 
-            if (getProgrammedFailStatus()) {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.DELETE, path);
+            if (failure.isPresent()) {
                 mutex.unlock();
-                cb.processResult(failReturnCode.intValue(), path, ctx);
+                cb.processResult(failure.get().intValue(), path, ctx);
             } else if (stopped) {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
@@ -830,32 +858,37 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
-    void checkProgrammedFail() throws KeeperException {
-        if (stepsToFail.getAndDecrement() == 0 || this.alwaysFail) {
-            throw KeeperException.create(failReturnCode);
+    Optional<KeeperException.Code> programmedFailure(Op op, String path) {
+        KeeperException.Code error = this.alwaysFail.get();
+        if (error != KeeperException.Code.OK) {
+            return Optional.of(error);
+        }
+        Optional<Failure> failure = failures.stream().filter(f -> f.predicate.test(op, path)).findFirst();
+        if (failure.isPresent()) {
+            failures.remove(failure.get());
+            return Optional.of(failure.get().failReturnCode);
+        } else {
+            return Optional.empty();
         }
     }
 
-    boolean getProgrammedFailStatus() {
-        return stepsToFail.getAndDecrement() == 0;
+    void maybeThrowProgrammedFailure(Op op, String path) throws KeeperException {
+        Optional<KeeperException.Code> failure = programmedFailure(op, path);
+        if (failure.isPresent()) {
+            throw KeeperException.create(failure.get());
+        }
     }
 
-    public void failNow(KeeperException.Code rc) {
-        failAfter(0, rc);
+    public void failConditional(KeeperException.Code rc, BiPredicate<Op, String> predicate) {
+        failures.add(new Failure(rc, predicate));
     }
 
     public void setAlwaysFail(KeeperException.Code rc) {
-        this.alwaysFail = true;
-        this.failReturnCode = rc;
+        this.alwaysFail.set(rc);
     }
 
     public void unsetAlwaysFail() {
-        this.alwaysFail = false;
-    }
-
-    public void failAfter(int steps, KeeperException.Code rc) {
-        stepsToFail.set(steps);
-        failReturnCode = rc;
+        this.alwaysFail.set(KeeperException.Code.OK);
     }
 
     public void setSessionId(long id) {

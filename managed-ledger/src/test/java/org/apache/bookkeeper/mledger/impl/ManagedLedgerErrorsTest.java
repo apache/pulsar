@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -41,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -54,7 +56,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         assertNotNull(zkc.exists("/managed-ledgers/my_test_ledger/c1", false));
 
-        zkc.failNow(Code.BADVERSION);
+        zkc.failConditional(Code.BADVERSION, (op, path) -> {
+                return op == MockZooKeeper.Op.SET
+                    && path.equals("/managed-ledgers/my_test_ledger/c1");
+            });
 
         try {
             c1.close();
@@ -77,7 +82,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ledger.openCursor("c1");
 
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return op == MockZooKeeper.Op.DELETE
+                    && path.equals("/managed-ledgers/my_test_ledger/c1");
+            });
 
         try {
             ledger.deleteCursor("c1");
@@ -207,7 +215,11 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-        zkc.failAfter(1, Code.CONNECTIONLOSS);
+
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -229,7 +241,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-        zkc.failAfter(2, Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.GET_CHILDREN;
+            });
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -252,7 +267,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         factory = new ManagedLedgerFactoryImpl(bkc, zkc);
 
-        zkc.failAfter(3, Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger/c1")
+                    && op == MockZooKeeper.Op.GET;
+            });
 
         try {
             ledger = factory.open("my_test_ledger");
@@ -302,9 +320,12 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     public void errorInUpdatingLedgersList() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
 
-        zkc.failAfter(0, Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
 
         ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
@@ -318,22 +339,25 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
         ledger.asyncAddEntry("entry".getBytes(), new AddEntryCallback() {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                latch.countDown();
+                promise.complete(null);
             }
 
             public void addComplete(Position position, Object ctx) {
-                fail("should have failed");
+                promise.completeExceptionally(new Exception("should have failed"));
             }
         }, null);
 
-        latch.await();
+        promise.get();
     }
 
     @Test
     public void recoverAfterZnodeVersionError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
 
-        zkc.failNow(Code.BADVERSION);
+        zkc.failConditional(Code.BADVERSION, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
 
         // First write will succeed
         ledger.addEntry("test".getBytes());
@@ -369,7 +393,11 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
+
         try {
             ledger.addEntry("entry-2".getBytes());
             fail("should fail");
@@ -458,7 +486,10 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         Position position = ledger.addEntry("entry".getBytes());
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger/my-cursor")
+                    && op == MockZooKeeper.Op.SET;
+            });
 
         try {
             cursor.markDelete(position);
