@@ -67,7 +67,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean tlsHostnameVerificationEnable = false;
     private int concurrentLookupRequest = 5000;
     private int maxLookupRequest = 50000;
-    private int maxLookupRedirects = 100;
+    private int maxLookupRedirects = 20;
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
