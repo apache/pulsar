@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -56,11 +57,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInval
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -215,24 +219,27 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    if (consumer.getKeySharedMeta() != null) {
-                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                            case STICKY:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeExclusiveStickyKeyConsumerSelector());
-                                break;
-                            case AUTO_SPLIT:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                            default:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                        }
-                    } else {
-                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
+
+                    switch (ksm.getKeySharedMode()) {
+                        case STICKY:
+                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                    new HashRangeExclusiveStickyKeyConsumerSelector());
+                            break;
+
+                        case AUTO_SPLIT:
+                        default:
+                            StickyKeyConsumerSelector selector;
+                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
+                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
+                                selector = new ConsistentHashingStickyKeyConsumerSelector(
+                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                            } else {
+                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+                            }
+
+                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this, selector);
+                            break;
                     }
                 }
                 break;

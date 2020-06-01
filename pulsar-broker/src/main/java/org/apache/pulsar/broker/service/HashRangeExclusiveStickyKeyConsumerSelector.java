@@ -80,28 +80,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
-    @Override
-    public Consumer selectByIndex(int index) {
-        if (rangeMap.size() > 0) {
-            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(index);
-            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(index);
-            Consumer ceilingConsumer = ceilingEntry != null ? ceilingEntry.getValue() : null;
-            Consumer floorConsumer = floorEntry != null ? floorEntry.getValue() : null;
-            if (floorConsumer != null && floorConsumer.equals(ceilingConsumer)) {
-                return ceilingConsumer;
-            } else {
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public int getRangeSize() {
-        return rangeSize;
-    }
-
     private void validateKeySharedMeta(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
         if (consumer.getKeySharedMeta() == null) {
             throw new BrokerServiceException.ConsumerAssignException("Must specify key shared meta for consumer.");
