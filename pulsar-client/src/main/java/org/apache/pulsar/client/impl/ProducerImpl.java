@@ -1178,8 +1178,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
                     // Close the producer since topic does not exists.
-                    if (getState() == State.Failed
-                            && cause instanceof PulsarClientException.TopicDoesNotExistException) {
+                    if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                         closeAsync().whenComplete((v, ex) -> {
                             if (ex != null) {
                                 log.error("Failed to close producer on TopicDoesNotExistException.", ex);
