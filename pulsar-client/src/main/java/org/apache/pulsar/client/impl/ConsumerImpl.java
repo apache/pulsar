@@ -802,6 +802,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 //    auto-topic-creation set to false
                 // No more retries are needed in this case.
                 setState(State.Failed);
+                closeConsumerTasks();
                 client.cleanupConsumer(this);
                 log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}", topic, subscription, cnx.channel().remoteAddress());
             } else {
@@ -947,6 +948,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         acknowledgmentsGroupingTracker.close();
+        if (batchReceiveTimeout != null) {
+            batchReceiveTimeout.cancel();
+        }
+        stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
     private void failPendingReceive() {

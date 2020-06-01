@@ -16,65 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for not exists topic.
- */
-public class TopicDoesNotExistsTest extends ProducerConsumerBase {
+public class ProducerCleanupTest extends ProducerConsumerBase {
 
+    @BeforeMethod
     @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        conf.setAllowAutoTopicCreation(false);
+    protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
+    @AfterMethod
     @Override
-    @AfterClass
-    public void cleanup() throws Exception {
+    protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test(expectedExceptions = PulsarClientException.TopicDoesNotExistException.class)
-    public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
-        pulsarClient.newProducer()
+    @Test
+    public void testAllTimerTaskShouldCanceledAfterProducerClosed() throws PulsarClientException, InterruptedException {
+        Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
+        producer.close();
         Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
         Assert.assertEquals(timer.pendingTimeouts(), 0);
-    }
-
-    @Test
-    public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
-        try {
-            pulsarClient.newConsumer()
-                    .topic("persistent://public/default/" + UUID.randomUUID().toString())
-                    .subscriptionName("test")
-                    .subscribe();
-            Assert.fail("Create consumer should failed while topic does not exists.");
-        } catch (PulsarClientException ignore) {
-        }
-        Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
-        Assert.assertEquals(((PulsarClientImpl) pulsarClient).consumersCount(), 0);
     }
 }
