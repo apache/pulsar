@@ -115,15 +115,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         }
     }
 
-    @Override
-    public Consumer selectByIndex(int index) {
-        if (rangeMap.size() > 0) {
-            return rangeMap.ceilingEntry(index).getValue();
-        } else {
-            return null;
-        }
-    }
-
     private int findBiggestRange() {
         int slots = 0;
         int busiestRange = rangeSize;
@@ -157,11 +148,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     private boolean is2Power(int num) {
         if(num < 2) return false;
         return (num & num - 1) == 0;
-    }
-
-    @Override
-    public int getRangeSize() {
-        return rangeSize;
     }
 
     Map<Consumer, Integer> getConsumerRange() {
