@@ -374,11 +374,11 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalArgumentException) {
                 log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                        namespaceName);
+                        namespaceName, e);
                 throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
             } else if (e.getCause() instanceof IllegalStateException) {
-                log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
-                        clientAppId(), namespaceName);
+                log.warn("[{}] Failed to set permissions for namespace {}: {}",
+                        clientAppId(), namespaceName, e.getCause().getMessage(), e);
                 throw new RestException(Status.CONFLICT, "Concurrent modification");
             } else {
                 log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
