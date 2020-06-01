@@ -73,7 +73,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
         final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
         for (Entry entry : entries) {
-            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer())) % selector.getRangeSize();
+            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
             groupedEntries.putIfAbsent(key, new ArrayList<>());
             groupedEntries.get(key).add(entry);
         }
@@ -82,7 +82,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
             //TODO: None key policy
-            Consumer consumer = selector.selectByIndex(entriesWithSameKey.getKey());
+            Consumer consumer = selector.select(entriesWithSameKey.getKey());
             if (consumer == null) {
                 // Do nothing, cursor will be rewind at reconnection
                 log.info("[{}] rewind because no available consumer found for key {} from total {}", name,
