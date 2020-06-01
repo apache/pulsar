@@ -1396,6 +1396,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Policies for the namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/Policies"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -1503,6 +1511,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Anti-affinity group for the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -1565,6 +1581,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Settings for automatic subscription creation",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/AutoSubscriptionCreationOverride"
+          }
         } ],
         "responses" : {
           "400" : {
@@ -1624,6 +1648,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Settings for automatic topic creation",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/AutoTopicCreationOverride"
+          }
         } ],
         "responses" : {
           "400" : {
@@ -1692,6 +1724,14 @@
           "required" : false,
           "type" : "string",
           "enum" : [ "destination_storage" ]
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Backlog quota for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/BacklogQuota"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -1948,6 +1988,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Maximum number of uncompacted bytes in a topic of the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -1983,6 +2032,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Flag for disabling or enabling broker side deduplication for all topics in the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2048,6 +2105,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Delayed delivery policies for the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DelayedDeliveryPolicies"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2110,6 +2175,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Dispatch rate for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2136,6 +2209,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Flag defining if message encryption is required",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2204,6 +2285,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Flag of whether to allow auto update schema",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2270,6 +2359,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Number of maximum consumers per subscription",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2339,6 +2437,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Number of maximum consumers per topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2408,6 +2515,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Number of maximum producers per topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2477,6 +2593,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Number of maximum unacked messages per consumer",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2546,6 +2671,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Number of maximum unacked messages per subscription",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2615,6 +2749,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "TTL in seconds for the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2681,6 +2824,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "New number of milliseconds to wait before deleting a ledger segment which has been offloaded",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2779,6 +2931,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Offload policies for the specified namespace",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/OffloadPolicies"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2848,6 +3008,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Maximum number of bytes stored on the pulsar cluster for a topic of the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -2929,6 +3098,18 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "List of permissions for the specified role",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "produce", "consume", "functions" ]
+            }
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3032,6 +3213,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Persistence policies for the specified namespace",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/PersistencePolicies"
+          }
         } ],
         "responses" : {
           "400" : {
@@ -3067,6 +3256,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Bookie affinity group for the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/BookieAffinityGroupData"
+          }
         } ],
         "responses" : {
           "307" : {
@@ -3141,6 +3338,17 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "List of replication clusters",
+          "required" : true,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3209,6 +3417,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Replicator dispatch rate for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3268,6 +3484,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Retention policies for the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/RetentionPolicies"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3340,6 +3564,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Strategy used to check the compatibility of new schemas",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3409,6 +3641,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Strategy used to check the compatibility of new schema",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3474,6 +3714,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Flag of whether validation is enforced on the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3539,6 +3787,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Subscribe rate for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SubscribeRate"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3565,6 +3821,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Subscription auth mode for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3630,6 +3894,14 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Subscription dispatch rate for all topics of the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -3690,6 +3962,15 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Expiration time in minutes for the specified namespace",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "403" : {
@@ -10105,13 +10386,13 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -10126,10 +10407,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
+        "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         }
       }
@@ -10298,10 +10579,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -11158,10 +11439,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -11223,15 +11504,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
@@ -11266,11 +11547,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
