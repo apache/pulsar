@@ -48,6 +48,7 @@ import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -106,7 +107,10 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         assertEquals(m.partitions, 0);
 
         // Simulate ZK error
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/admin/partitioned-topics/test/local/ns/persistent/my-topic-2");
+            });
         TopicName topic2 = TopicName.get("persistent://test/local/ns/my-topic-2");
         CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
                 .getPartitionedTopicMetadata(service, topic2, "role", null);
