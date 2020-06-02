@@ -26,6 +26,7 @@ import lombok.Data;
 public class SendMessageInfo {
     private int totalMessages;
     private long totalBytes;
+    private int totalChunkedMessages;
 
     private SendMessageInfo() {
         // Private constructor so that all usages are through the thread-local instance
@@ -35,6 +36,7 @@ public class SendMessageInfo {
         SendMessageInfo smi = THREAD_LOCAL.get();
         smi.totalMessages = 0;
         smi.totalBytes = 0;
+        smi.totalChunkedMessages = 0;
         return smi;
     }
 

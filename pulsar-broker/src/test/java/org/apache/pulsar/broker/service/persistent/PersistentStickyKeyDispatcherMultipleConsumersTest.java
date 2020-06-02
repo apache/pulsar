@@ -103,6 +103,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 any(EntryBatchIndexesAcks.class),
                 anyInt(),
                 anyLong(),
+                anyLong(),
                 any(RedeliveryTracker.class)
         );
 
@@ -145,6 +146,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 any(EntryBatchSizes.class),
                 any(EntryBatchIndexesAcks.class),
                 totalMessagesCaptor.capture(),
+                anyLong(),
                 anyLong(),
                 any(RedeliveryTracker.class)
         );
