@@ -33,6 +33,8 @@ public class ManagedLedgerInfo {
 
     public Map<String, CursorInfo> cursors;
 
+    public Map<String, String> properties;
+
     public static class LedgerInfo {
         public long ledgerId;
         public Long entries;

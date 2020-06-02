@@ -100,6 +100,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(channelMock).when(consumerMock).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 anyInt(),
                 anyLong(),
                 any(RedeliveryTracker.class)
@@ -116,7 +117,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         ).thenReturn(false);
 
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, new HashRangeAutoSplitStickyKeyConsumerSelector());
+                topicMock, cursorMock, subscriptionMock, new ConsistentHashingStickyKeyConsumerSelector(100));
         persistentDispatcher.addConsumer(consumerMock);
         persistentDispatcher.consumerFlow(consumerMock, 1000);
     }
@@ -142,6 +143,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         verify(consumerMock, times(2)).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 totalMessagesCaptor.capture(),
                 anyLong(),
                 any(RedeliveryTracker.class)

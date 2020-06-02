@@ -303,7 +303,7 @@ Then you can proceed with the following steps:
 1. By default, the `Pulsar Manager` is exposed as a separate `LoadBalancer`. You can open the Pulsar Manager UI using the following command:
 
     ```bash
-    minikube service pulsar-mini-pulsar-manager
+    minikube service -n pulsar pulsar-mini-pulsar-manager 
     ```
 
 2. The Pulsar Manager UI will be open in your browser. You can use the username `pulsar` and password `pulsar` to log into Pulsar Manager.

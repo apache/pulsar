@@ -50,13 +50,4 @@ public interface StickyKeyConsumerSelector {
      * @return
      */
     Consumer select(int keyHash);
-
-    /**
-     * Select a consumer by key hash range index.
-     * @param index index of the key hash range
-     * @return
-     */
-    Consumer selectByIndex(int index);
-
-    int getRangeSize();
 }

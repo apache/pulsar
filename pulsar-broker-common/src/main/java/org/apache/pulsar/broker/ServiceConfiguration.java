@@ -176,6 +176,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
     private long delayedDeliveryTickTimeMillis = 1000;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"
@@ -335,6 +338,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable Key_Shared subscription (default is enabled)"
     )
     private boolean subscriptionKeySharedEnable = true;
+
+    @FieldContext(category = CATEGORY_POLICIES,
+            doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or " +
+            "consistent hashing to reassign keys to new consumers")
+    private boolean subscriptionKeySharedUseConsistentHashing = false;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "On KeyShared subscriptions, number of points in the consistent-hashing ring. "
+                + "The higher the number, the more equal the assignment of keys to consumers")
+    private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -522,6 +536,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max size in bytes of entries to read from bookkeeper. By default it is 5MB."
+    )
+    private int dispatcherMaxReadSizeBytes = 5 * 1024 * 1024;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -537,6 +559,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
     )
     private int dispatcherMaxRoundRobinBatchSize = 20;
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = "Precise dispatcher flow control according to history message number of each entry"
+    )
+    private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
         dynamic = true,
@@ -673,6 +702,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "List of messaging protocols to load, which is a list of protocol names"
     )
     private Set<String> messagingProtocols = Sets.newTreeSet();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable system topic.")
+    private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
+                "please enable the system topic first.")
+    private boolean topicLevelPoliciesEnabled = false;
 
     /***** --- TLS --- ****/
     @FieldContext(
@@ -1095,6 +1135,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum time before forcing a ledger rollover for a topic"
     )
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum ledger size before triggering a rollover for a topic (MB)"
+    )
+    private int managedLedgerMaxSizePerLedgerMbytes = 2048;
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
         doc = "Delay between a ledger being successfully offloaded to long term storage,"
