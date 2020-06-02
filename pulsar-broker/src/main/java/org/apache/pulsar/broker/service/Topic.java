@@ -129,6 +129,12 @@ public interface Topic {
 
     void checkInactiveSubscriptions();
 
+    /**
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
+     * backlog.
+     */
+    void checkBackloggedCursors();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
@@ -203,5 +209,9 @@ public interface Topic {
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
+    }
+
+    default boolean isSystemTopic() {
+        return false;
     }
 }

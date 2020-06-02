@@ -688,7 +688,9 @@ public class SinksImpl extends ComponentImpl {
                 throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
             }
         }
-        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath, componentPackageFile);
+        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath,
+                componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
+                worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 }

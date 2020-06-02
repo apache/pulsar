@@ -40,7 +40,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
+import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -254,7 +254,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String nonPartitionTopicName2 = "special-topic-partition-123";
         final String partitionedTopicName = "special-topic";
         LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
+        ZooKeeperManagedLedgerCache mockZooKeeperChildrenCache = mock(ZooKeeperManagedLedgerCache.class);
         doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
         doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         doReturn(ImmutableSet.of(nonPartitionTopicName1, nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
@@ -272,7 +272,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String nonPartitionTopicName2 = "special-topic-partition-10";
         final String partitionedTopicName = "special-topic";
         LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperChildrenCache mockZooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
+        ZooKeeperManagedLedgerCache mockZooKeeperChildrenCache = mock(ZooKeeperManagedLedgerCache.class);
         doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
         doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         doReturn(ImmutableSet.of(nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
@@ -288,7 +288,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, 10);
+        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, false, 10);
     }
 
     @Test

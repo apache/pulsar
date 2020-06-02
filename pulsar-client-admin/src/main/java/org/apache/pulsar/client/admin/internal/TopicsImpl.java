@@ -84,7 +84,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    private final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    private final String PUBLISH_TIME = "X-Pulsar-publish-time";
     // CHECKSTYLE.ON: MemberName
+
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
@@ -940,7 +943,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessageFromHttpResponse(tn.toString(), response));
+                            future.complete(getMessagesFromHttpResponse(tn.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -977,7 +980,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-
     private void peekMessagesAsync(String topic, String subName, int numMessages,
             List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
         if (numMessages <= 0) {
@@ -991,7 +993,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
                 if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occured while trying to peek Messages.", ex.getMessage());
+                    log.warn("Exception '{}' occurred while trying to peek Messages.", ex.getMessage());
                     future.complete(messages);
                 } else {
                     future.completeExceptionally(ex);
@@ -1004,6 +1006,63 @@ public class TopicsImpl extends BaseResource implements Topics {
             peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1);
             return null;
         });
+    }
+
+    @Override
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
+        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
+            if (ex != null) {
+                if (ex instanceof NotFoundException) {
+                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
+                    future.complete(r);
+                } else {
+                    future.completeExceptionally(ex);
+                }
+                return null;
+            }
+            future.complete(r);
+            return null;
+        });
+        return future;
+    }
+
+    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
+        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        try {
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
+            throws PulsarAdminException {
+        try {
+            return getMessageByIdAsync(topic, ledgerId, entryId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     @Override
@@ -1222,27 +1281,34 @@ public class TopicsImpl extends BaseResource implements Topics {
         return TopicName.get(topic);
     }
 
-    private List<Message<byte[]>> getMessageFromHttpResponse(String topic, Response response) throws Exception {
+    private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
         }
 
-        String msgId = response.getHeaderString("X-Pulsar-Message-ID");
+        String msgId = response.getHeaderString(MESSAGE_ID);
+        PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
         try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
             stream.read(data);
 
             Map<String, String> properties = Maps.newTreeMap();
             MultivaluedMap<String, Object> headers = response.getHeaders();
-            Object tmp = headers.getFirst("X-Pulsar-publish-time");
+            Object tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
                 properties.put("publish-time", (String) tmp);
             }
+
+            tmp = headers.getFirst("X-Pulsar-null-value");
+            if (tmp != null) {
+                messageMetadata.setNullValue(Boolean.parseBoolean(tmp.toString()));
+            }
+
             tmp = headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
                 properties.put(BATCH_HEADER, (String) tmp);
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
@@ -1253,19 +1319,19 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
 
             return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
-                    Unpooled.wrappedBuffer(data), Schema.BYTES));
+                    Unpooled.wrappedBuffer(data), Schema.BYTES, messageMetadata));
         }
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                                             Map<String, String> properties) {
+                                 Map<String, String> properties, PulsarApi.MessageMetadata.Builder msgMetadataBuilder) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
+        ByteBuf buf = Unpooled.wrappedBuffer(data);
         for (int i = 0; i < batchSize; i++) {
             String batchMsgId = msgId + ":" + i;
             PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                     .newBuilder();
-            ByteBuf buf = Unpooled.wrappedBuffer(data);
             try {
                 ByteBuf singleMessagePayload =
                         Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i, batchSize);
@@ -1275,13 +1341,14 @@ public class TopicsImpl extends BaseResource implements Topics {
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload, Schema.BYTES));
+                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
+                        Schema.BYTES, msgMetadataBuilder));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
-            buf.release();
             singleMessageMetadataBuilder.recycle();
         }
+        buf.release();
         return ret;
     }
 

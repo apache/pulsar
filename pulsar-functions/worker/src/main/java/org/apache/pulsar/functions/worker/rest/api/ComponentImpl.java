@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
+import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -71,11 +82,6 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -93,16 +99,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriBuilder;
 
 @Slf4j
 public abstract class ComponentImpl {
@@ -407,6 +408,16 @@ public abstract class ComponentImpl {
             log.error("Interrupted Exception while deregistering {} @ /{}/{}/{}",
                     ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
             throw new RestException(Status.REQUEST_TIMEOUT, e.getMessage());
+        }
+
+        // clean up component files stored in BK
+        if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+            try {
+                WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionMetaData.getPackageLocation().getPackagePath());
+            } catch (IOException e) {
+                log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
+                  functionMetaData.getPackageLocation().getPackagePath(), e);
+            }
         }
     }
 

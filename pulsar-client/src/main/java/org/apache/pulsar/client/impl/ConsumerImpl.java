@@ -32,13 +32,17 @@ import io.netty.util.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -67,10 +71,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -90,6 +97,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,6 +161,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
+    private volatile Producer<T> retryLetterProducer;
+    private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
+    
     protected volatile boolean paused;
 
     private final boolean createTopicIfDoesNotExist;
@@ -277,9 +288,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription))
+                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX, topic, subscription))
                         .build();
             }
+
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
+            } else {
+                this.deadLetterPolicy.setRetryLetterTopic(String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
+                        topic, subscription));
+            }
+
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -504,11 +523,137 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ackType);
                 }
             } else {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
+                    batchMessageId.getBatchSize(), ackType, properties);
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
         }
         return sendAcknowledge(messageId, ackType, properties, txnImpl);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
+                                                       Map<String,Long> properties, 
+                                                       long delayTime,
+                                                       TimeUnit unit) {
+        MessageId messageId = message.getMessageId();
+        if(messageId instanceof TopicMessageIdImpl) {
+            messageId = ((TopicMessageIdImpl)messageId).getInnerMessageId();
+        }
+        checkArgument(messageId instanceof MessageIdImpl);
+        if (getState() != State.Ready && getState() != State.Connecting) {
+            stats.incrementNumAcksFailed();
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            if (AckType.Individual.equals(ackType)) {
+                onAcknowledge(messageId, exception);
+            } else if (AckType.Cumulative.equals(ackType)) {
+                onAcknowledgeCumulative(messageId, exception);
+            }
+            return FutureUtil.failedFuture(exception);
+        }
+        if (delayTime < 0) {
+            delayTime = 0;
+        }
+        if (retryLetterProducer == null) {
+            try {
+                createProducerLock.writeLock().lock();
+                if (retryLetterProducer == null) {
+                    retryLetterProducer = client.newProducer(schema)
+                            .topic(this.deadLetterPolicy.getRetryLetterTopic())
+                            .enableBatching(false)
+                            .blockIfQueueFull(false)
+                            .create();
+                }
+            } catch (Exception e) {
+                log.error("Create retry letter producer exception with topic: {}", deadLetterPolicy.getRetryLetterTopic(), e);
+            } finally {
+                createProducerLock.writeLock().unlock();
+            }
+        }
+        if (retryLetterProducer != null) {
+            try {
+                MessageImpl<T> retryMessage = null;
+                String originMessageIdStr = null;
+                String originTopicNameStr = null;
+                if (message instanceof TopicMessageImpl) {
+                    retryMessage = (MessageImpl<T>) ((TopicMessageImpl<T>) message).getMessage();
+                    originMessageIdStr = ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId().toString();
+                    originTopicNameStr = ((TopicMessageIdImpl) message.getMessageId()).getTopicName();
+                } else if (message instanceof MessageImpl) {
+                    retryMessage = (MessageImpl<T>) message;
+                    originMessageIdStr = ((MessageImpl<T>) message).getMessageId().toString();
+                    originTopicNameStr =  ((MessageImpl<T>) message).getTopicName();
+                }
+                SortedMap<String, String> propertiesMap = new TreeMap<>();
+                int reconsumetimes = 1;
+                if (message.getProperties() != null) {
+                    propertiesMap.putAll(message.getProperties());
+                }
+
+                if (propertiesMap.containsKey(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
+                    reconsumetimes = Integer.valueOf(propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
+                    reconsumetimes = reconsumetimes + 1;
+                   
+                } else {
+                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+                }
+
+                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
+                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
+                
+               if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount()) {
+                   processPossibleToDLQ((MessageIdImpl)messageId);
+                    if (deadLetterProducer == null) {
+                        try {
+                            if (deadLetterProducer == null) {
+                                createProducerLock.writeLock().lock();
+                                deadLetterProducer = client.newProducer(schema)
+                                        .topic(this.deadLetterPolicy
+                                        .getDeadLetterTopic())
+                                        .blockIfQueueFull(false)
+                                        .create();
+                            }
+                        } catch (Exception e) {
+                           log.error("Create dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+                       } finally {
+                           createProducerLock.writeLock().unlock();
+                       }
+                   }
+                   if (deadLetterProducer != null) {
+                       propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+                       propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+                       TypedMessageBuilder<T> typedMessageBuilderNew = deadLetterProducer.newMessage()
+                               .value(retryMessage.getValue())
+                               .properties(propertiesMap);
+                       typedMessageBuilderNew.send();
+                       return doAcknowledge(messageId, ackType, properties, null);
+                   }
+                } else {
+                    TypedMessageBuilder<T> typedMessageBuilderNew = retryLetterProducer.newMessage()
+                            .value(retryMessage.getValue())
+                            .properties(propertiesMap);
+                    if (delayTime > 0) {
+                        typedMessageBuilderNew.deliverAfter(delayTime, unit);
+                    }
+                    if (message.hasKey()) {
+                        typedMessageBuilderNew.key(message.getKey());
+                    }
+                    typedMessageBuilderNew.send();
+                    return doAcknowledge(messageId, ackType, properties, null);
+                }
+            } catch (Exception e) {
+                log.error("Send to retry letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                Set<MessageId> messageIds = new HashSet<>();
+                messageIds.add(messageId);
+                unAckedMessageTracker.remove(messageId);
+                redeliverUnacknowledgedMessages(messageIds);
+            }
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     // TODO: handle transactional acknowledgements.
@@ -846,7 +991,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    void messageReceived(MessageIdData messageId, int redeliveryCount, ByteBuf headersAndPayload, ClientCnx cnx) {
+    void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
@@ -938,7 +1083,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
-            receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, uncompressedPayload, messageId, cnx);
+            receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
 
             uncompressedPayload.release();
             msgMetadata.recycle();
@@ -1029,7 +1174,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         listenerExecutor.execute(() -> receivedFuture.complete(interceptMessage));
     }
 
-    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, ByteBuf uncompressedPayload,
+    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
             MessageIdData messageId, ClientCnx cnx) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
@@ -1075,8 +1220,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
 
+                if (ackSet != null && BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)).get(i)) {
+                    singleMessagePayload.release();
+                    singleMessageMetadataBuilder.recycle();
+                    ++skippedMessages;
+                    continue;
+                }
+
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                        messageId.getEntryId(), getPartitionIndex(), i, acker);
+                        messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
@@ -1150,7 +1302,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.updateNumMsgsReceived(msg);
 
         trackMessage(msg);
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, msg.getData() == null ? 0 : -msg.getData().length);
     }
 
     protected void trackMessage(Message<?> msg) {
@@ -1309,7 +1461,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
-        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), AckType.Individual,
+        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null, AckType.Individual,
                                       validationError, Collections.emptyMap());
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
         increaseAvailablePermits(currentCnx);

@@ -37,6 +37,7 @@ import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
@@ -299,6 +300,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription expiration time for a namespace")
+    private class SetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--time" }, description = "Subscription expiration time in minutes", required = true)
+        private int expirationTime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionExpirationTime(namespace, expirationTime);
+        }
+    }
+
     @Parameters(commandDescription = "Set Anti-affinity group name for a namespace")
     private class SetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -434,6 +450,33 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable autoSubscriptionCreation for a namespace, overriding broker settings")
+    private class SetAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoSubscriptionCreation on namespace")
+        private boolean enable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setAutoSubscriptionCreation(namespace, new AutoSubscriptionCreationOverride(enable));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of autoSubscriptionCreation for a namespace")
+    private class RemoveAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeAutoSubscriptionCreation(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set the retention policy for a namespace")
     private class SetRetention extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -537,6 +580,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getNamespaceMessageTTL(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription expiration time for a namespace")
+    private class GetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getSubscriptionExpirationTime(namespace));
         }
     }
 
@@ -1589,6 +1644,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
 
+        jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
+        jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
+
         jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
         jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());
         jcommander.addCommand("get-anti-affinity-namespaces", new GetAntiAffinityNamespaces());
@@ -1598,6 +1656,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
         jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());
+
+        jcommander.addCommand("set-auto-subscription-creation", new SetAutoSubscriptionCreation());
+        jcommander.addCommand("remove-auto-subscription-creation", new RemoveAutoSubscriptionCreation());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());

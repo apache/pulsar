@@ -74,11 +74,8 @@ public class ConnectorUtils {
      * Extract the Pulsar IO Sink class from a connector archive.
      */
     public static String getIOSinkClass(ClassLoader classLoader) throws IOException {
+        ConnectorDefinition conf = getConnectorDefinition(classLoader);
         NarClassLoader ncl = (NarClassLoader) classLoader;
-        String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-
-        ConnectorDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
-                ConnectorDefinition.class);
         if (StringUtils.isEmpty(conf.getSinkClass())) {
             throw new IOException(
                     String.format("The '%s' connector does not provide a sink implementation", conf.getName()));
@@ -98,15 +95,20 @@ public class ConnectorUtils {
         return conf.getSinkClass();
     }
 
-    public static ConnectorDefinition getConnectorDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
-            String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-
-            return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
+    public static ConnectorDefinition getConnectorDefinition(String narPath, String narExtractionDirectory) throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+            return getConnectorDefinition(ncl);
         }
     }
 
-    public static Connectors searchForConnectors(String connectorsDirectory) throws IOException {
+    public static ConnectorDefinition getConnectorDefinition(ClassLoader classLoader) throws IOException {
+        NarClassLoader narClassLoader = (NarClassLoader) classLoader;
+        String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+
+        return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
+    }
+
+    public static Connectors searchForConnectors(String connectorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
@@ -120,7 +122,7 @@ public class ConnectorUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toString());
+                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found connector {} from {}", cntDef, archive);
 
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {

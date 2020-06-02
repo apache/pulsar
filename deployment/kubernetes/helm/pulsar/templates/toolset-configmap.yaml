@@ -1,0 +1,70 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+{{- if .Values.components.toolset }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ template "pulsar.fullname" . }}-{{ .Values.toolset.component }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
+    component: {{ .Values.toolset.component }}
+data:
+  BOOKIE_LOG_APPENDER: "RollingFile"
+  {{- include "pulsar.bookkeeper.config.common" . | nindent 2 }}
+  {{- if not .Values.toolset.useProxy }}
+  # talk to broker
+  {{- if and .Values.tls.enabled .Values.tls.broker.enabled }}
+  webServiceUrl: "https://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.https }}/"
+  brokerServiceUrl: "pulsar+ssl://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.pulsarssl }}/"
+  useTls: "true"
+  tlsAllowInsecureConnection: "false"
+  tlsTrustCertsFilePath: "/pulsar/certs/proxy-ca/ca.crt"
+  tlsEnableHostnameVerification: "false"
+  {{- end }}
+  {{- if not (and .Values.tls.enabled .Values.tls.broker.enabled) }}
+  webServiceUrl: "http://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.http }}/"
+  brokerServiceUrl: "pulsar://{{ template "pulsar.fullname" . }}-{{ .Values.broker.component }}:{{ .Values.broker.ports.pulsar }}/"
+  {{- end }}
+  {{- end }}
+  {{- if .Values.toolset.useProxy }}
+  # talk to proxy
+  {{- if and .Values.tls.enabled .Values.tls.proxy.enabled }}
+  webServiceUrl: "https://{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}:{{ .Values.proxy.ports.https }}/"
+  brokerServiceUrl: "pulsar+ssl://{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}:{{ .Values.proxy.ports.pulsarssl }}/"
+  useTls: "true"
+  tlsAllowInsecureConnection: "false"
+  tlsTrustCertsFilePath: "/pulsar/certs/proxy-ca/ca.crt"
+  tlsEnableHostnameVerification: "false"
+  {{- end }}
+  {{- if not (and .Values.tls.enabled .Values.tls.proxy.enabled) }}
+  webServiceUrl: "http://{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}:{{ .Values.proxy.ports.http }}/"
+  brokerServiceUrl: "pulsar://{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}:{{ .Values.proxy.ports.pulsar }}/"
+  {{- end }}
+  {{- end }}
+  # Authentication Settings
+  {{- if .Values.auth.authentication.enabled }}
+  {{- if eq .Values.auth.authentication.provider "jwt" }}
+  authParams: "file:///pulsar/tokens/client/token"
+  authPlugin: "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+  {{- end }} 
+  {{- end }} 
+{{ toYaml .Values.toolset.configData | indent 2 }}
+{{- end }}

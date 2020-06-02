@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -43,6 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,6 +71,7 @@ public class KubernetesRuntimeTest {
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     private static final Function.Resources RESOURCES = Function.Resources.newBuilder()
             .setRam(1000L).setCpu(1).setDisk(10000L).build();
+    private static final String narExtractionDirectory = "/tmp/foo";
 
     static {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
@@ -199,6 +202,7 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setChangeConfigMap(null);
         kubernetesRuntimeFactoryConfig.setGrpcPort(4332);
         kubernetesRuntimeFactoryConfig.setMetricsPort(4331);
+        kubernetesRuntimeFactoryConfig.setNarExtractionDirectory(narExtractionDirectory);
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
@@ -356,14 +360,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 35;
+            totalArgs = 37;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 34;
+            totalArgs = 36;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -392,7 +396,7 @@ public class KubernetesRuntimeTest {
             expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                     + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
         }
-        expectedArgs += " --cluster_name standalone";
+        expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
 
         assertEquals(String.join(" ", args), expectedArgs);
 
@@ -630,6 +634,17 @@ public class KubernetesRuntimeTest {
             tolerations.add(toleration);
             configObj.add("tolerations", tolerations);
 
+            JsonObject resourceRequirements = new JsonObject();
+            JsonObject requests = new JsonObject();
+            JsonObject limits = new JsonObject();
+            requests.addProperty("cpu", 1);
+            requests.addProperty("memory", "4G");
+            limits.addProperty("cpu", 2);
+            limits.addProperty("memory", "8G");
+            resourceRequirements.add("requests", requests);
+            resourceRequirements.add("limits", limits);
+            configObj.add("resourceRequirements", resourceRequirements);
+
             return fb.setCustomRuntimeOptions(configObj.toString());
         }));
 
@@ -652,6 +667,17 @@ public class KubernetesRuntimeTest {
         assertEquals(serviceSpec.getMetadata().getNamespace(), "custom-ns");
         assertEquals(serviceSpec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(serviceSpec.getMetadata().getLabels().get("label"), "test");
+
+        List<V1Container> containers = spec.getSpec().getTemplate().getSpec().getContainers();
+        containers.forEach(c -> {
+            V1ResourceRequirements resources = c.getResources();
+            Map<String, Quantity> limits = resources.getLimits();
+            Map<String, Quantity> requests = resources.getRequests();
+            assertEquals(requests.get("cpu").getNumber(), new BigDecimal(1) );
+            assertEquals(limits.get("cpu").getNumber(), new BigDecimal(2) );
+            assertEquals(requests.get("memory").getNumber(), new BigDecimal(4000000000L) );
+            assertEquals(limits.get("memory").getNumber(), new BigDecimal(8000000000L) );
+        });
 
     }
 

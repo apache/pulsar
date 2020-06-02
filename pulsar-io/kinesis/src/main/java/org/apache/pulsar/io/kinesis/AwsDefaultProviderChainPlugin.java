@@ -18,30 +18,12 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-
-import java.io.IOException;
-
-public class AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
-    @Override
-    public void init(String param) {
-
-    }
-
-    @Override
-    public AWSCredentialsProvider getCredentialProvider() {
-        return new DefaultAWSCredentialsProviderChain();
-    }
-
-    @Override
-    public software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
-        return DefaultCredentialsProvider.create();
-    }
-
-    @Override
-    public void close() throws IOException {
-
-    }
+/**
+ * This is a stub class for backwards compatibility.  In new code and configurations, please use the plugins
+ * from org.apache.pulsar.io.aws
+ *
+ * @see org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin
+ */
+@Deprecated
+public class AwsDefaultProviderChainPlugin extends org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
 }

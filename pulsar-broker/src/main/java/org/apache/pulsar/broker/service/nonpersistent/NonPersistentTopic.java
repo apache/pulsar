@@ -733,6 +733,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
         topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("msgInCount", getMsgInCounter());
+        topicStatsStream.writePair("bytesInCount", getBytesInCounter());
+        topicStatsStream.writePair("msgOutCount", getMsgOutCounter());
+        topicStatsStream.writePair("bytesOutCount", getBytesOutCounter());
 
         nsStats.msgRateIn += topicStats.aggMsgRateIn;
         nsStats.msgRateOut += topicStats.aggMsgRateOut;
@@ -778,6 +782,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
+            stats.bytesOutCounter += subStats.bytesOutCounter;
+            stats.msgOutCounter += subStats.msgOutCounter;
             stats.getSubscriptions().put(name, subStats);
         });
 
@@ -861,6 +867,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public void checkInactiveSubscriptions() {
+        // no-op
+    }
+
+    @Override
+    public void checkBackloggedCursors() {
         // no-op
     }
 

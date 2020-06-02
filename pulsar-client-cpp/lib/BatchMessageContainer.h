@@ -45,12 +45,11 @@ namespace pulsar {
 class BatchMessageContainer {
    public:
     struct MessageContainer {
-        MessageContainer(Message message, SendCallback sendCallback, MessageId messageId)
-            : message_(message), sendCallback_(sendCallback), messageId_(messageId) {}
+        MessageContainer(Message message, SendCallback sendCallback)
+            : message_(message), sendCallback_(sendCallback) {}
         Message message_;
         SendCallback sendCallback_;
-        MessageId messageId_;
-        void callBack(const pulsar::Result& r) { sendCallback_(r, messageId_); }
+        void callBack(Result r, const MessageId& messageId) { sendCallback_(r, messageId); }
     };
     typedef std::vector<MessageContainer> MessageContainerList;
     typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;
@@ -59,13 +58,18 @@ class BatchMessageContainer {
 
     ~BatchMessageContainer();
 
-    void add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
+    // It was only called in ProducerImpl::sendAsync, while the producer has reserved a spot of pending
+    // message queue before.
+    // It returns true to tell the producer not to release the spot because the spot would be released when
+    // the batched message was pushed to the queue successfully in ProducerImpl::sendMessage.
+    bool add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
 
     SharedBuffer getBatchedPayload();
 
     void clear();
 
-    static void batchMessageCallBack(Result r, MessageContainerListPtr messages, FlushCallback callback);
+    static void batchMessageCallBack(Result r, const MessageId& messageId, MessageContainerListPtr messages,
+                                     FlushCallback callback);
 
     friend inline std::ostream& operator<<(std::ostream& os,
                                            const BatchMessageContainer& batchMessageContainer);
@@ -109,7 +113,8 @@ class BatchMessageContainer {
 
     void startTimer();
 
-    void sendMessage(FlushCallback callback);
+    // Returns true if a batch of messages was sent to producer's pending message queue
+    bool sendMessage(FlushCallback callback);
 };
 
 bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {

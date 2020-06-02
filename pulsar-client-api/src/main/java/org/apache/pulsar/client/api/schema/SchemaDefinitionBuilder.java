@@ -36,6 +36,22 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull);
 
     /**
+     * Set schema use JRS310 conversion or not.
+     *
+     * <p>Before Avro 1.9 the Joda time library was used for handling the logical date(time) values.
+     * But since the introduction of Java8 the Java Specification Request (JSR) 310 has been included,
+     * which greatly improves the handling of date and time natively. To keep forwarding compatibility,
+     * default is use Joda time conversion.
+     *
+     * <p>JSR310 conversion is recommended here. Joda time conversion is has been marked deprecated.
+     * In future versions, joda time conversion may be removed
+     *
+     * @param jsr310ConversionEnabled use JRS310 conversion or not, default is false for keep forwarding compatibility
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withJSR310ConversionEnabled(boolean jsr310ConversionEnabled);
+
+    /**
      * Set schema info properties.
      *
      * @param properties schema info properties
@@ -79,6 +95,24 @@ public interface SchemaDefinitionBuilder<T> {
      * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withSupportSchemaVersioning(boolean supportSchemaVersioning);
+
+    /**
+     * Set schema reader for deserialization of object data.
+     *
+     * @param reader reader for object data
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader);
+
+    /**
+     * Set schema writer for serialization of objects.
+     *
+     * @param writer writer for objects
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaWriter(SchemaWriter<T> writer);
 
     /**
      * Build the schema definition.

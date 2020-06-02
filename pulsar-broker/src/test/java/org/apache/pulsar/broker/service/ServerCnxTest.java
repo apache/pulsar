@@ -65,7 +65,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -120,7 +119,6 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 @SuppressWarnings("unchecked")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
@@ -153,7 +151,6 @@ public class ServerCnxTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
-        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
@@ -478,8 +475,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testProducerCommandWithAuthorizationPositive() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).canProduceAsync(Mockito.any(),
-                Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         resetChannel();
@@ -516,7 +513,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -546,7 +543,7 @@ public class ServerCnxTest {
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(TopicName.class), Mockito.anyString(),
                 any(AuthAction.class));
 
@@ -574,7 +571,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -603,10 +600,11 @@ public class ServerCnxTest {
         assertTrue(getResponse() instanceof CommandSuccess);
     }
 
+    @Test(timeOut = 30000)
     public void testProducerCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).canProduceAsync(Mockito.any(),
-                Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -1195,8 +1193,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationPositive() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).canConsumeAsync(Mockito.any(),
-                Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -1217,8 +1215,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).canConsumeAsync(Mockito.any(),
-                Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -1249,7 +1247,7 @@ public class ServerCnxTest {
 
         PositionImpl pos = new PositionImpl(0, 0);
 
-        clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), AckType.Individual,
+        clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
                                         null, Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
@@ -1288,6 +1286,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1316,6 +1317,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1346,6 +1350,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1381,6 +1388,9 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
+        // add `clusterDispatchRate` otherwise there will be a NPE
+        // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
+        policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
