@@ -45,7 +45,7 @@ class NegativeAcksTracker {
 
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
-        this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
+        this.timer = consumer.getClient().timer();
         this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
                 MIN_NACK_DELAY_NANOS);
         this.timerIntervalNanos = nackDelayNanos / 3;

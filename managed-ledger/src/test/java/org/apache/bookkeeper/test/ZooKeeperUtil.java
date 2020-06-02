@@ -45,18 +45,16 @@ public class ZooKeeperUtil {
     static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
 
     // ZooKeeper related variables
-    protected final static Integer zooKeeperPort = PortManager.nextFreePort();
-    private final InetSocketAddress zkaddr;
+    protected int zooKeeperPort;
+    private InetSocketAddress zkaddr;
 
     protected ZooKeeperServer zks;
     protected ZooKeeper zkc; // zookeeper client
     protected NIOServerCnxnFactory serverFactory;
     protected File ZkTmpDir;
-    private final String connectString;
+    private String connectString;
 
     public ZooKeeperUtil() {
-        zkaddr = new InetSocketAddress(zooKeeperPort);
-        connectString = "localhost:" + zooKeeperPort;
     }
 
     public ZooKeeper getZooKeeperClient() {
@@ -80,6 +78,10 @@ public class ZooKeeperUtil {
         serverFactory = new NIOServerCnxnFactory();
         serverFactory.configure(zkaddr, 100);
         serverFactory.startup(zks);
+
+        zooKeeperPort = serverFactory.getLocalPort();
+        zkaddr = new InetSocketAddress(zooKeeperPort);
+        connectString = "localhost:" + zooKeeperPort;
 
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
@@ -106,6 +108,8 @@ public class ZooKeeperUtil {
         serverFactory.configure(zkaddr, 100);
         serverFactory.startup(zks);
 
+        zooKeeperPort = serverFactory.getLocalPort();
+        connectString = "localhost:" + zooKeeperPort;
         boolean b = ClientBase.waitForServerUp(getZooKeeperConnectString(), ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
 

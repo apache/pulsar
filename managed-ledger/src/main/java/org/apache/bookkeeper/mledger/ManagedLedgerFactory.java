@@ -19,6 +19,9 @@
 package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
+
+import java.util.function.Supplier;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
@@ -77,10 +80,13 @@ public interface ManagedLedgerFactory {
      *            managed ledger configuration
      * @param callback
      *            callback object
+     * @param mlOwnershipChecker
+     *            checks ml-ownership in case updating ml-metadata fails due to ownership conflict
      * @param ctx
      *            opaque context
      */
-    void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
+    void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
+            Supplier<Boolean> mlOwnershipChecker, Object ctx);
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
@@ -97,7 +103,7 @@ public interface ManagedLedgerFactory {
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
      *
-     * @param name
+     * @param managedLedgerName
      * @param startPosition
      *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
      *            positioned on the first available entry.

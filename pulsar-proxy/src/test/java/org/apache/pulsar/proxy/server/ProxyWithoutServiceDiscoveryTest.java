@@ -20,13 +20,14 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -50,8 +51,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import com.google.common.collect.Sets;
-
 public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
 
@@ -72,8 +71,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(false);
 
-        conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
@@ -98,13 +97,13 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
-        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
 
-        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setServicePortTls(Optional.of(0));
+        proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -151,14 +150,13 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     public void testDiscoveryService() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
+        PulsarClient proxyClient = createPulsarClient(authTls, proxyService.getServiceUrlTls());
 
         admin.clusters().createCluster("without-service-discovery", new ClusterData(brokerUrl.toString()));
 

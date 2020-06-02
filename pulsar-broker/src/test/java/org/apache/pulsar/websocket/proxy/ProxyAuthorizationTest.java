@@ -23,11 +23,12 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Sets;
+
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,11 +41,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
-    private static final int TEST_PORT = PortManager.nextFreePort();
     private final String configClusterName = "c1";
 
     public ProxyAuthorizationTest() {
@@ -63,7 +61,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setConfigurationStoreServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
-        config.setWebServicePort(Optional.of(TEST_PORT));
+        config.setWebServicePort(Optional.of(0));
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();

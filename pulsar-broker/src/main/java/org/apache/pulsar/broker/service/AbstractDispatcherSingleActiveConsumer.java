@@ -41,6 +41,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             AtomicReferenceFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
     protected final CopyOnWriteArrayList<Consumer> consumers;
+    protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
+    protected boolean isKeyHashRangeFiltered = false;
     protected CompletableFuture<Void> closeFuture = null;
     protected final int partitionIndex;
 
@@ -154,6 +156,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         consumers.add(consumer);
+
+        if (subscriptionType == SubType.Exclusive
+                && consumer.getKeySharedMeta() != null
+                && consumer.getKeySharedMeta().getHashRangesList() != null
+                && consumer.getKeySharedMeta().getHashRangesList().size() > 0) {
+            stickyKeyConsumerSelector = new HashRangeExclusiveStickyKeyConsumerSelector();
+            stickyKeyConsumerSelector.addConsumer(consumer);
+            isKeyHashRangeFiltered = true;
+        } else {
+            isKeyHashRangeFiltered = false;
+        }
 
         if (!pickAndScheduleActiveConsumer()) {
             // the active consumer is not changed

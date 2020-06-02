@@ -38,7 +38,7 @@ zooKeeperOperationTimeoutSeconds: 30
 ################################
 
 numFunctionPackageReplicas: 1
-downloadDirectory: /tmp/pulsar_functions
+downloadDirectory: download/pulsar_functions
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName: 
 
@@ -160,6 +160,13 @@ functionRuntimeFactoryConfigs:
 #   ram: 1073741824
 #   disk: 10737418240
 
+## The full class-name of an instance of RuntimeCustomizer.
+## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
+#runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
+
+## Config admin CLI
+#configAdminCLI:
+
 ############################################
 # security settings for worker service
 ############################################
@@ -188,6 +195,12 @@ tlsTrustCertsFilePath:
 tlsAllowInsecureConnection: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection) 
 tlsCertRefreshCheckDurationSec: 300
+
+############################################
+# security settings for pulsar broker client
+############################################
+# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+brokerClientTrustCertsFilePath:
 
 ########################
 # State Management

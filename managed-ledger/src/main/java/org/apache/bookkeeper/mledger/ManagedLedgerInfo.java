@@ -24,7 +24,7 @@ import java.util.Map;
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedLedgerInfo {
     /** Z-Node version. */
-    public int version;
+    public long version;
     public String creationDate;
     public String modificationDate;
 
@@ -32,6 +32,8 @@ public class ManagedLedgerInfo {
     public PositionInfo terminatedPosition;
 
     public Map<String, CursorInfo> cursors;
+
+    public Map<String, String> properties;
 
     public static class LedgerInfo {
         public long ledgerId;
@@ -42,7 +44,7 @@ public class ManagedLedgerInfo {
 
     public static class CursorInfo {
         /** Z-Node version. */
-        public int version;
+        public long version;
         public String creationDate;
         public String modificationDate;
 

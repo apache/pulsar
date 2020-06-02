@@ -19,13 +19,16 @@
 
 FROM python:3.7-stretch
 
-MAINTAINER Pulsar
+LABEL maintainer="Apache Pulsar <dev@pulsar.apache.org>"
+
+RUN bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 
 RUN apt-get update
-RUN apt-get -y install postgresql python sudo nginx supervisor
+RUN apt-get -y install postgresql-11 postgresql-contrib libpq-dev python sudo nginx supervisor
 
 # Postgres configuration
-COPY conf/postgresql.conf /etc/postgresql/9.6/main/
+COPY conf/postgresql.conf /etc/postgresql/11/main/
 
 # Configure nginx and supervisor
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf

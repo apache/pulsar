@@ -62,6 +62,34 @@ int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
 
+### Create missed partitions
+
+Try to create partitions for partitioned topic. The partitions of partition topic has to be created, 
+can be used by repair partitions when topic auto creation is disabled
+
+#### pulsar-admin
+
+You can create missed partitions using the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions)
+command and specifying the topic name as an argument.
+
+Here's an example:
+
+```shell
+$ bin/pulsar-admin topics create-missed-partitions \
+  persistent://my-tenant/my-namespace/my-topic \
+```
+
+#### REST API
+
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic|operation/createMissedPartitions}
+
+#### Java
+
+```java
+String topicName = "persistent://my-tenant/my-namespace/my-topic";
+admin.persistentTopics().createMissedPartitions(topicName);
+```
+
 ### Get metadata
 
 Partitioned topics have metadata associated with them that you can fetch as a JSON object.
@@ -226,6 +254,7 @@ The following stats are available:
 |subscriptions|The list of all local subscriptions to the topic|
 |my-subscription|The name of this subscription (client defined)|
 |msgBacklog|The count of messages in backlog for this subscription|
+|msgBacklogNoDelayed|The count of messages in backlog without delayed messages for this subscription|
 |type|This subscription type|
 |msgRateExpired|The rate at which messages were discarded instead of dispatched from this subscription due to TTL|
 |consumers|The list of connected consumers for this subscription|
@@ -246,7 +275,7 @@ The stats for the partitioned topic and its connected producers and consumers ca
 ```shell
 $ pulsar-admin topics partitioned-stats \
   persistent://test-tenant/namespace/topic \
-  --per-partition        
+  --per-partition
 ```
 
 #### REST API
@@ -256,7 +285,7 @@ $ pulsar-admin topics partitioned-stats \
 #### Java
 
 ```java
-admin.persistentTopics().getStats(persistentTopic);
+admin.topics().getPartitionedStats(persistentTopic, true /* per partition */, false /* is precise backlog */);
 ```
 
 ### Internal stats

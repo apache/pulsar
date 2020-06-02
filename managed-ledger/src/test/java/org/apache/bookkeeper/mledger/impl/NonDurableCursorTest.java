@@ -221,31 +221,31 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         Position p4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
         ManagedCursor c5 = ledger.newNonDurableCursor(PositionImpl.latest);
 
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
-        assertEquals(c2.getNumberOfEntriesInBacklog(), 3);
-        assertEquals(c3.getNumberOfEntriesInBacklog(), 2);
-        assertEquals(c4.getNumberOfEntriesInBacklog(), 1);
-        assertEquals(c5.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
+        assertEquals(c2.getNumberOfEntriesInBacklog(false), 3);
+        assertEquals(c3.getNumberOfEntriesInBacklog(false), 2);
+        assertEquals(c4.getNumberOfEntriesInBacklog(false), 1);
+        assertEquals(c5.getNumberOfEntriesInBacklog(false), 0);
 
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
 
         c1.markDelete(p1);
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
 
         c1.delete(p3);
 
         assertEquals(c1.getNumberOfEntries(), 1);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
 
         c1.markDelete(p4);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
     }
 
     @Test(timeOut = 20000)
@@ -371,34 +371,34 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         log.debug("p4: {}", p4);
 
         assertEquals(c1.getNumberOfEntries(), 4);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
         c1.markDelete(p1);
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 3);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 3);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 3);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 3);
         c1.markDelete(p2);
         assertEquals(c1.getNumberOfEntries(), 2);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
 
         entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);
         entries.forEach(e -> e.release());
 
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 2);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 2);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 2);
         c1.markDelete(p4);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 0);
         c1.rewind();
         assertEquals(c1.getNumberOfEntries(), 0);
         ledger.addEntry("dummy-entry-5".getBytes(Encoding));
@@ -573,13 +573,13 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getReadPosition(), p1);
         assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(3, -1));
         assertEquals(c1.getNumberOfEntries(), 6);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 6);
+        assertEquals(c1.getNumberOfEntriesInBacklog(false), 6);
 
         ManagedCursor c2 = ledger.newNonDurableCursor(p1);
         assertEquals(c2.getReadPosition(), p2);
         assertEquals(c2.getMarkDeletedPosition(), p1);
         assertEquals(c2.getNumberOfEntries(), 5);
-        assertEquals(c2.getNumberOfEntriesInBacklog(), 5);
+        assertEquals(c2.getNumberOfEntriesInBacklog(false), 5);
     }
 
     @Test

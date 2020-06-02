@@ -276,6 +276,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this sink"),
             @ApiResponse(code = 400, message = "The Pulsar Sink instance does not exist"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 500, message = "Internal Server Error (got exception while getting status, etc.)"),
@@ -302,6 +303,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = SinkStatus.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this sink"),
             @ApiResponse(code = 400, message = "Invalid get status request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
@@ -341,6 +343,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
     @POST
     @ApiOperation(value = "Restart an instance of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this sink"),
             @ApiResponse(code = 400, message = "Invalid restart request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
@@ -466,8 +469,9 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
 
     @GET
     @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",
-            response = List.class
+            value = "Fetches the list of built-in Pulsar IO sinks",
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Get builtin sinks successfully.")
@@ -486,7 +490,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
 
     @POST
     @ApiOperation(
-            value = "Reload the available built-in connectors, include Source and Sink",
+            value = "Reload the built-in connectors, including Sources and Sinks",
             response = Void.class
     )
     @ApiResponses(value = {

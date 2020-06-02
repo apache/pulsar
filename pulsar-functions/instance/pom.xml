@@ -139,6 +139,12 @@
       <version>${prometheus.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>io.prometheus.jmx</groupId>
+      <artifactId>collector</artifactId>
+      <version>${prometheus-jmx.version}</version>
+    </dependency>
+
   </dependencies>
 
   <build>

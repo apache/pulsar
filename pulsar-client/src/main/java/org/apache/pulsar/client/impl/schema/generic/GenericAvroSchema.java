@@ -33,6 +33,8 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 @Slf4j
 public class GenericAvroSchema extends GenericSchemaImpl {
 
+    public final static String OFFSET_PROP = "__AVRO_READ_OFFSET__";
+
     public GenericAvroSchema(SchemaInfo schemaInfo) {
         this(schemaInfo, true);
     }
@@ -55,6 +57,16 @@ public class GenericAvroSchema extends GenericSchemaImpl {
     }
 
     @Override
+    public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
+        org.apache.pulsar.client.api.Schema<GenericRecord> schema =
+                GenericAvroSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
+    }
+
+    @Override
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
          SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
          if (schemaInfo != null) {
@@ -63,6 +75,8 @@ public class GenericAvroSchema extends GenericSchemaImpl {
                  schemaInfo);
              Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
              Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
+             readerSchema.addProp(OFFSET_PROP, schemaInfo.getProperties().getOrDefault(OFFSET_PROP, "0"));
+
              return new GenericAvroReader(
                      writerSchema,
                      readerSchema,

@@ -46,7 +46,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         this.conf.setBrokerDeleteInactiveTopicsFrequencySeconds(5);
 
         admin.clusters().createCluster("test",
-                new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+                new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));

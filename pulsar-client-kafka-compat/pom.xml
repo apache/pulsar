@@ -47,4 +47,16 @@
     <module>pulsar-client-kafka-tests_0_8</module>
     <module>pulsar-client-kafka-tests_0_9</module>
   </modules>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>

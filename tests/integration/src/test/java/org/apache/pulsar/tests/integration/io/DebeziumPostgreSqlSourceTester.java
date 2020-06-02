@@ -20,17 +20,12 @@ package org.apache.pulsar.tests.integration.io;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.Assert;
 
 import java.io.Closeable;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A tester for testing Debezium Postgresql source.
@@ -68,6 +63,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
         sourceConfig.put("schema.whitelist", "inventory");
         sourceConfig.put("table.blacklist", "inventory.spatial_ref_sys,inventory.geom");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("topic.namespace", "debezium/postgresql");
     }
 
     @Override
@@ -80,6 +76,35 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void prepareSource() {
         log.info("debezium postgresql server already contains preconfigured data.");
+    }
+
+    @Override
+    public void prepareInsertEvent() throws Exception {
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres " +
+                        "-c \"insert into inventory.products(name, description, weight) " +
+                        "values('test-debezium', 'description', 10);\"");
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres " +
+                        "-c \"delete from inventory.products where name='test-debezium';\"");
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres " +
+                        "-c \"update inventory.products " +
+                        "set description='test-update-description', weight='20' where name='test-debezium';\"");
     }
 
     @Override

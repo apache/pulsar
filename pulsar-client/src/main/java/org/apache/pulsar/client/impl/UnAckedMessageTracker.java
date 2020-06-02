@@ -139,13 +139,13 @@ public class UnAckedMessageTracker implements Closeable {
                     headPartition.clear();
                     timePartitions.addLast(headPartition);
                 } finally {
+                    if (messageIds.size() > 0) {
+                        consumerBase.onAckTimeoutSend(messageIds);
+                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    }
+                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     writeLock.unlock();
                 }
-                if (messageIds.size() > 0) {
-                    consumerBase.onAckTimeoutSend(messageIds);
-                    consumerBase.redeliverUnacknowledgedMessages(messageIds);
-                }
-                timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
     }

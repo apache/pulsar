@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -87,10 +88,16 @@ public abstract class ZooKeeperCache implements Watcher {
     private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
     private final int zkOperationTimeoutSeconds;
+    private static final int CACHE_EXPIRY_SECONDS = 300; //5 minutes
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
     public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
+        this(cacheName, zkSession, zkOperationTimeoutSeconds, executor, CACHE_EXPIRY_SECONDS);
+    }
+    
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
+            OrderedExecutor executor, int cacheExpirySeconds) {
         checkNotNull(executor);
         this.zkOperationTimeoutSeconds = zkOperationTimeoutSeconds;
         this.executor = executor;
@@ -99,17 +106,17 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.dataCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.childrenCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.existsCache = Caffeine.newBuilder()
                 .recordStats()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-data", dataCache);
@@ -232,7 +239,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
 
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            zk.exists(path, watcher, (StatCallback) (rc, path1, ctx, stat) -> {
+            zk.exists(path, watcher, (rc, path1, ctx, stat) -> {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
@@ -422,7 +429,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     return;
                 }
 
-                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                zk.getChildren(path, watcher, (rc, path1, ctx, children) -> {
                     if (rc == Code.OK.intValue()) {
                         future.complete(Sets.newTreeSet(children));
                     } else if (rc == Code.NONODE.intValue()) {
@@ -458,7 +465,12 @@ public abstract class ZooKeeperCache implements Watcher {
 
     @SuppressWarnings("unchecked")
     public <T> T getDataIfPresent(String path) {
-        return (T) dataCache.getIfPresent(path);
+        CompletableFuture<Map.Entry<Object, Stat>> f = dataCache.getIfPresent(path);
+        if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
+            return (T) f.join().getKey();
+        } else {
+            return null;
+        }
     }
 
     public Set<String> getChildrenIfPresent(String path) {

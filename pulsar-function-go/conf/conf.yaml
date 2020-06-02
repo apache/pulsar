@@ -55,3 +55,4 @@ disk: 0
 # retryDetails config
 maxMessageRetries: 0
 deadLetterTopic: ""
+expectedHealthCheckInterval: 3

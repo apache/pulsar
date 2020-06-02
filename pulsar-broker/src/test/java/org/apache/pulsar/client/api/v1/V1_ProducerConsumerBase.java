@@ -38,7 +38,7 @@ public abstract class V1_ProducerConsumerBase extends MockedPulsarServiceBaseTes
     }
 
     public void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");

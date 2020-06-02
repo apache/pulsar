@@ -64,8 +64,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
@@ -129,7 +129,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     PulsarClient buildClient(String user) throws Exception {
         return PulsarClient.builder()
-            .serviceUrl("pulsar+ssl://localhost:" + BROKER_PORT_TLS)
+            .serviceUrl(pulsar.getBrokerServiceUrlTls())
             .enableTlsHostnameVerification(false)
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",

@@ -222,6 +222,14 @@ It shows current statistics of a given non-partitioned topic.
           -   **type**: This subscription type
 
           -   **msgRateExpired**: The rate at which messages were discarded instead of dispatched from this subscription due to TTL
+          
+          -   **lastExpireTimestamp**: The last message expire execution timestamp
+          
+          -   **lastConsumedFlowTimestamp**: The last flow command received timestamp 
+          
+          -   **lastConsumedTimestamp**: The latest timestamp of all the consumed timestamp of the consumers
+          
+          -   **lastAckedTimestamp**: The latest timestamp of all the acked timestamp of the consumers
 
           -   **consumers**: The list of connected consumers for this subscription
 
@@ -236,6 +244,10 @@ It shows current statistics of a given non-partitioned topic.
                 -   **unackedMessages**: Number of unacknowledged messages for the consumer
 
                 -   **blockedConsumerOnUnackedMsgs**: Flag to verify if the consumer is blocked due to reaching threshold of unacked messages
+                
+                -   **lastConsumedTimestamp**: The timestamp of the consumer last consume a message
+          
+                -   **lastAckedTimestamp**: The timestamp of the consumer last ack a message
 
   -   **replication**: This section gives the stats for cross-colo replication of this topic
 
@@ -460,6 +472,30 @@ String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.persistentTopics().peekMessages(topic, subName, numMessages);
+```
+
+### Get message by ID
+
+It fetches the message with given ledger id and entry id.
+
+#### pulsar-admin
+
+```shell
+$ ./bin/pulsar-admin topics get-message-by-id \
+  persistent://public/default/my-topic \
+  -l 10 -e 0
+```
+
+#### REST API
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
+
+#### Java
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+long ledgerId = 10;
+long entryId = 10;
+admin.persistentTopics().getMessageById(topic, ledgerId, entryId);
 ```
 
 ### Skip messages

@@ -312,8 +312,6 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.48.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.7.3.jar
  * Jackson
-     - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
-     - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
      - com.fasterxml.jackson.core-jackson-annotations-2.10.1.jar
      - com.fasterxml.jackson.core-jackson-core-2.10.1.jar
      - com.fasterxml.jackson.core-jackson-databind-2.10.1.jar
@@ -328,7 +326,7 @@ The Apache Software License, Version 2.0
  * Guava
     - com.google.guava-guava-25.1-jre.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
- * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.4.jar
  * Swagger
     - io.swagger-swagger-annotations-1.5.21.jar
     - io.swagger-swagger-core-1.5.21.jar
@@ -348,22 +346,24 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.19.jar
     - org.apache.commons-commons-lang3-3.4.jar
  * Netty
-    - io.netty-netty-buffer-4.1.43.Final.jar
-    - io.netty-netty-codec-4.1.43.Final.jar
-    - io.netty-netty-codec-dns-4.1.43.Final.jar
-    - io.netty-netty-codec-http-4.1.43.Final.jar
-    - io.netty-netty-codec-http2-4.1.43.Final.jar
-    - io.netty-netty-codec-socks-4.1.43.Final.jar
-    - io.netty-netty-common-4.1.43.Final.jar
-    - io.netty-netty-handler-4.1.43.Final.jar
-    - io.netty-netty-handler-proxy-4.1.43.Final.jar
-    - io.netty-netty-resolver-4.1.43.Final.jar
-    - io.netty-netty-resolver-dns-4.1.43.Final.jar
-    - io.netty-netty-transport-4.1.43.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.43.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.43.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.26.Final.jar
+    - io.netty-netty-buffer-4.1.48.Final.jar
+    - io.netty-netty-codec-4.1.48.Final.jar
+    - io.netty-netty-codec-dns-4.1.48.Final.jar
+    - io.netty-netty-codec-http-4.1.48.Final.jar
+    - io.netty-netty-codec-http2-4.1.48.Final.jar
+    - io.netty-netty-codec-socks-4.1.48.Final.jar
+    - io.netty-netty-common-4.1.48.Final.jar
+    - io.netty-netty-handler-4.1.48.Final.jar
+    - io.netty-netty-handler-proxy-4.1.48.Final.jar
+    - io.netty-netty-resolver-4.1.48.Final.jar
+    - io.netty-netty-resolver-dns-4.1.48.Final.jar
+    - io.netty-netty-transport-4.1.48.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.48.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.48.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.30.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -371,6 +371,7 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_servlet-0.5.0.jar
     - io.prometheus-simpleclient_log4j2-0.5.0.jar
     - io.prometheus-simpleclient_jetty-0.5.0.jar
+    - io.prometheus.jmx-collector-0.12.0.jar
     - io.prometheus-simpleclient_caffeine-0.5.0.jar
  * Bean Validation API -- javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
@@ -409,8 +410,8 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.10.0.jar
  * LZ4 -- org.lz4-lz4-java-1.5.0.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.7.0.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.7.0.jar
+    - org.asynchttpclient-async-http-client-2.12.1.jar
+    - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
     - org.eclipse.jetty-jetty-client-9.4.20.v20190813.jar
     - org.eclipse.jetty-jetty-continuation-9.4.20.v20190813.jar
@@ -453,13 +454,11 @@ The Apache Software License, Version 2.0
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar
-  * Paranamer
-    - com.thoughtworks.paranamer-paranamer-2.7.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
-    - org.apache.avro-avro-1.8.2.jar
-    - org.apache.avro-avro-protobuf-1.8.2.jar
+    - org.apache.avro-avro-1.9.1.jar
+    - org.apache.avro-avro-protobuf-1.9.1.jar
   * Apache Curator
     - org.apache.curator-curator-client-4.0.1.jar
     - org.apache.curator-curator-framework-4.0.1.jar
@@ -487,9 +486,9 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.5.0.jar
   * Java JSON WebTokens
-    - io.jsonwebtoken-jjwt-api-0.10.5.jar
-    - io.jsonwebtoken-jjwt-impl-0.10.5.jar
-    - io.jsonwebtoken-jjwt-jackson-0.10.5.jar
+    - io.jsonwebtoken-jjwt-api-0.11.1.jar
+    - io.jsonwebtoken-jjwt-impl-0.11.1.jar
+    - io.jsonwebtoken-jjwt-jackson-0.11.1.jar
   * JavaX Injection
     - javax.inject-javax.inject-1.jar
   * JCTools - Java Concurrency Tools for the JVM
@@ -499,7 +498,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.4.1.jar
     - io.vertx-vertx-web-3.4.1.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-jute-3.5.6.jar
+    - org.apache.zookeeper-zookeeper-jute-3.5.7.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
@@ -567,18 +566,8 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
     - org.aspectj-aspectjrt-1.9.2.jar
     - org.aspectj-aspectjweaver-1.9.2.jar
 
-Public Domain
- * XZ for Java -- licenses/LICENSE-xz.txt
-    - org.tukaani-xz-1.5.jar
-
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
- * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.2.jar
-
-Bouncy Castle License
- * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk15on-1.60.jar
-    - org.bouncycastle-bcprov-jdk15on-1.60.jar
-    - org.bouncycastle-bcprov-ext-jdk15on-1.60.jar
+ * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.3.jar
 
 Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt

@@ -18,7 +18,8 @@
 //
 
 //
-// This file borrows some of the implementations from {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/function_test.go}
+// This file borrows some of the implementations from
+// {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/function_test.go}
 //  - TestInvalidFunctions
 //
 
@@ -33,6 +34,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// nolint
 func TestInvalidFunctions(t *testing.T) {
 
 	testCases := []struct {
@@ -107,7 +109,7 @@ type expected struct {
 }
 
 var (
-	input       = []byte{102, 117, 110, 99, 116, 105, 111, 110}
+	input = []byte{102, 117, 110, 99, 116, 105, 111, 110}
 )
 
 func TestInvokes(t *testing.T) {

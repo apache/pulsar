@@ -179,7 +179,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         super.init();
 
-        lookupUrl = new URI("http://" + "localhost" + ":" + BROKER_WEBSERVICE_PORT);
+        lookupUrl = new URI(pulsar.getWebServiceAddress());
 
         pulsarClient = PulsarClient.builder()
             .serviceUrl(lookupUrl.toString())

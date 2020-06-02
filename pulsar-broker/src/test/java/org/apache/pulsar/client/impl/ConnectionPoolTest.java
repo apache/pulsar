@@ -43,7 +43,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
+        serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
     }
 
     @AfterClass
@@ -74,7 +74,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDoubleIpAddress() throws Exception {
-        String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
+        String serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
 
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));

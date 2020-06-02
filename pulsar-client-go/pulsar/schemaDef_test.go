@@ -51,7 +51,7 @@ func TestSchemaDef(t *testing.T) {
 	_, err = initAvroCodec(errSchemaDef4)
 	assert.NotNil(t, err)
 
-	errSchemaDef5 := "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"operation.createJsonConsumer$\"," +
+	errSchemaDef5 := "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"operation.createJsonConsumer\"," +
 		"\"fields\":[{\"name\":\"ID\",\"type\":\"byte\"},{\"name\":\"Name\",\"type\":\":[\"null\",\"string\"],\"default\":null\"}]}"
 	_, err = initAvroCodec(errSchemaDef5)
 	assert.NotNil(t, err)

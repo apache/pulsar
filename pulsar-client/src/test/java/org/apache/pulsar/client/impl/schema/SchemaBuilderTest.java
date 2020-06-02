@@ -22,8 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.*;
@@ -60,8 +58,6 @@ public class SchemaBuilderTest {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class People {
         private People1 people1;
         private People2 people2;
@@ -85,7 +81,7 @@ public class SchemaBuilderTest {
     @Test
     public void testAllOptionalFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllOptionalFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllOptionalFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32).optional();
         recordSchemaBuilder.field("longField")
@@ -118,7 +114,7 @@ public class SchemaBuilderTest {
     @Test
     public void testAllPrimitiveFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")
@@ -149,7 +145,7 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")
@@ -188,7 +184,7 @@ public class SchemaBuilderTest {
     @Test
     public void testGenericRecordBuilderByIndex() {
         RecordSchemaBuilder recordSchemaBuilder =
-            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest$.AllPrimitiveFields");
+            SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
         recordSchemaBuilder.field("intField")
             .type(SchemaType.INT32);
         recordSchemaBuilder.field("longField")

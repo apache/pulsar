@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -79,6 +80,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
+
+    @JsonIgnore
+    private MessageCrypto messageCrypto = null;
 
     @JsonIgnore
     private Set<String> encryptionKeys = new TreeSet<>();

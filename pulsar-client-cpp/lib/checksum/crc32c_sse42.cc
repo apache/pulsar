@@ -15,13 +15,19 @@
  ******************************************************************************/
 #include "crc32c_sse42.h"
 
+#include <boost/predef.h>
+
 #include <assert.h>
+#include <stdlib.h>
+
+#if BOOST_ARCH_X86_64
 #include <nmmintrin.h>  // SSE4.2
 #include <wmmintrin.h>  // PCLMUL
+#endif
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#else
+#elif BOOST_ARCH_X86_64
 #include <cpuid.h>
 #endif
 
@@ -55,12 +61,15 @@ bool crc32c_initialize() {
         __cpuid(CPUInfo, 1);
         has_sse42 = (CPUInfo[2] & cpuid_ecx_sse42) != 0;
         has_pclmulqdq = (CPUInfo[2] & cpuid_ecx_pclmulqdq) != 0;
-#else
+#elif BOOST_ARCH_X86_64
         unsigned int eax, ebx, ecx, edx;
         if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
             has_sse42 = (ecx & cpuid_ecx_sse42) != 0;
             has_pclmulqdq = (ecx & cpuid_ecx_pclmulqdq) != 0;
         }
+#else
+        has_sse42 = false;
+        has_pclmulqdq = false;
 #endif
         DEBUG_PRINTF1("has_sse42 = %d\n", has_sse42);
         DEBUG_PRINTF1("has_pclmulqdq = %d\n", has_pclmulqdq);
@@ -87,6 +96,8 @@ void chunk_config::make_shift_table(size_t bytes, uint32_t table[256]) {
     pow(m, op, bytes * 8);
     for (unsigned int i = 0; i < 256; ++i) table[i] = (const bitvector<32>)mul(m, bitvector<32>(i));
 }
+
+#if BOOST_ARCH_X86_64
 
 static uint32_t crc32c_chunk(uint32_t crc, const void *buf, const chunk_config &config) {
     DEBUG_PRINTF3("  crc32c_chunk(crc = 0x%08x, buf = %p, config.words = " SIZE_T_FORMAT ")", crc, buf,
@@ -228,3 +239,12 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
     DEBUG_PRINTF1("crc = 0x%08x\n", crc);
     return crc;
 }
+
+#else  // ! BOOST_ARCH_X86_64
+
+uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *config) {
+    // SSE 4.2 extension for hw implementation are not present
+    abort();
+}
+
+#endif

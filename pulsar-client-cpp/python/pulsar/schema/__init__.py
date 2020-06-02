@@ -17,8 +17,7 @@
 # under the License.
 #
 
+from .definition import Record, Field, Null, Boolean, Integer, Long, \
+            Float, Double, Bytes, String, Array, Map
 
-from .definition import *
-from .schema import *
-
-
+from .schema import Schema, BytesSchema, StringSchema, JsonSchema, AvroSchema

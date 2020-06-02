@@ -186,6 +186,7 @@ public class DispatchRateLimiter {
         return true;
     }
 
+    @SuppressWarnings("deprecation")
     public void onPoliciesUpdate(Policies data) {
         String cluster = brokerService.pulsar().getConfiguration().getClusterName();
 
@@ -194,6 +195,9 @@ public class DispatchRateLimiter {
         switch (type) {
             case TOPIC:
                 dispatchRate = data.topicDispatchRate.get(cluster);
+                if (dispatchRate == null) {
+                    dispatchRate = data.clusterDispatchRate.get(cluster);
+                }
                 break;
             case SUBSCRIPTION:
                 dispatchRate = data.subscriptionDispatchRate.get(cluster);
@@ -219,6 +223,7 @@ public class DispatchRateLimiter {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public static DispatchRate getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
@@ -226,6 +231,9 @@ public class DispatchRateLimiter {
             switch (type) {
                 case TOPIC:
                     dispatchRate = p.topicDispatchRate.get(cluster);
+                    if (dispatchRate == null) {
+                        dispatchRate = p.clusterDispatchRate.get(cluster);
+                    }
                     break;
                 case SUBSCRIPTION:
                     dispatchRate = p.subscriptionDispatchRate.get(cluster);

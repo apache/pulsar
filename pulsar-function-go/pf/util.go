@@ -23,11 +23,11 @@ import (
 	"fmt"
 )
 
-func getProperties(fullyQualifiedName string, instanceId int) map[string]string {
+func getProperties(fullyQualifiedName string, instanceID int) map[string]string {
 	propertiesMap := make(map[string]string)
 	propertiesMap["application"] = "pulsar-function"
 	propertiesMap["id"] = fullyQualifiedName
-	propertiesMap["instance_id"] = fmt.Sprintf("%d", instanceId)
+	propertiesMap["instance_id"] = fmt.Sprintf("%d", instanceID)
 
 	return propertiesMap
 }
@@ -36,6 +36,6 @@ func getDefaultSubscriptionName(tenant, namespace, name string) string {
 	return fmt.Sprintf("%s/%s/%s", tenant, namespace, name)
 }
 
-func getFullyQualifiedInstanceId(tenant, namespace, name string, instanceID int) string {
+func getFullyQualifiedInstanceID(tenant, namespace, name string, instanceID int) string {
 	return fmt.Sprintf("%s/%s/%s:%d", tenant, namespace, name, instanceID)
 }

@@ -32,6 +32,7 @@ public class GoInstanceConfig {
     private int port;
     private String clusterName = "";
     private int killAfterIdleMs;
+    private int expectedHealthCheckInterval;
 
     private String tenant = "";
     private String nameSpace = "";

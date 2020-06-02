@@ -22,8 +22,10 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.Cleanup;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Producer;
@@ -32,9 +34,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -51,7 +51,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
@@ -74,29 +74,38 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testLookup() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
-                .connectionsPerBroker(5).ioThreads(5).build();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl())
+                .connectionsPerBroker(5)
+                .ioThreads(5)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
+
+        @Cleanup
         Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                 .create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         try {
+            @Cleanup
             Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
             Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
         } catch (Exception ex) {
             // Ignore
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
+            @Cleanup
             Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
         } catch (Exception ex) {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
-        client.close();
+
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
     }
 }

@@ -74,7 +74,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/crash-broker";
@@ -168,7 +170,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // Ensure intended state for autoSkipNonRecoverableData
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
 
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/crash-broker";
@@ -269,7 +273,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     @Test(timeOut=20000)
     public void testTopicWithWildCardChar() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/topicWithSpecialChar";

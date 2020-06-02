@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -66,86 +67,98 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
-        if (entries.size() > 0) {
-            final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
-            for (Entry entry : entries) {
-                int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
-                groupedEntries.putIfAbsent(key, new ArrayList<>());
-                groupedEntries.get(key).add(entry);
-            }
-            final Iterator<Map.Entry<Integer, List<Entry>>> iterator = groupedEntries.entrySet().iterator();
-            AtomicInteger keyNumbers = new AtomicInteger(groupedEntries.size());
-            while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
-                final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
-                //TODO: None key policy
-                Consumer consumer = selector.select(entriesWithSameKey.getKey());
-                if (consumer == null) {
-                    // Do nothing, cursor will be rewind at reconnection
-                    log.info("[{}] rewind because no available consumer found for key {} from total {}", name,
-                            entriesWithSameKey.getKey(), consumerList.size());
-                    entriesWithSameKey.getValue().forEach(Entry::release);
-                    cursor.rewind();
-                    return;
-                }
-
-                int messagesForC = Math.min(entriesWithSameKey.getValue().size(), consumer.getAvailablePermits());
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
-                            name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);
-                }
-                if (messagesForC > 0) {
-                    // remove positions first from replay list first : sendMessages recycles entries
-                    List<Entry> subList = new ArrayList<>(entriesWithSameKey.getValue().subList(0, messagesForC));
-                    if (readType == ReadType.Replay) {
-                        subList.forEach(entry -> messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId()));
-                    }
-
-                    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                    EntryBatchSizes batchSizes = EntryBatchSizes.get(subList.size());
-                    filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
-
-                    consumer.sendMessages(subList, batchSizes, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), getRedeliveryTracker()).addListener(future -> {
-                                if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
-                                    readMoreEntries();
-                                }
-                    });
-                    entriesWithSameKey.getValue().removeAll(subList);
-
-                    totalAvailablePermits -= sendMessageInfo.getTotalMessages();
-                    totalMessagesSent += sendMessageInfo.getTotalMessages();
-                    totalBytesSent += sendMessageInfo.getTotalBytes();
-
-                    if (entriesWithSameKey.getValue().size() == 0) {
-                        iterator.remove();
-                    }
-                }
+        // Trigger read more messages
+        if (entries.size() == 0) {
+            readMoreEntries();
+            return;
+        }
+        final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
+        for (Entry entry : entries) {
+            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
+            groupedEntries.putIfAbsent(key, new ArrayList<>());
+            groupedEntries.get(key).add(entry);
+        }
+        final Iterator<Map.Entry<Integer, List<Entry>>> iterator = groupedEntries.entrySet().iterator();
+        AtomicInteger keyNumbers = new AtomicInteger(groupedEntries.size());
+        while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+            final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
+            //TODO: None key policy
+            Consumer consumer = selector.select(entriesWithSameKey.getKey());
+            if (consumer == null) {
+                // Do nothing, cursor will be rewind at reconnection
+                log.info("[{}] rewind because no available consumer found for key {} from total {}", name,
+                        entriesWithSameKey.getKey(), consumerList.size());
+                entriesWithSameKey.getValue().forEach(Entry::release);
+                cursor.rewind();
+                return;
             }
 
-            // acquire message-dispatch permits for already delivered messages
-            if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                if (topic.getDispatchRateLimiter().isPresent()) {
-                    topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+            int availablePermits = consumer.isWritable() ? consumer.getAvailablePermits() : 1;
+            if (log.isDebugEnabled() && !consumer.isWritable()) {
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
+                        consumer);
+            }
+            int messagesForC = Math.min(entriesWithSameKey.getValue().size(), availablePermits);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
+                        name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);
+            }
+            if (messagesForC > 0) {
+                // remove positions first from replay list first : sendMessages recycles entries
+                List<Entry> subList = new ArrayList<>(entriesWithSameKey.getValue().subList(0, messagesForC));
+                if (readType == ReadType.Replay) {
+                    subList.forEach(entry -> messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId()));
                 }
 
-                if (dispatchRateLimiter.isPresent()) {
-                    dispatchRateLimiter.get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+                SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+                EntryBatchSizes batchSizes = EntryBatchSizes.get(subList.size());
+                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+                filterEntriesForConsumer(subList, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+
+                consumer.sendMessages(subList, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), getRedeliveryTracker()).addListener(future -> {
+                            if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
+                                readMoreEntries();
+                            }
+                });
+
+                for (int i = 0; i < messagesForC; i++) {
+                    entriesWithSameKey.getValue().remove(0);
+                }
+
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                totalMessagesSent += sendMessageInfo.getTotalMessages();
+                totalBytesSent += sendMessageInfo.getTotalBytes();
+
+                if (entriesWithSameKey.getValue().size() == 0) {
+                    iterator.remove();
                 }
             }
+        }
 
-            if (groupedEntries.size() > 0) {
-                int laterReplay = 0;
-                for (List<Entry> entryList : groupedEntries.values()) {
-                    laterReplay += entryList.size();
-                    entryList.forEach(entry -> {
-                        messagesToRedeliver.add(entry.getLedgerId(), entry.getEntryId());
-                        entry.release();
-                    });
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
-                            laterReplay);
-                }
+        // acquire message-dispatch permits for already delivered messages
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+            if (topic.getDispatchRateLimiter().isPresent()) {
+                topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+            }
+
+            if (dispatchRateLimiter.isPresent()) {
+                dispatchRateLimiter.get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+            }
+        }
+
+        if (groupedEntries.size() > 0) {
+            int laterReplay = 0;
+            for (List<Entry> entryList : groupedEntries.values()) {
+                laterReplay += entryList.size();
+                entryList.forEach(entry -> {
+                    messagesToRedeliver.add(entry.getLedgerId(), entry.getEntryId());
+                    entry.release();
+                });
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
+                        laterReplay);
             }
         }
     }

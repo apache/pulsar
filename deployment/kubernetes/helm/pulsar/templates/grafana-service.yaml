@@ -17,27 +17,27 @@
 # under the License.
 #
 
-{{- if .Values.extra.monitoring }}
+{{- if or .Values.monitoring.grafana .Values.extra.monitoring }}
 apiVersion: v1
 kind: Service
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.grafana.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.grafana.component }}
-    cluster: {{ template "pulsar.fullname" . }}
   annotations:
-{{ toYaml .Values.grafana.service.annotations | indent 4 }}
+{{- with .Values.grafana.service.annotations }}
+{{ toYaml . | indent 4 }}
+{{- end }}
 spec:
+  type: {{ .Values.grafana.service.type }}
   ports:
-{{ toYaml .Values.grafana.service.ports | indent 2 }}
-  clusterIP: None
+    - name: server
+      port: {{ .Values.grafana.port }}
+      protocol: TCP
   selector:
-    app: {{ template "pulsar.name" . }}
-    release: {{ .Release.Name }}
+    {{- include "pulsar.matchLabels" . | nindent 4 }}
     component: {{ .Values.grafana.component }}
+  sessionAffinity: None
 {{- end }}

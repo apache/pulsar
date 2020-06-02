@@ -31,8 +31,17 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.client.hotspot.BufferPoolsExports;
+import io.prometheus.client.hotspot.ClassLoadingExports;
+import io.prometheus.client.hotspot.GarbageCollectorExports;
+import io.prometheus.client.hotspot.MemoryPoolsExports;
+import io.prometheus.client.hotspot.StandardExports;
+import io.prometheus.client.hotspot.ThreadExports;
+import io.prometheus.client.hotspot.VersionInfoExports;
+import io.prometheus.jmx.JmxCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -42,8 +51,9 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
+import javax.management.MalformedObjectNameException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -116,6 +126,12 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
     public String clusterName;
 
+    @Parameter(names = "--nar_extraction_directory", description = "The directory where extraction of nar packages happen", required = false)
+    public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+
+    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance", required = false)
+    public int maxPendingAsyncRequests = 1000;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -138,6 +154,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
+        instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
@@ -176,6 +193,7 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         // Collector Registry for prometheus metrics
         CollectorRegistry collectorRegistry = new CollectorRegistry();
+        registerDefaultCollectors(collectorRegistry);
 
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
@@ -184,7 +202,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, rootClassLoader);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
@@ -232,6 +250,23 @@ public class JavaInstanceStarter implements AutoCloseable {
         runtimeSpawner.join();
         log.info("RuntimeSpawner quit, shutting down JavaInstance");
         close();
+    }
+
+    private void registerDefaultCollectors(CollectorRegistry registry) {
+        // Add the JMX exporter for functionality similar to the kafka connect JMX metrics
+        try {
+            new JmxCollector("{}").register(registry);
+        } catch (MalformedObjectNameException ex) {
+            System.err.println(ex);
+        }
+        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
+        new StandardExports().register(registry);
+        new MemoryPoolsExports().register(registry);
+        new BufferPoolsExports().register(registry);
+        new GarbageCollectorExports().register(registry);
+        new ThreadExports().register(registry);
+        new ClassLoadingExports().register(registry);
+        new VersionInfoExports().register(registry);
     }
 
     private static boolean isTrue(String param) {

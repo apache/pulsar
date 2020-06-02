@@ -20,13 +20,15 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -38,9 +40,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-
 public class ZkBookieRackAffinityMappingTest {
 
     private BookieSocketAddress BOOKIE1 = null;
@@ -49,14 +48,13 @@ public class ZkBookieRackAffinityMappingTest {
     private ZookeeperServerTest localZkS;
     private ZooKeeper localZkc;
 
-    private final int LOCAL_ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     @BeforeMethod
     public void setUp() throws Exception {
-        localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
+        localZkS = new ZookeeperServerTest(0);
         localZkS.start();
-        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT).build();
+        localZkc = ZooKeeperClient.newBuilder().connectString("127.0.0.1:" + localZkS.getZookeeperPort()).build();
         BOOKIE1 = new BookieSocketAddress("127.0.0.1:3181");
         BOOKIE2 = new BookieSocketAddress("127.0.0.2:3181");
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");
@@ -91,7 +89,7 @@ public class ZkBookieRackAffinityMappingTest {
         // ZkBookieRackAffinityMapping#setConf)
         ZkBookieRackAffinityMapping mapping2 = new ZkBookieRackAffinityMapping();
         ClientConfiguration bkClientConf2 = new ClientConfiguration();
-        bkClientConf2.setZkServers("127.0.0.1" + ":" + LOCAL_ZOOKEEPER_PORT);
+        bkClientConf2.setZkServers("127.0.0.1" + ":" + localZkS.getZookeeperPort());
         bkClientConf2.setZkTimeout(1000);
         mapping2.setConf(bkClientConf2);
         List<String> racks2 = mapping2

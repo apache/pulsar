@@ -21,12 +21,12 @@ package pf
 
 import (
 	"context"
+	"time"
 )
 
 type FunctionContext struct {
 	instanceConf *instanceConf
 	userConfigs  map[string]interface{}
-	inputTopics  []string
 	logAppender  *LogAppender
 }
 
@@ -43,11 +43,26 @@ func (c *FunctionContext) GetInstanceID() int {
 }
 
 func (c *FunctionContext) GetInputTopics() []string {
-	return c.inputTopics
+	inputMap := c.instanceConf.funcDetails.GetSource().InputSpecs
+	inputTopics := make([]string, len(inputMap))
+	i := 0
+	for k := range inputMap {
+		inputTopics[i] = k
+		i++
+	}
+	return inputTopics
 }
 
 func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
+}
+
+func (c *FunctionContext) GetTenantAndNamespace() string {
+	return c.GetFuncTenant() + "/" + c.GetFuncNamespace()
+}
+
+func (c *FunctionContext) GetTenantAndNamespaceAndName() string {
+	return c.GetFuncTenant() + "/" + c.GetFuncNamespace() + "/" + c.GetFuncName()
 }
 
 func (c *FunctionContext) GetFuncTenant() string {
@@ -64,6 +79,25 @@ func (c *FunctionContext) GetFuncNamespace() string {
 
 func (c *FunctionContext) GetFuncID() string {
 	return c.instanceConf.funcID
+}
+
+func (c *FunctionContext) GetPort() int {
+	return c.instanceConf.port
+}
+
+func (c *FunctionContext) GetClusterName() string {
+	return c.instanceConf.clusterName
+}
+
+func (c *FunctionContext) GetExpectedHealthCheckInterval() int32 {
+	return c.instanceConf.expectedHealthCheckInterval
+}
+func (c *FunctionContext) GetExpectedHealthCheckIntervalAsDuration() time.Duration {
+	return time.Duration(c.instanceConf.expectedHealthCheckInterval)
+}
+
+func (c *FunctionContext) GetMaxIdleTime() int64 {
+	return int64(c.GetExpectedHealthCheckIntervalAsDuration() * 3 * time.Second)
 }
 
 func (c *FunctionContext) GetFuncVersion() string {

@@ -151,6 +151,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
             response = FunctionStatus.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The function doesn't exist")
@@ -171,6 +172,7 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
             response = FunctionStatus.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
     })
@@ -241,7 +243,9 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
 
     @POST
     @ApiOperation(value = "Restart function instance", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")

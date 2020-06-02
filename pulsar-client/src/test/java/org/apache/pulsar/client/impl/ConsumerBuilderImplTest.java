@@ -237,8 +237,13 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPropertyIsNegative() {
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodInMinutesIsNegative() {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodIsNegative() {
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(-1, TimeUnit.MINUTES);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -261,6 +266,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.priorityLevel(1);
         consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(1);
         consumerBuilderImpl.patternAutoDiscoveryPeriod(1);
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS);
     }
 
 }

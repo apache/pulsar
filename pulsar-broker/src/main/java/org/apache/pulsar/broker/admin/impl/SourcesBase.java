@@ -257,6 +257,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -281,6 +282,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
@@ -321,6 +323,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @POST
     @ApiOperation(value = "Restart an instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
@@ -452,8 +455,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
 
     @GET
     @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
-            response = List.class
+            value = "Fetches the list of built-in Pulsar IO sources",
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -476,7 +480,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
 
     @POST
     @ApiOperation(
-            value = "Reload the available built-in connectors, include Source and Sink",
+            value = "Reload the built-in connectors, including Sources and Sinks",
             response = Void.class
     )
     @ApiResponses(value = {

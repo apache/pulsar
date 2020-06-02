@@ -75,7 +75,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             .with(DatabaseHistory.NAME, "my-db-history")
             .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL)
             .build();
-        history.configure(config, null, DatabaseHistoryListener.NOOP);
+        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
         history.start();
 
         // Should be able to call start more than once ...
@@ -134,7 +134,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Stop the history (which should stop the producer) ...
         history.stop();
         history = new PulsarDatabaseHistory();
-        history.configure(config, null, DatabaseHistoryListener.NOOP);
+        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
         // no need to start
 
         // Recover from the very beginning to just past the first change ...
@@ -214,7 +214,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, true)
             .build();
 
-        history.configure(config, null, DatabaseHistoryListener.NOOP);
+        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
         history.start();
 
         // dummytopic should not exist yet

@@ -339,7 +339,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT).build();
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         client1.close();
 
         try {
@@ -497,10 +497,11 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
+        String topic = "persistent://my-property/use/my-ns/my-topic-" + UUID.randomUUID().toString();
 
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic7")
+                .topic(topic)
                 .subscriptionName(subName)
                 .startMessageIdInclusive()
                 .receiverQueueSize(recvQueueSize).subscribe();
@@ -528,7 +529,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // publish 100 messages so that the consumers blocked on receive() will now get the messages
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic7")
+                .topic(topic)
                 .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(5)
                 .enableBatching(batchMessageDelayMs != 0)
@@ -716,6 +717,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
+        retryStrategically((test) -> entryCache.getSize() > 0, 10, 100);
         assertTrue(entryCache.getSize() != 0);
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache

@@ -66,6 +66,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     // Per Message related
     private Record<?> record;
 
+    private PulsarClient client;
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
 
@@ -100,6 +101,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                        Table<ByteBuf, ByteBuf> stateTable) {
         this.config = config;
         this.logger = logger;
+        this.client = client;
         this.publishProducers = new HashMap<>();
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
@@ -235,8 +237,20 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Optional<Object> getUserConfigValue(String key) {
+        Object value = userConfigs.getOrDefault(key, null);
 
-        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
+        if (value instanceof String && ((String) value).startsWith("$")) {
+            // any string starts with '$' is considered as system env symbol and will be
+            // replaced with the actual env value
+            try {
+                String actualValue = System.getenv(((String) value).substring(1));
+                return Optional.ofNullable(actualValue);
+            } catch (SecurityException ex) {
+                throw new RuntimeException("Access to environment variable " + value + " is not allowed.", ex);
+            }
+        }  else {
+            return Optional.ofNullable(value);
+        }
     }
 
     @Override
@@ -361,6 +375,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return messageBuilder;
     }
 
+    @Override
+    public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+        return this.client.newConsumer(schema);
+    }
+
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
         try {
             return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
@@ -469,7 +488,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                     .whenComplete((result, cause) -> {
                         if (null != cause) {
                             statsManager.incrSysExceptions(cause);
-                            logger.error("Failed to publish to topic with error {}", cause);
+                            logger.error("Failed to publish to topic with error", cause);
                         }
                     });
         }

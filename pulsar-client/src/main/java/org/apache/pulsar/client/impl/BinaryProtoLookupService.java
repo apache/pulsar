@@ -54,12 +54,14 @@ public class BinaryProtoLookupService implements LookupService {
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
     private final ExecutorService executor;
+    private final int maxLookupRedirects;
 
     public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
+        this.maxLookupRedirects = client.getConfiguration().getMaxLookupRedirects();
         this.serviceNameResolver = new PulsarServiceNameResolver();
         updateServiceUrl(serviceUrl);
     }
@@ -77,7 +79,7 @@ public class BinaryProtoLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return findBroker(serviceNameResolver.resolveHost(), false, topicName);
+        return findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
     }
 
     /**
@@ -89,8 +91,14 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, TopicName topicName) {
+            boolean authoritative, TopicName topicName, final int redirectCount) {
         CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
+
+        if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
+            addressFuture.completeExceptionally(
+                    new PulsarClientException.LookupException("Too many redirects: " + maxLookupRedirects));
+            return addressFuture;
+        }
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
@@ -110,13 +118,20 @@ public class BinaryProtoLookupService implements LookupService {
 
                     // (2) redirect to given address if response is: redirect
                     if (lookupDataResult.redirect) {
-                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, topicName)
+                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, topicName, redirectCount + 1)
                                 .thenAccept(addressPair -> {
                                     addressFuture.complete(addressPair);
                                 }).exceptionally((lookupException) -> {
                                     // lookup failed
-                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
-                                            lookupException.getMessage(), lookupException);
+                                    if (redirectCount > 0) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] lookup redirection failed ({}) : {}", topicName.toString(),
+                                                    redirectCount, lookupException.getMessage());
+                                        }
+                                    } else {
+                                        log.warn("[{}] lookup failed : {}", topicName.toString(),
+                                                lookupException.getMessage(), lookupException);
+                                    }
                                     addressFuture.completeExceptionally(lookupException);
                                     return null;
                                 });
@@ -213,7 +228,7 @@ public class BinaryProtoLookupService implements LookupService {
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(0, TimeUnit.MILLISECONDS)
+                .setMax(1, TimeUnit.MINUTES)
                 .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;

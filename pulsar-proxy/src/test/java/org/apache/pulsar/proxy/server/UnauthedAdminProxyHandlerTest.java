@@ -30,7 +30,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -66,8 +65,8 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         super.init();
 
         // start proxy service
-        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setBrokerWebServiceURL(brokerUrl.toString());
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
@@ -101,7 +100,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnauthenticatedProxy() throws Exception {
         PulsarAdmin admin = PulsarAdmin.builder()
-            .serviceHttpUrl("http://127.0.0.1:" + proxyConfig.getWebServicePort().get())
+            .serviceHttpUrl("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
             .build();
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
@@ -112,7 +111,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testVipStatus() throws Exception {
         Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        WebTarget webTarget = client.target("http://127.0.0.1:" + proxyConfig.getWebServicePort().get())
+        WebTarget webTarget = client.target("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
                 .path("/status.html");
         String response = webTarget.request().get(String.class);
         Assert.assertEquals(response, "OK");

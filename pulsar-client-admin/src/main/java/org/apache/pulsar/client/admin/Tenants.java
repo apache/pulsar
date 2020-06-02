@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -27,12 +28,12 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
- * Admin interface for tenants management
+ * Admin interface for tenants management.
  */
 public interface Tenants {
     /**
      * Get the list of tenants.
-     * <p>
+     * <p/>
      * Response Example:
      *
      * <pre>
@@ -48,8 +49,21 @@ public interface Tenants {
     List<String> getTenants() throws PulsarAdminException;
 
     /**
+     * Get the list of tenants asynchronously.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["my-tenant", "other-tenant", "third-tenant"]</code>
+     * </pre>
+     *
+     * @return the list of Pulsar tenants
+     */
+    CompletableFuture<List<String>> getTenantsAsync();
+
+    /**
      * Get the config of the tenant.
-     * <p>
+     * <p/>
      * Get the admin configuration for a given tenant.
      *
      * @param tenant
@@ -66,8 +80,19 @@ public interface Tenants {
     TenantInfo getTenantInfo(String tenant) throws PulsarAdminException;
 
     /**
+     * Get the config of the tenant asynchronously.
+     * <p/>
+     * Get the admin configuration for a given tenant.
+     *
+     * @param tenant
+     *            Tenant name
+     * @return the tenant configuration
+     */
+    CompletableFuture<TenantInfo> getTenantInfoAsync(String tenant);
+
+    /**
      * Create a new tenant.
-     * <p>
+     * <p/>
      * Provisions a new tenant. This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -87,8 +112,20 @@ public interface Tenants {
     void createTenant(String tenant, TenantInfo config) throws PulsarAdminException;
 
     /**
+     * Create a new tenant asynchronously.
+     * <p/>
+     * Provisions a new tenant. This operation requires Pulsar super-user privileges.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param config
+     *            Config data
+     */
+    CompletableFuture<Void> createTenantAsync(String tenant, TenantInfo config);
+
+    /**
      * Update the admins for a tenant.
-     * <p>
+     * <p/>
      * This operation requires Pulsar super-user privileges.
      *
      * @param tenant
@@ -106,8 +143,20 @@ public interface Tenants {
     void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException;
 
     /**
+     * Update the admins for a tenant asynchronously.
+     * <p/>
+     * This operation requires Pulsar super-user privileges.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param config
+     *            Config data
+     */
+    CompletableFuture<Void> updateTenantAsync(String tenant, TenantInfo config);
+
+    /**
      * Delete an existing tenant.
-     * <p>
+     * <p/>
      * Delete a tenant and all namespaces and topics under it.
      *
      * @param tenant
@@ -123,4 +172,14 @@ public interface Tenants {
      *             Unexpected error
      */
     void deleteTenant(String tenant) throws PulsarAdminException;
+
+    /**
+     * Delete an existing tenant asynchronously.
+     * <p/>
+     * Delete a tenant and all namespaces and topics under it.
+     *
+     * @param tenant
+     *            Tenant name
+     */
+    CompletableFuture<Void> deleteTenantAsync(String tenant);
 }

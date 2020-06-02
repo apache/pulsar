@@ -10,7 +10,7 @@ This chapter introduces Pulsar schemas and explains why they are important.
 
 Type safety is extremely important in any application built around a message bus like Pulsar. 
 
-Producers and consumers need some kind of mechanism for coordinating types at the topic level to aviod various potential problems arise. For example, serialization and deserialization issues. 
+Producers and consumers need some kind of mechanism for coordinating types at the topic level to avoid various potential problems arise. For example, serialization and deserialization issues. 
 
 Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
 
@@ -82,7 +82,7 @@ Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
 User user = new User(“Tom”, 28);
-producer.send(User);
+producer.send(user);
 ```
 
 ### Summary

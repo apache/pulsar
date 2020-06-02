@@ -50,6 +50,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         sourceConfig.put("mongodb.task.id","1");
         sourceConfig.put("database.whitelist", "inventory");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("topic.namespace", "debezium/mongodb");
     }
 
     @Override
@@ -63,6 +64,43 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     public void prepareSource() throws Exception {
         this.debeziumMongoDbContainer.execCmd( "bash", "-c", "/usr/local/bin/init-inventory.sh");
         log.info("debezium mongodb server already contains preconfigured data.");
+    }
+
+    @Override
+    public void prepareInsertEvent() throws Exception {
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.find()'");
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.insert({ " +
+                        "_id : NumberLong(\"110\")," +
+                        "name : \"test-debezium\"," +
+                        "description: \"24 inch spare tire\"," +
+                        "weight : 22.2," +
+                        "quantity : NumberInt(\"5\")})'");
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.find()'");
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.deleteOne({name : \"test-debezium-update\"})'");
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.find()'");
+        this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                        "--eval 'db.products.update({" +
+                        "_id : 110}," +
+                        "{$set:{name:\"test-debezium-update\", description: \"this is update description\"}})'");
     }
 
     @Override

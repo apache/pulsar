@@ -18,15 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import io.netty.channel.ConnectTimeoutException;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.http.conn.ConnectionPoolTimeoutException;
+import io.netty.channel.ConnectTimeoutException;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -40,8 +36,10 @@ public class ConnectionTimeoutTest {
         long startNanos = System.nanoTime();
 
         try (PulsarClient clientLow = PulsarClient.builder().serviceUrl(blackholeBroker)
-                .connectionTimeout(1, TimeUnit.MILLISECONDS).build();
-             PulsarClient clientDefault = PulsarClient.builder().serviceUrl(blackholeBroker).build()) {
+                .connectionTimeout(1, TimeUnit.MILLISECONDS)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+             PulsarClient clientDefault = PulsarClient.builder().serviceUrl(blackholeBroker)
+                 .operationTimeout(1000, TimeUnit.MILLISECONDS).build()) {
             CompletableFuture<?> lowFuture = clientLow.newProducer().topic("foo").createAsync();
             CompletableFuture<?> defaultFuture = clientDefault.newProducer().topic("foo").createAsync();
 

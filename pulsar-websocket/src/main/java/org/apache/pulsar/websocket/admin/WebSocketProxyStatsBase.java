@@ -27,6 +27,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;

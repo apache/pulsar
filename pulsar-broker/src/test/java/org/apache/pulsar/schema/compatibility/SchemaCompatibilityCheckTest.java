@@ -35,6 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.schema.Schemas;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -46,7 +47,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 
 @Slf4j
@@ -59,7 +59,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData(pulsar.getBrokerServiceUrl()));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Collections.singleton(CLUSTER_NAME));
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
@@ -141,7 +141,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
 
             Schemas.PersonOne personOne = new Schemas.PersonOne();
-            personOne.id = 1;
+            personOne.setId(1);
 
             producerOne.send(personOne);
             Message<Schemas.PersonThree> message = null;
@@ -162,16 +162,16 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                     .create();
 
             Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
-            personTwo.id = 1;
-            personTwo.name = "Jerry";
+            personTwo.setId(1);
+            personTwo.setName("Jerry");
             producerTwo.send(personTwo);
 
             message = consumerThree.receive();
             Schemas.PersonThree personThree = message.getValue();
             consumerThree.acknowledge(message);
 
-            assertEquals(personThree.id, 1);
-            assertEquals(personThree.name, "Jerry");
+            assertEquals(personThree.getId(), 1);
+            assertEquals(personThree.getName(), "Jerry");
 
             consumerThree.close();
             producerOne.close();
@@ -270,8 +270,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Schemas.PersonTwo personTwo = message.getValue();
         consumerTwo.acknowledge(message);
 
-        assertEquals(personTwo.id, 2);
-        assertEquals(personTwo.name, "Lucy");
+        assertEquals(personTwo.getId(), 2);
+        assertEquals(personTwo.getName(), "Lucy");
 
         producer.close();
         consumerTwo.close();
@@ -287,8 +287,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         personTwo = message.getValue();
         consumerTwo.acknowledge(message);
 
-        assertEquals(personTwo.id, 2);
-        assertEquals(personTwo.name, "Lucy");
+        assertEquals(personTwo.getId(), 2);
+        assertEquals(personTwo.getName(), "Lucy");
 
         consumerTwo.close();
         producer.close();
@@ -338,7 +338,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Message<Schemas.PersonOne> message = consumerOne.receive();
         personOne = message.getValue();
 
-        assertEquals(10, personOne.id);
+        assertEquals(10, personOne.getId());
 
         consumerOne.close();
         producerOne.close();
